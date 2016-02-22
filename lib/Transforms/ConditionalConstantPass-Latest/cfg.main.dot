@@ -1,0 +1,26 @@
+digraph "CFG for 'main' function" {
+	label="CFG for 'main' function";
+
+	Node0xb60e270 [shape=record,label="{entry:\l  br label %do.body\l}"];
+	Node0xb60e270 -> Node0xb6062f0;
+	Node0xb6062f0 [shape=record,label="{do.body:                                          \l  %c.0 = phi i32 [ 10, %entry ], [ %sub, %do.cond ]\l  %b.0 = phi i32 [ 10, %entry ], [ %sub5, %do.cond ]\l  %a.0 = phi i32 [ 9, %entry ], [ %add, %do.cond ]\l  %cmp = icmp slt i32 %b.0, 5\l  br i1 %cmp, label %if.then, label %if.else\l|{<s0>T|<s1>F}}"];
+	Node0xb6062f0:s0 -> Node0xb605a30;
+	Node0xb6062f0:s1 -> Node0xb605a90;
+	Node0xb605a30 [shape=record,label="{if.then:                                          \l  br label %if.end4\l}"];
+	Node0xb605a30 -> Node0xb605b50;
+	Node0xb605a90 [shape=record,label="{if.else:                                          \l  %cmp1 = icmp eq i32 %c.0, 5\l  br i1 %cmp1, label %if.then2, label %if.else3\l|{<s0>T|<s1>F}}"];
+	Node0xb605a90:s0 -> Node0xb605c58;
+	Node0xb605a90:s1 -> Node0xb605cc8;
+	Node0xb605c58 [shape=record,label="{if.then2:                                         \l  br label %if.end\l}"];
+	Node0xb605c58 -> Node0xb605e08;
+	Node0xb605cc8 [shape=record,label="{if.else3:                                         \l  br label %if.end\l}"];
+	Node0xb605cc8 -> Node0xb605e08;
+	Node0xb605e08 [shape=record,label="{if.end:                                           \l  %e.0 = phi i32 [ 15, %if.then2 ], [ 20, %if.else3 ]\l  br label %if.end4\l}"];
+	Node0xb605e08 -> Node0xb605b50;
+	Node0xb605b50 [shape=record,label="{if.end4:                                          \l  %e.1 = phi i32 [ 25, %if.then ], [ %e.0, %if.end ]\l  %sub = sub nsw i32 %c.0, 5\l  %sub5 = sub nsw i32 %b.0, 10\l  %add = add nsw i32 %a.0, 1\l  br label %do.cond\l}"];
+	Node0xb605b50 -> Node0xb606398;
+	Node0xb606398 [shape=record,label="{do.cond:                                          \l  %cmp6 = icmp slt i32 %add, 10\l  br i1 %cmp6, label %do.body, label %do.end\l|{<s0>T|<s1>F}}"];
+	Node0xb606398:s0 -> Node0xb6062f0;
+	Node0xb606398:s1 -> Node0xb60f358;
+	Node0xb60f358 [shape=record,label="{do.end:                                           \l  %add7 = add nsw i32 %e.1, %sub\l  ret i32 %add7\l}"];
+}

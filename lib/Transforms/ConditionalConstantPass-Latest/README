@@ -1,0 +1,11 @@
+SCCP Pass:
+1. Copy the parent folder to llvm/lib/Transforms folder.
+2. Build with make command in the current folder.
+
+
+SCCP can be invoked with the following commands:
+1. Get non optimized ssa form using 
+	 opt -mem2reg -disable-opt <inputfile>  -S -o <outputfile>
+2.Run the following command from the current folder.
+	opt --load ../../../Debug+Asserts/lib/libConditionalConstantPass.so -ConditionalConstantPass -p< inputfilename
+

@@ -1,0 +1,16 @@
+digraph "CFG for 'main' function" {
+	label="CFG for 'main' function";
+
+	Node0xbc0c198 [shape=record,label="{entry:\l  br label %while.body\l}"];
+	Node0xbc0c198 -> Node0xbc0c1c8;
+	Node0xbc0c1c8 [shape=record,label="{while.body:                                       \l  %c.0 = phi i32 [ 10, %entry ], [ %c.1, %if.end ]\l  %cmp = icmp sgt i32 %c.0, 100\l  br i1 %cmp, label %if.then, label %if.else\l|{<s0>T|<s1>F}}"];
+	Node0xbc0c1c8:s0 -> Node0xbc145f8;
+	Node0xbc0c1c8:s1 -> Node0xbc14678;
+	Node0xbc145f8 [shape=record,label="{if.then:                                          \l  %mul = mul nsw i32 %c.0, 3\l  br label %if.end\l}"];
+	Node0xbc145f8 -> Node0xbc0a9d0;
+	Node0xbc14678 [shape=record,label="{if.else:                                          \l  br label %if.end\l}"];
+	Node0xbc14678 -> Node0xbc0a9d0;
+	Node0xbc0a9d0 [shape=record,label="{if.end:                                           \l  %c.1 = phi i32 [ %mul, %if.then ], [ 30, %if.else ]\l  br label %while.body\l}"];
+	Node0xbc0a9d0 -> Node0xbc0c1c8;
+	Node0xbc14930 [shape=record,label="{return:                                           \l  ret i32 0\l}"];
+}

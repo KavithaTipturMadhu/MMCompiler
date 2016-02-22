@@ -1,0 +1,17 @@
+digraph "CFG for 'main' function" {
+	label="CFG for 'main' function";
+
+	Node0xba20858 [shape=record,label="{entry:\l  br label %while.cond\l}"];
+	Node0xba20858 -> Node0xba20958;
+	Node0xba20958 [shape=record,label="{while.cond:                                       \l  %a.0 = phi i32 [ 10, %entry ], [ %a.1, %if.end ]\l  %c.0 = phi i32 [ undef, %entry ], [ %a.1, %if.end ]\l  %cmp = icmp sgt i32 %c.0, 0\l  br i1 %cmp, label %while.body, label %while.end\l|{<s0>T|<s1>F}}"];
+	Node0xba20958:s0 -> Node0xba2a8f0;
+	Node0xba20958:s1 -> Node0xba2a988;
+	Node0xba2a8f0 [shape=record,label="{while.body:                                       \l  %cmp1 = icmp eq i32 20, 20\l  br i1 %cmp1, label %if.then, label %if.end\l|{<s0>T|<s1>F}}"];
+	Node0xba2a8f0:s0 -> Node0xba2aaf8;
+	Node0xba2a8f0:s1 -> Node0xba2a120;
+	Node0xba2aaf8 [shape=record,label="{if.then:                                          \l  br label %if.end\l}"];
+	Node0xba2aaf8 -> Node0xba2a120;
+	Node0xba2a120 [shape=record,label="{if.end:                                           \l  %a.1 = phi i32 [ 10, %if.then ], [ %a.0, %while.body ]\l  br label %while.cond\l}"];
+	Node0xba2a120 -> Node0xba20958;
+	Node0xba2a988 [shape=record,label="{while.end:                                        \l  ret i32 1\l}"];
+}

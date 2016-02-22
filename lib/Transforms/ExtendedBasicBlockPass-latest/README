@@ -1,0 +1,24 @@
+Author : Kavitha
+
+This folder contains basic block optimization pass for LLVM IR
+the following optimizations are implemented:
+1. Constant propogation
+2. Constant folding
+3. Dead code elimination
+4. Redundant expression elimination
+5. Common subexpression elimination
+
+To run this, 
+1. Copy the parent folder to llvm/lib/Transforms folder.
+2. Build with make command in the current folder.
+3. run the following command from the current folder.
+	opt --load ../../../Debug+Asserts/lib/libDemoBasicBlockPass.so -demoBasicBlockPass < inputfilename
+
+Input file : LLVM IR file in non SSA form
+Output : optimized LLVM code
+
+Sample llvm files are available in SampleLLVMFiles folder. 
+Optimizer step when run prints out the optimized llvm IR also. This can be verified.
+
+
+
