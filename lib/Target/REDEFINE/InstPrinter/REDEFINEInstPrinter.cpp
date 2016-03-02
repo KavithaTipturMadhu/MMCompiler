@@ -95,10 +95,23 @@ void REDEFINEInstPrinter::printRegName(raw_ostream &O, unsigned RegNo) const {
 }
 
 void REDEFINEInstPrinter::printMemOperand(const MCInst *MI, int opNum, raw_ostream &OS) {
-	printOperand(MI, opNum + 1, OS);
-	OS << "(";
-	OS << getRegisterName(MI->getOperand(opNum).getReg());
-	OS << ")";
+	//TODO terrible terrible TERRIBLE hack; Bad bad Kavitha
+	static bool firstOperand=true;
+	//First operand
+	if(firstOperand){
+		firstOperand = false;
+		OS << getRegisterName(MI->getOperand(opNum).getReg());
+	}else {
+		//Assuming there are only 2 operands
+		printOperand(MI, opNum + 1, OS);
+		//I know, lame right?
+		firstOperand = true;
+	}
+//	//TODO Head revision:
+//	printOperand(MI, opNum + 1, OS);
+//	OS << "(";
+//	OS << getRegisterName(MI->getOperand(opNum).getReg());
+//	OS << ")";
 }
 
 void REDEFINEInstPrinter::printBranchTarget(const MCInst *MI, int opNum, raw_ostream &OS) {

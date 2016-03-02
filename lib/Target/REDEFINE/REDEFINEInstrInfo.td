@@ -27,8 +27,8 @@ let mayLoad = 1 in {
 
 let mayStore = 1 in {
 // SW is of the format <sw rs1, rs2, imm> translating to imm(rs1)<-rs1
-  def SW : InstStore<"sw" , 0b0100011, 0b010, store, GR32, mem>;
-  def FSW : InstStore <"fsw" , 0b0100111, 0b010, store, FP32, mem>; 
+  def SW : InstStore<"sw" , 0b0100011, 0b010, store, GR32>;
+  def FSW : InstStore <"fsw" , 0b0100111, 0b010, store, FP32>; 
 }
 
 

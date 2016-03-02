@@ -143,7 +143,7 @@ class InstLoad<string mnemonic, bits<7> op, bits<3> funct3,
             RegisterOperand cls1,
             Operand memOp>
   : InstREDEFINE<4, (outs cls1:$dst), (ins memOp:$addr), 
-                mnemonic#"\t$dst, $addr", 
+                mnemonic#"\t$dst, $addr, $addr", 
                 [(set cls1:$dst, (opNode addr:$addr))]> {
   field bits<32> Inst;
 
@@ -161,11 +161,10 @@ class InstLoad<string mnemonic, bits<7> op, bits<3> funct3,
 
 class InstStore<string mnemonic, bits<7> op, bits<3> funct3,
                 SDPatternOperator opNode,
-                RegisterOperand cls1,
-                Operand memOp>
-  : InstREDEFINE<4, (outs), (ins cls1:$src, memOp:$addr),
-              mnemonic#"\t$src, $addr", 
-              [(opNode cls1:$src, addr:$addr)]> {
+                RegisterOperand cls1>
+  : InstREDEFINE<4, (outs), (ins cls1:$src, mem:$mem),
+              mnemonic#"\t$mem, $src, $mem", 
+              [(opNode cls1:$src, addr:$mem)]> {
   field bits<32> Inst;
 
   bits<5> RS2;

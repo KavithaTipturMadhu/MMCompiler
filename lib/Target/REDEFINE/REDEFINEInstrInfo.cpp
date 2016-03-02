@@ -247,7 +247,7 @@ void REDEFINEInstrInfo::copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::i
 }
 
 bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const {
-	//Hack for immediates that don't fit in 12 bit addi operand field
+	//TODO Hack for immediates that don't fit in 12 bit addi operand field
 	if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(1).getReg() == REDEFINE::zero&&MI->getOperand(2).isImm()) {
 		MachineOperand& immediateOperand = MI->getOperand(2);
 		if (ceil(log2(immediateOperand.getImm()))>12) {
