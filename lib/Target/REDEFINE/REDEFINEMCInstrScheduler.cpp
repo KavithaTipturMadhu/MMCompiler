@@ -44,9 +44,6 @@ static MachineBasicBlock::iterator priorNonDebug(MachineBasicBlock::iterator I, 
 }
 
 void REDEFINEMCInstrScheduler::schedule() {
-
-	errs() << "Initial basic block state:";
-	BB->dump();
 	buildDAGWithRegPressure();
 
 	Topo.InitDAGTopologicalSorting();
@@ -69,8 +66,6 @@ void REDEFINEMCInstrScheduler::schedule() {
 
 	bool IsTopNode = true;
 	unsigned currentCE = 0;
-
-	instructionAndPHyperOpMap.clear();
 
 	//Distributing instructions round-robin
 	while (SUnit *SU = SchedImpl->pickNode(IsTopNode)) {
@@ -135,8 +130,7 @@ else {
 }
 
 void REDEFINEMCInstrScheduler::finishBlock() {
-errs() << "finalizing basic block bb#" << BB->getNumber();
-BB->dump();
+DEBUG(dbgs()<<"********** Finishing basic block BB#"<<BB->getNumber()<<"********** \n");
 unsigned currentCE = 0;
 DebugLoc location = BB->begin()->getDebugLoc();
 
@@ -363,6 +357,8 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 	allInstructionsOfPHyperOps.push_back(make_pair(machineInstruction, make_pair(ceContainingInstruction, position++)));
 }
 
+DEBUG(dbgs()<<"Finished partitioning instructions into multiple CEs\n");
+
 //If the basic block has a terminator, add synchronization barrier to ensure memory operations are complete
 if (BB->getFirstTerminator() != BB->end()) {
 	//Add sync barrier in all CEs
@@ -442,6 +438,7 @@ if (BB->getFirstTerminator() != BB->end()) {
 	}
 }
 
+DEBUG(dbgs()<<"Finished adding synchronization barrier to ensure that all memory operations are complete at the terminator basic block\n");
 //Copy all terminators to a list before adding nop instructions after the terminators
 list<MachineInstr*> terminatorInstructions;
 for (MachineBasicBlock::instr_iterator terminatorItr = BB->getFirstInstrTerminator(); terminatorItr != BB->end(); terminatorItr++) {
@@ -482,11 +479,10 @@ for (unsigned i = 0, e = RPTracker.getPressure().LiveOutRegs.size(); i < e; i++)
 	}
 }
 
+DEBUG(dbgs()<<"Finished dumping all liveout registers to memory\n");
 //Add all terminators to all pHyperOps
 for (list<MachineInstr*>::iterator terminatorInstrItr = terminatorInstructions.begin(); terminatorInstrItr != terminatorInstructions.end(); terminatorInstrItr++) {
 	MachineInstr* terminatorItr = (*terminatorInstrItr);
-	errs() << "terminator of bb#" << terminatorItr->getParent()->getNumber();
-	terminatorItr->dump();
 	//	See if some predecessors exist which require additional inter-pHyperOp communication instructions
 	for (unsigned i = 0; i < terminatorItr->getNumOperands(); i++) {
 		MachineOperand& operand = terminatorItr->getOperand(i);
@@ -644,6 +640,7 @@ for (list<MachineInstr*>::iterator terminatorInstrItr = terminatorInstructions.b
 	}
 }
 
+DEBUG(dbgs()<<"Finished adding all terminator instructions\n");
 //Check if this is the last basic block of the function and add writecm instructions and fbind( fbind is in case of context frames being reused statically and hence, is added optionally); returns are assumed to be merged
 //I am assuming here that there is only one exit block since we merge return
 if (BB->getFullName().compare(MF.back().getFullName()) == 0) {
@@ -790,6 +787,7 @@ if (BB->getFullName().compare(MF.back().getFullName()) == 0) {
 	}
 }
 
+DEBUG(dbgs()<<"Finished adding all writecm instructions\n");
 //Shuffle instructions
 for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstructionItr = allInstructionsOfPHyperOps.begin(); allInstructionItr != allInstructionsOfPHyperOps.end(); allInstructionItr++) {
 	MachineInstr* instruction = allInstructionItr->first;
@@ -807,9 +805,8 @@ for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstruct
 		}
 	}
 }
+DEBUG(dbgs()<<"Finished shuffling instructions to form bundles\n");
 
-errs() << "final basic block state:";
-BB->dump();
 for (unsigned i = 0; i < ceCount; i++) {
 	MachineInstr* firstInstructionInCE = firstInstructionOfpHyperOp[i];
 	MachineInstr* firstInstructionInNextCE;
@@ -827,8 +824,14 @@ for (unsigned i = 0; i < ceCount; i++) {
 	if (firstInstructionInNextCE == 0) {
 		firstInstructionInNextCE = BB->end();
 	}
+	DEBUG(dbgs()<<"Creating a bundle for CE "<<i<<"\n");
+	if(firstInstructionInNextCE!=BB->end()){
+		firstInstructionInNextCE->dump();
+	}
 	MIBundleBuilder* bundleBuilder = new MIBundleBuilder(*BB, firstInstructionInCE, firstInstructionInNextCE);
+	DEBUG(dbgs()<<"Finished creating a bundle for CE "<<i<<"\n");
 }
+DEBUG(dbgs()<<"********** Finished basic block BB#"<<BB->getNumber()<<"**********\n");
 BB = 0;
 }
 
@@ -838,5 +841,6 @@ BB = bb;
 if (BB->getBasicBlock()->getName().compare(BB->getBasicBlock()->getParent()->getEntryBlock().getName()) == 0) {
 	nextFrameLocation = BB->getParent()->getFrameInfo()->getObjectIndexEnd();
 }
+instructionAndPHyperOpMap.clear();
 
 }
