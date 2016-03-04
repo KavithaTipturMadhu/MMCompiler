@@ -70,8 +70,6 @@ void REDEFINEMCInstrScheduler::schedule() {
 	bool IsTopNode = true;
 	unsigned currentCE = 0;
 
-	instructionAndPHyperOpMap.clear();
-
 	//Distributing instructions round-robin
 	while (SUnit *SU = SchedImpl->pickNode(IsTopNode)) {
 		scheduleMI(SU, IsTopNode);
@@ -838,5 +836,6 @@ BB = bb;
 if (BB->getBasicBlock()->getName().compare(BB->getBasicBlock()->getParent()->getEntryBlock().getName()) == 0) {
 	nextFrameLocation = BB->getParent()->getFrameInfo()->getObjectIndexEnd();
 }
+instructionAndPHyperOpMap.clear();
 
 }
