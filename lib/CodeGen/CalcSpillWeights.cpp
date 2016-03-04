@@ -46,10 +46,8 @@ bool CalculateSpillWeights::runOnMachineFunction(MachineFunction &MF) {
   LiveIntervals &LIS = getAnalysis<LiveIntervals>();
   MachineRegisterInfo &MRI = MF.getRegInfo();
   VirtRegAuxInfo VRAI(MF, LIS, getAnalysis<MachineLoopInfo>());
-  errs()<<"Total num of virtual registers:"<<MRI.getNumVirtRegs()<<"\n";
   for (unsigned i = 0, e = MRI.getNumVirtRegs(); i != e; ++i) {
     unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
-    errs()<<"Dealing with virtual reg:"<<Reg<<"\n";
     if (MRI.reg_nodbg_empty(Reg))
       continue;
     VRAI.CalculateWeightAndHint(LIS.getInterval(Reg));

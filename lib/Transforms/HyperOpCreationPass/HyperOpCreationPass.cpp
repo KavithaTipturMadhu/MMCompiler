@@ -28,7 +28,7 @@ struct HyperOpCreationPass: public ModulePass {
 		static char* HYPEROP;
 		static char* NEW_NAME;
 		static char* REDEFINE_ANNOTATIONS;
-		const unsigned int FRAME_SIZE = 2;
+		const unsigned int FRAME_SIZE = 5;
 
 		HyperOpCreationPass() :
 				ModulePass(ID) {
@@ -88,12 +88,12 @@ struct HyperOpCreationPass: public ModulePass {
 			//Original Instructions and their clones
 			map<Value*, Value*> originalToClonedInstrMap;
 
-			//Slightly complex DS, required when supporting instances of HyperOps though, so leaving it as is
+			//Slightly complex data structure, required when supporting instances of HyperOps though, so leaving it as is
 			map<Function*, list<Function*> > originalFunctionToCreatedHyperOpsMap;
 
 			//Map of a created HyperOp to its annotation
 			map<Function*, MDNode*> hyperOpAndAnnotationMap;
-			int bbIndex = 0;
+			int bbIndex = 0, hyperOpIndex = 0;
 
 			for (Module::iterator funcItr = M.begin(); funcItr != M.end() && find(addedFunctions.begin(), addedFunctions.end(), funcItr) == addedFunctions.end(); funcItr++) {
 				StringRef name = funcItr->begin()->getName();
@@ -106,7 +106,6 @@ struct HyperOpCreationPass: public ModulePass {
 				bbTraverser.push_back(funcItr->begin());
 				while (!bbTraverser.empty()) {
 					BasicBlock* bbItr = bbTraverser.front();
-					errs() << "dealing with basic block:" << bbItr->getName() << " with arg count:" << hyperOpArgCount << "\n";
 					bool canAcquireBBItr = true;
 					//If basic block does not have a unique predecessor and basic block is not the entry block
 					if (bbItr->getUniquePredecessor() == 0 && bbItr != &(funcItr->getEntryBlock())) {
@@ -146,11 +145,11 @@ struct HyperOpCreationPass: public ModulePass {
 					else {
 						bbTraverser.pop_front();
 						accumulatedBasicBlocks.push_back(bbItr);
-						errs()<<"accumulated bb:"<<bbItr->getName()<<"\n";
 						for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
 							errs() << "dealing with instruction:";
 							instItr->dump();
-							if (!(isa<AllocaInst>(instItr) || isa<ReturnInst>(instItr) || isa<LoadInst>(instItr) || isa<StoreInst>(instItr))) {
+							//Load can define a temporary variable
+							if (!(isa<AllocaInst>(instItr) || isa<ReturnInst>(instItr) || isa<LoadInst>(instItr) )) {
 								//Function calls that couldn't be inlined when generating the IR
 								if (isa<CallInst>(instItr) || isa<InvokeInst>(instItr)) {
 									if (bbItr->getInstList().size() > 1) {
@@ -182,27 +181,37 @@ struct HyperOpCreationPass: public ModulePass {
 
 								list<Value*> newHyperOpArguments;
 								for (unsigned int i = 0; i < instItr->getNumOperands(); i++) {
+									//Memory location
+									if(isa<StoreInst>(instItr)&&i==1){
+										continue;
+									}
 									Value * argument = instItr->getOperand(i);
+									errs()<<"argument to the instr:";
+									argument->dump();
 									if (!isa<Constant>(argument)) {
-										//Is a local definition
 										if ((isa<Instruction>(argument)) && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), argument) != accumulatedBasicBlocks.end()) {
 											continue;
 										}
 
 										bool argAddedPreviously = false;
+										errs()<<"has it been added previously?";
+										//Check if same argument is used multiple times in the same instruction
+										//We need to track the arguments in the instruction separately
 										if (find(newHyperOpArguments.begin(), newHyperOpArguments.end(), argument) != newHyperOpArguments.end()) {
 											argAddedPreviously = true;
+											errs()<<"why yes, it has been\n";
 										}
 										else {
-											//Has it been added before?
 											for (map<int, list<Value*> >::iterator previousArgsItr = hyperOpArguments.begin(); previousArgsItr != hyperOpArguments.end(); previousArgsItr++) {
 												if (find(previousArgsItr->second.begin(), previousArgsItr->second.end(), argument) != previousArgsItr->second.end()) {
 													argAddedPreviously = true;
+													errs()<<"why yes, it has been\n";
 													break;
 												}
 											}
 										}
 										if (!argAddedPreviously) {
+											errs()<<"adding the argument\n";
 											newHyperOpArguments.push_back(argument);
 										}
 									}
@@ -229,22 +238,28 @@ struct HyperOpCreationPass: public ModulePass {
 											newArg.push_back(*newArgItr);
 											hyperOpArguments.insert(make_pair(hyperOpArgCount++, newArg));
 										}
+
 									}
 									else {
+										//Phi instruction's arguments correspond to only one argument to a HyperOp
 										hyperOpArguments.insert(make_pair(hyperOpArgCount++, newHyperOpArguments));
+									}
+
+									if(!isa<StoreInst>(instItr)){
+										//instruction itself maybe used later
+										list<Value*> newArg;
+//										newArg.push_back(instItr);
+//										hyperOpArguments.insert(make_pair(hyperOpArgCount++,instItr));
 									}
 								}
 							}
 
 							if(endOfHyperOp){
-								errs()<<"end of the HyperOp with accumulated bbs:"<<accumulatedBasicBlocks.size()<<"\n";
 								break;
 							}
 						}
-						errs()<<"end of the HyperOp with accumulated bbs in else block:"<<accumulatedBasicBlocks.size()<<"\n";
 					}
 
-					errs()<<"end of the HyperOp with accumulated bbs in else block:"<<accumulatedBasicBlocks.size()<<"\n";
 					//Create a new HyperOp
 					if (endOfHyperOp || bbItr->getNextNode() == funcItr->end()) {
 						//Couldn't use splice here since it clears away accumulatedBasicBlocks list
@@ -324,7 +339,7 @@ struct HyperOpCreationPass: public ModulePass {
 							if (originalBB != &(funcItr->getEntryBlock())) {
 								for (pred_iterator predecessorItr = pred_begin(originalBB); predecessorItr != pred_end(originalBB); predecessorItr++) {
 									BasicBlock* predecessor = *predecessorItr;
-									//Control flow edge exists from a predecessor Basic Block not in the same HyperOp
+									//Control flow edge exists from a predecessor basic block not in the same HyperOp
 									if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), predecessor) == accumulatedBasicBlocks.end()) {
 										for (map<Function*, pair<list<BasicBlock*>, map<int, list<Value*> > > >::iterator createdHopItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHopItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHopItr++) {
 											Function* createdHyperOp = createdHopItr->first;
@@ -333,7 +348,6 @@ struct HyperOpCreationPass: public ModulePass {
 												TerminatorInst* terminator = predecessor->getTerminator();
 												for (int i = 0; i < terminator->getNumSuccessors(); i++) {
 													if (terminator->getSuccessor(i) == originalBB) {
-														errs()<<"predicate source:"<<createdHyperOp->getName()<<"\n";
 														predicateSources.insert(make_pair(createdHyperOp, i));
 													}
 												}

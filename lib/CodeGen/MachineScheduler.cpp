@@ -247,7 +247,7 @@ bool MachineScheduler::runOnMachineFunction(MachineFunction &mf) {
 			Scheduler->enterRegion(MBB, I, RegionEnd, RemainingInstrs);
 
 			// Skip empty scheduling regions (0 or 1 schedulable instructions).
-			//REDEFINE Changed this to schedule instructions with 0 or 1 instructions also since the BB might contain terminators only and not necessarily other instructions
+			//TODO for REDEFINE: Changed this to schedule instructions with 0 or 1 instructions also since the BB might contain terminators only and not necessarily other instructions
 //			if (I == RegionEnd)|| I == llvm::prior(RegionEnd)) {
 //			 //Close the current region. Bundle the terminator if needed.
 //			 //This invalidates 'RegionEnd' and 'I'.
