@@ -210,7 +210,6 @@ bool MachineScheduler::runOnMachineFunction(MachineFunction &mf) {
 	// TODO: Visit blocks in global postorder or postorder within the bottom-up
 	// loop tree. Then we can optionally compute global RegPressure.
 
-	//Map of basic blocks to the start and end pHyperOp
 	for (MachineFunction::iterator MBB = MF->begin(), MBBEnd = MF->end(); MBB != MBBEnd; ++MBB) {
 		Scheduler->startBlock(MBB);
 
@@ -227,7 +226,6 @@ bool MachineScheduler::runOnMachineFunction(MachineFunction &mf) {
 		unsigned RemainingInstrs = MBB->size();
 
 		for (MachineBasicBlock::iterator RegionEnd = MBB->end(); RegionEnd != MBB->begin(); RegionEnd = Scheduler->begin()) {
-
 			// Avoid decrementing RegionEnd for blocks with no terminator.
 			if (RegionEnd != MBB->end() || TII->isSchedulingBoundary(llvm::prior(RegionEnd), MBB, *MF)) {
 				--RegionEnd;
@@ -276,7 +274,6 @@ bool MachineScheduler::runOnMachineFunction(MachineFunction &mf) {
 	Scheduler->finalizeSchedule();
 	DEBUG(LIS->print(dbgs()));
 	if (VerifyScheduling) MF->verify(this, "After machine scheduling.");
-
 	return true;
 }
 

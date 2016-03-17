@@ -63,7 +63,7 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 	vector<list<const MachineInstr*> > pHyperOpInstructions(ceCount);
 	vector<list<const MachineInstr*> > startOfBBInPHyperOp(ceCount);
 	for (MachineFunction::const_iterator I = MF->begin(), E = MF->end(); I != E; ++I) {
-		unsigned pHyperOpIndex = -1;
+		int pHyperOpIndex = -1;
 		for (MachineBasicBlock::const_instr_iterator instrItr = I->instr_begin(); instrItr != I->instr_end(); ++instrItr) {
 			//First instruction of the pHyperOp is never in a bundle
 			if (!instrItr->isInsideBundle()) {

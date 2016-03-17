@@ -27,19 +27,48 @@ namespace llvm {
 
 class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	static const unsigned SPLOCATIONS = 4096;
-	unsigned ceCount ;
+	//Number of bytes in an addressable location
+	static const unsigned datawidth = 4;
+	unsigned ceCount;
 	unsigned frameSize;
-	list<pair<SUnit*, unsigned> > instructionAndPHyperOpMap;
 	unsigned nextFrameLocation;
 	//This is introduced to spill all the liveout registers in a basic block to be used by successive basic blocks
 	map<unsigned, unsigned> registerAndFrameLocation;
+
+	//Instruction and the pHyperOp it belongs to
+	list<pair<SUnit*, unsigned> > instructionAndPHyperOpMap;
+	//Instruction mapped to the pHyperOp it belongs to and its position
+	list<pair<MachineInstr*, pair<unsigned, unsigned> > > allInstructionsOfPHyperOps;
+
+	//We need this to do additional code motion and ease creation of pHyperOp bundles
+	MachineInstr* firstInstructionOfpHyperOp[4];
+	//TODO
+	int firstInstructionPosition [4];
+
+	//Position tracking a new insertion
+	unsigned insertPosition = 0;
+
+	//TODO
+	//Used to track the SP location in use
+	unsigned faninOfHyperOp[4];
+
+	//TODO
+	//First index corresponds to the CE and the value corresponds to the register containing the base address of the scratch pad location of the consumer CE to which the producer CE is writing to
+	int registerContainingBaseAddress[4][4];
+
+	//Tracks the writecm instructions that have already been added in a different machine function; this is required to patch the writecm instructions once the registers corresponding to HyperOp inputs are shuffled
+	map<Function*, list<MachineInstr*> > writeInstrToContextFrame;
+
 public:
 	REDEFINEMCInstrScheduler(MachineSchedContext *C, MachineSchedStrategy *S);
 	virtual ~REDEFINEMCInstrScheduler();
 	virtual void schedule();
 	virtual void scheduleMI(SUnit *SU, bool IsTopNode);
-    virtual void startBlock(MachineBasicBlock *bb);
+//	void enterRegion(MachineBasicBlock *bb, MachineBasicBlock::iterator begin, MachineBasicBlock::iterator end, unsigned endcount);
+	virtual void startBlock(MachineBasicBlock *bb);
+	virtual void exitRegion();
 	virtual void finishBlock();
+	virtual void finalizeSchedule();
 };
 
 /// \brief Order nodes by the ILP metric.
@@ -56,24 +85,22 @@ struct ILPOrder {
 	///
 	/// (Return true if A comes after B in the Q.)
 	bool operator()(const SUnit *A, const SUnit *B) const {
-	    unsigned SchedTreeA = DFSResult->getSubtreeID(A);
-	    unsigned SchedTreeB = DFSResult->getSubtreeID(B);
-	    if (SchedTreeA != SchedTreeB) {
-	      // Unscheduled trees have lower priority.
-	      if (ScheduledTrees->test(SchedTreeA) != ScheduledTrees->test(SchedTreeB))
-	        return ScheduledTrees->test(SchedTreeB);
+		unsigned SchedTreeA = DFSResult->getSubtreeID(A);
+		unsigned SchedTreeB = DFSResult->getSubtreeID(B);
+		if (SchedTreeA != SchedTreeB) {
+			// Unscheduled trees have lower priority.
+			if (ScheduledTrees->test(SchedTreeA) != ScheduledTrees->test(SchedTreeB))
+				return ScheduledTrees->test(SchedTreeB);
 
-	      // Trees with shallower connections have have lower priority.
-	      if (DFSResult->getSubtreeLevel(SchedTreeA)
-	          != DFSResult->getSubtreeLevel(SchedTreeB)) {
-	        return DFSResult->getSubtreeLevel(SchedTreeA)
-	          < DFSResult->getSubtreeLevel(SchedTreeB);
-	      }
-	    }
-	    if (MaximizeILP)
-	      return DFSResult->getILP(A) < DFSResult->getILP(B);
-	    else
-	      return DFSResult->getILP(A) > DFSResult->getILP(B);
+			// Trees with shallower connections have have lower priority.
+			if (DFSResult->getSubtreeLevel(SchedTreeA) != DFSResult->getSubtreeLevel(SchedTreeB)) {
+				return DFSResult->getSubtreeLevel(SchedTreeA) < DFSResult->getSubtreeLevel(SchedTreeB);
+			}
+		}
+		if (MaximizeILP)
+			return DFSResult->getILP(A) < DFSResult->getILP(B);
+		else
+			return DFSResult->getILP(A) > DFSResult->getILP(B);
 	}
 };
 

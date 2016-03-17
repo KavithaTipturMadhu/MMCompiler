@@ -1,4 +1,4 @@
-//===-- RISCVMCTargetDesc.h - RISCV target descriptions -----*- C++ -*-===//
+//===-- REDEFINEMCTargetDesc.h - RISCV target descriptions -----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef RISCVMCTARGETDESC_H
-#define RISCVMCTARGETDESC_H
+#ifndef REDEFINEMCTARGETDESC_H
+#define REDEFINEMCTARGETDESC_H
 
 #include "llvm/Support/DataTypes.h"
 
@@ -47,12 +47,12 @@ MCAsmBackend *createREDEFINEMCAsmBackend(const Target &T, StringRef TT,
 MCObjectWriter *createREDEFINEObjectWriter(raw_ostream &OS, uint8_t OSABI);
 } // end namespace llvm
 
-// Defines symbolic names for RISCV registers.
+// Defines symbolic names for REDEFINE registers.
 // This defines a mapping from register name to register number.
 #define GET_REGINFO_ENUM
 #include "REDEFINEGenRegisterInfo.inc"
 
-// Defines symbolic names for the RISCV instructions.
+// Defines symbolic names for the REDEFINE instructions.
 #define GET_INSTRINFO_ENUM
 #include "REDEFINEGenInstrInfo.inc"
 

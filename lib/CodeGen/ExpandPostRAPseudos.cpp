@@ -149,7 +149,7 @@ bool ExpandPostRA::LowerCopy(MachineInstr *MI) {
 			return true;
 		}
 		//TODO Since the instruction to be deleted is bundled in REDEFINE, need to unbundle it
-		if (MI->isBundled()) {
+		if (MI->isInsideBundle()) {
 			//No need to erase from parent because this automatically removes from parent
 			MI->eraseFromBundle();
 		}
@@ -170,7 +170,11 @@ bool ExpandPostRA::LowerCopy(MachineInstr *MI) {
 		;
 	}
 	);
-	MI->eraseFromParent();
+	if(MI->isInsideBundle()){
+		MI->eraseFromBundle();
+	}else{
+		MI->eraseFromParent();
+	}
 	return true;
 }
 
