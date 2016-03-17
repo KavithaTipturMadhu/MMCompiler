@@ -273,8 +273,6 @@ void VirtRegRewriter::rewrite() {
       MachineInstr *MI = MII;
       ++MII;
 
-      errs()<<"rewriting ";
-      MI->dump();
       for (MachineInstr::mop_iterator MOI = MI->operands_begin(),
            MOE = MI->operands_end(); MOI != MOE; ++MOI) {
         MachineOperand &MO = *MOI;
@@ -345,7 +343,7 @@ void VirtRegRewriter::rewrite() {
             Indexes->removeMachineInstrFromMaps(MI);
           // It's safe to erase MI because MII has already been incremented.
           //TODO REDEFINE specific change, Machine Instruction maybe bundled
-          if(MI->isInsideBundle()){
+          if(MI->isBundled()){
         	  //TODO remember to remove this when bundles are not longer needed
         	  MI->eraseFromBundle();
           }else{
