@@ -34,23 +34,24 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	unsigned nextFrameLocation;
 	//This is introduced to spill all the liveout registers in a basic block to be used by successive basic blocks
 	map<unsigned, unsigned> registerAndFrameLocation;
-
 	//Instruction and the pHyperOp it belongs to
-	list<pair<SUnit*, unsigned> > instructionAndPHyperOpMap;
-	//Instruction mapped to the pHyperOp it belongs to and its position
-	list<pair<MachineInstr*, pair<unsigned, unsigned> > > allInstructionsOfPHyperOps;
+	list<pair<SUnit*, unsigned> > instructionAndPHyperOpMapForRegion;
+
+	//Instruction in a region, the pHyperOp it belongs to and its position in the region
+	list<pair<MachineInstr*, pair<unsigned, unsigned> > >  allInstructionsOfRegion;
 
 	//We need this to do additional code motion and ease creation of pHyperOp bundles
-	MachineInstr* firstInstructionOfpHyperOp[4];
 	//TODO
-	int firstInstructionPosition [4];
+	vector<MachineInstr* > firstInstructionOfpHyperOpInRegion;
+	//For each region, firstInstructionOfpHyperOpInRegion
+	list<vector<MachineInstr*> > firstInstructionOfpHyperOp;
 
 	//Position tracking a new insertion
 	unsigned insertPosition = 0;
 
 	//TODO
 	//Used to track the SP location in use
-	unsigned faninOfHyperOp[4];
+	vector<unsigned > faninOfHyperOp;
 
 	//TODO
 	//First index corresponds to the CE and the value corresponds to the register containing the base address of the scratch pad location of the consumer CE to which the producer CE is writing to
@@ -64,7 +65,7 @@ public:
 	virtual ~REDEFINEMCInstrScheduler();
 	virtual void schedule();
 	virtual void scheduleMI(SUnit *SU, bool IsTopNode);
-//	void enterRegion(MachineBasicBlock *bb, MachineBasicBlock::iterator begin, MachineBasicBlock::iterator end, unsigned endcount);
+	virtual void enterRegion(MachineBasicBlock *bb, MachineBasicBlock::iterator begin, MachineBasicBlock::iterator end, unsigned endcount);
 	virtual void startBlock(MachineBasicBlock *bb);
 	virtual void exitRegion();
 	virtual void finishBlock();
