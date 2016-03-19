@@ -479,9 +479,14 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 			MachineInstrBuilder storeInMem = BuildMI(*BB, lastInstr, lastInstr->getDebugLoc(), TII->get(REDEFINE::SW));
 			storeInMem.addReg(REDEFINE::zero, RegState::InternalRead);
 			storeInMem.addReg(liveoutRegister, RegState::InternalRead);
-			storeInMem.addFrameIndex(nextFrameLocation);
-			registerAndFrameLocation.insert(make_pair(liveoutRegister, nextFrameLocation));
-			nextFrameLocation += 1;
+			if (registerAndFrameLocation.find(liveoutRegister) == registerAndFrameLocation.end()) {
+				registerAndFrameLocation.insert(make_pair(liveoutRegister, nextFrameLocation));
+				storeInMem.addFrameIndex(nextFrameLocation);
+				nextFrameLocation += 1;
+			}else{
+				storeInMem.addFrameIndex(registerAndFrameLocation.find(liveoutRegister)->second);
+			}
+
 			LIS->getSlotIndexes()->insertMachineInstrInMaps(storeInMem.operator llvm::MachineInstr *());
 			allInstructionsOfRegion.push_back(make_pair(storeInMem.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
 		}
