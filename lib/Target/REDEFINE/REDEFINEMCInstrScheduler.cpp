@@ -16,7 +16,7 @@
 using namespace llvm;
 
 //TODO Used only 8 bit number here because I need this to address the sync locations and frame locations for replication only which sums upto 20 4 byte locations only
-static int32_t SignExtend8BitNumberToTwelveBits(int8_t x) {
+static int32_t SignExtend8BitNumberTo12Bits(int8_t x) {
 	return int32_t(x << 4) >> 4;
 }
 
@@ -172,6 +172,7 @@ if (IsTopNode) {
 
 void REDEFINEMCInstrScheduler::startBlock(MachineBasicBlock *bb) {
 BB = bb;
+DEBUG(dbgs() << "Starting new basic block BB#" << BB->getNumber() << "\n");
 //Initialize frame index to point to the first free location in memory offset by frame address
 if (BB->getBasicBlock()->getName().compare(BB->getBasicBlock()->getParent()->getEntryBlock().getName()) == 0) {
 	nextFrameLocation = BB->getParent()->getFrameInfo()->getObjectIndexEnd();
@@ -225,7 +226,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 					//Dummy data
 					writepm.addReg(sourceSpAddressRegister, RegState::InternalRead);
 					int8_t immediateSPOffset = -(ceCount * datawidth * i + datawidth * frameSize + datawidth);
-					writepm.addImm(SignExtend8BitNumberToTwelveBits(immediateSPOffset));
+					writepm.addImm(SignExtend8BitNumberTo12Bits(immediateSPOffset));
 
 					allInstructionsOfRegion.push_back(make_pair(sourceLui.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 					allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
@@ -248,7 +249,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 					//Dummy data
 					readpm.addReg(sourceSpAddressRegister, RegState::InternalRead);
 					int8_t immediateSPOffset = -(ceCount * datawidth * j + datawidth * frameSize + datawidth);
-					readpm.addImm(SignExtend8BitNumberToTwelveBits(immediateSPOffset));
+					readpm.addImm(SignExtend8BitNumberTo12Bits(immediateSPOffset));
 
 					allInstructionsOfRegion.push_back(make_pair(sourceLui.operator llvm::MachineInstr *(), make_pair(j, insertPosition++)));
 					allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(j, insertPosition++)));
@@ -415,7 +416,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 				//Dummy data
 				writepm.addReg(sourceSpAddressRegister, RegState::InternalRead);
 				int8_t immediateSPOffset = -(ceCount * datawidth * i + datawidth * frameSize + datawidth);
-				writepm.addImm(SignExtend8BitNumberToTwelveBits(immediateSPOffset));
+				writepm.addImm(SignExtend8BitNumberTo12Bits(immediateSPOffset));
 
 				allInstructionsOfRegion.push_back(make_pair(sourceLui.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 				allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
@@ -442,7 +443,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 				//Dummy data
 				readpm.addReg(sourceSpAddressRegister, RegState::InternalRead);
 				int8_t immediateSPOffset = -(ceCount * datawidth * j + datawidth * frameSize + datawidth);
-				readpm.addImm(SignExtend8BitNumberToTwelveBits(immediateSPOffset));
+				readpm.addImm(SignExtend8BitNumberTo12Bits(immediateSPOffset));
 
 				allInstructionsOfRegion.push_back(make_pair(targetLui.operator llvm::MachineInstr *(), make_pair(j, insertPosition++)));
 				allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(j, insertPosition++)));
@@ -616,7 +617,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 			allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 		}
 	}
-	if (RegionBegin == RegionEnd) {
+	if (RegionBegin == RegionEnd&&firstInsertedInstruction!=0) {
 		RegionBegin = firstInsertedInstruction;
 	}
 }
@@ -629,15 +630,15 @@ for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstruct
 	instruction->setFlag(MachineInstr::NoFlags);
 	if (ce < ceCount - 1) {
 		MachineInstr* nextCeInstruction = firstInstructionOfpHyperOpInRegion[ce + 1];
-		if (nextCeInstruction == 0) {
-			nextCeInstruction = BB->end();
+		if (nextCeInstruction == 0 || nextCeInstruction == BB->end()) {
+			continue;
 		}
-
 		for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator secondItr = allInstructionsOfRegion.begin(); secondItr != allInstructionsOfRegion.end(); secondItr++) {
 			if (secondItr->first == nextCeInstruction) {
 				unsigned nextCeInstructionPosition = secondItr->second.second;
 				if (nextCeInstructionPosition < position) {
 					BB->splice(nextCeInstruction, BB, instruction);
+					break;
 				}
 			}
 		}
@@ -649,7 +650,6 @@ for (unsigned i = 0; i < ceCount; i++) {
 	firstInstrCopy.push_back(firstInstructionOfpHyperOpInRegion[i]);
 }
 firstInstructionOfpHyperOp.push_front(firstInstrCopy);
-
 }
 
 void REDEFINEMCInstrScheduler::finishBlock() {
@@ -683,6 +683,221 @@ void REDEFINEMCInstrScheduler::finishBlock() {
 //	}
 //}
 
+//If the basic block is the terminator
+if (BB->getName().compare(MF.back().getName()) == 0) {
+	DebugLoc location = BB->begin()->getDebugLoc();
+	//Add writecm instructions and fbind(fbind is in case of context frames being reused statically and hence, is added optionally); returns are assumed to be merged
+	HyperOpInteractionGraph * graph = ((REDEFINETargetMachine&) TM).HIG;
+	Function* Fn = const_cast<Function*>(MF.getFunction());
+	HyperOp* hyperOp = ((REDEFINETargetMachine&) TM).HIG->getHyperOp(Fn);
+
+	//TODO: I am assuming here that there is only one exit block since we merge return
+	MachineBasicBlock& lastBB = MF.back();
+	MachineInstr* lastInstruction = lastBB.end();
+
+	firstInstructionOfpHyperOpInRegion.clear();
+	for (unsigned i = 0; i < ceCount; i++) {
+		firstInstructionOfpHyperOpInRegion.push_back(0);
+	}
+
+	allInstructionsOfRegion.clear();
+	insertPosition = 0;
+
+	//Add Fbind
+	DEBUG(dbgs() << "Adding fbind instructions\n");
+
+	unsigned currentCE = 0;
+	for (list<HyperOp*>::iterator hyperOpItr = graph->Vertices.begin(); hyperOpItr != graph->Vertices.end(); hyperOpItr++) {
+		//Among the HyperOps immediately dominated by the hyperOp, add fbind for those HyperOps that require it
+		if (*hyperOpItr != hyperOp && (*hyperOpItr)->isFbindRequired() && (*hyperOpItr)->getImmediateDominator() == hyperOp) {
+			//Fbind instruction added to the immediate dominator of the HyperOp
+			unsigned hyperOpId = (*hyperOpItr)->getHyperOpId();
+			MachineInstrBuilder fbind = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FBIND));
+			fbind.addReg(REDEFINE::zero);
+			fbind.addReg(REDEFINE::zero);
+			fbind.addImm((*hyperOpItr)->getContextFrame());
+			if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
+				firstInstructionOfpHyperOpInRegion[currentCE] = fbind.operator llvm::MachineInstr *();
+			}
+			allInstructionsOfRegion.push_back(make_pair(fbind.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+			LIS->getSlotIndexes()->insertMachineInstrInMaps(fbind.operator llvm::MachineInstr *());
+			currentCE = (currentCE + 1) % ceCount;
+		}
+	}
+	//End of add fbind
+
+	//LLVM IR is assumed to be in mem form; Loading from the memory location with the same name as the value should do for all the data being communicated between HyperOps
+	vector<list<pair<HyperOp*, unsigned> > > consumerHyperOps;
+	consumerHyperOps.reserve(ceCount);
+	for (unsigned j = 0; j < ceCount; j++) {
+		list<pair<HyperOp*, unsigned> > consumerList;
+		consumerHyperOps.push_back(consumerList);
+	}
+
+	DEBUG(dbgs() << "Adding writecm instructions\n");
+	//Cyclically distribute the writecm stubs among pHyperOps
+	for (map<HyperOpEdge*, HyperOp*>::iterator childItr = hyperOp->ChildMap.begin(); childItr != hyperOp->ChildMap.end(); childItr++) {
+		HyperOpEdge* edge = childItr->first;
+		HyperOp* consumer = childItr->second;
+		//position is multiplied by 4 since the context memory is byte addressable
+		unsigned contextFrameOffset = edge->getPositionOfInput() * 4;
+		if (edge->getPositionOfInput() == -1) {
+			//Scheduling predicate forced to be the last entry in context frame
+			contextFrameOffset = frameSize - 1;
+		}
+
+		unsigned registerContainingConsumerBase = -1;
+		//Check if the consumer's context frame address has already been loaded to memory; If not, add an instruction to load the context frame address to a register
+		for (list<pair<HyperOp*, unsigned> >::iterator consumerItr = consumerHyperOps[currentCE].begin(); consumerItr != consumerHyperOps[currentCE].end(); consumerItr++) {
+			if (consumerItr->first == consumer) {
+				registerContainingConsumerBase = consumerItr->second;
+				break;
+			}
+		}
+		if (registerContainingConsumerBase == -1) {
+			registerContainingConsumerBase = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+			MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
+			addi.addReg(registerContainingConsumerBase, RegState::Define);
+			addi.addReg(REDEFINE::zero, RegState::InternalRead);
+			addi.addImm(consumer->getContextFrame() * frameSize);
+			consumerHyperOps[currentCE].push_back(make_pair(consumer, registerContainingConsumerBase));
+			if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
+				firstInstructionOfpHyperOpInRegion[currentCE] = addi.operator llvm::MachineInstr *();
+			}
+			allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+			//Add instruction to the region
+			allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+			LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
+			LIS->getOrCreateInterval(registerContainingConsumerBase);
+		}
+
+		unsigned objectIndex = -1;
+		//Get the index of the stack allocated object, starting from 0 because negative offsets from fp contain function arguments
+		for (int i = 0; i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
+			const AllocaInst* allocInstr = MF.getFrameInfo()->getObjectAllocation(i);
+			//TODO Bad code, why do you use string comparison?
+			if (edge->getName().compare(allocInstr->getName()) == 0) {
+				//Find the offset of the object wrt SP
+				objectIndex = i;
+				break;
+			}
+		}
+
+		//If the edge is a forced control edge for precedence
+		if (objectIndex == -1) {
+			//There can only be one such incoming control edge predicating execution, hence not tracking them separately
+			objectIndex = MF.getFrameInfo()->getObjectOffset(MF.getFrameInfo()->getObjectIndexEnd() - 1) + 1;
+		}
+
+		//TODO Add a load instruction to get data from memory onto a register; There could be forced schedule edges that we don't want to add load instructions for the same
+		unsigned registerContainingData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+		if (objectIndex != -1) {
+			MachineInstrBuilder loadInstr = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::LW));
+			loadInstr.addReg(registerContainingData, RegState::Define);
+			loadInstr.addReg(REDEFINE::zero);
+			loadInstr.addFrameIndex(objectIndex);
+			if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
+				firstInstructionOfpHyperOpInRegion[currentCE] = loadInstr.operator llvm::MachineInstr *();
+			}
+			allInstructionsOfRegion.push_back(make_pair(loadInstr.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+			//Add instruction to bundle
+			allInstructionsOfRegion.push_back(make_pair(loadInstr.operator ->(), make_pair(currentCE, insertPosition++)));
+			LIS->getSlotIndexes()->insertMachineInstrInMaps(loadInstr.operator llvm::MachineInstr *());
+			LIS->getOrCreateInterval(registerContainingData);
+
+		}
+		//No need to access memory for a true predicate, copying via addi will do
+		else {
+			MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
+			addi.addReg(registerContainingData, RegState::Define);
+			addi.addReg(REDEFINE::zero, RegState::InternalRead);
+			addi.addImm(1);
+			if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
+				firstInstructionOfpHyperOpInRegion[currentCE] = addi.operator llvm::MachineInstr *();
+			}
+			allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+			//Add instruction to bundle
+			allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
+			LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
+			LIS->getOrCreateInterval(registerContainingData);
+		}
+		MachineInstrBuilder writeToContextFrame;
+		if (edge->Type == HyperOpEdge::DATA) {
+			writeToContextFrame = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::WRITECM));
+		} else if (edge->Type == HyperOpEdge::CONTROL) {
+			//Forced serialization edges need not be added if there is any other edge between the producer and consumer HyperOps
+			writeToContextFrame = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::WRITECMP));
+		}
+		writeToContextFrame.addReg(registerContainingConsumerBase, RegState::InternalRead);
+		writeToContextFrame.addReg(registerContainingData, RegState::InternalRead);
+		writeToContextFrame.addImm(contextFrameOffset);
+		allInstructionsOfRegion.push_back(make_pair(writeToContextFrame.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
+		//Add instruction to bundle
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(writeToContextFrame.operator llvm::MachineInstr *());
+		currentCE = (currentCE + 1) % ceCount;
+
+		//Add the writecm instructions to the function map so that they can be patched for the right context frame location later
+		Function* consumerFunction = consumer->getFunction();
+		list<MachineInstr*> writeInstructionsToConsumer;
+		if (writeInstrToContextFrame.find(consumerFunction) != writeInstrToContextFrame.end()) {
+			writeInstructionsToConsumer = writeInstrToContextFrame.find(consumerFunction)->second;
+			writeInstrToContextFrame.erase(writeInstrToContextFrame.find(consumerFunction));
+		}
+
+		writeInstructionsToConsumer.push_back(writeToContextFrame.operator ->());
+		writeInstrToContextFrame.insert(make_pair(consumerFunction, writeInstructionsToConsumer));
+	}
+
+	//Shuffle writecm and fbind instructions one last time
+	for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstructionItr = allInstructionsOfRegion.begin(); allInstructionItr != allInstructionsOfRegion.end(); allInstructionItr++) {
+		MachineInstr* instruction = allInstructionItr->first;
+		unsigned ce = allInstructionItr->second.first;
+		unsigned position = allInstructionItr->second.second;
+		instruction->setFlag(MachineInstr::NoFlags);
+		if (ce < ceCount - 1) {
+			MachineInstr* nextCeInstruction = firstInstructionOfpHyperOpInRegion[ce + 1];
+			if (nextCeInstruction == 0) {
+				nextCeInstruction = BB->end();
+			}
+
+			for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator secondItr = allInstructionsOfRegion.begin(); secondItr != allInstructionsOfRegion.end(); secondItr++) {
+				if (secondItr->first == nextCeInstruction) {
+					unsigned nextCeInstructionPosition = secondItr->second.second;
+					if (nextCeInstructionPosition < position) {
+						BB->splice(nextCeInstruction, BB, instruction);
+						break;
+					}
+				}
+			}
+		}
+	}
+
+//	//Atleast one writecm/fbind should be added
+	if (firstInstructionOfpHyperOpInRegion[0] != 0) {
+		firstInstructionOfpHyperOp.push_back(firstInstructionOfpHyperOpInRegion);
+	}
+
+	DEBUG(dbgs() << "Adding endHyperOp instructions to each pHyperOp\n");
+	//End HyperOp and the two NOPs that follow are kinda like a new region that gets shuffled next
+	vector<MachineInstr*> endHyperOpInstructionRegion;
+	//Add endHyperOp instruction and 2 nops in each pHyperOp
+	for (unsigned i = 0; i < ceCount; i++) {
+		MachineInstrBuilder endInstruction = BuildMI(*BB, BB->end(), BB->begin()->getDebugLoc(), TII->get(REDEFINE::END));
+		endInstruction.addImm(0);
+		endHyperOpInstructionRegion.push_back(endInstruction.operator ->());
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(endInstruction.operator llvm::MachineInstr *());
+		for (unsigned j = 0; j < 2; j++) {
+			MachineInstrBuilder nopInstruction = BuildMI(*BB, BB->end(), BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
+			nopInstruction.addReg(REDEFINE::zero, RegState::InternalRead);
+			nopInstruction.addReg(REDEFINE::zero, RegState::InternalRead);
+			nopInstruction.addImm(0);
+			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
+		}
+	}
+
+	firstInstructionOfpHyperOp.push_back(endHyperOpInstructionRegion);
+}
+
 //Shuffle instructions first
 if (firstInstructionOfpHyperOp.size() > 1) {
 	DEBUG(dbgs() << "Shuffling instructions around such that successive instructions belong to the same pHyperOp, this shuffle is across regions for basic block BB#" << BB->getNumber() << "\n");
@@ -701,10 +916,10 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 
 		//Merge pHyperOps from regions i and j
 		for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
-
 			MachineInstr* nextCeInstruction;
 			MachineInstr* startMerge;
 			MachineInstr* endMerge;
+			startMerge = secondRegionBoundaries[ceIndex];
 			if (ceIndex + 1 != ceCount) {
 				nextCeInstruction = firstRegionBoundaries[ceIndex + 1];
 				endMerge = secondRegionBoundaries[ceIndex + 1];
@@ -719,7 +934,9 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 				endMerge = BB->end();
 			}
 
-			startMerge = secondRegionBoundaries[ceIndex];
+			if (startMerge == BB->end() || nextCeInstruction == BB->end() || startMerge == 0 || nextCeInstruction == 0) {
+				continue;
+			}
 
 			while (startMerge != endMerge) {
 				BB->splice(nextCeInstruction, BB, startMerge);
@@ -732,177 +949,11 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 DEBUG(dbgs() << "After Shuffling basic block, state of BB#" << BB->getNumber() << ":\n");
 BB->print(dbgs());
 
-////If the basic block is the terminator
-////TODO had to move this here instead of finalize schedule because instructions get shuffled here into pHyperOp bundles, inheriting the same bundle properties in finalizeSchedule proved difficult
-//if (BB->getName().compare(MF.back().getName()) == 0) {
-////	MachineInstr* firstRegionBoundaries[4] = ;
-//
-//	DebugLoc location = BB->begin()->getDebugLoc();
-//	//Add writecm instructions and fbind(fbind is in case of context frames being reused statically and hence, is added optionally); returns are assumed to be merged
-//	HyperOpInteractionGraph * graph = ((REDEFINETargetMachine&) TM).HIG;
-//	Function* Fn = const_cast<Function*>(MF.getFunction());
-//	HyperOp* hyperOp = ((REDEFINETargetMachine&) TM).HIG->getHyperOp(Fn);
-//
-//	//TODO: I am assuming here that there is only one exit block since we merge return
-//	MachineBasicBlock& lastBB = MF.back();
-//	MachineInstr* lastInstruction = lastBB.end();
-//
-//	//Add Fbind
-//	//Among the HyperOps immediately dominated by the hyperOp, add fbind for those HyperOps that require it
-//	list<HyperOp*> immediatelyDominatedHyperOp;
-//	DEBUG(dbgs() << "Adding fbind instructions\n");
-//
-//	for (list<HyperOp*>::iterator hyperOpItr = graph->Vertices.begin(); hyperOpItr != graph->Vertices.end(); hyperOpItr++) {
-//		if (*hyperOpItr != hyperOp && (*hyperOpItr)->isFbindRequired() && (*hyperOpItr)->getImmediateDominator() == hyperOp) {
-//			//Fbind instruction added to the immediate dominator of the HyperOp
-//			unsigned hyperOpId = (*hyperOpItr)->getHyperOpId();
-//			MachineInstrBuilder fbind = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FBIND));
-//			fbind.addReg(REDEFINE::zero);
-//			fbind.addReg(REDEFINE::zero);
-//			fbind.addImm((*hyperOpItr)->getContextFrame());
-//			allInstructionsOfRegion.push_back(make_pair(fbind.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
-//			LIS->getSlotIndexes()->insertMachineInstrInMaps(fbind.operator llvm::MachineInstr *());
-//		}
-//	}
-//	//End of add fbind
-//
-//	//LLVM IR is assumed to be in mem form; Loading from the memory location with the same name as the value should do for all the data being communicated between HyperOps
-//	vector<list<pair<HyperOp*, unsigned> > > consumerHyperOps;
-//	consumerHyperOps.reserve(ceCount);
-//	for (unsigned j = 0; j < ceCount; j++) {
-//		list<pair<HyperOp*, unsigned> > consumerList;
-//		consumerHyperOps.push_back(consumerList);
-//	}
-//
-//	DEBUG(dbgs() << "Adding writecm instructions\n");
-//	//Cyclically distribute the writecm stubs among pHyperOps
-//	unsigned currentCE = 0;
-//	for (map<HyperOpEdge*, HyperOp*>::iterator childItr = hyperOp->ChildMap.begin(); childItr != hyperOp->ChildMap.end(); childItr++) {
-//		HyperOpEdge* edge = childItr->first;
-//		HyperOp* consumer = childItr->second;
-//		//position is multiplied by 4 since the context memory is byte addressable
-//		unsigned contextFrameOffset = edge->getPositionOfInput() * 4;
-//		if (edge->getPositionOfInput() == -1) {
-//			//Scheduling predicate forced to be the last entry in context frame
-//			contextFrameOffset = frameSize - 1;
-//		}
-//
-//		unsigned registerContainingConsumerBase = -1;
-//		//Check if the consumer's context frame address has already been loaded to memory; If not, add an instruction to load the context frame address to a register
-//		for (list<pair<HyperOp*, unsigned> >::iterator consumerItr = consumerHyperOps[currentCE].begin(); consumerItr != consumerHyperOps[currentCE].end(); consumerItr++) {
-//			if (consumerItr->first == consumer) {
-//				registerContainingConsumerBase = consumerItr->second;
-//				break;
-//			}
-//		}
-//		if (registerContainingConsumerBase == -1) {
-//			registerContainingConsumerBase = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-//			MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
-//			addi.addReg(registerContainingConsumerBase, RegState::Define);
-//			addi.addReg(REDEFINE::zero, RegState::InternalRead);
-//			addi.addImm(consumer->getContextFrame() * frameSize);
-//			consumerHyperOps[currentCE].push_back(make_pair(consumer, registerContainingConsumerBase));
-//			//Add instruction to bundle
-//			allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
-//			LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
-//			LIS->getOrCreateInterval(registerContainingConsumerBase);
-//		}
-//
-//		unsigned objectIndex = -1;
-//		//Get the index of the stack allocated object, starting from 0 because negative offsets from fp contain function arguments
-//		for (int i = 0; i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
-//			const AllocaInst* allocInstr = MF.getFrameInfo()->getObjectAllocation(i);
-//			//TODO Bad code, why do you use string comparison?
-//			if (edge->getName().compare(allocInstr->getName()) == 0) {
-//				//Find the offset of the object wrt SP
-//				objectIndex = i;
-//				break;
-//			}
-//		}
-//
-//		//If the edge is a forced control edge for precedence
-//		if (objectIndex == -1) {
-//			//There can only be one such incoming control edge predicating execution, hence not tracking them separately
-//			objectIndex = MF.getFrameInfo()->getObjectOffset(MF.getFrameInfo()->getObjectIndexEnd() - 1) + 1;
-//		}
-//
-//		//TODO Add a load instruction to get data from memory onto a register; There could be forced schedule edges that we don't want to add load instructions for the same
-//		unsigned registerContainingData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-//		if (objectIndex != -1) {
-//			MachineInstrBuilder loadInstr = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::LW));
-//			loadInstr.addReg(registerContainingData, RegState::Define);
-//			loadInstr.addReg(REDEFINE::zero);
-//			loadInstr.addFrameIndex(objectIndex);
-//			//Add instruction to bundle
-//			allInstructionsOfRegion.push_back(make_pair(loadInstr.operator ->(), make_pair(currentCE, insertPosition++)));
-//			LIS->getSlotIndexes()->insertMachineInstrInMaps(loadInstr.operator llvm::MachineInstr *());
-//			LIS->getOrCreateInterval(registerContainingData);
-//
-//		}
-//		//No need to access memory for a true predicate, copying via addi will do
-//		else {
-//			MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
-//			addi.addReg(registerContainingData, RegState::Define);
-//			addi.addReg(REDEFINE::zero, RegState::InternalRead);
-//			addi.addImm(1);
-//			//Add instruction to bundle
-//			allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
-//			LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
-//			LIS->getOrCreateInterval(registerContainingData);
-//		}
-//		MachineInstrBuilder writeToContextFrame;
-//		if (edge->Type == HyperOpEdge::DATA) {
-//			writeToContextFrame = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::WRITECM));
-//		} else if (edge->Type == HyperOpEdge::CONTROL) {
-//			//Forced serialization edges need not be added if there is any other edge between the producer and consumer HyperOps
-//			writeToContextFrame = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::WRITECMP));
-//		}
-//		writeToContextFrame.addReg(registerContainingConsumerBase, RegState::InternalRead);
-//		writeToContextFrame.addReg(registerContainingData, RegState::InternalRead);
-//		writeToContextFrame.addImm(contextFrameOffset);
-//		allInstructionsOfRegion.push_back(make_pair(writeToContextFrame.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
-//		//Add instruction to bundle
-//		LIS->getSlotIndexes()->insertMachineInstrInMaps(writeToContextFrame.operator llvm::MachineInstr *());
-//		currentCE = (currentCE + 1) % ceCount;
-//
-//		//Add the writecm instructions to the function map so that they can be patched for the right context frame location later
-//		Function* consumerFunction = consumer->getFunction();
-//		list<MachineInstr*> writeInstructionsToConsumer;
-//		if (writeInstrToContextFrame.find(consumerFunction) != writeInstrToContextFrame.end()) {
-//			writeInstructionsToConsumer = writeInstrToContextFrame.find(consumerFunction)->second;
-//			writeInstrToContextFrame.erase(writeInstrToContextFrame.find(consumerFunction));
-//		}
-//
-//		writeInstructionsToConsumer.push_back(writeToContextFrame.operator ->());
-//		writeInstrToContextFrame.insert(make_pair(consumerFunction, writeInstructionsToConsumer));
-//	}
-//
-//	DEBUG(dbgs() << "Adding endHyperOp instructions to each pHyperOp\n");
-//	//Add endHyperOp instruction and 2 nops in each pHyperOp
-//	for (unsigned i = 0; i < ceCount; i++) {
-//		MachineInstrBuilder endInstruction = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::END));
-//		endInstruction.addImm(0);
-//		allInstructionsOfRegion.push_back(make_pair(endInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
-//		//If no instructions in the bb, add end hyperop as the first instr
-//		if (firstInstructionOfpHyperOpInRegion[i] == 0) {
-//			firstInstructionOfpHyperOpInRegion[i] = endInstruction.operator ->();
-//		}
-//
-//		for (unsigned j = 0; j < 2; j++) {
-//			MachineInstrBuilder nopInstruction = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::ADDI));
-//			nopInstruction.addReg(REDEFINE::zero, RegState::InternalRead);
-//			nopInstruction.addReg(REDEFINE::zero, RegState::InternalRead);
-//			nopInstruction.addImm(0);
-//			allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
-//			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-//		}
-//	}
-//}
-
 //Create instruction bundles corresponding to pHyperOps
 if (!firstInstructionOfpHyperOp.empty()) {
 	DEBUG(dbgs() << "Creating pHyperOp bundles for CEs\n");
 	for (unsigned i = 0; i < ceCount; i++) {
+		//TODO some changes required here if somehow an empty region is the first one to be processed
 		MachineInstr* firstInstructionInCE = firstInstructionOfpHyperOp.front()[i];
 		MachineInstr* firstInstructionInNextCE;
 
