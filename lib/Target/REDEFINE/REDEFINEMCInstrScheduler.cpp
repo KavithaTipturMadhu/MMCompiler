@@ -457,6 +457,36 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 		}
 	}
 
+	//Dump in memory all the registers that are live-out
+	DEBUG(dbgs() << "Dumping all live-out registers to memory\n");
+	MachineInstr* lastInstr = BB->getFirstInstrTerminator();
+	for (unsigned i = 0, e = RPTracker.getPressure().LiveOutRegs.size(); i < e; i++) {
+		unsigned liveoutRegister = RPTracker.getPressure().LiveOutRegs[i];
+		SmallVector<unsigned, 8> LiveInRegs = RPTracker.getPressure().LiveInRegs;
+		//Find out the definition of the live-out register
+		VNInfo* regValueNumber = LIS->getInterval(liveoutRegister).getVNInfoBefore(LIS->getInstructionIndex(&BB->back()));
+		MachineInstr* reachingDefinitionInstruction = LIS->getInstructionFromIndex(regValueNumber->def);
+		int ceContainingInstruction = -1;
+		for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstructionItr = allInstructionsOfRegion.begin(); allInstructionItr != allInstructionsOfRegion.end(); allInstructionItr++) {
+			if (allInstructionItr->first == reachingDefinitionInstruction) {
+				ceContainingInstruction = allInstructionItr->second.first;
+				break;
+			}
+		}
+
+		//If the register was live-in and not redefined in the basic block, do nothing since the data is in memory already; Otherwise, add a sw instruction
+		if (!(ceContainingInstruction == -1 && find(LiveInRegs.begin(), LiveInRegs.end(), liveoutRegister) != LiveInRegs.end())) {
+			MachineInstrBuilder storeInMem = BuildMI(*BB, lastInstr, lastInstr->getDebugLoc(), TII->get(REDEFINE::SW));
+			storeInMem.addReg(REDEFINE::zero, RegState::InternalRead);
+			storeInMem.addReg(liveoutRegister, RegState::InternalRead);
+			storeInMem.addFrameIndex(nextFrameLocation);
+			registerAndFrameLocation.insert(make_pair(liveoutRegister, nextFrameLocation));
+			nextFrameLocation += 1;
+			LIS->getSlotIndexes()->insertMachineInstrInMaps(storeInMem.operator llvm::MachineInstr *());
+			allInstructionsOfRegion.push_back(make_pair(storeInMem.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
+		}
+	}
+
 	errs() << "added sync boundary\n";
 	//See if some predecessors exist which require additional inter-pHyperOp communication instructions
 	for (unsigned i = 0; i < machineInstruction->getNumOperands(); i++) {
@@ -617,7 +647,8 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 			allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 		}
 	}
-	if (RegionBegin == RegionEnd&&firstInsertedInstruction!=0) {
+
+	if (RegionBegin == RegionEnd && firstInsertedInstruction != 0) {
 		RegionBegin = firstInsertedInstruction;
 	}
 }
@@ -653,36 +684,6 @@ firstInstructionOfpHyperOp.push_front(firstInstrCopy);
 }
 
 void REDEFINEMCInstrScheduler::finishBlock() {
-//Dump in memory all the registers that are live-out
-//DEBUG(dbgs() << "Dumping all live-out registers to memory\n");
-//MachineInstr* lastInstr = BB->getFirstInstrTerminator();
-//for (unsigned i = 0, e = RPTracker.getPressure().LiveOutRegs.size(); i < e; i++) {
-//	unsigned liveoutRegister = RPTracker.getPressure().LiveOutRegs[i];
-//	SmallVector<unsigned, 8> LiveInRegs = RPTracker.getPressure().LiveInRegs;
-//	//Find out the definition of the live-out register
-//	VNInfo* regValueNumber = LIS->getInterval(liveoutRegister).getVNInfoBefore(LIS->getInstructionIndex(&BB->back()));
-//	MachineInstr* reachingDefinitionInstruction = LIS->getInstructionFromIndex(regValueNumber->def);
-//	int ceContainingInstruction = -1;
-//	for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstructionItr = allInstructionsOfRegion.begin(); allInstructionItr != allInstructionsOfRegion.end(); allInstructionItr++) {
-//		if (allInstructionItr->first == reachingDefinitionInstruction) {
-//			ceContainingInstruction = allInstructionItr->second.first;
-//			break;
-//		}
-//	}
-//
-//	//If the register was live-in and not redefined in the basic block, do nothing since the data is in memory already; Otherwise, add a sw instruction
-//	if (!(ceContainingInstruction == -1 && find(LiveInRegs.begin(), LiveInRegs.end(), liveoutRegister) != LiveInRegs.end())) {
-//		MachineInstrBuilder storeInMem = BuildMI(*BB, lastInstr, lastInstr->getDebugLoc(), TII->get(REDEFINE::SW));
-//		storeInMem.addReg(REDEFINE::zero, RegState::InternalRead);
-//		storeInMem.addReg(liveoutRegister, RegState::InternalRead);
-//		storeInMem.addFrameIndex(nextFrameLocation);
-//		registerAndFrameLocation.insert(make_pair(liveoutRegister, nextFrameLocation));
-//		nextFrameLocation += 1;
-//		LIS->getSlotIndexes()->insertMachineInstrInMaps(storeInMem.operator llvm::MachineInstr *());
-//		allInstructionsOfRegion.push_back(make_pair(storeInMem.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
-//	}
-//}
-
 //If the basic block is the terminator
 if (BB->getName().compare(MF.back().getName()) == 0) {
 	DebugLoc location = BB->begin()->getDebugLoc();
