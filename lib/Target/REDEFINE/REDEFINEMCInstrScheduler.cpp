@@ -1002,7 +1002,6 @@ for (MachineRegisterInfo::livein_iterator liveInItr = MF.getRegInfo().livein_beg
 	DEBUG(dbgs() << "live-in phys reg:" << liveInItr->first << "\n");
 	liveInPhysRegisters.push_back(liveInItr->first);
 }
-instructionAndPHyperOpMap.clear();
 
 //Get the live-in registers and map to the ce to which they belong
 for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE; ++MBBI) {
