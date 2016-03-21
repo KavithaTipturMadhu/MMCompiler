@@ -310,3 +310,6 @@ def FNMADD:InstREDEFINE<4, (outs FP32:$dst), (ins FP32:$src3, FP32:$src2, FP32:$
   let Inst{6-0} = 0b1000011;
 
 }
+
+def : Pat<(REDEFINEHi tglobaladdr:$in), (LUI tglobaladdr:$in)>;
+def : Pat<(REDEFINELo tglobaladdr:$in), (ADDI zero, tglobaladdr:$in)>;

@@ -70,3 +70,4 @@ def r_pcrel_wrapper     : SDNode<"REDEFINEISD::PCREL_WRAPPER", SDT_RWrapPtr, []>
 // Typed floating-point loads.
 def loadf32 : PatFrag<(ops node:$src), (f32 (load node:$src))>;
 def loadf64 : PatFrag<(ops node:$src), (f64 (load node:$src))>;
+

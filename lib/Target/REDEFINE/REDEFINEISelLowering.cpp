@@ -67,6 +67,7 @@ REDEFINETargetLowering::REDEFINETargetLowering(REDEFINETargetMachine &tm) :
 	setOperationAction(ISD::SETCC, MVT::i32, Legal);		  //folds into brcond
 	setOperationAction(ISD::SETCC, MVT::i64, Expand);		  //only use 32bit
 	setOperationAction(ISD::Constant, MVT::i32, Legal);
+	setOperationAction(ISD::ConstantFP, MVT::i32, Legal);
 	setOperationAction(ISD::Constant, MVT::i64, Expand);
 
 	// Expand jump table branches as address arithmetic followed by an
@@ -168,11 +169,11 @@ REDEFINETargetLowering::REDEFINETargetLowering(REDEFINETargetMachine &tm) :
 	setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i32, Legal);
 
 	// Handle the various types of symbolic address.
-	setOperationAction(ISD::ConstantPool, PtrVT, Expand);
-	setOperationAction(ISD::GlobalAddress, PtrVT, Expand);
-	setOperationAction(ISD::GlobalTLSAddress, PtrVT, Expand);
-	setOperationAction(ISD::BlockAddress, PtrVT, Expand);
-	setOperationAction(ISD::JumpTable, PtrVT, Expand);
+	setOperationAction(ISD::ConstantPool, PtrVT, Custom);
+	setOperationAction(ISD::GlobalAddress, PtrVT, Custom);
+	setOperationAction(ISD::GlobalTLSAddress, PtrVT, Custom);
+	setOperationAction(ISD::BlockAddress, PtrVT, Custom);
+	setOperationAction(ISD::JumpTable, PtrVT, Custom);
 
 	//Expand stack allocations
 //		  setOperationAction(ISD::DYNAMIC_STACKALLOC, PtrVT, Expand);
