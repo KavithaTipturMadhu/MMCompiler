@@ -42,21 +42,25 @@ bool REDEFINEInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock 
 	MachineBasicBlock::iterator I = MBB.end();
 	while (I != MBB.begin()) {
 		--I;
-		if (I->isDebugValue()) continue;
+		if (I->isDebugValue())
+			continue;
 
 		// Working from the bottom, when we see a non-terminator instruction, we're
 		// done.
-		if (!isUnpredicatedTerminator(I)) break;
+		if (!isUnpredicatedTerminator(I))
+			break;
 
 		// A terminator that isn't a branch can't easily be handled by this
 		// analysis.
 		SmallVector<MachineOperand, 4> ThisCond;
 		ThisCond.push_back(MachineOperand::CreateImm(0));
 		const MachineOperand *ThisTarget;
-		if (!isBranch(I, ThisCond, ThisTarget)) return true;
+		if (!isBranch(I, ThisCond, ThisTarget))
+			return true;
 
 		// Can't handle indirect branches.
-		if (!ThisTarget->isMBB()) return true;
+		if (!ThisTarget->isMBB())
+			return true;
 
 		if (ThisCond[0].getImm() == REDEFINE::CCMASK_ANY) {
 			// Handle unconditional branches.
@@ -106,11 +110,13 @@ bool REDEFINEInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock 
 
 		// Only handle the case where all conditional branches branch to the same
 		// destination.
-		if (TBB != ThisTarget->getMBB()) return true;
+		if (TBB != ThisTarget->getMBB())
+			return true;
 
 		// If the conditions are the same, we can leave them alone.
 		unsigned OldCond = Cond[0].getImm();
-		if (OldCond == ThisCond[0].getImm()) continue;
+		if (OldCond == ThisCond[0].getImm())
+			continue;
 
 		// FIXME: Try combining conditions like X86 does.
 	}
@@ -125,12 +131,15 @@ unsigned REDEFINEInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
 
 	while (I != MBB.begin()) {
 		--I;
-		if (I->isDebugValue()) continue;
+		if (I->isDebugValue())
+			continue;
 		SmallVector<MachineOperand, 4> Cond;
 		Cond.push_back(MachineOperand::CreateImm(0));
 		const MachineOperand *Target;
-		if (!isBranch(I, Cond, Target)) break;
-		if (!Target->isMBB()) break;
+		if (!isBranch(I, Cond, Target))
+			break;
+		if (!Target->isMBB())
+			break;
 		// Remove the branch.
 		I->eraseFromParent();
 		I = MBB.end();
@@ -169,26 +178,26 @@ unsigned REDEFINEInstrInfo::InsertConstBranchAtInst(MachineBasicBlock &MBB, Mach
 	unsigned Count = 0;
 	unsigned CC = Cond[0].getImm();
 	switch (CC) {
-		case REDEFINE::CCMASK_CMP_EQ:
-			BuildMI(MBB, I, DL, get(REDEFINE::BEQ)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
-			break;
-		case REDEFINE::CCMASK_CMP_NE:
-			BuildMI(MBB, I, DL, get(REDEFINE::BNE)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
-			break;
-		case REDEFINE::CCMASK_CMP_LT:
-			BuildMI(MBB, I, DL, get(REDEFINE::BLT)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
-			break;
-		case (REDEFINE::CCMASK_CMP_LT | REDEFINE::CCMASK_CMP_UO):
-			BuildMI(MBB, I, DL, get(REDEFINE::BLTU)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
-			break;
-		case REDEFINE::CCMASK_CMP_GE:
-			BuildMI(MBB, I, DL, get(REDEFINE::BGE)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
-			break;
-		case (REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO):
-			BuildMI(MBB, I, DL, get(REDEFINE::BGEU)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
-			break;
-		default:
-			llvm_unreachable("Invalid branch condition code!");
+	case REDEFINE::CCMASK_CMP_EQ:
+		BuildMI(MBB, I, DL, get(REDEFINE::BEQ)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	case REDEFINE::CCMASK_CMP_NE:
+		BuildMI(MBB, I, DL, get(REDEFINE::BNE)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	case REDEFINE::CCMASK_CMP_LT:
+		BuildMI(MBB, I, DL, get(REDEFINE::BLT)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	case (REDEFINE::CCMASK_CMP_LT | REDEFINE::CCMASK_CMP_UO):
+		BuildMI(MBB, I, DL, get(REDEFINE::BLTU)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	case REDEFINE::CCMASK_CMP_GE:
+		BuildMI(MBB, I, DL, get(REDEFINE::BGE)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	case (REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO):
+		BuildMI(MBB, I, DL, get(REDEFINE::BGEU)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	default:
+		llvm_unreachable("Invalid branch condition code!");
 	}
 	++Count;
 	return Count;
@@ -208,26 +217,26 @@ unsigned REDEFINEInstrInfo::InsertBranchAtInst(MachineBasicBlock &MBB, MachineIn
 	unsigned Count = 0;
 	unsigned CC = Cond[0].getImm();
 	switch (CC) {
-		case REDEFINE::CCMASK_CMP_EQ:
-			BuildMI(MBB, I, DL, get(REDEFINE::BEQ)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
-			break;
-		case REDEFINE::CCMASK_CMP_NE:
-			BuildMI(MBB, I, DL, get(REDEFINE::BNE)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
-			break;
-		case REDEFINE::CCMASK_CMP_LT:
-			BuildMI(MBB, I, DL, get(REDEFINE::BLT)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
-			break;
-		case (REDEFINE::CCMASK_CMP_LT | REDEFINE::CCMASK_CMP_UO):
-			BuildMI(MBB, I, DL, get(REDEFINE::BLTU)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
-			break;
-		case REDEFINE::CCMASK_CMP_GE:
-			BuildMI(MBB, I, DL, get(REDEFINE::BGE)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
-			break;
-		case (REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO):
-			BuildMI(MBB, I, DL, get(REDEFINE::BGEU)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
-			break;
-		default:
-			llvm_unreachable("Invalid branch condition code!");
+	case REDEFINE::CCMASK_CMP_EQ:
+		BuildMI(MBB, I, DL, get(REDEFINE::BEQ)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	case REDEFINE::CCMASK_CMP_NE:
+		BuildMI(MBB, I, DL, get(REDEFINE::BNE)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	case REDEFINE::CCMASK_CMP_LT:
+		BuildMI(MBB, I, DL, get(REDEFINE::BLT)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	case (REDEFINE::CCMASK_CMP_LT | REDEFINE::CCMASK_CMP_UO):
+		BuildMI(MBB, I, DL, get(REDEFINE::BLTU)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	case REDEFINE::CCMASK_CMP_GE:
+		BuildMI(MBB, I, DL, get(REDEFINE::BGE)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	case (REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO):
+		BuildMI(MBB, I, DL, get(REDEFINE::BGEU)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	default:
+		llvm_unreachable("Invalid branch condition code!");
 	}
 	++Count;
 
@@ -239,46 +248,45 @@ void REDEFINEInstrInfo::copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::i
 	unsigned Opcode;
 	const REDEFINESubtarget &STI = TM.getSubtarget<REDEFINESubtarget>();
 	//when we are copying a phys reg we want the bits for fp
-	if (REDEFINE::GR32BitRegClass.contains(DestReg, SrcReg)) Opcode = REDEFINE::ADDI;
+	if (REDEFINE::GR32BitRegClass.contains(DestReg, SrcReg))
+		Opcode = REDEFINE::ADDI;
 	else
-	llvm_unreachable("Impossible reg-to-reg copy");
+		llvm_unreachable("Impossible reg-to-reg copy");
 
 	BuildMI(MBB, MBBI, DL, get(Opcode), DestReg).addReg(SrcReg, getKillRegState(KillSrc)).addImm(0);
 }
 
 bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const {
 	//TODO Hack for immediates that don't fit in 12 bit addi operand field
-	if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(1).getReg() == REDEFINE::zero&&MI->getOperand(2).isImm()) {
-		MachineOperand& immediateOperand = MI->getOperand(2);
-
-		if (ceil(log2(immediateOperand.getImm()))>12) {
-			MachineBasicBlock::instr_iterator Pred , Succ;
+	if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(1).getReg() == REDEFINE::zero && MI->getOperand(2).isImm()) {
+		//Since immediate value cannot spill 11 bits, we need to expand it to multiple addi instructions
+		while (ceil(log2(MI->getOperand(2).getImm())) > 11) {
+			MachineBasicBlock::instr_iterator Pred, Succ;
 			//TODO We know that an immediate value cannot exceed 32 bit value anyway, so casting to 32 bit is expected to be safe
-			int32_t immediateValue = ((int32_t) immediateOperand.getImm());
-			//Split the addi to an lui and addi
+			int32_t immediateValue = ((int32_t) MI->getOperand(2).getImm());
+			//Split the addi to addi chain
 			bool isMIBundledWithPred = MI->isBundledWithPred();
-			if(isMIBundledWithPred){
-				Pred= MI.getInstrIterator();
+			if (isMIBundledWithPred) {
+				Pred = MI.getInstrIterator();
 				--Pred;
 			}
 			Succ = MI.getInstrIterator();
-			MachineInstrBuilder lui = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(),  get(REDEFINE::LUI));
-			lui.addImm(immediateValue >> 12);
-			lui.addReg(MI->getOperand(0).getReg(), RegState::Define);
+			MachineInstrBuilder addi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADDI));
+			addi.addReg(MI->getOperand(0).getReg(), RegState::Kill);
+			addi.addReg(REDEFINE::zero, RegState::InternalRead);
+			addi.addImm(0x7ff);
 
-			MI->getOperand(2).setImm(immediateValue & 0xfff);
-			errs()<<"updated bb:";
-			MI->getParent()->dump();
-			if(isMIBundledWithPred){
+			MI->getOperand(2).setImm(immediateValue-0x7ff);
+			if (isMIBundledWithPred) {
 				//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
 				Pred->clearFlag(MachineInstr::BundledSucc);
-				lui->bundleWithPred();
+				addi->bundleWithPred();
 				Succ->clearFlag(MachineInstr::BundledPred);
 			}
 
-			lui->bundleWithSucc();
-			return true;
+			addi->bundleWithSucc();
 		}
+		return true;
 	}
 	return false;
 
@@ -286,96 +294,96 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 
 bool REDEFINEInstrInfo::ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const {
 	assert(Cond.size() <= 4 && "Invalid branch condition!");
-	//Only need to switch the condition code, not the registers
+//Only need to switch the condition code, not the registers
 	switch (Cond[0].getImm()) {
-		case REDEFINE::CCMASK_CMP_EQ:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_NE);
-			return false;
-		case REDEFINE::CCMASK_CMP_NE:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_EQ);
-			return false;
-		case REDEFINE::CCMASK_CMP_LT:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_GE);
-			return false;
-		case REDEFINE::CCMASK_CMP_GE:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_LT);
-			return false;
-		case REDEFINE::CCMASK_CMP_LT | REDEFINE::CCMASK_CMP_UO:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO);
-			return false;
-		case REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_LT | REDEFINE::CCMASK_CMP_UO);
-			return false;
-			//synth
-		case REDEFINE::CCMASK_CMP_GT:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_LE);
-			return false;
-		case REDEFINE::CCMASK_CMP_LE:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_GT);
-			return false;
-		case REDEFINE::CCMASK_CMP_GT | REDEFINE::CCMASK_CMP_UO:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_LE | REDEFINE::CCMASK_CMP_UO);
-			return false;
-		case REDEFINE::CCMASK_CMP_LE | REDEFINE::CCMASK_CMP_UO:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_GT | REDEFINE::CCMASK_CMP_UO);
-			return false;
-		default:
-			llvm_unreachable("Invalid branch condition!");
+	case REDEFINE::CCMASK_CMP_EQ:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_NE);
+		return false;
+	case REDEFINE::CCMASK_CMP_NE:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_EQ);
+		return false;
+	case REDEFINE::CCMASK_CMP_LT:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_GE);
+		return false;
+	case REDEFINE::CCMASK_CMP_GE:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_LT);
+		return false;
+	case REDEFINE::CCMASK_CMP_LT | REDEFINE::CCMASK_CMP_UO:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO);
+		return false;
+	case REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_LT | REDEFINE::CCMASK_CMP_UO);
+		return false;
+		//synth
+	case REDEFINE::CCMASK_CMP_GT:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_LE);
+		return false;
+	case REDEFINE::CCMASK_CMP_LE:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_GT);
+		return false;
+	case REDEFINE::CCMASK_CMP_GT | REDEFINE::CCMASK_CMP_UO:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_LE | REDEFINE::CCMASK_CMP_UO);
+		return false;
+	case REDEFINE::CCMASK_CMP_LE | REDEFINE::CCMASK_CMP_UO:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_GT | REDEFINE::CCMASK_CMP_UO);
+		return false;
+	default:
+		llvm_unreachable("Invalid branch condition!");
 	}
 }
 
 bool REDEFINEInstrInfo::isBranch(const MachineInstr *MI, SmallVectorImpl<MachineOperand> &Cond, const MachineOperand *&Target) const {
 	switch (MI->getOpcode()) {
-		case REDEFINE::JAL:
-			Cond[0].setImm(REDEFINE::CCMASK_ANY);
-			Target = &MI->getOperand(0);
-			return true;
-		case REDEFINE::BEQ:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_EQ);
-			Target = &MI->getOperand(0);
-			return true;
-		case REDEFINE::BNE:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_NE);
-			Target = &MI->getOperand(0);
-			return true;
-		case REDEFINE::BLT:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_LT);
-			Target = &MI->getOperand(0);
-			return true;
-		case REDEFINE::BLTU:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_LT | REDEFINE::CCMASK_CMP_UO);
-			Target = &MI->getOperand(0);
-			return true;
-		case REDEFINE::BGE:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_GE);
-			Target = &MI->getOperand(0);
-			return true;
-		case REDEFINE::BGEU:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO);
-			Target = &MI->getOperand(0);
-			return true;
+	case REDEFINE::JAL:
+		Cond[0].setImm(REDEFINE::CCMASK_ANY);
+		Target = &MI->getOperand(0);
+		return true;
+	case REDEFINE::BEQ:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_EQ);
+		Target = &MI->getOperand(0);
+		return true;
+	case REDEFINE::BNE:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_NE);
+		Target = &MI->getOperand(0);
+		return true;
+	case REDEFINE::BLT:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_LT);
+		Target = &MI->getOperand(0);
+		return true;
+	case REDEFINE::BLTU:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_LT | REDEFINE::CCMASK_CMP_UO);
+		Target = &MI->getOperand(0);
+		return true;
+	case REDEFINE::BGE:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_GE);
+		Target = &MI->getOperand(0);
+		return true;
+	case REDEFINE::BGEU:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO);
+		Target = &MI->getOperand(0);
+		return true;
 ////synth
-		case REDEFINE::BGT:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_GT);
-			Target = &MI->getOperand(0);
-			return true;
-		case REDEFINE::BGTU:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_GT | REDEFINE::CCMASK_CMP_UO);
-			Target = &MI->getOperand(0);
-			return true;
-		case REDEFINE::BLE:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_LE);
-			Target = &MI->getOperand(0);
-			return true;
-		case REDEFINE::BLEU:
-			Cond[0].setImm(REDEFINE::CCMASK_CMP_LE | REDEFINE::CCMASK_CMP_UO);
-			Target = &MI->getOperand(0);
-			return true;
+	case REDEFINE::BGT:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_GT);
+		Target = &MI->getOperand(0);
+		return true;
+	case REDEFINE::BGTU:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_GT | REDEFINE::CCMASK_CMP_UO);
+		Target = &MI->getOperand(0);
+		return true;
+	case REDEFINE::BLE:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_LE);
+		Target = &MI->getOperand(0);
+		return true;
+	case REDEFINE::BLEU:
+		Cond[0].setImm(REDEFINE::CCMASK_CMP_LE | REDEFINE::CCMASK_CMP_UO);
+		Target = &MI->getOperand(0);
+		return true;
 
-		default:
-			MI->dump();
-			assert(!MI->getDesc().isBranch() && "Unknown branch opcode");
-			return false;
+	default:
+		MI->dump();
+		assert(!MI->getDesc().isBranch() && "Unknown branch opcode");
+		return false;
 	}
 }
 
@@ -384,9 +392,8 @@ void REDEFINEInstrInfo::getLoadStoreOpcodes(const TargetRegisterClass *RC, unsig
 	if (RC == &REDEFINE::GR32BitRegClass) {
 		LoadOpcode = REDEFINE::LW;
 		StoreOpcode = REDEFINE::SW;
-	}
-	else
-	llvm_unreachable("Unsupported regclass to load or store");
+	} else
+		llvm_unreachable("Unsupported regclass to load or store");
 }
 
 unsigned REDEFINEInstrInfo::getOpcodeForOffset(unsigned Opcode, int64_t Offset) const {
