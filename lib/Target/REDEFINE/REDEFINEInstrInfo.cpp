@@ -250,29 +250,33 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 	//TODO Hack for immediates that don't fit in 12 bit addi operand field
 	if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(1).getReg() == REDEFINE::zero&&MI->getOperand(2).isImm()) {
 		MachineOperand& immediateOperand = MI->getOperand(2);
+
 		if (ceil(log2(immediateOperand.getImm()))>12) {
+			MachineBasicBlock::instr_iterator Pred , Succ;
 			//TODO We know that an immediate value cannot exceed 32 bit value anyway, so casting to 32 bit is expected to be safe
 			int32_t immediateValue = ((int32_t) immediateOperand.getImm());
-
-			bool isMIBundledWithSucc = MI->isBundledWithSucc();
-
-			//Split the addi to an srli, lui and addi
+			//Split the addi to an lui and addi
+			bool isMIBundledWithPred = MI->isBundledWithPred();
+			if(isMIBundledWithPred){
+				Pred= MI.getInstrIterator();
+				--Pred;
+			}
+			Succ = MI.getInstrIterator();
 			MachineInstrBuilder lui = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(),  get(REDEFINE::LUI));
 			lui.addImm(immediateValue >> 12);
 			lui.addReg(MI->getOperand(0).getReg(), RegState::Define);
 
-			MachineInstrBuilder addi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADDI));
-			addi.addReg(MI->getOperand(0).getReg(), RegState::Kill);
-			addi.addReg(REDEFINE::zero, RegState::InternalRead);
-			addi.addImm(immediateValue & 0xfff);
-
-			//We know the Machine Instruction is bundled for certain
-			MI->eraseFromBundle();
-
-			lui.operator ->()->bundleWithSucc();
-			if(isMIBundledWithSucc){
-				addi.operator ->()->bundleWithSucc();
+			MI->getOperand(2).setImm(immediateValue & 0xfff);
+			errs()<<"updated bb:";
+			MI->getParent()->dump();
+			if(isMIBundledWithPred){
+				//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
+				Pred->clearFlag(MachineInstr::BundledSucc);
+				lui->bundleWithPred();
+				Succ->clearFlag(MachineInstr::BundledPred);
 			}
+
+			lui->bundleWithSucc();
 			return true;
 		}
 	}
