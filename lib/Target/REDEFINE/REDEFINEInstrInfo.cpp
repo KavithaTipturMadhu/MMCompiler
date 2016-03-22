@@ -260,6 +260,7 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 	//TODO Hack for immediates that don't fit in 12 bit addi operand field
 	if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(1).getReg() == REDEFINE::zero && MI->getOperand(2).isImm()) {
 		//Since immediate value cannot spill 11 bits, we need to expand it to multiple addi instructions
+		bool firstPass = true;
 		while (ceil(log2(MI->getOperand(2).getImm())) > 11) {
 			MachineBasicBlock::instr_iterator Pred, Succ;
 			//TODO We know that an immediate value cannot exceed 32 bit value anyway, so casting to 32 bit is expected to be safe
@@ -273,7 +274,12 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 			Succ = MI.getInstrIterator();
 			MachineInstrBuilder addi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADDI));
 			addi.addReg(MI->getOperand(0).getReg(), RegState::Kill);
-			addi.addReg(REDEFINE::zero, RegState::InternalRead);
+			if(firstPass){
+				addi.addReg(REDEFINE::zero, RegState::InternalRead);
+				firstPass = false;
+			}else{
+				addi.addReg(MI->getOperand(0).getReg(), RegState::Kill);
+			}
 			addi.addImm(0x7ff);
 
 			MI->getOperand(2).setImm(immediateValue-0x7ff);
