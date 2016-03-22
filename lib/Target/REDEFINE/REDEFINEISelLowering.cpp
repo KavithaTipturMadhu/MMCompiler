@@ -163,10 +163,10 @@ REDEFINETargetLowering::REDEFINETargetLowering(REDEFINETargetMachine &tm) :
 	setLoadExtAction(ISD::SEXTLOAD, MVT::i1, Expand);
 	setLoadExtAction(ISD::ZEXTLOAD, MVT::i1, Expand);
 	setLoadExtAction(ISD::EXTLOAD, MVT::i1, Expand);
-	setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i1, Legal);
-	setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i8, Legal);
-	setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i16, Legal);
-	setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i32, Legal);
+	setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i1, Expand);
+	setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i8, Expand);
+	setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i16, Expand);
+	setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i32, Expand);
 
 	// Handle the various types of symbolic address.
 	setOperationAction(ISD::ConstantPool, PtrVT, Custom);
