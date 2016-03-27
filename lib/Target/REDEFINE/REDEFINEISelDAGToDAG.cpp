@@ -217,7 +217,6 @@ namespace {
 
 bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 	checkCLFlags();
-	bool retVal = SelectionDAGISel::runOnMachineFunction(mf);
 	Function *Fn = const_cast<Function*>(mf.getFunction());
 	const TargetInstrInfo &TII = *TM.getInstrInfo();
 	const TargetRegisterInfo &TRI = *TM.getRegisterInfo();
@@ -234,7 +233,7 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 		((REDEFINETargetMachine&) TM).HIG->associateStaticContextFrames();
 		((REDEFINETargetMachine&) TM).HIG->print(dbgs());
 	}
-	return retVal;
+	return SelectionDAGISel::runOnMachineFunction(mf);
 }
 
 FunctionPass *llvm::createREDEFINEISelDag(REDEFINETargetMachine &TM, CodeGenOpt::Level OptLevel) {

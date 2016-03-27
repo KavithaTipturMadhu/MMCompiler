@@ -187,6 +187,9 @@ bool ExpandPostRA::runOnMachineFunction(MachineFunction &MF) {
 	TII = MF.getTarget().getInstrInfo();
 
 	bool MadeChange = false;
+	errs()<<"BEFORE EXPANDING\n";
+		MF.dump();
+
 
 	for (MachineFunction::iterator mbbi = MF.begin(), mbbe = MF.end(); mbbi != mbbe; ++mbbi) {
 		//TODO Had to change to this instead of regular iterator because we create pHyperOps as bundles of instructions which  don't get traversed in the non-const iterator case
@@ -222,5 +225,7 @@ bool ExpandPostRA::runOnMachineFunction(MachineFunction &MF) {
 		}
 	}
 
+	errs()<<"what does mf have now?\n";
+		MF.dump();
 	return MadeChange;
 }

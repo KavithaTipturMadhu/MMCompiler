@@ -28,6 +28,7 @@ class raw_ostream;
 extern Target TheREDEFINETarget;
 
 namespace REDEFINEMC {
+//Left this so that nothing breaks, not required
   // How many bytes are in the ABI-defined, caller-allocated part of
   // a stack frame.
   const int64_t CallFrameSize = 160;

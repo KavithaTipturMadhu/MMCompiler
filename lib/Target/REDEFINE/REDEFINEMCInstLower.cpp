@@ -68,7 +68,7 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 	//Machine functions are processed one after the other; hence we increment addresses when machine function switches next
 	static unsigned dgmMemoryAddress = 0;
 	static const MachineFunction* function;
-	bool firstTime = true;
+	bool firstIterationOfFrameIndexProcessing = true;
 	switch (MO.getType()) {
 		case MachineOperand::MO_Register:
 			// Ignore all implicit register operands.
@@ -92,8 +92,8 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 		//TODO: Somehow, getObjectOffset doesn't work, need to check why;
 		//TODO: Take into account the liveness information of HyperOps during memory allocation
 		case MachineOperand::MO_FrameIndex: {
-			if (firstTime||(function->getName().compare(MO.getParent()->getParent()->getParent()->getName())!=0)) {
-				if (!firstTime) {
+			if (firstIterationOfFrameIndexProcessing||(function->getName().compare(MO.getParent()->getParent()->getParent()->getName())!=0)) {
+				if (!firstIterationOfFrameIndexProcessing) {
 					int maxOffsetInPreviousHyperOp = 0;
 					for (int i = MO.getParent()->getParent()->getParent()->getFrameInfo()->getObjectIndexBegin(); i < MO.getParent()->getParent()->getParent()->getFrameInfo()->getObjectIndexEnd(); i++) {
 						maxOffsetInPreviousHyperOp += MO.getParent()->getParent()->getParent()->getFrameInfo()->getObjectSize(i);
@@ -101,7 +101,7 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 					//Spill over previous base address to base memory for the next HyperOp
 					dgmMemoryAddress += maxOffsetInPreviousHyperOp;
 				}
-				firstTime = false;
+				firstIterationOfFrameIndexProcessing = false;
 				function = MO.getParent()->getParent()->getParent();
 			}
 
@@ -127,6 +127,10 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 			const BlockAddress *BA = MO.getBlockAddress();
 			return lowerSymbolOperand(MO, AsmPrinter.GetBlockAddressSymbol(BA), MO.getOffset());
 		}
+		//Making use of MC Symbol to enable patching of HyperOp ids in fbind and createinst instructions later
+		case MachineOperand::MO_MCSymbol:{
+			return lowerSymbolOperand(MO, MO.getMCSymbol(), 0);
+		}
 		default:
 			llvm_unreachable("unknown operand type");
 	}
@@ -144,3 +148,4 @@ void REDEFINEMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) const {
 		if (MCOp.isValid()) OutMI.addOperand(MCOp);
 	}
 }
+

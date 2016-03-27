@@ -24,6 +24,7 @@
 #include "llvm/Target/Mangler.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/ADT/StringExtras.h"
 
 using namespace llvm;
 
@@ -56,7 +57,6 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 	int ceCount = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
 	// Emit target-specific gunk before the function body.
 	EmitFunctionBodyStart();
-
 	// Print out code for the function.
 	bool HasAnyRealCode = false;
 	const MachineInstr *LastMI = 0;
@@ -74,10 +74,11 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 		}
 	}
 
-
 	int pHyperOpIndex = 0;
 	for (vector<list<const MachineInstr*> >::iterator pHyperOpItr = pHyperOpInstructions.begin(); pHyperOpItr != pHyperOpInstructions.end(); pHyperOpItr++, pHyperOpIndex++) {
-		OutStreamer.EmitRawText(StringRef("\npHyperOp:\n"));
+		string codeSegmentStart = "\n.code\t;pHyperOp";
+		codeSegmentStart.append(itostr(pHyperOpIndex)).append("\n");
+		OutStreamer.EmitRawText(StringRef(codeSegmentStart));
 		for (list<const MachineInstr*>::iterator mcItr = pHyperOpItr->begin(); mcItr != pHyperOpItr->end(); mcItr++) {
 			if (startOfBBInPHyperOp[pHyperOpIndex].front() == *mcItr) {
 				MCSymbol *label = (*mcItr)->getParent()->getSymbol();
@@ -87,17 +88,116 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 			}
 			EmitInstruction(*mcItr);
 		}
-
 	}
+
+	EmitFunctionBodyEnd();
 }
 
-//void REDEFINEAsmPrinter::EmitFunctionHeader(){
-//	EmitFunctionEntryLabel();
-//}
+void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
+	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
+	HyperOp* hyperOp = HIG->getHyperOp(const_cast<Function*>(MF->getFunction()));
+	//Add instance metadata
+	//TODO additional changes for instances of the same HyperOp
+	string isStaticHyperOp(STATIC_HYPEROP_ANNOTATION);
+	isStaticHyperOp.append("\t").append("1").append("\n");
+	OutStreamer.EmitRawText(StringRef(isStaticHyperOp));
+
+	string isValid(VALID_ANNOTATION);
+	isValid.append("\t").append("1").append("\n");
+	OutStreamer.EmitRawText(StringRef(isValid));
+
+	string isActive(ACTIVE_ANNOTATION);
+	isActive.append("\t").append("1").append("\n");
+	OutStreamer.EmitRawText(StringRef(isActive));
+
+	string isIntrinsic(INTRINSIC_ANNOTATION);
+	isIntrinsic.append("\t").append(hyperOp->isIntrinsicFrame() ? "1" : "0").append("\n");
+	OutStreamer.EmitRawText(StringRef(isIntrinsic));
+
+	string depthHEG(DEPTH_HEG_ANNOTATION);
+	depthHEG.append("\t").append(itostr(hyperOp->computeDepthInGraph())).append("\n");
+	OutStreamer.EmitRawText(StringRef(depthHEG));
+
+	string launchCount(LAUNCH_CNT_ANNOTATION);
+	//TODO Should predicates be included in this?
+	unsigned argCount = MF->getFunction()->arg_size();
+	launchCount.append("\t").append(itostr(argCount)).append("\n");
+	OutStreamer.EmitRawText(StringRef(launchCount));
+
+	//TODO
+	string operandValidity(OPERAND_VALIDITY_ANNOTATION);
+	operandValidity.append("\t").append(bitset<36>(argCount).to_string()).append("\n");
+	OutStreamer.EmitRawText(StringRef(operandValidity));
+
+	//TODO
+	string opWaitCount(OP_WAIT_CNT_ANNOTATION);
+	opWaitCount.append("\t").append(itostr(argCount)).append("\n");
+	OutStreamer.EmitRawText(StringRef(opWaitCount));
+
+	//TODO
+	string isNextHyperOpInstValid(ISNEXT_HOP_INST_VALID_ANNOTATION);
+	isNextHyperOpInstValid.append("\t").append("0").append("\n");
+	OutStreamer.EmitRawText(StringRef(isNextHyperOpInstValid));
+
+	string nextHyperOpInst(NEXT_HYPEROP_INST_ANNOTATION);
+	nextHyperOpInst.append("\t").append("0").append("\n");
+	OutStreamer.EmitRawText(StringRef(nextHyperOpInst));
+}
+
+void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
+	static bool firstFunctionBeingProcessed = true;
+	int ceCount = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
+	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
+	HyperOp* hyperOp = HIG->getHyperOp(const_cast<Function*>(MF->getFunction()));
+//TODO couldn't find any method that gets invoked that could insert topology details
+	if (firstFunctionBeingProcessed) {
+		int maxXInTopology = 0, maxYInTopology = 0;
+		int fabricRowCount = (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getM();
+		int fabricColumnCount = (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getN();
+		for (list<HyperOp*>::iterator hyperOpItr = HIG->Vertices.begin(); hyperOpItr != HIG->Vertices.end(); hyperOpItr++) {
+			HyperOp* hyperOp = *hyperOpItr;
+			errs() << "HyperOp:" << hyperOp->getFunction()->getName() << "\n";
+			int mappedToX = hyperOp->getTargetResource() / fabricRowCount;
+			int mappedToY = hyperOp->getTargetResource() % fabricColumnCount;
+			if (mappedToX > maxXInTopology) {
+				mappedToX = maxXInTopology;
+			}
+			if (mappedToY > maxYInTopology) {
+				mappedToY = maxYInTopology;
+			}
+		}
+
+		string topology(".topology");
+		topology.append("\t").append(itostr(maxXInTopology)).append("\t").append(itostr(maxYInTopology)).append("\n");
+		OutStreamer.EmitRawText(StringRef(topology));
+		firstFunctionBeingProcessed = false;
+
+	}
+
+	string hyperOpLabel = "HyperOp#";
+	hyperOpLabel.append(itostr(hyperOp->getHyperOpId())).append(":\n");
+	OutStreamer.EmitRawText(StringRef(hyperOpLabel));
+	string staticMetadata = ".SMD\t";
+	staticMetadata.append(hyperOp->isStartHyperOp() ? "1" : "0").append("\t");
+	staticMetadata.append(hyperOp->isEndHyperOp() ? "1" : "0").append("\t");
+	staticMetadata.append(hyperOp->isBarrierHyperOp() ? "1" : "0").append("\t");
+	staticMetadata.append(hyperOp->isPredicatedHyperOp() ? "1" : "0").append("\n");
+	OutStreamer.EmitRawText(StringRef(staticMetadata));
+
+//Adding distribution count of operands
+	string distCount = ".distcnt\t";
+	errs() << "ce count:" << ceCount << "\n";
+	for (unsigned i = 0; i < ceCount; i++) {
+		errs() << "dist count:" << hyperOp->getNumInputsPerCE(i) << "\n";
+		distCount.append(itostr(hyperOp->getNumInputsPerCE(i))).append("\t");
+	}
+	distCount.append("\n");
+	OutStreamer.EmitRawText(StringRef(distCount));
+}
 
 void REDEFINEAsmPrinter::printOperand(const MachineInstr *MI, int OpNo, raw_ostream &O) {
 	const MachineOperand &MO = MI->getOperand(OpNo);
-	//look at target flags to see if we should wrap this operand
+//look at target flags to see if we should wrap this operand
 	switch (MO.getTargetFlags()) {
 	case REDEFINEII::MO_ABS_HI:
 		O << "%hi(";
@@ -149,34 +249,79 @@ bool REDEFINEAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI, unsigned 
 }
 
 void REDEFINEAsmPrinter::printMemOperand(const MachineInstr *MI, int opNum, raw_ostream &OS) {
-	errs()<<"printing mem operand!!\n";
 	OS << '%' << REDEFINEInstPrinter::getRegisterName(MI->getOperand(opNum).getReg());
 	OS << ",";
 	OS << MI->getOperand(opNum + 1).getImm();
 }
 
-void REDEFINEAsmPrinter::EmitEndOfAsmFile(Module &M) {
-	if (Subtarget->isTargetELF()) {
-		const TargetLoweringObjectFileELF &TLOFELF = static_cast<const TargetLoweringObjectFileELF &>(getObjFileLowering());
+//
+//void REDEFINEAsmPrinter::EmitEndOfAsmFile(Module &M) {
+//	if (Subtarget->isTargetELF()) {
+//		const TargetLoweringObjectFileELF &TLOFELF = static_cast<const TargetLoweringObjectFileELF &>(getObjFileLowering());
+//
+//		MachineModuleInfoELF &MMIELF = MMI->getObjFileInfo<MachineModuleInfoELF>();
+//
+//		// Output stubs for external and common global variables.
+//		MachineModuleInfoELF::SymbolListTy Stubs = MMIELF.GetGVStubList();
+//		if (!Stubs.empty()) {
+//			OutStreamer.SwitchSection(TLOFELF.getDataRelSection());
+//			const DataLayout *TD = TM.getDataLayout();
+//
+//			for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
+//				OutStreamer.EmitLabel(Stubs[i].first);
+//				OutStreamer.EmitSymbolValue(Stubs[i].second.getPointer(), TD->getPointerSize(0), 0);
+//			}
+//			Stubs.clear();
+//		}
+//	}
+//}
 
-		MachineModuleInfoELF &MMIELF = MMI->getObjFileInfo<MachineModuleInfoELF>();
+bool REDEFINEAsmPrinter::doInitialization(Module &M) {
+	OutStreamer.InitStreamer();
+	hyperOpLabelsHoistedAsConstants.clear();
 
-		// Output stubs for external and common global variables.
-		MachineModuleInfoELF::SymbolListTy Stubs = MMIELF.GetGVStubList();
-		if (!Stubs.empty()) {
-			OutStreamer.SwitchSection(TLOFELF.getDataRelSection());
-			const DataLayout *TD = TM.getDataLayout();
+	MMI = getAnalysisIfAvailable<MachineModuleInfo>();
+	MMI->AnalyzeModule(M);
 
-			for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
-				OutStreamer.EmitLabel(Stubs[i].first);
-				OutStreamer.EmitSymbolValue(Stubs[i].second.getPointer(), TD->getPointerSize(0), 0);
-			}
-			Stubs.clear();
-		}
+// Initialize TargetLoweringObjectFile.
+	const_cast<TargetLoweringObjectFile&>(getObjFileLowering()).Initialize(OutContext, TM);
+
+	Mang = new Mangler(OutContext, *TM.getDataLayout());
+
+// Allow the target to emit any magic that it wants at the start of the file.
+	EmitStartOfAsmFile(M);
+
+// Emit module-level inline asm if it exists.
+	if (!M.getModuleInlineAsm().empty()) {
+		OutStreamer.AddComment("Start of file scope inline assembly");
+		OutStreamer.AddBlankLine();
+		EmitInlineAsm(M.getModuleInlineAsm() + "\n");
+		OutStreamer.AddComment("End of file scope inline assembly");
+		OutStreamer.AddBlankLine();
 	}
+
+	return false;
+}
+
+bool REDEFINEAsmPrinter::doFinalization(Module &M) {
+	EmitEndOfAsmFile(M);
+
+	delete Mang;
+	Mang = 0;
+	MMI = 0;
+
+	OutStreamer.Finish();
+	OutStreamer.reset();
+
+	return false;
+}
+
+void REDEFINEAsmPrinter::EmitLinkage(unsigned Linkage, MCSymbol *GVSym) const {
+//do nothing, no linkage yet
 }
 
 // Force static initialization.
 extern "C" void LLVMInitializeREDEFINEAsmPrinter() {
 	RegisterAsmPrinter<REDEFINEAsmPrinter> X(TheREDEFINETarget);
 }
+

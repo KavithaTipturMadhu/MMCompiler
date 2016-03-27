@@ -21,7 +21,6 @@ using namespace std;
 #include "llvm/IR/Function.h"
 #include "HyperOpInteractionGraph.h"
 
-
 /**
  * Metadata format is as follows:
  * 0. NamedMDNode "redefine.annotations" containing the following NamedMDNode list:

@@ -1,4 +1,4 @@
-//===-- REDEFINEMCObjectWriter.cpp - RISCV ELF writer --------------------===//
+//===-- REDEFINEMCObjectWriter.cpp - REDEFINE ELF writer --------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //

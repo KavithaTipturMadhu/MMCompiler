@@ -20,6 +20,8 @@
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/CodeGen/MachineFunction.h"
 using namespace llvm;
 
 #include <iostream>
@@ -157,11 +159,11 @@ namespace llvm {
     /// doInitialization - Set up the AsmPrinter when we are working on a new
     /// module.  If your pass overrides this, it must make sure to explicitly
     /// call this implementation.
-    bool doInitialization(Module &M);
+    virtual bool doInitialization(Module &M);
 
     /// doFinalization - Shut down the asmprinter.  If you override this in your
     /// pass, you must make sure to call it explicitly.
-    bool doFinalization(Module &M);
+    virtual bool doFinalization(Module &M);
 
     /// runOnMachineFunction - Emit the specified function out to the
     /// OutStreamer.
@@ -466,14 +468,6 @@ namespace llvm {
     mutable unsigned Counter;
     mutable unsigned SetCounter;
 
-    /// EmitInlineAsm - Emit a blob of inline asm to the output streamer.
-    void EmitInlineAsm(StringRef Str, const MDNode *LocMDNode = 0,
-                    InlineAsm::AsmDialect AsmDialect = InlineAsm::AD_ATT) const;
-
-    /// EmitInlineAsm - This method formats and emits the specified machine
-    /// instruction that is an inline asm.
-    void EmitInlineAsm(const MachineInstr *MI) const;
-
     //===------------------------------------------------------------------===//
     // Internal Implementation Details
     //===------------------------------------------------------------------===//
@@ -483,7 +477,6 @@ namespace llvm {
     void EmitVisibility(MCSymbol *Sym, unsigned Visibility,
                         bool IsDefinition = true) const;
 
-    void EmitLinkage(unsigned Linkage, MCSymbol *GVSym) const;
 
     void EmitJumpTableEntry(const MachineJumpTableInfo *MJTI,
                             const MachineBasicBlock *MBB,
@@ -491,6 +484,20 @@ namespace llvm {
     void EmitLLVMUsedList(const ConstantArray *InitList);
     void EmitXXStructorList(const Constant *List, bool isCtor);
     GCMetadataPrinter *GetOrCreateGCPrinter(GCStrategy *C);
+
+  protected:
+    /// EmitInlineAsm - Emit a blob of inline asm to the output streamer.
+       void EmitInlineAsm(StringRef Str, const MDNode *LocMDNode = 0,
+                       InlineAsm::AsmDialect AsmDialect = InlineAsm::AD_ATT) const;
+
+       /// EmitInlineAsm - This method formats and emits the specified machine
+       /// instruction that is an inline asm.
+       void EmitInlineAsm(const MachineInstr *MI) const;
+
+  public:
+       virtual void EmitLinkage(unsigned Linkage, MCSymbol *GVSym) const;
+
+
   };
 }
 

@@ -439,8 +439,6 @@ public:
   /// Insert MI into MBB by appending it to the instructions in the bundle.
   /// MI will become the last instruction in the bundle.
   MIBundleBuilder &append(MachineInstr *MI) {
-	  errs()<<"Appending:";
-	  MI->dump();
     return insert(end(), MI);
   }
 };

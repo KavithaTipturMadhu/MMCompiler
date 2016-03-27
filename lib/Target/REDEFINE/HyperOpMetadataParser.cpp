@@ -125,7 +125,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 				StringRef name = ((MDString*) hyperOpMDNode->getOperand(3))->getName();
 				HyperOpEdge* dependenceEdge = new ControlDependenceEdge();
 				dependenceEdge->setName(name.str());
-				graph->addEdge(metadataMap.find(edgeSource)->second, metadataMap.find(edgeDestination)->second, dependenceEdge);
+				HyperOp* source = metadataMap.find(edgeSource)->second;
+				HyperOp* destination = metadataMap.find(edgeDestination)->second;
+				destination->setIsPredicatedHyperOp();
+				graph->addEdge(source, destination , dependenceEdge);
 			} else if (type.compare(HYPEROP_AFFINITY) == 0) {
 				//Add mapping details
 				HyperOp* hyperOp = metadataMap.find((MDNode*) hyperOpMDNode->getOperand(1))->second;
