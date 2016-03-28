@@ -79,140 +79,148 @@ using namespace std;
 namespace {
 
 // Used to build addressing modes.
-	struct REDEFINEAddressingMode {
-			// The shape of the address.
-			enum AddrForm {
-				// base+offset
-				FormBO
-			};
-			AddrForm Form;
-
-			// The type of displacement.
-			enum OffRange {
-				Off12Only
-			};
-			OffRange OffR;
-
-			// The parts of the address.  The address is equivalent to:
-			//
-			//     Base + Offset + Index + (IncludesDynAlloc ? ADJDYNALLOC : 0)
-			SDValue Base;
-			int64_t Offset;
-
-			REDEFINEAddressingMode(AddrForm form, OffRange offr) :
-					Form(form), OffR(offr), Base(), Offset(0) {
-			}
-
-			void dump() {
-				errs() << "REDEFINEAddressingMode " << this << '\n';
-
-				errs() << " Base ";
-				if (Base.getNode() != 0) Base.getNode()->dump();
-				else errs() << "null\n";
-
-				errs() << " Offset " << Offset;
-			}
+struct REDEFINEAddressingMode {
+	// The shape of the address.
+	enum AddrForm {
+		// base+offset
+		FormBO
 	};
+	AddrForm Form;
 
-	class REDEFINEDAGToDAGISel: public SelectionDAGISel {
-			const REDEFINETargetLowering &Lowering;
-			const REDEFINESubtarget &Subtarget;
+	// The type of displacement.
+	enum OffRange {
+		Off12Only
+	};
+	OffRange OffR;
 
-			// Used by REDEFINEOperands.td to create integer constants.
-			inline SDValue getImm(const SDNode *Node, uint64_t Imm) {
-				return CurDAG->getTargetConstant(Imm, Node->getValueType(0));
-			}
-			/// getI32Imm - Return a target constant with the specified value, of type
-			/// i32.
-			SDValue getI32Imm(unsigned Imm) {
-				return CurDAG->getTargetConstant(Imm, MVT::i32);
-			}
+	// The parts of the address.  The address is equivalent to:
+	//
+	//     Base + Offset + Index + (IncludesDynAlloc ? ADJDYNALLOC : 0)
+	SDValue Base;
+	int64_t Offset;
 
-			// Try to fold more of the base or index of AM into AM, where IsBase
-			// selects between the base and index.
-			bool expandAddress(REDEFINEAddressingMode &AM, bool IsBase);
+	REDEFINEAddressingMode(AddrForm form, OffRange offr) :
+			Form(form), OffR(offr), Base(), Offset(0) {
+	}
 
-			// Try to describe N in AM, returning true on success.
-			bool selectAddress(SDValue N, REDEFINEAddressingMode &AM);
+	void dump() {
+		errs() << "REDEFINEAddressingMode " << this << '\n';
 
-			// Extract individual target operands from matched address AM.
-			void getAddressOperands(const REDEFINEAddressingMode &AM, EVT VT, SDValue &Base, SDValue &Disp);
-			void getAddressOperands(const REDEFINEAddressingMode &AM, EVT VT, SDValue &Base, SDValue &Disp, SDValue &Index);
+		errs() << " Base ";
+		if (Base.getNode() != 0)
+			Base.getNode()->dump();
+		else
+			errs() << "null\n";
 
-			//REDEFINE
-			bool selectMemRegAddr(SDValue Addr, SDValue &Base, SDValue &Offset) {
+		errs() << " Offset " << Offset;
+	}
+};
 
-				EVT ValTy = Addr.getValueType();
+class REDEFINEDAGToDAGISel: public SelectionDAGISel {
+	const REDEFINETargetLowering &Lowering;
+	const REDEFINESubtarget &Subtarget;
 
-				if (TM.getRelocationModel() != Reloc::PIC_) {
-					if ((Addr.getOpcode() == ISD::TargetExternalSymbol || Addr.getOpcode() == ISD::TargetGlobalAddress)) return false;
-				}
+	// Used by REDEFINEOperands.td to create integer constants.
+	inline SDValue getImm(const SDNode *Node, uint64_t Imm) {
+		return CurDAG->getTargetConstant(Imm, Node->getValueType(0));
+	}
+	/// getI32Imm - Return a target constant with the specified value, of type
+	/// i32.
+	SDValue getI32Imm(unsigned Imm) {
+		return CurDAG->getTargetConstant(Imm, MVT::i32);
+	}
 
-				// Addresses of the form FI+const or FI|const
-				if (CurDAG->isBaseWithConstantOffset(Addr)) {
-					ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Addr.getOperand(1));
-					if (isInt<12>(CN->getSExtValue())) {
+	// Try to fold more of the base or index of AM into AM, where IsBase
+	// selects between the base and index.
+	bool expandAddress(REDEFINEAddressingMode &AM, bool IsBase);
 
-						// If the first operand is a FI, get the TargetFI Node
-						if (FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(Addr.getOperand(0))) Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), ValTy);
-						else Base = Addr.getOperand(0);
+	// Try to describe N in AM, returning true on success.
+	bool selectAddress(SDValue N, REDEFINEAddressingMode &AM);
 
-						Offset = CurDAG->getTargetConstant(CN->getZExtValue(), ValTy);
-						return true;
-					}
-				}
+	// Extract individual target operands from matched address AM.
+	void getAddressOperands(const REDEFINEAddressingMode &AM, EVT VT, SDValue &Base, SDValue &Disp);
+	void getAddressOperands(const REDEFINEAddressingMode &AM, EVT VT, SDValue &Base, SDValue &Disp, SDValue &Index);
 
-				//Last case
-				Base = Addr;
-				Offset = CurDAG->getTargetConstant(0, Addr.getValueType());
-				return true;
-			}
+	//REDEFINE
+	bool selectMemRegAddr(SDValue Addr, SDValue &Base, SDValue &Offset) {
 
-			bool selectRegAddr(SDValue Addr, SDValue &Base) {
-				//always just register
-				Base = Addr;
-				//Offset = CurDAG->getTargetConstant(0, Addr.getValueType());
-				return true;
-			}
+		EVT ValTy = Addr.getValueType();
 
-			// PC-relative address matching routines used by REDEFINEOperands.td.
-			bool selectPCRelAddress(SDValue Addr, SDValue &Target) {
-				if (Addr.getOpcode() == REDEFINEISD::PCREL_WRAPPER) {
-					Target = Addr.getOperand(0);
-					return true;
-				}
+		if (TM.getRelocationModel() != Reloc::PIC_) {
+			if ((Addr.getOpcode() == ISD::TargetExternalSymbol || Addr.getOpcode() == ISD::TargetGlobalAddress))
 				return false;
+		}
+
+		// Addresses of the form FI+const or FI|const
+		if (CurDAG->isBaseWithConstantOffset(Addr)) {
+			ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Addr.getOperand(1));
+			if (isInt<12>(CN->getSExtValue())) {
+
+				// If the first operand is a FI, get the TargetFI Node
+				if (FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(Addr.getOperand(0))) {
+					Select(FIN);
+					Base = (Addr.getOperand(0));
+//					Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), ValTy);
+				} else {
+					Base = Addr.getOperand(0);
+				}
+
+				Offset = CurDAG->getTargetConstant(CN->getZExtValue(), ValTy);
+				return true;
 			}
+		}
 
-			// If Op0 is null, then Node is a constant that can be loaded using:
-			//
-			//   (Opcode UpperVal LowerVal)
-			//
-			// If Op0 is nonnull, then Node can be implemented using:
-			//
-			//   (Opcode (Opcode Op0 UpperVal) LowerVal)
-			SDNode *splitLargeImmediate(unsigned Opcode, SDNode *Node, SDValue Op0, uint64_t UpperVal, uint64_t LowerVal);
+		//Last case
+		Base = Addr;
+		Offset = CurDAG->getTargetConstant(0, Addr.getValueType());
+		return true;
+	}
 
-		public:
-			REDEFINEDAGToDAGISel(REDEFINETargetMachine &TM, CodeGenOpt::Level OptLevel) :
-					SelectionDAGISel(TM, OptLevel), Lowering(*TM.getTargetLowering()), Subtarget(*TM.getSubtargetImpl()) {
-				SDB = new REDEFINESelectionDAGBuilder(*CurDAG, *FuncInfo, OptLevel);
-			}
+	bool selectRegAddr(SDValue Addr, SDValue &Base) {
+		//always just register
+		Base = Addr;
+		//Offset = CurDAG->getTargetConstant(0, Addr.getValueType());
+		return true;
+	}
 
-			// Override MachineFunctionPass.
-			virtual const char *getPassName() const LLVM_OVERRIDE {
-				return "REDEFINE DAG->DAG Pattern Instruction Selection";
-			}
+	// PC-relative address matching routines used by REDEFINEOperands.td.
+	bool selectPCRelAddress(SDValue Addr, SDValue &Target) {
+		if (Addr.getOpcode() == REDEFINEISD::PCREL_WRAPPER) {
+			Target = Addr.getOperand(0);
+			return true;
+		}
+		return false;
+	}
 
-			// Override SelectionDAGISel.
-			virtual bool runOnMachineFunction(MachineFunction &MF);
-			virtual SDNode *Select(SDNode *Node) LLVM_OVERRIDE;
-			virtual bool SelectInlineAsmMemoryOperand(const SDValue &Op, char ConstraintCode, std::vector<SDValue> &OutOps) LLVM_OVERRIDE;
-			void SelectBasicBlock(BasicBlock::const_iterator Begin, BasicBlock::const_iterator End, bool &HadTailCall);
+	// If Op0 is null, then Node is a constant that can be loaded using:
+	//
+	//   (Opcode UpperVal LowerVal)
+	//
+	// If Op0 is nonnull, then Node can be implemented using:
+	//
+	//   (Opcode (Opcode Op0 UpperVal) LowerVal)
+	SDNode *splitLargeImmediate(unsigned Opcode, SDNode *Node, SDValue Op0, uint64_t UpperVal, uint64_t LowerVal);
 
-			// Include the pieces autogenerated from the target description.
+public:
+	REDEFINEDAGToDAGISel(REDEFINETargetMachine &TM, CodeGenOpt::Level OptLevel) :
+			SelectionDAGISel(TM, OptLevel), Lowering(*TM.getTargetLowering()), Subtarget(*TM.getSubtargetImpl()) {
+		SDB = new REDEFINESelectionDAGBuilder(*CurDAG, *FuncInfo, OptLevel);
+	}
+
+	// Override MachineFunctionPass.
+	virtual const char *getPassName() const LLVM_OVERRIDE {
+		return "REDEFINE DAG->DAG Pattern Instruction Selection";
+	}
+
+	// Override SelectionDAGISel.
+	virtual bool runOnMachineFunction(MachineFunction &MF);
+	virtual SDNode *Select(SDNode *Node) LLVM_OVERRIDE;
+	virtual bool SelectInlineAsmMemoryOperand(const SDValue &Op, char ConstraintCode, std::vector<SDValue> &OutOps) LLVM_OVERRIDE;
+	void SelectBasicBlock(BasicBlock::const_iterator Begin, BasicBlock::const_iterator End, bool &HadTailCall);
+
+	// Include the pieces autogenerated from the target description.
 #include "REDEFINEGenDAGISel.inc"
-	};
+};
 } // end anonymous namespace
 
 bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
@@ -247,8 +255,8 @@ FunctionPass *llvm::createREDEFINEISelDag(REDEFINETargetMachine &TM, CodeGenOpt:
 // described by DR and of any pairing instruction.
 static bool selectOffset(REDEFINEAddressingMode::OffRange OffR, int64_t Val) {
 	switch (OffR) {
-		case REDEFINEAddressingMode::Off12Only:
-			return isInt<12>(Val);
+	case REDEFINEAddressingMode::Off12Only:
+		return isInt<12>(Val);
 	}
 	llvm_unreachable("Unhandled offset range");
 }
@@ -285,8 +293,10 @@ bool REDEFINEDAGToDAGISel::expandAddress(REDEFINEAddressingMode &AM, bool IsBase
 		unsigned Op0Code = Op0->getOpcode();
 		unsigned Op1Code = Op1->getOpcode();
 
-		if (Op0Code == ISD::Constant) return expandOffset(AM, IsBase, Op1, cast<ConstantSDNode>(Op0));
-		if (Op1Code == ISD::Constant) return expandOffset(AM, IsBase, Op0, cast<ConstantSDNode>(Op1));
+		if (Op0Code == ISD::Constant)
+			return expandOffset(AM, IsBase, Op1, cast<ConstantSDNode>(Op0));
+		if (Op1Code == ISD::Constant)
+			return expandOffset(AM, IsBase, Op0, cast<ConstantSDNode>(Op1));
 
 	}
 	return false;
@@ -297,8 +307,8 @@ bool REDEFINEDAGToDAGISel::expandAddress(REDEFINEAddressingMode &AM, bool IsBase
 static bool isValidOffset(REDEFINEAddressingMode::OffRange OffR, int64_t Val) {
 	assert(selectOffset(OffR, Val) && "Invalid displacement");
 	switch (OffR) {
-		case REDEFINEAddressingMode::Off12Only:
-			return true;
+	case REDEFINEAddressingMode::Off12Only:
+		return true;
 	}
 	llvm_unreachable("Unhandled displacement range");
 }
@@ -314,7 +324,8 @@ bool REDEFINEDAGToDAGISel::selectAddress(SDValue Addr, REDEFINEAddressingMode &A
 	}
 
 	// Reject cases where the other instruction in a pair should be used.
-	if (!isValidOffset(AM.OffR, AM.Offset)) return false;
+	if (!isValidOffset(AM.OffR, AM.Offset))
+		return false;
 
 	DEBUG(AM.dump());
 	return true;
@@ -335,14 +346,13 @@ static void insertDAGNode(SelectionDAG *DAG, SDNode *Pos, SDValue N) {
 void REDEFINEDAGToDAGISel::getAddressOperands(const REDEFINEAddressingMode &AM, EVT VT, SDValue &Base, SDValue &Offset) {
 	Base = AM.Base;
 	if (!Base.getNode())
-	// Register 0 means "no base".  This is mostly useful for shifts.
-	Base = CurDAG->getRegister(0, VT);
+		// Register 0 means "no base".  This is mostly useful for shifts.
+		Base = CurDAG->getRegister(0, VT);
 	else if (Base.getOpcode() == ISD::FrameIndex) {
 		// Lower a FrameIndex to a TargetFrameIndex.
 		int64_t FrameIndex = cast<FrameIndexSDNode>(Base)->getIndex();
 		Base = CurDAG->getTargetFrameIndex(FrameIndex, VT);
-	}
-	else if (Base.getValueType() != VT) {
+	} else if (Base.getValueType() != VT) {
 		// Truncate values from i64 to i32, for shifts.
 		assert(VT == MVT::i32 && Base.getValueType() == MVT::i64 && "Unexpected truncation");
 		DebugLoc DL = Base.getDebugLoc();
@@ -383,22 +393,20 @@ SDNode *REDEFINEDAGToDAGISel::Select(SDNode *Node) {
 
 	unsigned Opcode = Node->getOpcode();
 	switch (Opcode) {
-		case ISD::FrameIndex: {
-			//TODO
-			//Hack for REDEFINE, add the index object's offset as an immediate value; Agree that this might spill into larger than 12 bits
-			int FI = cast<FrameIndexSDNode>(Node)->getIndex();
-			SDValue reg = CurDAG->getRegister(REDEFINE::zero,MVT::getIntegerVT(32));
-			SDValue TFI = CurDAG->getTargetFrameIndex(FI, TLI.getPointerTy());
-			unsigned Opc = REDEFINE::ADDI;
-			EVT VT = MVT::i32;
+	case ISD::FrameIndex: {
+		//TODO
+		//Hack for REDEFINE, add the index object's offset as an immediate value; This might spill into larger than 12 bits, potential problem
+		SDValue reg = CurDAG->getRegister(REDEFINE::zero, MVT::getIntegerVT(32));
+		SDValue TFI = CurDAG->getTargetFrameIndex(cast<FrameIndexSDNode>(Node)->getIndex(), TLI.getPointerTy());
+		unsigned Opc = REDEFINE::ADDI;
+		EVT VT = MVT::i32;
 
-			if (Node->hasOneUse()) //don't create a new node just morph this one
+		if (Node->hasOneUse()) //don't create a new node just morph this one
 			return CurDAG->SelectNodeTo(Node, Opc, VT, reg, TFI);
-			return CurDAG->getMachineNode(Opc, DL, VT, reg, TFI);
+		return CurDAG->getMachineNode(Opc, DL, VT, reg, TFI);
 //		int FI = cast<FrameIndexSDNode>(Node)->getIndex();
 //		return CurDAG->getCopyToReg(CurDAG->getRoot(),DL ,FI, MVT::i32).getNode();
-			return 0;
-		}
+	}
 	}	//end special selections
 
 	// Select the default instruction
