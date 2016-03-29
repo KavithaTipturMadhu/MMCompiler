@@ -409,6 +409,8 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 	MachineInstr* machineInstruction = RegionEnd;
 	MachineInstr* firstInsertedInstruction = 0;
+	errs()<<"branch instruction:";
+	RegionEnd->dump();
 //Add barrier for synchronization
 	for (unsigned i = 0; i < ceCount; i++) {
 		unsigned sourceSpAddressRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
@@ -645,6 +647,12 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 		if (firstInstructionOfpHyperOpInRegion[i] == 0) {
 			firstInstructionOfpHyperOpInRegion[i] = duplicateTerminatorInstr.operator llvm::MachineInstr *();
 		}
+		errs()<<"replicated the instr into ce "<<i<<" at position :"<<insertPosition<<"\n";
+		duplicateTerminatorInstr.operator ->()->dump();
+		errs()<<"and placed before successor : \n";
+		if(successorOfTerminator!=parentBasicBlock.end()){
+			successorOfTerminator->dump();
+		}
 		allInstructionsOfRegion.push_back(make_pair(duplicateTerminatorInstr.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(duplicateTerminatorInstr.operator llvm::MachineInstr *());
 	}
@@ -694,6 +702,9 @@ for (unsigned i = 0; i < ceCount; i++) {
 	firstInstrCopy.push_back(firstInstructionOfpHyperOpInRegion[i]);
 }
 firstInstructionOfpHyperOp.push_front(firstInstrCopy);
+
+errs()<<"state of basic block:";
+BB->dump();
 }
 
 void REDEFINEMCInstrScheduler::finishBlock() {
@@ -933,8 +944,23 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 //Shuffle instructions first
 if (firstInstructionOfpHyperOp.size() > 1) {
-	DEBUG(dbgs() << "Shuffling instructions around such that successive instructions belong to the same pHyperOp, this shuffle is across regions for basic block BB#" << BB->getNumber() << "\n");
+	DEBUG(dbgs() << "Merging regions basic block BB#" << BB->getNumber() << "\n");
 	vector<MachineInstr*> firstRegionBoundaries = firstInstructionOfpHyperOp.front();
+	//Set the start of each region
+
+	for(unsigned i=0;i<ceCount;i++){
+		if(firstRegionBoundaries[i]==0){
+			for(list<vector<MachineInstr*> >::iterator firstInstrItr = firstInstructionOfpHyperOp.begin(); firstInstrItr != firstInstructionOfpHyperOp.end(); firstInstrItr++){
+				vector<MachineInstr*> firstInstrOfNextRegion = *firstInstrItr;
+				if(firstInstrOfNextRegion[i]!=0){
+					firstRegionBoundaries[i] = firstInstrOfNextRegion[i];
+					break;
+				}
+			}
+		}
+	}
+
+
 	unsigned i = 0;
 //Merge the instructions of different regions
 	for (unsigned j = 1; j < firstInstructionOfpHyperOp.size(); j++) {
@@ -971,9 +997,16 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 				continue;
 			}
 
+			errs()<<"Merging regions; source:";
+			firstRegionBoundaries[ceIndex]->dump();
+			nextCeInstruction->dump();
+			errs()<<" dest:";
+			startMerge->dump();
+			endMerge->dump();
 			while (startMerge != endMerge) {
-				BB->splice(nextCeInstruction, BB, startMerge);
+				MachineInstr* instructionToMerge = startMerge;
 				startMerge = startMerge->getNextNode();
+				BB->splice(nextCeInstruction, BB, instructionToMerge);
 			}
 		}
 	}
