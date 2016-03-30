@@ -33,7 +33,7 @@ bool REDEFINEFrameLowering::hasFP(const MachineFunction &MF) const {
 }
 
 unsigned REDEFINEFrameLowering::ehDataReg(unsigned I) const {
-	static const unsigned EhDataReg[] = { };
+	static const unsigned EhDataReg[0] = { };
 
 	return EhDataReg[I];
 }
