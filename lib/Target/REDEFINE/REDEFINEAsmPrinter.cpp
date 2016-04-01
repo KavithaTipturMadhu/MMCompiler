@@ -86,6 +86,8 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 				OutStreamer.EmitLabel(label);
 				startOfBBInPHyperOp[pHyperOpIndex].pop_front();
 			}
+			errs()<<"printing instruction:";
+			(*mcItr)->dump();
 			EmitInstruction(*mcItr);
 		}
 	}
@@ -110,8 +112,9 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 	isActive.append("\t").append("1").append("\n");
 	OutStreamer.EmitRawText(StringRef(isActive));
 
+	//Every frame is a raw frame, no intrinsic frames available
 	string isIntrinsic(INTRINSIC_ANNOTATION);
-	isIntrinsic.append("\t").append(hyperOp->isIntrinsicFrame() ? "1" : "0").append("\n");
+	isIntrinsic.append("\t").append("0").append("\n");
 	OutStreamer.EmitRawText(StringRef(isIntrinsic));
 
 	string depthHEG(DEPTH_HEG_ANNOTATION);
