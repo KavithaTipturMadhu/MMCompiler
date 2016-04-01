@@ -386,12 +386,12 @@ unsigned HyperOp::computeDepthInGraph() {
 	return executionTime;
 }
 
-bool HyperOp::isIntrinsicFrame() const {
-	return intrinsicFrame;
+bool HyperOp::frameNeedsGC() const {
+	return gcRequired;
 }
 
-void HyperOp::setIntrinsicFrame(bool intrinsicFrame) {
-	this->intrinsicFrame = intrinsicFrame;
+void HyperOp::setFrameNeedsGC(bool intrinsicFrame) {
+	this->gcRequired = intrinsicFrame;
 }
 
 list<unsigned int> HyperOp::getTopLevel() {
@@ -1701,7 +1701,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 	}
 }
 
-void addContextFrame(list<HyperOp*> cluster, int numContextFrames) {
+void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrames) {
 	unsigned int numExtraVariables = 0, numExtraVariablesForOptimization = 0;
 	if (cluster.size() == 1) {
 		(*cluster.begin())->setContextFrame(0);
@@ -1846,7 +1846,7 @@ void HyperOpInteractionGraph::associateStaticContextFrames() {
 	//The problem is to identify conflicting HyperOps and set the flag fbindinstrrequired for such HyperOps
 	map<unsigned, list<list<HyperOp*> > > crAndClusterMap;
 	for (list<list<HyperOp*> >::iterator clusterListItr = clusterList.begin(); clusterListItr != clusterList.end(); clusterListItr++) {
-		addContextFrame(*clusterListItr, this->numContextFrames);
+		associateContextFramesToCluster(*clusterListItr, this->numContextFrames);
 		unsigned targetCR = (*clusterListItr->begin())->getTargetResource();
 		list<list<HyperOp*> > conflictList;
 		if (crAndClusterMap.find(targetCR) != crAndClusterMap.end()) {
@@ -1893,7 +1893,7 @@ void HyperOpInteractionGraph::associateStaticContextFrames() {
 					conflictingHyperOp->setFbindRequired(true);
 				}
 				if(conflictingHyperOp==bottommostHyperOp){
-					conflictingHyperOp->setIntrinsicFrame(true);
+					conflictingHyperOp->setFrameNeedsGC(true);
 				}
 			}
 		}

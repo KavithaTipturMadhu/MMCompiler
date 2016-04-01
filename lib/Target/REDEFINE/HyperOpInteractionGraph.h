@@ -69,8 +69,8 @@ class HyperOp {
 	list<unsigned int> topLevel;
 	bool fbindRequired;
 
-	//Frame set as intrinsic is garbage collected right after the HyperOp's launch
-	bool intrinsicFrame;
+	//Frame to be garbage collected?
+	bool gcRequired;
 	unsigned hyperOpId;
 	vector<unsigned> numInputsPerCE;
 
@@ -121,8 +121,8 @@ public:
 	void setNumCEs(unsigned numPHyperOps);
 	unsigned getNumInputsPerCE(unsigned pHyperOpId);
 	unsigned computeDepthInGraph();
-	bool isIntrinsicFrame() const;
-	void setIntrinsicFrame(bool intrinsicFrame);
+	bool frameNeedsGC() const;
+	void setFrameNeedsGC(bool intrinsicFrame);
 	unsigned int getTargetResource() const;
 	void setTargetResource(unsigned int targetResource);
 	void setContextFrame(unsigned int contextFrame);

@@ -409,7 +409,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 	MachineInstr* machineInstruction = RegionEnd;
 	MachineInstr* firstInsertedInstruction = 0;
-	errs()<<"branch instruction:";
+	errs() << "branch instruction:";
 	RegionEnd->dump();
 //Add barrier for synchronization
 	for (unsigned i = 0; i < ceCount; i++) {
@@ -647,10 +647,10 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 		if (firstInstructionOfpHyperOpInRegion[i] == 0) {
 			firstInstructionOfpHyperOpInRegion[i] = duplicateTerminatorInstr.operator llvm::MachineInstr *();
 		}
-		errs()<<"replicated the instr into ce "<<i<<" at position :"<<insertPosition<<"\n";
+		errs() << "replicated the instr into ce " << i << " at position :" << insertPosition << "\n";
 		duplicateTerminatorInstr.operator ->()->dump();
-		errs()<<"and placed before successor : \n";
-		if(successorOfTerminator!=parentBasicBlock.end()){
+		errs() << "and placed before successor : \n";
+		if (successorOfTerminator != parentBasicBlock.end()) {
 			successorOfTerminator->dump();
 		}
 		allInstructionsOfRegion.push_back(make_pair(duplicateTerminatorInstr.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
@@ -703,7 +703,7 @@ for (unsigned i = 0; i < ceCount; i++) {
 }
 firstInstructionOfpHyperOp.push_front(firstInstrCopy);
 
-errs()<<"state of basic block:";
+errs() << "state of basic block:";
 BB->dump();
 }
 
@@ -734,22 +734,22 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 	map<HyperOp*, unsigned> registerContainingHyperOpFrameAddress;
 	unsigned currentCE = 0;
-	for (list<HyperOp*>::iterator hyperOpItr = graph->Vertices.begin(); hyperOpItr != graph->Vertices.end(); hyperOpItr++) {
+	for (list<HyperOp*>::iterator childHyperOpItr = graph->Vertices.begin(); childHyperOpItr != graph->Vertices.end(); childHyperOpItr++) {
 		//Among the HyperOps immediately dominated by the hyperOp, add fbind for those HyperOps that require it
-		if (*hyperOpItr != hyperOp && (*hyperOpItr)->isFbindRequired() && (*hyperOpItr)->getImmediateDominator() == hyperOp) {
-			int hyperOpId = (*hyperOpItr)->getHyperOpId();
-			int hyperOpFrame = (*hyperOpItr)->getContextFrame();
+		if (*childHyperOpItr != hyperOp && (*childHyperOpItr)->isFbindRequired() && (*childHyperOpItr)->getImmediateDominator() == hyperOp) {
+			int hyperOpId = (*childHyperOpItr)->getHyperOpId();
+			int hyperOpFrame = (*childHyperOpItr)->getContextFrame();
 			unsigned registerContainingConsumerFrameAddr;
-			if (registerContainingHyperOpFrameAddress.find(*hyperOpItr) == registerContainingHyperOpFrameAddress.end()) {
+			if (registerContainingHyperOpFrameAddress.find(*childHyperOpItr) == registerContainingHyperOpFrameAddress.end()) {
 				registerContainingConsumerFrameAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 				MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
 				addi.addReg(registerContainingConsumerFrameAddr, RegState::Define);
 				addi.addReg(REDEFINE::zero, RegState::InternalRead);
 				addi.addImm(hyperOpFrame);
 				allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
-				registerContainingHyperOpFrameAddress.insert(make_pair(*hyperOpItr, registerContainingConsumerFrameAddr));
+				registerContainingHyperOpFrameAddress.insert(make_pair(*childHyperOpItr, registerContainingConsumerFrameAddr));
 			} else {
-				registerContainingConsumerFrameAddr = registerContainingHyperOpFrameAddress.find(*hyperOpItr)->second;
+				registerContainingConsumerFrameAddr = registerContainingHyperOpFrameAddress.find(*childHyperOpItr)->second;
 			}
 			//Fbind instruction added to the immediate dominator of the HyperOp
 			MachineInstrBuilder fbind = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FBIND));
@@ -891,6 +891,27 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		writeInstructionsToConsumer.push_back(writeToContextFrame.operator ->());
 		writeInstrToContextFrame.insert(make_pair(consumerFunction, writeInstructionsToConsumer));
 	}
+	//Does the HyperOp require fdelete?
+	if (hyperOp->frameNeedsGC()) {
+		//Add fdelete instruction
+		MachineInstrBuilder shiftRight = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::SRLI));
+		shiftRight.addReg(REDEFINE::t6, RegState::Kill);
+		shiftRight.addReg(REDEFINE::t6, RegState::InternalRead);
+		//Shift right by 6 bits to get the address of the frame
+		shiftRight.addImm(6);
+		if (firstInstructionOfpHyperOpInRegion[0] == 0) {
+			firstInstructionOfpHyperOpInRegion[0] = shiftRight.operator llvm::MachineInstr *();
+		}
+
+		MachineInstrBuilder fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE));
+		fdelete.addReg(REDEFINE::t6, RegState::InternalRead);
+		fdelete.addImm(0);
+
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftRight.operator llvm::MachineInstr *());
+		allInstructionsOfRegion.push_back(make_pair(shiftRight.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(fdelete.operator llvm::MachineInstr *());
+		allInstructionsOfRegion.push_back(make_pair(fdelete.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
+	}
 
 //Shuffle writecm and fbind instructions one last time
 	for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstructionItr = allInstructionsOfRegion.begin(); allInstructionItr != allInstructionsOfRegion.end(); allInstructionItr++) {
@@ -948,18 +969,17 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 	vector<MachineInstr*> firstRegionBoundaries = firstInstructionOfpHyperOp.front();
 	//Set the start of each region
 
-	for(unsigned i=0;i<ceCount;i++){
-		if(firstRegionBoundaries[i]==0){
-			for(list<vector<MachineInstr*> >::iterator firstInstrItr = firstInstructionOfpHyperOp.begin(); firstInstrItr != firstInstructionOfpHyperOp.end(); firstInstrItr++){
+	for (unsigned i = 0; i < ceCount; i++) {
+		if (firstRegionBoundaries[i] == 0) {
+			for (list<vector<MachineInstr*> >::iterator firstInstrItr = firstInstructionOfpHyperOp.begin(); firstInstrItr != firstInstructionOfpHyperOp.end(); firstInstrItr++) {
 				vector<MachineInstr*> firstInstrOfNextRegion = *firstInstrItr;
-				if(firstInstrOfNextRegion[i]!=0){
+				if (firstInstrOfNextRegion[i] != 0) {
 					firstRegionBoundaries[i] = firstInstrOfNextRegion[i];
 					break;
 				}
 			}
 		}
 	}
-
 
 	unsigned i = 0;
 //Merge the instructions of different regions
@@ -997,12 +1017,6 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 				continue;
 			}
 
-			errs()<<"Merging regions; source:";
-			firstRegionBoundaries[ceIndex]->dump();
-			nextCeInstruction->dump();
-			errs()<<" dest:";
-			startMerge->dump();
-			endMerge->dump();
 			while (startMerge != endMerge) {
 				MachineInstr* instructionToMerge = startMerge;
 				startMerge = startMerge->getNextNode();
