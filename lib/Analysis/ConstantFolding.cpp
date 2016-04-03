@@ -1132,6 +1132,8 @@ bool
 llvm::canConstantFoldCallTo(const Function *F) {
   switch (F->getIntrinsicID()) {
   case Intrinsic::fabs:
+  case Intrinsic::minnum:
+  case Intrinsic::maxnum:
   case Intrinsic::log:
   case Intrinsic::log2:
   case Intrinsic::log10:
@@ -1506,6 +1508,17 @@ llvm::ConstantFoldCall(Function *F, ArrayRef<Constant *> Operands,
 
         if (F->getIntrinsicID() == Intrinsic::pow) {
           return ConstantFoldBinaryFP(pow, Op1V, Op2V, Ty);
+        }
+        if (F->getIntrinsicID() == Intrinsic::minnum) {
+          const APFloat &C1 = Op1->getValueAPF();
+          const APFloat &C2 = Op2->getValueAPF();
+          return ConstantFP::get(Ty->getContext(), minnum(C1,C2));
+        }
+
+        if (F->getIntrinsicID() == Intrinsic::maxnum) {
+          const APFloat &C1 = Op1->getValueAPF();
+          const APFloat &C2 = Op2->getValueAPF();
+          return ConstantFP::get(Ty->getContext(), maxnum(C1,C2));
         }
         if (!TLI)
           return 0;

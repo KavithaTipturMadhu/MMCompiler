@@ -1987,6 +1987,8 @@ bool llvm::isSafeToSpeculativelyExecute(const Value *V,
        case Intrinsic::uadd_with_overflow:
        case Intrinsic::umul_with_overflow:
        case Intrinsic::usub_with_overflow:
+       case Intrinsic::minnum:
+       case Intrinsic::maxnum:
          return true;
        // TODO: some fp intrinsics are marked as having the same error handling
        // as libm. They're safe to speculate when they won't error.
