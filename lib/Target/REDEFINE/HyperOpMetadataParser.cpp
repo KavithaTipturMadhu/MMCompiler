@@ -97,17 +97,19 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 				MDNode* edgeSource = (MDNode*) hyperOpMDNode->getOperand(1);
 				MDNode* edgeDestination = (MDNode*) hyperOpMDNode->getOperand(2);
 				StringRef name = ((MDString*) hyperOpMDNode->getOperand(3))->getName();
-				StringRef dataAggregateType = ((MDString*) hyperOpMDNode->getOperand(5))->getName();
-				StringRef positionStr = ((MDString*) hyperOpMDNode->getOperand(6))->getName();
+				StringRef dataAggregateType = ((MDString*) hyperOpMDNode->getOperand(4))->getName();
+				StringRef positionStr = ((MDString*) hyperOpMDNode->getOperand(5))->getName();
 				int position = atoi(positionStr.data());
 				AggregateData* aggregateData;
 				if (dataAggregateType.compare(SCALAR) == 0) {
 //					processScalar(aggregateData, name);
-					errs()<<"aggregate data name:"<<name.str()<<"\n";
 					aggregateData = new Scalar();
 					HyperOpEdge* dependenceEdge = new DataDependenceEdge(aggregateData, name.str());
 					graph->addEdge(metadataMap.find(edgeSource)->second, metadataMap.find(edgeDestination)->second, dependenceEdge);
 					dependenceEdge->setPositionOfInput(position);
+				}else if(dataAggregateType.compare(REFERENCE)==0){
+					//TODO
+
 				}
 //				if (dataAggregateType.compare(RANGE) == 0) {
 //					processRange(aggregateData, dataAggregateType);

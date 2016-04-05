@@ -22,6 +22,7 @@ using namespace std;
 #include "HyperOpInteractionGraph.h"
 
 /**
+ * TODO
  * Metadata format is as follows:
  * 0. NamedMDNode "redefine.annotations" containing the following NamedMDNode list:
  * 		0. NamedMDNode "redefine.hyperops" containing the list of HyperOps which further contains MDNode with first argument "redefine.hyperop" for each HyperOp
@@ -29,17 +30,12 @@ using namespace std;
  * 		2. NamedMDNode "redefine.producesEdges" containing the list of HyperOp data production edges
  * 		3. NamedMDNode "redefine.consumesEdges" containing the list of HyperOp data consumption edges
  */
-static string REDEFINE_ANNOTATIONS = "redefine.annotations";
-static string HYPEROP = "HyperOp";
-static string HYPEROP_PRODUCES = "Produces";
-static string HYPEROP_PRESCRIBES = "Prescribes";
-static string HYPEROP_AFFINITY= "Affinity";
-static string HYPEROP_START= "Start";
-static string HYPEROP_END= "End";
+
 
 
 //const string TASKS_LIST = "redefine.tasks";
 /**
+ * TODO
  * Supported aggregate types:
  * 0. SCALAR: single value
  * 1. RANGE: Range of integers/char only. Can be a union of ranges
@@ -47,11 +43,9 @@ static string HYPEROP_END= "End";
  * 			  An inner variable (Eg:var2 is inner to var1) can be a function of the outer variables i.e., f1(var1)<=var2<=f2(var1). This is for supporting non-rectangular polyhedra
  * 3. UNION: Union of any of the above aggregate types. Eg: {RANGE1},{RANGE2}
  */
-
-static string SCALAR="Scalar";
-static string RANGE="Range";
-static string REGION="Region";
-static string UNION="Union";
+//static string RANGE="Range";
+//static string REGION="Region";
+//static string UNION="Union";
 
 class HyperOpMetadataParser {
 public:

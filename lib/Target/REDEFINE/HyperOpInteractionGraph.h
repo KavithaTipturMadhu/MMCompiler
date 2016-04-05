@@ -26,6 +26,16 @@ using namespace std;
 
 #include "llvm/IR/InterHyperOpData.h"
 
+static string REDEFINE_ANNOTATIONS = "redefine.annotations";
+static string HYPEROP = "HyperOp";
+static string HYPEROP_PRODUCES = "Produces";
+static string HYPEROP_PRESCRIBES = "Prescribes";
+static string HYPEROP_AFFINITY = "Affinity";
+static string HYPEROP_START = "Start";
+static string HYPEROP_END = "End";
+static string SCALAR = "Scalar";
+static string REFERENCE = "Reference";
+
 class HyperOpEdge {
 	bool isZeroedOut;
 	bool isIgnoredEdge;
