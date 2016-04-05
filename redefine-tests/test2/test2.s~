@@ -1,0 +1,48 @@
+	.file	"tests/test1/test2.ll"
+	.text
+	.globl	test
+	.align	4
+	.type	test,@function
+test:                                   # @test
+
+pHyperOp:
+.LBB0_0:
+	addi	x5, 0, x0
+	lw	x5, x0(x5)
+	addi	x7, 60, x0
+	sw	x5, x0(x7)
+	addi	x5, 96, x0
+	lw	x5, x0(x5)
+	addi	x11, 148, x0
+	sw	x5, x0(x11)
+	addi	x5, 192, x0
+	lw	x5, x0(x5)
+	addi	x10, 248, x0
+	sw	x5, x0(x10)
+	addi	x6, 312, x0
+	addi	x5, 364, x0
+	addi	x12, 404, x0
+	lw	x10, x0(x10)
+	lw	x7, x0(x7)
+	add	x7, x10, x7
+	sw	x7, x0(x12)
+	addi	x10, 432, x0
+	lw	x10, x0(x10)
+	addi	x12, 480, x0
+	sw	x10, x0(x12)
+	addi	x10, 544, x0
+	lw	x12, x0(x12)
+	lw	x11, x0(x11)
+	add	x11, x12, x11
+	sw	x11, x0(x10)
+	lw	x11, x0(x10)
+	lw	x10, x0(x10)
+	add	x7, x10, x7
+	sw	x7, x0(x6)
+	mul	x6, x7, x11
+	sw	x6, x0(x5)
+	end 	x0
+	addi	x0, x0, x0
+	addi	x0, x0, x0
+
+	.section	".note.GNU-stack","",@progbits

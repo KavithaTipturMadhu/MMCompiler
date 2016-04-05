@@ -1,0 +1,10 @@
+int test(){
+long e,f;
+
+e=100000;
+f=200000;
+
+if(e>f)
+	return e;
+return f;
+}

@@ -16,6 +16,7 @@ using namespace std;
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/CFG.h"
+#include "llvm/Support/Debug.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "HyperOpCreationPass"
@@ -25,10 +26,24 @@ using namespace llvm;
  */
 struct HyperOpCreationPass: public ModulePass {
 	static char ID; // Pass identification, replacement for typeid
-	static char* HYPEROP;
 	static char* NEW_NAME;
-	static char* REDEFINE_ANNOTATIONS;
+	const string REDEFINE_ANNOTATIONS = "redefine.annotations";
+	const string HYPEROP = "HyperOp";
+	const string HYPEROP_PRODUCES = "Produces";
+	const string HYPEROP_PRESCRIBES = "Prescribes";
+	const string HYPEROP_AFFINITY= "Affinity";
+	const string HYPEROP_START= "Start";
+	const string HYPEROP_END= "End";
+	const string SCALAR_ARGUMENT="Scalar";
+	const string REFERENCE_ARGUMENT = "Reference";
+
 	const unsigned int FRAME_SIZE = 4;
+
+	enum HyperOpArgumentType {
+		SCALAR, REFERENCE
+	};
+
+	typedef map<unsigned, pair<list<Value*>, HyperOpArgumentType> > HyperOpArgumentMap;
 
 	HyperOpCreationPass() :
 			ModulePass(ID) {
@@ -83,7 +98,7 @@ struct HyperOpCreationPass: public ModulePass {
 		NamedMDNode * annotationsNode = M.getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
 
 		//Contains all created HyperOp functions and the basic blocks they contain in the original module and HyperOp arguments
-		map<Function*, pair<list<BasicBlock*>, map<int, list<Value*> > > > createdHyperOpAndOriginalBasicBlockAndArgMap;
+		map<Function*, pair<list<BasicBlock*>, HyperOpArgumentMap> > createdHyperOpAndOriginalBasicBlockAndArgMap;
 
 		//Original Instructions and their clones
 		map<Value*, Value*> originalToClonedInstrMap;
@@ -98,7 +113,7 @@ struct HyperOpCreationPass: public ModulePass {
 		for (Module::iterator funcItr = M.begin(); funcItr != M.end() && find(addedFunctions.begin(), addedFunctions.end(), funcItr) == addedFunctions.end(); funcItr++) {
 			StringRef name = funcItr->begin()->getName();
 			list<BasicBlock*> accumulatedBasicBlocks;
-			map<int, list<Value*> > hyperOpArguments;
+			HyperOpArgumentMap hyperOpArguments;
 			int hyperOpArgCount = 0;
 			bool endOfHyperOp = false;
 			list<BasicBlock*> traversedBasicBlocks;
@@ -168,20 +183,15 @@ struct HyperOpCreationPass: public ModulePass {
 										Value * argument = instItr->getOperand(i);
 										list<Value*> argumentList;
 										argumentList.push_back(argument);
-										hyperOpArguments.insert(make_pair(i, argumentList));
+										if (isa<LoadInst>(instItr)) {
+											hyperOpArguments.insert(make_pair(i, make_pair(argumentList, REFERENCE)));
+										} else {
+											hyperOpArguments.insert(make_pair(i, make_pair(argumentList, SCALAR)));
+										}
 									}
 								}
 								endOfHyperOp = true;
 								break;
-							}
-							//Check if the alloca happened in a different function, add a store instruction from there to the current HyperOp's local memory and place the load instruction in the current HyperOp
-							else if (isa<LoadInst>(instItr)) {
-								Value* locationToLoadFrom = ((LoadInst*) instItr)->getOperand(0);
-								if (isa<AllocaInst>(locationToLoadFrom) && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((AllocaInst*) locationToLoadFrom)->getParent()) == accumulatedBasicBlocks.end()) {
-									BasicBlock* parentOfAllocaInst = ((AllocaInst*) locationToLoadFrom)->getParent();
-									// store the data to memory from parent HyperOp and add a dependence from the parent to the current HyperOp
-									//MAJOR TODO
-								}
 							}
 
 							list<Value*> newHyperOpArguments;
@@ -191,33 +201,26 @@ struct HyperOpCreationPass: public ModulePass {
 //									continue;
 //								}
 								Value * argument = instItr->getOperand(i);
-								errs() << "argument to the instr:";
-								argument->dump();
 								if (!isa<Constant>(argument)) {
 									if ((isa<Instruction>(argument)) && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
-										errs() << "instruction belongs to the same bb, not required to be added as an argument\n";
+										//Instruction belongs to the same bb, need not be added as an argument
 										continue;
 									}
 
 									bool argAddedPreviously = false;
-									errs() << "has it been added previously?";
 									//Check if same argument is used multiple times in the same instruction
 									//We need to track the arguments in the instruction separately
 									if (find(newHyperOpArguments.begin(), newHyperOpArguments.end(), argument) != newHyperOpArguments.end()) {
 										argAddedPreviously = true;
-										errs() << "why yes, it has been\n";
 									} else {
-										for (map<int, list<Value*> >::iterator previousArgsItr = hyperOpArguments.begin(); previousArgsItr != hyperOpArguments.end(); previousArgsItr++) {
-											if (find(previousArgsItr->second.begin(), previousArgsItr->second.end(), argument) != previousArgsItr->second.end()) {
+										for (HyperOpArgumentMap::iterator previousArgsItr = hyperOpArguments.begin(); previousArgsItr != hyperOpArguments.end(); previousArgsItr++) {
+											if (find(previousArgsItr->second.first.begin(), previousArgsItr->second.first.end(), argument) != previousArgsItr->second.first.end()) {
 												argAddedPreviously = true;
-												errs() << "why yes, it has been\n";
 												break;
 											}
 										}
 									}
 									if (!argAddedPreviously) {
-										errs() << "adding the argument:";
-										argument->dump();
 										newHyperOpArguments.push_back(argument);
 									}
 								}
@@ -227,13 +230,11 @@ struct HyperOpCreationPass: public ModulePass {
 							if (isa<PHINode>(instItr)) {
 								numArgs = 1;
 							}
-							errs() << "number of args:" << numArgs << "\n";
 
 							if (numArgs + hyperOpArgCount > FRAME_SIZE) {
 								stringstream newString("");
 								newString << instItr->getParent()->getName().str();
 								newString << bbIndex;
-								errs() << "name of new basic block:" << newString.str() << "\n";
 								bbItr->splitBasicBlock(instItr, newString.str());
 								bbIndex++;
 								endOfHyperOp = true;
@@ -243,21 +244,16 @@ struct HyperOpCreationPass: public ModulePass {
 									for (list<Value*>::iterator newArgItr = newHyperOpArguments.begin(); newArgItr != newHyperOpArguments.end(); newArgItr++) {
 										list<Value*> newArg;
 										newArg.push_back(*newArgItr);
-										errs() << "added to hyperoparg list:";
-										(*newArgItr)->dump();
-										hyperOpArguments.insert(make_pair(hyperOpArgCount++, newArg));
+										if (isa<LoadInst>(instItr)) {
+											hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newArg, REFERENCE)));
+										} else {
+											hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newArg, SCALAR)));
+										}
 									}
 								} else {
 									//Phi instruction's arguments correspond to only one argument to a HyperOp
-									hyperOpArguments.insert(make_pair(hyperOpArgCount++, newHyperOpArguments));
+									hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newHyperOpArguments, SCALAR)));
 								}
-
-//								if (!isa<StoreInst>(instItr)) {
-//									//instruction itself maybe used later
-//									list<Value*> newArg;
-//									newArg.push_back(instItr);
-//									hyperOpArguments.insert(make_pair(hyperOpArgCount++, newArg));
-//								}
 							}
 						}
 
@@ -275,11 +271,9 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 
 					vector<Type*> argsList;
-					for (map<int, list<Value*> >::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
+					for (HyperOpArgumentMap::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
 						//Set type of each argument of the HyperOp
-						Value* argument = hyperOpArgumentItr->second.front();
-						errs() << "arg added:";
-						argument->dump();
+						Value* argument = hyperOpArgumentItr->second.first.front();
 						argsList.push_back(argument->getType());
 					}
 					ArrayRef<Type*> dataTypes(argsList);
@@ -298,18 +292,26 @@ struct HyperOpCreationPass: public ModulePass {
 					annotationsNode->addOperand(funcAnnotation);
 
 					//Mark HyperOp function arguments as inReg
-					for (int i = 1; i <= hyperOpArguments.size(); i++) {
-						newFunction->addAttribute(i, Attribute::InReg);
+					int functionArgumentIndex = 1;
+					for (HyperOpArgumentMap::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
+						HyperOpArgumentType type = hyperOpArgItr->second.second;
+						if (type == SCALAR) {
+							newFunction->addAttribute(functionArgumentIndex++, Attribute::InReg);
+						}
 					}
 
 					//Add produces meta data from source HyperOp to the HyperOp being created
-					for (map<int, list<Value*> >::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
-						for (list<Value*>::iterator individualArgItr = hyperOpArgumentItr->second.begin(); individualArgItr != hyperOpArgumentItr->second.end(); individualArgItr++) {
+					for (HyperOpArgumentMap::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
+						list<Value*> individualArguments = hyperOpArgumentItr->second.first;
+						HyperOpArgumentType argumentType = hyperOpArgumentItr->second.second;
+						unsigned positionOfArgument = hyperOpArgumentItr->first;
+
+						for (list<Value*>::iterator individualArgItr = individualArguments.begin(); individualArgItr != individualArguments.end(); individualArgItr++) {
 							Value* argument = *individualArgItr;
 							if (isa<Instruction>(argument)) {
 								BasicBlock* parentBBOfDefinition = ((Instruction*) argument)->getParent();
 								//Get the producer HyperOp
-								for (map<Function*, pair<list<BasicBlock*>, map<int, list<Value*> > > >::iterator createdHopItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHopItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHopItr++) {
+								for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentMap> >::iterator createdHopItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHopItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHopItr++) {
 									Function* createdHyperOp = createdHopItr->first;
 									list<BasicBlock*> createdHyperOpBBList = createdHopItr->second.first;
 									if (find(createdHyperOpBBList.begin(), createdHyperOpBBList.end(), parentBBOfDefinition) != createdHyperOpBBList.end()) {
@@ -317,14 +319,20 @@ struct HyperOpCreationPass: public ModulePass {
 										Function * sourceFunction = createdHyperOp;
 										Value* data = argument;
 										Value * values[6];
-										values[0] = MDString::get(ctxt, "Produces");
+										values[0] = MDString::get(ctxt, HYPEROP_PRODUCES);
 										values[1] = hyperOpAndAnnotationMap.find(sourceFunction)->second;
 										values[2] = funcAnnotation;
-										values[3] = MDString::get(ctxt, originalToClonedInstrMap.find(data)->second->getName());
-										//TODO Hardcoded values for now
-										values[4] = MDString::get(ctxt, "Int32");
-										values[5] = MDString::get(ctxt, "Scalar");
+										errs()<<"this is all I need:";
+										originalToClonedInstrMap.find(data)->second->dump();
+										values[3] = MDNode::get(ctxt, originalToClonedInstrMap.find(data)->second);
+										if (argumentType == SCALAR) {
+											values[4] = MDString::get(ctxt, SCALAR_ARGUMENT);
+										} else {
+											values[4] = MDString::get(ctxt, REFERENCE_ARGUMENT);
+										}
+										values[5] = ConstantInt::get(ctxt, APInt(32,positionOfArgument));
 										MDNode * producesRelationShip = MDNode::get(ctxt, values);
+										errs()<<"adding operand:\n";
 										annotationsNode->addOperand(producesRelationShip);
 									}
 								}
@@ -351,7 +359,7 @@ struct HyperOpCreationPass: public ModulePass {
 								BasicBlock* predecessor = *predecessorItr;
 								//Control flow edge exists from a predecessor basic block not in the same HyperOp
 								if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), predecessor) == accumulatedBasicBlocks.end()) {
-									for (map<Function*, pair<list<BasicBlock*>, map<int, list<Value*> > > >::iterator createdHopItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHopItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHopItr++) {
+									for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentMap> >::iterator createdHopItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHopItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHopItr++) {
 										Function* createdHyperOp = createdHopItr->first;
 										list<BasicBlock*> containedBasicBlocks = createdHopItr->second.first;
 										if (find(containedBasicBlocks.begin(), containedBasicBlocks.end(), predecessor) != containedBasicBlocks.end()) {
@@ -374,19 +382,16 @@ struct HyperOpCreationPass: public ModulePass {
 								newBB->getInstList().insert(newBB->getFirstInsertionPt(), retInst);
 							} else {
 								Instruction* clonedInst = instItr->clone();
-								errs() << "cloned instruction:";
-								clonedInst->dump();
 								Instruction * originalInstruction = &*instItr;
 								originalToClonedInstrMap.insert(std::make_pair(originalInstruction, clonedInst));
 								if (!isa<AllocaInst>(clonedInst)) {
 									for (int operandIndex = 0; operandIndex < clonedInst->getNumOperands(); operandIndex++) {
 										Value* operandToBeReplaced = clonedInst->getOperand(operandIndex);
-										errs() << "replacing the argument:";
-										instItr->getOperand(operandIndex)->dump();
 										bool argUpdated = false;
-										for (map<int, list<Value*> >::iterator argumentItr = hyperOpArguments.begin(); argumentItr != hyperOpArguments.end(); argumentItr++) {
+										for (HyperOpArgumentMap::iterator argumentItr = hyperOpArguments.begin(); argumentItr != hyperOpArguments.end(); argumentItr++) {
 											unsigned hyperOpArgIndex = argumentItr->first;
-											for (list<Value*>::iterator argumentValueItr = argumentItr->second.begin(); argumentValueItr != argumentItr->second.end(); argumentValueItr++) {
+											list<Value*> individualArguments = argumentItr->second.first;
+											for (list<Value*>::iterator argumentValueItr = individualArguments.begin(); argumentValueItr != individualArguments.end(); argumentValueItr++) {
 												if (*argumentValueItr == operandToBeReplaced) {
 													//Get Value object of the newly created function's argument corresponding to the replacement
 													for (Function::arg_iterator argItr = newFunction->arg_begin(); argItr != newFunction->arg_end(); argItr++) {
@@ -431,7 +436,7 @@ struct HyperOpCreationPass: public ModulePass {
 						for (map<Function*, int>::iterator predicateSourceItr = predicateSources.begin(); predicateSourceItr != predicateSources.end(); predicateSourceItr++) {
 							Value* data = ConstantInt::getTrue(getGlobalContext());
 							Value * values[4];
-							values[0] = MDString::get(ctxt, "Predicates");
+							values[0] = MDString::get(ctxt, HYPEROP_PRESCRIBES);
 							values[1] = hyperOpAndAnnotationMap.find(predicateSourceItr->first)->second;
 							values[2] = funcAnnotation;
 							values[3] = ConstantInt::get(ctxt, APInt(32, predicateSourceItr->second));
@@ -440,8 +445,8 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
-					errs() << "Created HyperOp:";
-					newFunction->dump();
+					DEBUG(dbgs()<<"Created HyperOp:");
+					newFunction->print(dbgs());
 					accumulatedBasicBlocks.clear();
 					hyperOpArguments.clear();
 					hyperOpArgCount = 0;
@@ -465,7 +470,5 @@ struct HyperOpCreationPass: public ModulePass {
 }
 ;
 char HyperOpCreationPass::ID = 2;
-char* HyperOpCreationPass::HYPEROP = "HyperOp";
 char* HyperOpCreationPass::NEW_NAME = "newName";
-char* HyperOpCreationPass::REDEFINE_ANNOTATIONS = "redefine.annotations";
 static RegisterPass<HyperOpCreationPass> X("HyperOpCreationPass", "Pass to create HyperOps");

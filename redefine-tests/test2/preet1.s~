@@ -1,0 +1,86 @@
+	.file	"tests/test1/preet2.ll"
+	.text
+	.globl	test
+	.align	4
+	.type	test,@function
+test:                                   # @test
+
+pHyperOp:
+.LBB0_0:
+	addi	x5, 0, x0
+	lw	x5, x0(x5)
+	addi	x6, 76, x0
+	sw	x5, x0(x6)
+	addi	x5, 120, x0
+	lw	x5, x0(x5)
+	addi	x6, 184, x0
+	sw	x5, x0(x6)
+	addi	x5, 252, x0
+	addi	x6, 300, x0
+	lw	x6, x0(x6)
+	sw	x6, x0(x5)
+	addi	x5, 368, x0
+	addi	x6, 420, x0
+	lw	x6, x0(x6)
+	sw	x6, x0(x5)
+	addi	x6, 520, x0
+	lw	x5, x0(x5)
+	sw	x5, x0(x6)
+.LBB0_1:
+	addi	x5, 580, x0
+	lw	x5, x0(x5)
+	addi	x6, 636, x0
+	lw	x6, x0(x6)
+	addi	x0, x0, x0
+	addi	x0, x0, x0
+	bge	x6, x5, .LBB0_3
+	addi	x0, x0, x0
+	addi	x0, x0, x0
+	j	.LBB0_2
+.LBB0_2:
+	addi	x5, 688, x0
+	addi	x6, 728, x0
+	lw	x6, x0(x6)
+	addi	x10, 804, x0
+	addi	x7, 876, x0
+	lw	x11, x0(x7)
+	add	x6, x11, x6
+	sw	x6, x0(x10)
+	lw	x10, x0(x7)
+	addi	x7, 920, x0
+	addi	x11, 964, x0
+	lw	x11, x0(x11)
+	mul	x10, x10, x11
+	sw	x10, x0(x7)
+	lw	x7, x0(x7)
+	add	x6, x7, x6
+	sw	x6, x0(x5)
+	addi	x0, x0, x0
+	addi	x0, x0, x0
+	j	.LBB0_1
+.LBB0_3:
+	addi	x5, 1052, x0
+	lw	x5, x0(x5)
+	addi	x6, 1108, x0
+	lw	x6, x0(x6)
+	addi	x0, x0, x0
+	addi	x0, x0, x0
+	bge	x5, x6, .LBB0_5
+	addi	x0, x0, x0
+	addi	x0, x0, x0
+	j	.LBB0_4
+.LBB0_4:
+	addi	x5, 1140, x0
+	addi	x6, 1228, x0
+	lw	x6, x0(x6)
+	sw	x6, x0(x5)
+.LBB0_5:
+	addi	x5, 1260, x0
+	addi	x6, 1352, x0
+	lw	x6, x0(x6)
+	sw	x6, x0(x5)
+	end 	x0
+	addi	x0, x0, x0
+	addi	x0, x0, x0
+
+	.section	".note.GNU-stack","",@progbits

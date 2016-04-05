@@ -1,0 +1,7 @@
+./clang -emit-llvm -target redefine -c test.c -S -o test.ll;reset
+./opt -mem2reg tests/demo/test.ll -S -o tests/demo/test1.ll;reset
+./opt -load ../lib/HyperOpCreationPass.so -HyperOpCreationPass <tests/demo/test2.ll -S -o tests/demo/test5.ll 2>out;reset
+./llc -mtriple redefine -mattr=help
+./llc -mtriple redefine test1.ll
+
+
