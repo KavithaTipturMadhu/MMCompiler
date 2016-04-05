@@ -459,6 +459,14 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
     return RValue::get(Builder.CreateCall2(F, Base, Exponent));
   }
 
+  case Builtin::BI__builtin_fmin:{
+	Value *Base = EmitScalarExpr(E->getArg(0));
+	Value *Exponent = EmitScalarExpr(E->getArg(1));
+	llvm::Type *ArgType = Base->getType();
+	Value *F = CGM.getIntrinsic(Intrinsic::minnum, ArgType);
+	return RValue::get(Builder.CreateCall2(F, Base, Exponent));
+  }
+
   case Builtin::BI__builtin_isgreater:
   case Builtin::BI__builtin_isgreaterequal:
   case Builtin::BI__builtin_isless:
