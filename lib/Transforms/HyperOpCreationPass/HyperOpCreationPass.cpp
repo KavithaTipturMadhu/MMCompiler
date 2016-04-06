@@ -196,10 +196,6 @@ struct HyperOpCreationPass: public ModulePass {
 
 							list<Value*> newHyperOpArguments;
 							for (unsigned int i = 0; i < instItr->getNumOperands(); i++) {
-//								//Memory location
-//								if (isa<StoreInst>(instItr) && i == 1) {
-//									continue;
-//								}
 								Value * argument = instItr->getOperand(i);
 								if (!isa<Constant>(argument)) {
 									if ((isa<Instruction>(argument)) && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
@@ -291,15 +287,6 @@ struct HyperOpCreationPass: public ModulePass {
 					hyperOpAndAnnotationMap.insert(make_pair(newFunction, funcAnnotation));
 					annotationsNode->addOperand(funcAnnotation);
 
-					//Mark HyperOp function arguments as inReg
-					int functionArgumentIndex = 1;
-					for (HyperOpArgumentMap::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
-						HyperOpArgumentType type = hyperOpArgItr->second.second;
-						if (type == SCALAR) {
-							newFunction->addAttribute(functionArgumentIndex++, Attribute::InReg);
-						}
-					}
-
 					//List of alloc instructions to be moved from a
 					list<Instruction*> dataToBeMoved;
 					//Add produces meta data from source HyperOp to the HyperOp being created
@@ -354,11 +341,49 @@ struct HyperOpCreationPass: public ModulePass {
 											((Instruction*) originalToClonedInstrMap.find(argument)->second)->setMetadata(HYPEROP_CONSUMED_BY, newMDNode);
 										} else {
 											//No uses outside the function being created, move the data to the current HyperOp
-											dataToBeMoved.push_back((Instruction*)argument);
+											dataToBeMoved.push_back((Instruction*) argument);
+
+											//Remove from the hyperOp argument list
+											HyperOpArgumentMap::iterator iteratorToBeRemoved = 0;
+											HyperOpArgumentMap updateList;
+											list<unsigned> entriesToBeRemovedTemporarily;
+											for (HyperOpArgumentMap::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
+												if (hyperOpArgItr->second.first.size() == 1 && hyperOpArgItr->second.first.front() == argument) {
+													iteratorToBeRemoved = hyperOpArgItr;
+													for(HyperOpArgumentMap::iterator validArgsItr = hyperOpArguments.begin(); validArgsItr != hyperOpArguments.end(); validArgsItr++){
+														if(validArgsItr->first>iteratorToBeRemoved->first){
+															entriesToBeRemovedTemporarily.push_back(validArgsItr->first);
+															updateList.insert(make_pair((validArgsItr->first-1),make_pair(validArgsItr->second.first, validArgsItr->second.second)));
+														}
+													}
+													break;
+												}
+											}
+
+											if(iteratorToBeRemoved!=0){
+												unsigned indexOfRemovedArg  = iteratorToBeRemoved->first;
+												hyperOpArguments.erase(iteratorToBeRemoved);
+												for (list<unsigned> removalListItr =  entriesToBeRemovedTemporarily.begin();removalListItr!=entriesToBeRemovedTemporarily.end();removalListItr++) {
+													hyperOpArguments.erase(	hyperOpArguments.find((unsigned)*removalListItr));
+												}
+												for (HyperOpArgumentMap::iterator tempArgItr = hyperOpArguments.begin(); tempArgItr != hyperOpArguments.end(); tempArgItr++) {
+													hyperOpArguments.insert(*tempArgItr);
+												}
+
+											}
 										}
 									}
 								}
 							}
+						}
+					}
+
+					//Mark HyperOp function arguments which are not addresses as inReg
+					int functionArgumentIndex = 1;
+					for (HyperOpArgumentMap::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++, functionArgumentIndex++) {
+						HyperOpArgumentType type = hyperOpArgItr->second.second;
+						if (type == SCALAR) {
+							newFunction->addAttribute(functionArgumentIndex, Attribute::InReg);
 						}
 					}
 
