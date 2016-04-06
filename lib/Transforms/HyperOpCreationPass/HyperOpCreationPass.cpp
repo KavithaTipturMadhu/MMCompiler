@@ -29,12 +29,12 @@ struct HyperOpCreationPass: public ModulePass {
 	static char* NEW_NAME;
 	const string REDEFINE_ANNOTATIONS = "redefine.annotations";
 	const string HYPEROP = "HyperOp";
-	const string HYPEROP_PRODUCES = "Produces";
-	const string HYPEROP_PRESCRIBES = "Prescribes";
-	const string HYPEROP_AFFINITY= "Affinity";
-	const string HYPEROP_START= "Start";
-	const string HYPEROP_END= "End";
-	const string SCALAR_ARGUMENT="Scalar";
+	const string HYPEROP_CONSUMED_BY = "ConsumedBy";
+	const string HYPEROP_PREDICATES = "Predicates";
+	const string HYPEROP_AFFINITY = "Affinity";
+	const string HYPEROP_START = "Start";
+	const string HYPEROP_END = "End";
+	const string SCALAR_ARGUMENT = "Scalar";
 	const string REFERENCE_ARGUMENT = "Reference";
 
 	const unsigned int FRAME_SIZE = 4;
@@ -300,6 +300,8 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
+					//List of alloc instructions to be moved from a
+					list<Instruction*> dataToBeMoved;
 					//Add produces meta data from source HyperOp to the HyperOp being created
 					for (HyperOpArgumentMap::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
 						list<Value*> individualArguments = hyperOpArgumentItr->second.first;
@@ -315,25 +317,45 @@ struct HyperOpCreationPass: public ModulePass {
 									Function* createdHyperOp = createdHopItr->first;
 									list<BasicBlock*> createdHyperOpBBList = createdHopItr->second.first;
 									if (find(createdHyperOpBBList.begin(), createdHyperOpBBList.end(), parentBBOfDefinition) != createdHyperOpBBList.end()) {
-										//Add "produces" relationship between producer HyperOp and created HyperOp
-										Function * sourceFunction = createdHyperOp;
-										Value* data = argument;
-										Value * values[6];
-										values[0] = MDString::get(ctxt, HYPEROP_PRODUCES);
-										values[1] = hyperOpAndAnnotationMap.find(sourceFunction)->second;
-										values[2] = funcAnnotation;
-										errs()<<"this is all I need:";
-										originalToClonedInstrMap.find(data)->second->dump();
-										values[3] = MDNode::get(ctxt, originalToClonedInstrMap.find(data)->second);
-										if (argumentType == SCALAR) {
-											values[4] = MDString::get(ctxt, SCALAR_ARGUMENT);
-										} else {
-											values[4] = MDString::get(ctxt, REFERENCE_ARGUMENT);
+										//Check if the source of dependence has any uses in the function it belongs to or in basic blocks not corresponding to the HyperOp being created
+										bool atleastOneUseInOtherHyperOp = false;
+										if (isa<AllocaInst>(argument)) {
+											for (Value::const_use_iterator argItr = argument->use_begin(); argItr != argument->use_end(); argItr++) {
+												Instruction* useInstruction = *argItr;
+												if (!find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), useInstruction->getParent()) != accumulatedBasicBlocks.end()) {
+													atleastOneUseInOtherHyperOp = true;
+													break;
+												}
+											}
 										}
-										values[5] = ConstantInt::get(ctxt, APInt(32,positionOfArgument));
-										MDNode * producesRelationShip = MDNode::get(ctxt, values);
-										errs()<<"adding operand:\n";
-										annotationsNode->addOperand(producesRelationShip);
+										if (atleastOneUseInOtherHyperOp) {
+											//Add "consumedby" metadata on the function locals that need to be passed to other HyperOps
+											Function * sourceFunction = createdHyperOp;
+											Value * values[3];
+											values[0] = funcAnnotation;
+											if (argumentType == SCALAR) {
+												values[1] = MDString::get(ctxt, SCALAR_ARGUMENT);
+											} else {
+												values[1] = MDString::get(ctxt, REFERENCE_ARGUMENT);
+											}
+											values[2] = ConstantInt::get(ctxt, APInt(32, positionOfArgument));
+											MDNode * consumedByMetadata = MDNode::get(ctxt, values);
+											MDNode* currentMetadataOfInstruction = ((Instruction*) originalToClonedInstrMap.find(argument)->second)->getMetadata(HYPEROP_CONSUMED_BY);
+											vector<Value*> newMDNodeValues;
+											//Same data maybe required by multiple HyperOps
+											if (currentMetadataOfInstruction != 0) {
+												for (unsigned i = 0; i < currentMetadataOfInstruction->getNumOperands(); i++) {
+													newMDNodeValues.push_back(currentMetadataOfInstruction->getOperand(i));
+												}
+											}
+											newMDNodeValues.push_back(consumedByMetadata);
+											ArrayRef<Value*> mdNodeArrayRef(newMDNodeValues);
+											MDNode* newMDNode = MDNode::get(ctxt, mdNodeArrayRef);
+											((Instruction*) originalToClonedInstrMap.find(argument)->second)->setMetadata(HYPEROP_CONSUMED_BY, newMDNode);
+										} else {
+											//No uses outside the function being created, move the data to the current HyperOp
+											dataToBeMoved.push_back((Instruction*)argument);
+										}
 									}
 								}
 							}
@@ -436,7 +458,7 @@ struct HyperOpCreationPass: public ModulePass {
 						for (map<Function*, int>::iterator predicateSourceItr = predicateSources.begin(); predicateSourceItr != predicateSources.end(); predicateSourceItr++) {
 							Value* data = ConstantInt::getTrue(getGlobalContext());
 							Value * values[4];
-							values[0] = MDString::get(ctxt, HYPEROP_PRESCRIBES);
+							values[0] = MDString::get(ctxt, HYPEROP_PREDICATES);
 							values[1] = hyperOpAndAnnotationMap.find(predicateSourceItr->first)->second;
 							values[2] = funcAnnotation;
 							values[3] = ConstantInt::get(ctxt, APInt(32, predicateSourceItr->second));
@@ -445,7 +467,7 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
-					DEBUG(dbgs()<<"Created HyperOp:");
+					DEBUG(dbgs() << "Created HyperOp:");
 					newFunction->print(dbgs());
 					accumulatedBasicBlocks.clear();
 					hyperOpArguments.clear();
@@ -465,6 +487,7 @@ struct HyperOpCreationPass: public ModulePass {
 			//Remove old functions from module
 			originalFunctionItr->first->eraseFromParent();
 		}
+
 		return true;
 	}
 }
