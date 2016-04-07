@@ -3,18 +3,25 @@ target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f3
 target triple = "x86_64-unknown-linux-gnu"
 
 ; Function Attrs: nounwind uwtable
-define i32 @main() #0 {
+define float @main() #0 {
 entry:
-  %retval = alloca i32, align 4
   %a = alloca float, align 4
   %b = alloca float, align 4
-  store i32 0, i32* %retval
+  %minimum = alloca float, align 4
   %0 = load float* %a, align 4
-  %conv = fptosi float %0 to i32
-  ret i32 %conv
+  %conv = fpext float %0 to double
+  %1 = load float* %b, align 4
+  %conv1 = fpext float %1 to double
+  %call = call double @fmin(double %conv, double %conv1) #2
+  %conv2 = fptrunc double %call to float
+  store float %conv2, float* %minimum, align 4
+  %2 = load float* %minimum, align 4
+  ret float %2
 }
 
-attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
-!redefine.annotations = !{!0}
+; Function Attrs: nounwind readnone
+declare double @fmin(double, double) #1
 
-!0 = metadata !{metadata !"HyperOp", i32 ()* @main, i32 0}
+attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #1 = { nounwind readnone "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #2 = { nounwind readnone }
