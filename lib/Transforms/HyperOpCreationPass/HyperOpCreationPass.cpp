@@ -297,8 +297,6 @@ struct HyperOpCreationPass: public ModulePass {
 
 						for (list<Value*>::iterator individualArgItr = individualArguments.begin(); individualArgItr != individualArguments.end(); individualArgItr++) {
 							Value* argument = *individualArgItr;
-							errs() << "does the argument have uses elsewhere?";
-							argument->dump();
 							if (isa<Instruction>(argument)) {
 								BasicBlock* parentBBOfDefinition = ((Instruction*) argument)->getParent();
 								//Get the producer HyperOp
@@ -314,8 +312,6 @@ struct HyperOpCreationPass: public ModulePass {
 												Instruction* useInstruction = (Instruction*) *argItr;
 												if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), useInstruction->getParent()) == accumulatedBasicBlocks.end()) {
 													atleastOneUseInOtherHyperOp = true;
-													errs() << "one use of the instruction elsewhere!";
-													useInstruction->dump();
 													break;
 												}
 											}
@@ -346,9 +342,6 @@ struct HyperOpCreationPass: public ModulePass {
 											((Instruction*) originalToClonedInstrMap.find(argument)->second)->setMetadata(HYPEROP_CONSUMED_BY, newMDNode);
 										} else {
 											//No uses outside the function being created, move the data to the current HyperOp
-											errs() << "instruction not used outside the current function:";
-											argument->dump();
-
 											//Remove from the hyperOp argument list
 											int indexToBeRemoved = -1;
 											HyperOpArgumentMap updateList;
@@ -392,11 +385,8 @@ struct HyperOpCreationPass: public ModulePass {
 
 					//Mark HyperOp function arguments which are not addresses as inReg
 					int functionArgumentIndex = 1;
-					errs() << "adding argument to HyperOp";
 					for (HyperOpArgumentMap::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++, functionArgumentIndex++) {
 						HyperOpArgumentType type = hyperOpArgItr->second.second;
-						hyperOpArgItr->second.first.front()->dump();
-						errs() << "type:" << type << "\n";
 						if (type == SCALAR) {
 							newFunction->addAttribute(functionArgumentIndex, Attribute::InReg);
 						}
@@ -526,8 +516,6 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 		}
 
-		errs() << "Final state of module:";
-		M.dump();
 		for (map<Function*, list<Function*> >::iterator originalFunctionItr = originalFunctionToCreatedHyperOpsMap.begin(); originalFunctionItr != originalFunctionToCreatedHyperOpsMap.end(); originalFunctionItr++) {
 			//Remove old functions from module
 			originalFunctionItr->first->eraseFromParent();
