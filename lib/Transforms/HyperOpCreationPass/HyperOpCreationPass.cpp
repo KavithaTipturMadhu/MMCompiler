@@ -183,7 +183,7 @@ struct HyperOpCreationPass: public ModulePass {
 										Value * argument = instItr->getOperand(i);
 										list<Value*> argumentList;
 										argumentList.push_back(argument);
-										if (isa<LoadInst>(instItr)) {
+										if (isa<AllocaInst>(argument)) {
 											hyperOpArguments.insert(make_pair(i, make_pair(argumentList, REFERENCE)));
 										} else {
 											hyperOpArguments.insert(make_pair(i, make_pair(argumentList, SCALAR)));
@@ -240,7 +240,7 @@ struct HyperOpCreationPass: public ModulePass {
 									for (list<Value*>::iterator newArgItr = newHyperOpArguments.begin(); newArgItr != newHyperOpArguments.end(); newArgItr++) {
 										list<Value*> newArg;
 										newArg.push_back(*newArgItr);
-										if (isa<LoadInst>(instItr)) {
+										if (isa<AllocaInst>(*newArgItr)) {
 											hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newArg, REFERENCE)));
 										} else {
 											hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newArg, SCALAR)));
@@ -261,6 +261,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 				//Create a new HyperOp
 				if (endOfHyperOp || bbItr->getNextNode() == funcItr->end()) {
+					errs() << "Creating a new HyperOp\n";
 					//Couldn't use splice here since it clears away accumulatedBasicBlocks list
 					for (list<BasicBlock*>::iterator accumulatedItr = accumulatedBasicBlocks.begin(); accumulatedItr != accumulatedBasicBlocks.end(); accumulatedItr++) {
 						traversedBasicBlocks.push_back(*accumulatedItr);
@@ -287,8 +288,7 @@ struct HyperOpCreationPass: public ModulePass {
 					hyperOpAndAnnotationMap.insert(make_pair(newFunction, funcAnnotation));
 					annotationsNode->addOperand(funcAnnotation);
 
-					//List of alloc instructions to be moved from a
-					list<Instruction*> dataToBeMoved;
+					list<Instruction*> instructionsToBeMoved;
 					//Add produces meta data from source HyperOp to the HyperOp being created
 					for (HyperOpArgumentMap::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
 						list<Value*> individualArguments = hyperOpArgumentItr->second.first;
@@ -297,20 +297,25 @@ struct HyperOpCreationPass: public ModulePass {
 
 						for (list<Value*>::iterator individualArgItr = individualArguments.begin(); individualArgItr != individualArguments.end(); individualArgItr++) {
 							Value* argument = *individualArgItr;
+							errs() << "does the argument have uses elsewhere?";
+							argument->dump();
 							if (isa<Instruction>(argument)) {
 								BasicBlock* parentBBOfDefinition = ((Instruction*) argument)->getParent();
 								//Get the producer HyperOp
 								for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentMap> >::iterator createdHopItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHopItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHopItr++) {
 									Function* createdHyperOp = createdHopItr->first;
 									list<BasicBlock*> createdHyperOpBBList = createdHopItr->second.first;
-									if (find(createdHyperOpBBList.begin(), createdHyperOpBBList.end(), parentBBOfDefinition) != createdHyperOpBBList.end()) {
+									//Find the HyperOp containing the argument's definition
+									if (isa<AllocaInst>(argument) && find(createdHyperOpBBList.begin(), createdHyperOpBBList.end(), parentBBOfDefinition) != createdHyperOpBBList.end()) {
 										//Check if the source of dependence has any uses in the function it belongs to or in basic blocks not corresponding to the HyperOp being created
 										bool atleastOneUseInOtherHyperOp = false;
 										if (isa<AllocaInst>(argument)) {
-											for (Value::const_use_iterator argItr = argument->use_begin(); argItr != argument->use_end(); argItr++) {
-												Instruction* useInstruction = *argItr;
-												if (!find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), useInstruction->getParent()) != accumulatedBasicBlocks.end()) {
+											for (Value::use_iterator argItr = argument->use_begin(); argItr != argument->use_end(); argItr++) {
+												Instruction* useInstruction = (Instruction*) *argItr;
+												if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), useInstruction->getParent()) == accumulatedBasicBlocks.end()) {
 													atleastOneUseInOtherHyperOp = true;
+													errs() << "one use of the instruction elsewhere!";
+													useInstruction->dump();
 													break;
 												}
 											}
@@ -341,35 +346,42 @@ struct HyperOpCreationPass: public ModulePass {
 											((Instruction*) originalToClonedInstrMap.find(argument)->second)->setMetadata(HYPEROP_CONSUMED_BY, newMDNode);
 										} else {
 											//No uses outside the function being created, move the data to the current HyperOp
-											dataToBeMoved.push_back((Instruction*) argument);
+											errs() << "instruction not used outside the current function:";
+											argument->dump();
 
 											//Remove from the hyperOp argument list
-											HyperOpArgumentMap::iterator iteratorToBeRemoved = 0;
+											int indexToBeRemoved = -1;
 											HyperOpArgumentMap updateList;
 											list<unsigned> entriesToBeRemovedTemporarily;
 											for (HyperOpArgumentMap::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
 												if (hyperOpArgItr->second.first.size() == 1 && hyperOpArgItr->second.first.front() == argument) {
-													iteratorToBeRemoved = hyperOpArgItr;
-													for(HyperOpArgumentMap::iterator validArgsItr = hyperOpArguments.begin(); validArgsItr != hyperOpArguments.end(); validArgsItr++){
-														if(validArgsItr->first>iteratorToBeRemoved->first){
+													indexToBeRemoved = hyperOpArgItr->first;
+													for (HyperOpArgumentMap::iterator validArgsItr = hyperOpArguments.begin(); validArgsItr != hyperOpArguments.end(); validArgsItr++) {
+														if (validArgsItr->first > indexToBeRemoved) {
 															entriesToBeRemovedTemporarily.push_back(validArgsItr->first);
-															updateList.insert(make_pair((validArgsItr->first-1),make_pair(validArgsItr->second.first, validArgsItr->second.second)));
+															updateList.insert(make_pair((validArgsItr->first - 1), make_pair(validArgsItr->second.first, validArgsItr->second.second)));
 														}
 													}
 													break;
 												}
 											}
 
-											if(iteratorToBeRemoved!=0){
-												unsigned indexOfRemovedArg  = iteratorToBeRemoved->first;
-												hyperOpArguments.erase(iteratorToBeRemoved);
-												for (list<unsigned> removalListItr =  entriesToBeRemovedTemporarily.begin();removalListItr!=entriesToBeRemovedTemporarily.end();removalListItr++) {
-													hyperOpArguments.erase(	hyperOpArguments.find((unsigned)*removalListItr));
+											if (indexToBeRemoved >= 0) {
+												hyperOpArguments.erase(hyperOpArguments.find((unsigned) indexToBeRemoved));
+												for (list<unsigned>::iterator removalListItr = entriesToBeRemovedTemporarily.begin(); removalListItr != entriesToBeRemovedTemporarily.end(); removalListItr++) {
+													hyperOpArguments.erase(hyperOpArguments.find((unsigned) *removalListItr));
 												}
 												for (HyperOpArgumentMap::iterator tempArgItr = hyperOpArguments.begin(); tempArgItr != hyperOpArguments.end(); tempArgItr++) {
 													hyperOpArguments.insert(*tempArgItr);
 												}
 
+												//Replace uses of the argument by the new instruction cloned into the accumulated basic blocks
+												//Add the data movement instructions to the created basic blocks
+												//Find where it was in the first place and remove its clone
+												Instruction* clonedInstruction = (Instruction*) originalToClonedInstrMap.find((Instruction*)argument)->second;
+												argument->replaceAllUsesWith(clonedInstruction);
+												//Replace uses of the cloned instruction
+												instructionsToBeMoved.push_back(clonedInstruction);
 											}
 										}
 									}
@@ -380,8 +392,11 @@ struct HyperOpCreationPass: public ModulePass {
 
 					//Mark HyperOp function arguments which are not addresses as inReg
 					int functionArgumentIndex = 1;
+					errs() << "adding argument to HyperOp";
 					for (HyperOpArgumentMap::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++, functionArgumentIndex++) {
 						HyperOpArgumentType type = hyperOpArgItr->second.second;
+						hyperOpArgItr->second.first.front()->dump();
+						errs() << "type:" << type << "\n";
 						if (type == SCALAR) {
 							newFunction->addAttribute(functionArgumentIndex, Attribute::InReg);
 						}
@@ -421,7 +436,6 @@ struct HyperOpCreationPass: public ModulePass {
 								}
 							}
 						}
-
 						BasicBlock *newBB = BasicBlock::Create(getGlobalContext(), (*accumulatedBBItr)->getName(), newFunction);
 						for (BasicBlock::reverse_iterator instItr = (*accumulatedBBItr)->rbegin(); instItr != (*accumulatedBBItr)->rend(); instItr++) {
 							if (*accumulatedBBItr == accumulatedBasicBlocks.back() && instItr == (*accumulatedBBItr)->rbegin()) {
@@ -492,6 +506,10 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
+					for(list<Instruction*>::iterator instrForMove=instructionsToBeMoved.begin();instrForMove!=instructionsToBeMoved.end();instrForMove++){
+						(*instrForMove)->removeFromParent();
+						newFunction->getEntryBlock().getInstList().insert(newFunction->getEntryBlock().getFirstInsertionPt(),*instrForMove);
+					}
 					DEBUG(dbgs() << "Created HyperOp:");
 					newFunction->print(dbgs());
 					accumulatedBasicBlocks.clear();
@@ -508,6 +526,8 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 		}
 
+		errs() << "Final state of module:";
+		M.dump();
 		for (map<Function*, list<Function*> >::iterator originalFunctionItr = originalFunctionToCreatedHyperOpsMap.begin(); originalFunctionItr != originalFunctionToCreatedHyperOpsMap.end(); originalFunctionItr++) {
 			//Remove old functions from module
 			originalFunctionItr->first->eraseFromParent();
