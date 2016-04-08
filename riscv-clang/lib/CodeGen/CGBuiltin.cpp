@@ -195,6 +195,7 @@ static llvm::Value *EmitOverflowIntrinsic(CodeGenFunction &CGF,
 
 RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
                                         unsigned BuiltinID, const CallExpr *E) {
+	errs()<<"emitting built in expr for function "<<FD->getName()<<"\n";
   // See if we can constant fold this builtin.  If so, don't emit it at all.
   Expr::EvalResult Result;
   if (E->EvaluateAsRValue(Result, CGM.getContext()) &&

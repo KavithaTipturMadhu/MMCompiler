@@ -1,9 +1,8 @@
 //#include <math.h>
 
 float main(){
-//int main(){
 	float a, b;
-	float minimum=fmin(a,b);
+	float minimum=__builtin_fmin(a,b);
 	return minimum;
 //	return (int)a;
 }
