@@ -232,6 +232,8 @@ namespace ISD {
 
     /// Simple binary floating point operators.
     FADD, FSUB, FMUL, FMA, FDIV, FREM,
+	//REDEFINE
+	FMIN,FMAX,
 
     /// FCOPYSIGN(X, Y) - Return the value of X with the sign of Y.  NOTE: This
     /// DAG node does not require that X and Y have the same type, just that the
