@@ -2927,8 +2927,6 @@ RValue CodeGenFunction::EmitRValueForField(LValue LV,
 
 RValue CodeGenFunction::EmitCallExpr(const CallExpr *E, 
                                      ReturnValueSlot ReturnValue) {
-	llvm::errs()<<"emitting call expr:";
-	E->dump();
   if (CGDebugInfo *DI = getDebugInfo()) {
     SourceLocation Loc = E->getLocStart();
     // Force column info to be generated so we can differentiate
@@ -2950,8 +2948,6 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
 
   const Decl *TargetDecl = E->getCalleeDecl();
   if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(TargetDecl)) {
-		llvm::errs()<<"Built id:"<<FD->getBuiltinID()<<"\n";
-
     if (unsigned builtinID = FD->getBuiltinID())
       return EmitBuiltinExpr(FD, builtinID, E);
   }

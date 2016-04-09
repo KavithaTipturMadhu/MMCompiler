@@ -168,6 +168,7 @@ namespace {
       DT = &getAnalysis<DominatorTree>();
 
       Mod = F.getParent();
+
       if (!Context) Context = &F.getContext();
 
       visit(F);
@@ -511,8 +512,8 @@ void Verifier::visitNamedMDNode(NamedMDNode &NMD) {
     if (!MD)
       continue;
 
-    Assert1(!MD->isFunctionLocal(),
-            "Named metadata operand cannot be function local!", MD);
+//    Assert1(!MD->isFunctionLocal(),
+//            "Named metadata operand cannot be function local!", MD);
     visitMDNode(*MD, 0);
   }
 }
@@ -530,12 +531,12 @@ void Verifier::visitMDNode(MDNode &MD, Function *F) {
     if (isa<Constant>(Op) || isa<MDString>(Op))
       continue;
     if (MDNode *N = dyn_cast<MDNode>(Op)) {
-      Assert2(MD.isFunctionLocal() || !N->isFunctionLocal(),
-              "Global metadata operand cannot be function local!", &MD, N);
+//      Assert2(MD.isFunctionLocal() || !N->isFunctionLocal(),
+//              "Global metadata operand cannot be function local!", &MD, N);
       visitMDNode(*N, F);
       continue;
     }
-    Assert2(MD.isFunctionLocal(), "Invalid operand for global metadata!", &MD, Op);
+//    Assert2(MD.isFunctionLocal(), "Invalid operand for global metadata!", &MD, Op);
 
     // If this was an instruction, bb, or argument, verify that it is in the
     // function that we expect.
@@ -546,10 +547,10 @@ void Verifier::visitMDNode(MDNode &MD, Function *F) {
       ActualF = BB->getParent();
     else if (Argument *A = dyn_cast<Argument>(Op))
       ActualF = A->getParent();
-    assert(ActualF && "Unimplemented function local metadata case!");
+//    assert(ActualF && "Unimplemented function local metadata case!");
 
-    Assert2(ActualF == F, "function-local metadata used in wrong function",
-            &MD, Op);
+//    Assert2(ActualF == F, "function-local metadata used in wrong function",
+//            &MD, Op);
   }
 }
 

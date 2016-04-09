@@ -199,13 +199,15 @@ REDEFINETargetLowering::REDEFINETargetLowering(REDEFINETargetMachine &tm) :
 			setOperationAction(ISD::FADD, VT, Legal);
 			setOperationAction(ISD::FSUB, VT, Legal);
 			setOperationAction(ISD::FMUL, VT, Legal);
-			setOperationAction(ISD::FDIV, VT, Expand);
-			setOperationAction(ISD::FSQRT, VT, Expand);
+			setOperationAction(ISD::FDIV, VT, Legal);
+			setOperationAction(ISD::FSQRT, VT, Legal);
 			// No special instructions for these.
-			setOperationAction(ISD::FSIN, VT, Expand);
-			setOperationAction(ISD::FCOS, VT, Expand);
+			setOperationAction(ISD::FSIN, VT, Legal);
+			setOperationAction(ISD::FCOS, VT, Legal);
 			setOperationAction(ISD::FREM, VT, Expand);
 			setOperationAction(ISD::FABS, VT, Expand);
+			setOperationAction(ISD::FMINNUM, VT, Legal);
+			setOperationAction(ISD::FMAXNUM, VT, Legal);
 		}
 	}
 
