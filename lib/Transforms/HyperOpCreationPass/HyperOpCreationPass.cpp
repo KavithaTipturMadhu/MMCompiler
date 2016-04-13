@@ -67,6 +67,16 @@ struct HyperOpCreationPass: public ModulePass {
 		return false;
 	}
 
+	bool supportedArgType(Value* argument) {
+		if (isa<AllocaInst>(argument) || isa<GetElementPtrInst>(argument)) {
+			return false;
+		} //If unsupported data type for passing an argument in a context frame
+		else if (argument->getType()->getTypeID() == Type::FloatTyID) {
+			return false;
+		}
+		return true;
+	}
+
 	virtual bool runOnModule(Module &M) {
 		LLVMContext & ctxt = M.getContext();
 		list<Function*> addedFunctions;
@@ -162,10 +172,11 @@ struct HyperOpCreationPass: public ModulePass {
 										Value * argument = instItr->getOperand(i);
 										list<Value*> argumentList;
 										argumentList.push_back(argument);
-										if (isa<AllocaInst>(argument)) {
-											hyperOpArguments.insert(make_pair(i, make_pair(argumentList, REFERENCE)));
-										} else {
+										//If argument type is not supported to be passed
+										if (supportedArgType(argument)) {
 											hyperOpArguments.insert(make_pair(i, make_pair(argumentList, SCALAR)));
+										} else {
+											hyperOpArguments.insert(make_pair(i, make_pair(argumentList, REFERENCE)));
 										}
 									}
 								}
@@ -219,15 +230,19 @@ struct HyperOpCreationPass: public ModulePass {
 									for (list<Value*>::iterator newArgItr = newHyperOpArguments.begin(); newArgItr != newHyperOpArguments.end(); newArgItr++) {
 										list<Value*> newArg;
 										newArg.push_back(*newArgItr);
-										if (isa<AllocaInst>(*newArgItr)) {
-											hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newArg, REFERENCE)));
-										} else {
+										if (supportedArgType(*newArgItr)) {
 											hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newArg, SCALAR)));
+										} else {
+											hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newArg, REFERENCE)));
 										}
 									}
 								} else {
-									//Phi instruction's arguments correspond to only one argument to a HyperOp
-									hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newHyperOpArguments, SCALAR)));
+									if (supportedArgType(newHyperOpArguments.front())) {
+										//Phi instruction's arguments correspond to only one argument to a HyperOp
+										hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newHyperOpArguments, SCALAR)));
+									} else {
+										hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newHyperOpArguments, REFERENCE)));
+									}
 								}
 							}
 						}
