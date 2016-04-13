@@ -18,6 +18,7 @@ using namespace std;
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
+#include "llvm/Transforms/IPO/InlinerPass.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "HyperOpCreationPass"
