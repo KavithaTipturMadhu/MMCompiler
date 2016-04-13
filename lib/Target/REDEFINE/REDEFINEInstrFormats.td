@@ -361,4 +361,21 @@ class InstSign<string mnemonic, bits<7> op, bits<5> funct5, bits<2> fmt, bits<3>
   let Inst{6 - 0} = op;
 }
 
+//FP Operations with single operand
+class InstFP<string mnemonic, bits<7>op,  bits<5>func3, bits<5>rs2, bits<7>func7, SDPatternOperator operator, RegisterOperand cls1, 
+               RegisterOperand cls2>
+	:InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src),
+				mnemonic#"\t$dst, $src", 
+                [(set cls1:$dst, (operator cls2:$src))]> {
+  field bits<32> Inst;
 
+  bits<5> RD;
+  bits<5> RS1;
+
+  let Inst{31-25} = func7;
+  let Inst{24-20} = rs2;
+  let Inst{19-15} = RS1;
+  let Inst{14-12} = 0b000;
+  let Inst{11-7} = RD;
+  let Inst{6 - 0} = op;
+}

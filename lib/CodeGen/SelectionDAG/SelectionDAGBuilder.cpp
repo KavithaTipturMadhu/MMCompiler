@@ -4887,7 +4887,6 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
   case Intrinsic::ceil:
   case Intrinsic::trunc:
   case Intrinsic::rint:
-  case Intrinsic::minnum:
   case Intrinsic::nearbyint: {
     unsigned Opcode;
     switch (Intrinsic) {
@@ -4901,8 +4900,6 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
     case Intrinsic::trunc:     Opcode = ISD::FTRUNC;     break;
     case Intrinsic::rint:      Opcode = ISD::FRINT;      break;
     case Intrinsic::nearbyint: Opcode = ISD::FNEARBYINT; break;
-    case Intrinsic::minnum:	   Opcode = ISD::FMIN; 	     break;
-
     }
 
     setValue(&I, DAG.getNode(Opcode, dl,
@@ -4910,6 +4907,19 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
                              getValue(I.getArgOperand(0))));
     return 0;
   }
+  case Intrinsic::minnum:
+	  setValue(&I, DAG.getNode(ISD::FMINNUM, dl,
+	                               getValue(I.getArgOperand(0)).getValueType(),
+	                               getValue(I.getArgOperand(0)),
+	                               getValue(I.getArgOperand(1))));
+	  return 0;
+  case Intrinsic::maxnum:
+  	  setValue(&I, DAG.getNode(ISD::FMAXNUM, dl,
+  	                               getValue(I.getArgOperand(0)).getValueType(),
+  	                               getValue(I.getArgOperand(0)),
+  	                               getValue(I.getArgOperand(1))));
+  	  return 0;
+
   case Intrinsic::fma:
     setValue(&I, DAG.getNode(ISD::FMA, dl,
                              getValue(I.getArgOperand(0)).getValueType(),

@@ -28,8 +28,8 @@ using namespace std;
 
 static string REDEFINE_ANNOTATIONS = "redefine.annotations";
 static string HYPEROP = "HyperOp";
-static string HYPEROP_PRODUCES = "Produces";
-static string HYPEROP_PRESCRIBES = "Prescribes";
+static string HYPEROP_CONSUMED_BY = "ConsumedBy";
+static string HYPEROP_CONTROLLED_BY = "ControlledBy";
 static string HYPEROP_AFFINITY = "Affinity";
 static string HYPEROP_START = "Start";
 static string HYPEROP_END = "End";

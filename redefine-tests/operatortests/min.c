@@ -2,7 +2,7 @@
 
 float main(){
 	float a, b;
-	float minimum=__builtin_fmin(a,b);
-	return minimum;
+	float c=a/b;
+	return c;
 //	return (int)a;
 }

@@ -93,7 +93,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 				hyperOp->setHyperOpId(hyperOpId++);
 				graph->addHyperOp(hyperOp);
 				metadataMap.insert(std::make_pair(hyperOpMDNode, hyperOp));
-			} else if (type.compare(HYPEROP_PRODUCES) == 0) {
+			} else if (type.compare(HYPEROP_CONSUMED_BY) == 0) {
 				MDNode* edgeSource = (MDNode*) hyperOpMDNode->getOperand(1);
 				MDNode* edgeDestination = (MDNode*) hyperOpMDNode->getOperand(2);
 				StringRef name = ((MDString*) hyperOpMDNode->getOperand(3))->getName();
@@ -120,7 +120,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 //				if (dataAggregateType.compare(UNION) == 0) {
 //					processUnion(aggregateData, dataAggregateType);
 //				}
-			} else if (type.compare(HYPEROP_PRESCRIBES) == 0) {
+			} else if (type.compare(HYPEROP_CONTROLLED_BY) == 0) {
 				//add control edges
 				MDNode* edgeSource = (MDNode*) hyperOpMDNode->getOperand(1);
 				MDNode* edgeDestination = (MDNode*) hyperOpMDNode->getOperand(2);

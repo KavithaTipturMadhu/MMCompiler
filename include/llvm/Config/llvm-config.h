@@ -18,25 +18,25 @@
 #ifndef CONFIG_H
 
 /* Installation directory for binary executables */
-#define LLVM_BINDIR "/home/kavitha/Desktop/riscv-workspace/riscv-llvm-tools-build//bin"
+#define LLVM_BINDIR "/usr/local/bin"
 
 /* Time at which LLVM was configured */
-#define LLVM_CONFIGTIME "Mon Jan 25 16:12:21 IST 2016"
+#define LLVM_CONFIGTIME "Tue Mar 22 10:02:55 IST 2016"
 
 /* Installation directory for data files */
-#define LLVM_DATADIR "/home/kavitha/Desktop/riscv-workspace/riscv-llvm-tools-build//share/llvm"
+#define LLVM_DATADIR "/usr/local/share/llvm"
 
 /* Target triple LLVM will generate code for by default */
 #define LLVM_DEFAULT_TARGET_TRIPLE "x86_64-unknown-linux-gnu"
 
 /* Installation directory for documentation */
-#define LLVM_DOCSDIR "/home/kavitha/Desktop/riscv-workspace/riscv-llvm-tools-build//share/doc/llvm"
+#define LLVM_DOCSDIR "/usr/local/share/doc/llvm"
 
 /* Define if threads enabled */
 #define LLVM_ENABLE_THREADS 1
 
 /* Installation directory for config files */
-#define LLVM_ETCDIR "/home/kavitha/Desktop/riscv-workspace/riscv-llvm-tools-build//etc/llvm"
+#define LLVM_ETCDIR "/usr/local/etc/llvm"
 
 /* Has gcc/MSVC atomic intrinsics */
 #define LLVM_HAS_ATOMICS 1
@@ -45,16 +45,16 @@
 #define LLVM_HOST_TRIPLE "x86_64-unknown-linux-gnu"
 
 /* Installation directory for include files */
-#define LLVM_INCLUDEDIR "/home/kavitha/Desktop/riscv-workspace/riscv-llvm-tools-build//include"
+#define LLVM_INCLUDEDIR "/usr/local/include"
 
 /* Installation directory for .info files */
-#define LLVM_INFODIR "/home/kavitha/Desktop/riscv-workspace/riscv-llvm-tools-build//info"
+#define LLVM_INFODIR "/usr/local/info"
 
 /* Installation directory for libraries */
-#define LLVM_LIBDIR "/home/kavitha/Desktop/riscv-workspace/riscv-llvm-tools-build//lib"
+#define LLVM_LIBDIR "/usr/local/lib"
 
 /* Installation directory for man pages */
-#define LLVM_MANDIR "/home/kavitha/Desktop/riscv-workspace/riscv-llvm-tools-build//man"
+#define LLVM_MANDIR "/usr/local/man"
 
 /* LLVM architecture name for the native architecture, if available */
 #define LLVM_NATIVE_ARCH X86
@@ -111,7 +111,7 @@
 /* #undef LLVM_PATH_XDOT_PY */
 
 /* Installation prefix directory */
-#define LLVM_PREFIX "/home/kavitha/Desktop/riscv-workspace/riscv-llvm-tools-build/"
+#define LLVM_PREFIX "/usr/local"
 
 /* Define if we have the Intel JIT API runtime support library */
 #define LLVM_USE_INTEL_JITEVENTS 0

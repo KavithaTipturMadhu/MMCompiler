@@ -204,13 +204,6 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 	SUnit* SU = ScheduledInstrItr->first;
 	MachineInstr* machineInstruction = SU->getInstr();
 	unsigned additionalFanin = 0;
-	errs() << "dealing with instruction\n";
-	machineInstruction->dump();
-	for (unsigned i = 0; i < machineInstruction->getNumOperands(); i++) {
-		errs() << "\noperand " << i << ":";
-		machineInstruction->getOperand(i).print(errs());
-	}
-
 	for (SmallVector<SDep, 4>::iterator predecessorItr = SU->Preds.begin(); predecessorItr != SU->Preds.end(); predecessorItr++) {
 		for (list<pair<SUnit*, unsigned> >::iterator predecessorInstrItr = instructionAndPHyperOpMapForRegion.begin(); predecessorInstrItr != instructionAndPHyperOpMapForRegion.end(); predecessorInstrItr++) {
 			if (predecessorInstrItr->first->getInstr() == predecessorItr->getSUnit()->getInstr() && predecessorInstrItr->second != ceContainingInstruction) {
@@ -409,8 +402,6 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 	MachineInstr* machineInstruction = RegionEnd;
 	MachineInstr* firstInsertedInstruction = 0;
-	errs() << "branch instruction:";
-	RegionEnd->dump();
 //Add barrier for synchronization
 	for (unsigned i = 0; i < ceCount; i++) {
 		unsigned sourceSpAddressRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
@@ -647,12 +638,6 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 		if (firstInstructionOfpHyperOpInRegion[i] == 0) {
 			firstInstructionOfpHyperOpInRegion[i] = duplicateTerminatorInstr.operator llvm::MachineInstr *();
 		}
-		errs() << "replicated the instr into ce " << i << " at position :" << insertPosition << "\n";
-		duplicateTerminatorInstr.operator ->()->dump();
-		errs() << "and placed before successor : \n";
-		if (successorOfTerminator != parentBasicBlock.end()) {
-			successorOfTerminator->dump();
-		}
 		allInstructionsOfRegion.push_back(make_pair(duplicateTerminatorInstr.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(duplicateTerminatorInstr.operator llvm::MachineInstr *());
 	}
@@ -703,8 +688,8 @@ for (unsigned i = 0; i < ceCount; i++) {
 }
 firstInstructionOfpHyperOp.push_front(firstInstrCopy);
 
-errs() << "state of basic block:";
-BB->dump();
+DEBUG(dbgs() << "state of basic block BB#" << BB->getNumber());
+BB->print(dbgs());
 }
 
 void REDEFINEMCInstrScheduler::finishBlock() {
@@ -1049,10 +1034,6 @@ if (!firstInstructionOfpHyperOp.empty()) {
 		if (firstInstructionInNextCE == 0) {
 			firstInstructionInNextCE = BB->end();
 		}
-		firstInstructionInCE->dump();
-		if (firstInstructionInNextCE != BB->end()) {
-			firstInstructionInNextCE->dump();
-		}
 		MIBundleBuilder* bundleBuilder = new MIBundleBuilder(*BB, firstInstructionInCE, firstInstructionInNextCE);
 	}
 }
@@ -1171,10 +1152,7 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 			if (MO.isReg() && find(liveInPhysRegisters.begin(), liveInPhysRegisters.end(), MO.getReg()) != liveInPhysRegisters.end()) {
 				unsigned physicalReg = MO.getReg();
 				if (physRegAndLiveIn[physicalReg] == -1 || physRegAndLiveIn[physicalReg] != pHyperOpIndex) {
-					errs() << "Register " << physicalReg << " is not live-in in " << pHyperOpIndex << "\n";
 					MachineInstr* firstDefinition = physRegAndFirstMachineOperand.find(physicalReg)->second;
-					errs() << "defined for the first time in ";
-					firstDefinition->dump();
 					unsigned pHyperOpContainingDefinition = physRegAndLiveIn[physicalReg];
 					MachineInstrBuilder sourceLui;
 					if (registerContainingBaseAddress[pHyperOpContainingDefinition][pHyperOpIndex] == -1) {

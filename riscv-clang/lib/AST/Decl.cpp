@@ -2166,7 +2166,6 @@ unsigned FunctionDecl::getBuiltinID() const {
     return 0;
 
   ASTContext &Context = getASTContext();
-  llvm::errs()<<this->getName()<<":isnt the function a lib call?"<<Context.BuiltinInfo.isLibFunction(BuiltinID)<<"\n";
   if(Context.BuiltinInfo.isLibFunction(BuiltinID)){
 	  return BuiltinID;
   }

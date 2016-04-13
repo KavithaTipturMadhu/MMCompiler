@@ -17,6 +17,8 @@ using namespace std;
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
+#include "llvm/Transforms/IPO/InlinerPass.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "HyperOpCreationPass"
@@ -30,7 +32,7 @@ struct HyperOpCreationPass: public ModulePass {
 	const string REDEFINE_ANNOTATIONS = "redefine.annotations";
 	const string HYPEROP = "HyperOp";
 	const string HYPEROP_CONSUMED_BY = "ConsumedBy";
-	const string HYPEROP_PREDICATES = "Predicates";
+	const string HYPEROP_CONTROLLED_BY = "ControlledBy";
 	const string HYPEROP_AFFINITY = "Affinity";
 	const string HYPEROP_START = "Start";
 	const string HYPEROP_END = "End";
@@ -49,36 +51,10 @@ struct HyperOpCreationPass: public ModulePass {
 			ModulePass(ID) {
 	}
 
-	//TODO, floating point data cannot be passed in register
-//	Size of each entry of arguments list in terms of the number of integer registers occupied
-//	static unsigned int sizeOfArgumentList(list<Value*> arguments) {
-//		unsigned int argSize = 0;
-//		for (list<Value*>::iterator argItr = arguments.begin(); argItr != arguments.end(); argItr++) {
-//			switch ((*argItr)->getType()->getTypeID()) {
-//			case Type::VoidTyID:
-//				argSize += 0;
-//				break;
-//			case Type::HalfTyID:
-//				//Treated as single precision floating point
-//			case Type::FloatTyID:
-//			case Type::IntegerTyID:
-//				argSize += 1;
-//				break;
-//				//All these types are treated as references in REDEFINE
-//			case Type::StructTyID:
-//			case Type::ArrayTyID:
-//			case Type::PointerTyID:
-//			case Type::VectorTyID:     ///< 15: SIMD 'packed' format, or other vector type
-//			case Type::DoubleTyID:
-//				argSize += 2;
-//				break;
-//			default:
-//				argSize += 0;
-//				break;
-//			}
-//		}
-//		return argSize;
-//	}
+	virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+		//Mandatory merge return to be invoked on each function
+		AU.addRequired<UnifyFunctionExitNodes>();
+	}
 
 	bool pathExistsInCFG(BasicBlock* source, BasicBlock* target) {
 		for (int i = 0; i < source->getTerminator()->getNumSuccessors(); i++) {
@@ -91,6 +67,16 @@ struct HyperOpCreationPass: public ModulePass {
 		return false;
 	}
 
+	bool supportedArgType(Value* argument) {
+		if (isa<AllocaInst>(argument) || isa<GetElementPtrInst>(argument)) {
+			return false;
+		} //If unsupported data type for passing an argument in a context frame
+		else if (argument->getType()->getTypeID() == Type::FloatTyID) {
+			return false;
+		}
+		return true;
+	}
+
 	virtual bool runOnModule(Module &M) {
 		LLVMContext & ctxt = M.getContext();
 		list<Function*> addedFunctions;
@@ -101,7 +87,10 @@ struct HyperOpCreationPass: public ModulePass {
 		map<Function*, pair<list<BasicBlock*>, HyperOpArgumentMap> > createdHyperOpAndOriginalBasicBlockAndArgMap;
 
 		//Original Instructions and their clones
-		map<Value*, Value*> originalToClonedInstrMap;
+		map<Value*, Value*> originalToClonedInstMap;
+
+		//Map of the return instruction introduced in each HyperOp function
+		map<Function*, Instruction*> retInstMap;
 
 		//Slightly complex data structure, required when supporting instances of HyperOps though, so leaving it as is
 		map<Function*, list<Function*> > originalFunctionToCreatedHyperOpsMap;
@@ -183,10 +172,11 @@ struct HyperOpCreationPass: public ModulePass {
 										Value * argument = instItr->getOperand(i);
 										list<Value*> argumentList;
 										argumentList.push_back(argument);
-										if (isa<AllocaInst>(argument)) {
-											hyperOpArguments.insert(make_pair(i, make_pair(argumentList, REFERENCE)));
-										} else {
+										//If argument type is not supported to be passed
+										if (supportedArgType(argument)) {
 											hyperOpArguments.insert(make_pair(i, make_pair(argumentList, SCALAR)));
+										} else {
+											hyperOpArguments.insert(make_pair(i, make_pair(argumentList, REFERENCE)));
 										}
 									}
 								}
@@ -240,15 +230,19 @@ struct HyperOpCreationPass: public ModulePass {
 									for (list<Value*>::iterator newArgItr = newHyperOpArguments.begin(); newArgItr != newHyperOpArguments.end(); newArgItr++) {
 										list<Value*> newArg;
 										newArg.push_back(*newArgItr);
-										if (isa<AllocaInst>(*newArgItr)) {
-											hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newArg, REFERENCE)));
-										} else {
+										if (supportedArgType(*newArgItr)) {
 											hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newArg, SCALAR)));
+										} else {
+											hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newArg, REFERENCE)));
 										}
 									}
 								} else {
-									//Phi instruction's arguments correspond to only one argument to a HyperOp
-									hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newHyperOpArguments, SCALAR)));
+									if (supportedArgType(newHyperOpArguments.front())) {
+										//Phi instruction's arguments correspond to only one argument to a HyperOp
+										hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newHyperOpArguments, SCALAR)));
+									} else {
+										hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newHyperOpArguments, REFERENCE)));
+									}
 								}
 							}
 						}
@@ -261,7 +255,6 @@ struct HyperOpCreationPass: public ModulePass {
 
 				//Create a new HyperOp
 				if (endOfHyperOp || bbItr->getNextNode() == funcItr->end()) {
-					errs() << "Creating a new HyperOp\n";
 					//Couldn't use splice here since it clears away accumulatedBasicBlocks list
 					for (list<BasicBlock*>::iterator accumulatedItr = accumulatedBasicBlocks.begin(); accumulatedItr != accumulatedBasicBlocks.end(); accumulatedItr++) {
 						traversedBasicBlocks.push_back(*accumulatedItr);
@@ -328,7 +321,7 @@ struct HyperOpCreationPass: public ModulePass {
 											}
 											values[2] = ConstantInt::get(ctxt, APInt(32, positionOfArgument));
 											MDNode * consumedByMetadata = MDNode::get(ctxt, values);
-											MDNode* currentMetadataOfInstruction = ((Instruction*) originalToClonedInstrMap.find(argument)->second)->getMetadata(HYPEROP_CONSUMED_BY);
+											MDNode* currentMetadataOfInstruction = ((Instruction*) originalToClonedInstMap.find(argument)->second)->getMetadata(HYPEROP_CONSUMED_BY);
 											vector<Value*> newMDNodeValues;
 											//Same data maybe required by multiple HyperOps
 											if (currentMetadataOfInstruction != 0) {
@@ -339,7 +332,7 @@ struct HyperOpCreationPass: public ModulePass {
 											newMDNodeValues.push_back(consumedByMetadata);
 											ArrayRef<Value*> mdNodeArrayRef(newMDNodeValues);
 											MDNode* newMDNode = MDNode::get(ctxt, mdNodeArrayRef);
-											((Instruction*) originalToClonedInstrMap.find(argument)->second)->setMetadata(HYPEROP_CONSUMED_BY, newMDNode);
+											((Instruction*) originalToClonedInstMap.find(argument)->second)->setMetadata(HYPEROP_CONSUMED_BY, newMDNode);
 										} else {
 											//No uses outside the function being created, move the data to the current HyperOp
 											//Remove from the hyperOp argument list
@@ -371,7 +364,7 @@ struct HyperOpCreationPass: public ModulePass {
 												//Replace uses of the argument by the new instruction cloned into the accumulated basic blocks
 												//Add the data movement instructions to the created basic blocks
 												//Find where it was in the first place and remove its clone
-												Instruction* clonedInstruction = (Instruction*) originalToClonedInstrMap.find((Instruction*)argument)->second;
+												Instruction* clonedInstruction = (Instruction*) originalToClonedInstMap.find((Instruction*) argument)->second;
 												argument->replaceAllUsesWith(clonedInstruction);
 												//Replace uses of the cloned instruction
 												instructionsToBeMoved.push_back(clonedInstruction);
@@ -400,8 +393,9 @@ struct HyperOpCreationPass: public ModulePass {
 					hyperOpFunctions.push_back(newFunction);
 					originalFunctionToCreatedHyperOpsMap.insert(make_pair(funcItr, hyperOpFunctions));
 
-					//Map of predicate's source HyperOp
-					map<Function*, int> predicateSources;
+					//Map of predicate's source instruction in a different HyperOp, the branch instruction needs to be deleted after the predicate is marked for delivery since we need writecmp instructions to predicate HyperOps unlike the regular branch instructions(j, beq etc)
+					map<Instruction*, unsigned> conditionalBranchSources;
+					list<Instruction*> unconditionalBranchSources;
 					for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 						//Find out if any basic block is predicated
 						BasicBlock* originalBB = *accumulatedBBItr;
@@ -409,16 +403,25 @@ struct HyperOpCreationPass: public ModulePass {
 						if (originalBB != &(funcItr->getEntryBlock())) {
 							for (pred_iterator predecessorItr = pred_begin(originalBB); predecessorItr != pred_end(originalBB); predecessorItr++) {
 								BasicBlock* predecessor = *predecessorItr;
-								//Control flow edge exists from a predecessor basic block not in the same HyperOp
+								//Control flow edge exists from a predecessor basic block that does not belong to the same HyperOp
 								if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), predecessor) == accumulatedBasicBlocks.end()) {
 									for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentMap> >::iterator createdHopItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHopItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHopItr++) {
 										Function* createdHyperOp = createdHopItr->first;
 										list<BasicBlock*> containedBasicBlocks = createdHopItr->second.first;
 										if (find(containedBasicBlocks.begin(), containedBasicBlocks.end(), predecessor) != containedBasicBlocks.end()) {
 											TerminatorInst* terminator = predecessor->getTerminator();
-											for (int i = 0; i < terminator->getNumSuccessors(); i++) {
-												if (terminator->getSuccessor(i) == originalBB) {
-													predicateSources.insert(make_pair(createdHyperOp, i));
+											//If the terminator instruction has only one successor
+											if (terminator->getNumSuccessors() == 1 && terminator->getSuccessor(0) == originalBB) {
+												//Terminator has no operands, its an unconditional jump
+												//Add the instruction before the unconditional jump to contain the metadata
+												unconditionalBranchSources.push_back(terminator);
+											} else {
+												//Get the first operand of terminator instruction corresponding to a branch
+												for (int i = 0; i < terminator->getNumSuccessors(); i++) {
+													if (terminator->getSuccessor(i) == originalBB) {
+														//Add only those successors that correspond to a basic block in the current HyperOp
+														conditionalBranchSources.insert(make_pair(terminator, i));
+													}
 												}
 											}
 										}
@@ -428,34 +431,28 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 						BasicBlock *newBB = BasicBlock::Create(getGlobalContext(), (*accumulatedBBItr)->getName(), newFunction);
 						for (BasicBlock::reverse_iterator instItr = (*accumulatedBBItr)->rbegin(); instItr != (*accumulatedBBItr)->rend(); instItr++) {
-							if (*accumulatedBBItr == accumulatedBasicBlocks.back() && instItr == (*accumulatedBBItr)->rbegin()) {
-								Instruction* retInst = ReturnInst::Create(getGlobalContext());
-								newBB->getInstList().insert(newBB->getFirstInsertionPt(), retInst);
-							} else {
-								Instruction* clonedInst = instItr->clone();
-								Instruction * originalInstruction = &*instItr;
-								originalToClonedInstrMap.insert(std::make_pair(originalInstruction, clonedInst));
-								if (!isa<AllocaInst>(clonedInst)) {
-									for (int operandIndex = 0; operandIndex < clonedInst->getNumOperands(); operandIndex++) {
-										Value* operandToBeReplaced = clonedInst->getOperand(operandIndex);
-										bool argUpdated = false;
-										for (HyperOpArgumentMap::iterator argumentItr = hyperOpArguments.begin(); argumentItr != hyperOpArguments.end(); argumentItr++) {
-											unsigned hyperOpArgIndex = argumentItr->first;
-											list<Value*> individualArguments = argumentItr->second.first;
-											for (list<Value*>::iterator argumentValueItr = individualArguments.begin(); argumentValueItr != individualArguments.end(); argumentValueItr++) {
-												if (*argumentValueItr == operandToBeReplaced) {
-													//Get Value object of the newly created function's argument corresponding to the replacement
-													for (Function::arg_iterator argItr = newFunction->arg_begin(); argItr != newFunction->arg_end(); argItr++) {
-														if ((*argItr).getArgNo() == hyperOpArgIndex) {
-															clonedInst->setOperand(operandIndex, argItr);
-															argUpdated = true;
-															break;
-														}
-													}
-													if (argUpdated) {
-														break;
-													}
+							Instruction* clonedInst = instItr->clone();
+							Instruction * originalInstruction = &*instItr;
+							originalToClonedInstMap.insert(std::make_pair(originalInstruction, clonedInst));
+							newBB->getInstList().insert(newBB->getFirstInsertionPt(), clonedInst);
+							for (int operandIndex = 0; operandIndex < clonedInst->getNumOperands(); operandIndex++) {
+								Value* operandToBeReplaced = clonedInst->getOperand(operandIndex);
+								bool argUpdated = false;
+								for (HyperOpArgumentMap::iterator argumentItr = hyperOpArguments.begin(); argumentItr != hyperOpArguments.end(); argumentItr++) {
+									unsigned hyperOpArgIndex = argumentItr->first;
+									list<Value*> individualArguments = argumentItr->second.first;
+									for (list<Value*>::iterator argumentValueItr = individualArguments.begin(); argumentValueItr != individualArguments.end(); argumentValueItr++) {
+										if (*argumentValueItr == operandToBeReplaced) {
+											//Get Value object of the newly created function's argument corresponding to the replacement
+											for (Function::arg_iterator argItr = newFunction->arg_begin(); argItr != newFunction->arg_end(); argItr++) {
+												if ((*argItr).getArgNo() == hyperOpArgIndex) {
+													clonedInst->setOperand(operandIndex, argItr);
+													argUpdated = true;
+													break;
 												}
+											}
+											if (argUpdated) {
+												break;
 											}
 										}
 									}
@@ -468,9 +465,9 @@ struct HyperOpCreationPass: public ModulePass {
 										for (BasicBlock::iterator useInstrItr = (*useBBItr)->begin(); useInstrItr != (*useBBItr)->end(); useInstrItr++) {
 											//Found use in one of the instructions of the HyperOp
 
-											if (*useItr == useInstrItr && originalToClonedInstrMap.find(*useItr) != originalToClonedInstrMap.end()) {
-												Instruction * originalUseInstruction = (Instruction*) originalToClonedInstrMap.find(*useItr)->first;
-												Instruction * clonedUseInstruction = (Instruction*) originalToClonedInstrMap.find(*useItr)->second;
+											if (*useItr == useInstrItr && originalToClonedInstMap.find(*useItr) != originalToClonedInstMap.end()) {
+												Instruction * originalUseInstruction = (Instruction*) originalToClonedInstMap.find(*useItr)->first;
+												Instruction * clonedUseInstruction = (Instruction*) originalToClonedInstMap.find(*useItr)->second;
 												for (int i = 0; i < originalUseInstruction->getNumOperands(); i++) {
 													if (originalUseInstruction->getOperand(i) == originalInstruction) {
 														clonedUseInstruction->setOperand(i, (Value*) clonedInst);
@@ -480,26 +477,81 @@ struct HyperOpCreationPass: public ModulePass {
 										}
 									}
 								}
-								newBB->getInstList().insert(newBB->getFirstInsertionPt(), clonedInst);
+							}
+						}
+					}
+
+					//Move alloca instructions which don't need to be retained in the first HyperOp since it has no uses anywhere other than the current HyperOp being created
+					for (list<Instruction*>::iterator instrToBeMoved = instructionsToBeMoved.begin(); instrToBeMoved != instructionsToBeMoved.end(); instrToBeMoved++) {
+						(*instrToBeMoved)->removeFromParent();
+						newFunction->getEntryBlock().getInstList().insert(newFunction->getEntryBlock().getFirstInsertionPt(), *instrToBeMoved);
+					}
+
+					//Add a basic block with a dummy return instruction such that branch instructions to other HyperOps can jump to it
+					BasicBlock* retBB = BasicBlock::Create(ctxt, newFunction->getName().str().append("return"), newFunction);
+					Instruction* retInst = ReturnInst::Create(ctxt);
+					retInstMap.insert(make_pair(newFunction, retInst));
+					retBB->getInstList().insert(retBB->getFirstInsertionPt(), retInst);
+
+					//Find out if there exist any branch instructions leading to the HyperOp, add metadata to the instruction
+					for (map<Instruction*, unsigned>::iterator conditionalBranchSourceItr = conditionalBranchSources.begin(); conditionalBranchSourceItr != conditionalBranchSources.end(); conditionalBranchSourceItr++) {
+						//Find the branch instruction operand's clone
+						Instruction* clonedInstruction = (Instruction*) originalToClonedInstMap.find(conditionalBranchSourceItr->first)->second;
+						//Branch instruction's first operand
+						Instruction* predicateOperand = (Instruction*) clonedInstruction->getOperand(0);
+
+						MDNode* predicateMetadata = clonedInstruction->getMetadata(HYPEROP_CONTROLLED_BY);
+						vector<Value*> metadataList;
+						if (predicateMetadata != 0) {
+							predicateMetadata = clonedInstruction->getMetadata(HYPEROP_CONTROLLED_BY);
+							for (unsigned i = 0; i < predicateMetadata->getNumOperands(); i++) {
+								metadataList.push_back(predicateMetadata->getOperand(i));
+							}
+						}
+						//Label the instruction with predicates metadata
+						Value * values[2];
+						values[0] = funcAnnotation;
+						values[1] = ConstantInt::get(ctxt, APInt(32, conditionalBranchSourceItr->second));
+						MDNode* newPredicateMetadata = MDNode::get(ctxt, values);
+						metadataList.push_back(newPredicateMetadata);
+						ArrayRef<Value*> metadataRef(metadataList);
+						MDNode * predicatesRelation = MDNode::get(ctxt, metadataRef);
+						predicateOperand->setMetadata(HYPEROP_CONTROLLED_BY, predicatesRelation);
+
+						//Update the branch instruction to point to its return instruction
+						clonedInstruction->setOperand(conditionalBranchSourceItr->second, retInstMap.find(clonedInstruction->getParent()->getParent())->second);
+					}
+
+					errs() << "Dealing with unconditional branches from other HyperOps\n";
+					//Remove unconditional branch instruction, add the annotation to the return instruction of the branch
+					for (list<Instruction*>::iterator unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
+						Instruction* unconditionalBranchInstr = *unconditionalBranchSourceItr;
+						Instruction* clonedInstr = (Instruction*) originalToClonedInstMap.find(unconditionalBranchInstr)->second;
+						retInstMap.find(clonedInstr->getParent()->getParent())->second->dump();
+						//Update the branch instruction to jump to the return basic block
+						Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
+						originalToClonedInstMap.erase(unconditionalBranchInstr);
+						clonedInstr->setOperand(0, retInstOfProducer->getParent());
+						originalToClonedInstMap.insert(make_pair(unconditionalBranchInstr, clonedInstr));
+						MDNode* predicateMetadata = clonedInstr->getMetadata(HYPEROP_CONTROLLED_BY);
+						vector<Value*> metadataList;
+						if (predicateMetadata != 0) {
+							predicateMetadata = clonedInstr->getMetadata(HYPEROP_CONTROLLED_BY);
+							for (unsigned i = 0; i < predicateMetadata->getNumOperands(); i++) {
+								metadataList.push_back(predicateMetadata->getOperand(i));
 							}
 						}
 
-						for (map<Function*, int>::iterator predicateSourceItr = predicateSources.begin(); predicateSourceItr != predicateSources.end(); predicateSourceItr++) {
-							Value* data = ConstantInt::getTrue(getGlobalContext());
-							Value * values[4];
-							values[0] = MDString::get(ctxt, HYPEROP_PREDICATES);
-							values[1] = hyperOpAndAnnotationMap.find(predicateSourceItr->first)->second;
-							values[2] = funcAnnotation;
-							values[3] = ConstantInt::get(ctxt, APInt(32, predicateSourceItr->second));
-							MDNode * producesRelationship = MDNode::get(ctxt, values);
-							annotationsNode->addOperand(producesRelationship);
-						}
+						//Label the instruction with predicates metadata
+						Value * values[1];
+						values[0] = funcAnnotation;
+						MDNode* newPredicateMetadata = MDNode::get(ctxt, values);
+						metadataList.push_back(newPredicateMetadata);
+						ArrayRef<Value*> metadataRef(metadataList);
+						MDNode * predicatesRelation = MDNode::get(ctxt, metadataRef);
+						retInstOfProducer->setMetadata(HYPEROP_CONTROLLED_BY, predicatesRelation);
 					}
 
-					for(list<Instruction*>::iterator instrForMove=instructionsToBeMoved.begin();instrForMove!=instructionsToBeMoved.end();instrForMove++){
-						(*instrForMove)->removeFromParent();
-						newFunction->getEntryBlock().getInstList().insert(newFunction->getEntryBlock().getFirstInsertionPt(),*instrForMove);
-					}
 					DEBUG(dbgs() << "Created HyperOp:");
 					newFunction->print(dbgs());
 					accumulatedBasicBlocks.clear();
@@ -507,6 +559,7 @@ struct HyperOpCreationPass: public ModulePass {
 					hyperOpArgCount = 0;
 					endOfHyperOp = false;
 				}
+
 				//Ensure breadth biased traversal such that all predecessors of a basic block are traversed before the basic block
 				for (int i = 0; i < bbItr->getTerminator()->getNumSuccessors(); i++) {
 					if (find(traversedBasicBlocks.begin(), traversedBasicBlocks.end(), bbItr->getTerminator()->getSuccessor(i)) == traversedBasicBlocks.end()) {
@@ -516,6 +569,8 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 		}
 
+		errs() << "state of the module eventually:";
+		M.dump();
 		for (map<Function*, list<Function*> >::iterator originalFunctionItr = originalFunctionToCreatedHyperOpsMap.begin(); originalFunctionItr != originalFunctionToCreatedHyperOpsMap.end(); originalFunctionItr++) {
 			//Remove old functions from module
 			originalFunctionItr->first->eraseFromParent();
