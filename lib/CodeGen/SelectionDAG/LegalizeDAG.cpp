@@ -3260,7 +3260,7 @@ void SelectionDAGLegalize::ExpandNode(SDNode *Node) {
     // Check to see if this FP immediate is already legal.
     // If this is a legal constant, turn it into a TargetConstantFP node.
     if (!TLI.isFPImmLegal(CFP->getValueAPF(), Node->getValueType(0)))
-      Results.push_back(ExpandConstantFP(CFP, true));
+      Results.push_back(ExpandConstantFP(CFP, false));
     break;
   }
   case ISD::EHSELECTION: {
