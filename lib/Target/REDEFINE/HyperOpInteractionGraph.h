@@ -31,10 +31,12 @@ static string HYPEROP = "HyperOp";
 static string HYPEROP_CONSUMED_BY = "ConsumedBy";
 static string HYPEROP_CONTROLLED_BY = "ControlledBy";
 static string HYPEROP_AFFINITY = "Affinity";
-static string HYPEROP_START = "Start";
-static string HYPEROP_END = "End";
+static string HYPEROP_START = "Entry";
+static string HYPEROP_END = "Exit";
 static string SCALAR = "Scalar";
-static string REFERENCE = "Reference";
+static string LOCAL_REFERENCE = "LocalReference";
+static string GLOBAL_REFERENCE = "GlobalReference";
+
 
 class HyperOpEdge {
 	bool isZeroedOut;

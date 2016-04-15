@@ -42,7 +42,7 @@ struct HyperOpCreationPass: public ModulePass {
 	const unsigned int FRAME_SIZE = 4;
 
 	enum HyperOpArgumentType {
-		SCALAR, REFERENCE
+		SCALAR, LOCAL_REFERENCE, GLOBAL_REFERENCE
 	};
 
 	typedef map<unsigned, pair<list<Value*>, HyperOpArgumentType> > HyperOpArgumentMap;
@@ -67,14 +67,37 @@ struct HyperOpCreationPass: public ModulePass {
 		return false;
 	}
 
-	bool supportedArgType(Value* argument) {
-		if (isa<AllocaInst>(argument) || isa<GetElementPtrInst>(argument)) {
-			return false;
-		} //If unsupported data type for passing an argument in a context frame
-		else if (argument->getType()->getTypeID() == Type::FloatTyID) {
-			return false;
+	HyperOpArgumentType supportedArgType(Value* argument, Module::GlobalListType globalVariableList) {
+		if (isa<AllocaInst>(argument) || argument->getType()->getTypeID()==Type::FloatTyID) {
+			return LOCAL_REFERENCE;
 		}
-		return true;
+		//TODO
+		else if (isa<GetElementPtrInst>(argument)) {
+			for(Module::GlobalListType::iterator globalVarItr = globalVariableList.begin();globalVarItr!=globalVariableList.end();globalVarItr++){
+				if(((GetElementPtrInst*)argument)->getPointerOperand()==*globalVarItr){
+					return GLOBAL_REFERENCE;
+				}
+			}
+			return LOCAL_REFERENCE;
+		}
+
+		return SCALAR;
+	}
+
+	unsigned distanceToExitBlock(BasicBlock* basicBlock, list<BasicBlock*> visitedBasicBlocks){
+		//Merge return assumed here
+		unsigned depthOfSuccessor = 0;
+		bool first = true;
+		for(unsigned i=0;i<basicBlock->getTerminator()->getNumSuccessors();i++){
+			BasicBlock* succBB  = basicBlock->getTerminator()->getSuccessor(i);
+			visitedBasicBlocks.push_back(succBB);
+			if(first||depthOfSuccessor>distanceToExitBlock(succBB, visitedBasicBlocks)){
+				depthOfSuccessor = distanceToExitBlock(succBB, visitedBasicBlocks);
+				first = false;
+			}
+			visitedBasicBlocks.pop_back();
+		}
+		return 1+depthOfSuccessor;
 	}
 
 	virtual bool runOnModule(Module &M) {
@@ -153,35 +176,40 @@ struct HyperOpCreationPass: public ModulePass {
 						if (!(isa<AllocaInst>(instItr) || isa<ReturnInst>(instItr))) {
 							//Function calls that couldn't be inlined when generating the IR
 							if (isa<CallInst>(instItr) || isa<InvokeInst>(instItr)) {
-								if (bbItr->getInstList().size() > 1) {
-									//Call is the not only instruction here, a separate HyperOp must be created for the call statement
-									stringstream firstBBName(NEW_NAME);
-									firstBBName << bbIndex;
-									bbIndex++;
-									BasicBlock* newFunctionCallBlock = bbItr->splitBasicBlock(instItr, firstBBName.str());
-									Instruction* nonTerminalInstruction = instItr;
-									if (nonTerminalInstruction != (Instruction*) bbItr->getTerminator()) {
-										Instruction* instructionAfterCall = newFunctionCallBlock->begin()->getNextNode();
-										stringstream secondBBName(NEW_NAME);
-										secondBBName << bbIndex;
+								Function * calledFunction;
+								if(isa<CallInst>(instItr)){
+									calledFunction = ((CallInst*)instItr)->getCalledFunction();
+								}else if(isa<InvokeInst>(instItr)){
+									calledFunction = ((InvokeInst*)instItr)->getCalledFunction();
+								}
+								//An intrinsic function translates to an instruction in the backend, don't treat it like a function call
+								//Otherwise, create a function boundary as follows
+								if(!calledFunction->isIntrinsic()){
+									if (bbItr->getInstList().size() > 1) {
+										//Call is the not only instruction here, a separate HyperOp must be created for the call statement
+										stringstream firstBBName(NEW_NAME);
+										firstBBName << bbIndex;
 										bbIndex++;
-										newFunctionCallBlock->splitBasicBlock(instructionAfterCall, secondBBName.str());
-									}
-								} else {
-									for (unsigned int i = 0; i < instItr->getNumOperands(); i++) {
-										Value * argument = instItr->getOperand(i);
-										list<Value*> argumentList;
-										argumentList.push_back(argument);
-										//If argument type is not supported to be passed
-										if (supportedArgType(argument)) {
-											hyperOpArguments.insert(make_pair(i, make_pair(argumentList, SCALAR)));
-										} else {
-											hyperOpArguments.insert(make_pair(i, make_pair(argumentList, REFERENCE)));
+										BasicBlock* newFunctionCallBlock = bbItr->splitBasicBlock(instItr, firstBBName.str());
+										Instruction* nonTerminalInstruction = instItr;
+										if (nonTerminalInstruction != (Instruction*) bbItr->getTerminator()) {
+											Instruction* instructionAfterCall = newFunctionCallBlock->begin()->getNextNode();
+											stringstream secondBBName(NEW_NAME);
+											secondBBName << bbIndex;
+											bbIndex++;
+											newFunctionCallBlock->splitBasicBlock(instructionAfterCall, secondBBName.str());
+										}
+									} else {
+										for (unsigned int i = 0; i < instItr->getNumOperands(); i++) {
+											Value * argument = instItr->getOperand(i);
+											list<Value*> argumentList;
+											argumentList.push_back(argument);
+											hyperOpArguments.insert(make_pair(i, make_pair(argumentList, supportedArgType(argument, M.getGlobalList()))));
 										}
 									}
+									endOfHyperOp = true;
+									break;
 								}
-								endOfHyperOp = true;
-								break;
 							}
 
 							list<Value*> newHyperOpArguments;
@@ -230,19 +258,11 @@ struct HyperOpCreationPass: public ModulePass {
 									for (list<Value*>::iterator newArgItr = newHyperOpArguments.begin(); newArgItr != newHyperOpArguments.end(); newArgItr++) {
 										list<Value*> newArg;
 										newArg.push_back(*newArgItr);
-										if (supportedArgType(*newArgItr)) {
-											hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newArg, SCALAR)));
-										} else {
-											hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newArg, REFERENCE)));
-										}
+										hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newArg, supportedArgType(*newArgItr, M.getGlobalList()))));
 									}
 								} else {
-									if (supportedArgType(newHyperOpArguments.front())) {
-										//Phi instruction's arguments correspond to only one argument to a HyperOp
-										hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newHyperOpArguments, SCALAR)));
-									} else {
-										hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newHyperOpArguments, REFERENCE)));
-									}
+									//Phi instruction's arguments correspond to only one argument to a HyperOp
+									hyperOpArguments.insert(make_pair(hyperOpArgCount++, make_pair(newHyperOpArguments, supportedArgType(newHyperOpArguments.front(), M.getGlobalList()))));
 								}
 							}
 						}
@@ -273,10 +293,21 @@ struct HyperOpCreationPass: public ModulePass {
 					addedFunctions.push_back(newFunction);
 					createdHyperOpAndOriginalBasicBlockAndArgMap.insert(make_pair(newFunction, make_pair(accumulatedBasicBlocks, hyperOpArguments)));
 
+
+					bool isEntry = false;
+					bool isExit = false;
+					if(accumulatedBasicBlocks.front()->getParent()->getName()=="redefinemain"){
+						if(find(accumulatedBasicBlocks.begin(),accumulatedBasicBlocks.end(), funcItr->getEntryBlock())!=accumulatedBasicBlocks.end()){
+							isEntry = true;
+						}else if(find(accumulatedBasicBlocks.begin(),accumulatedBasicBlocks.end(), funcItr->back())!=accumulatedBasicBlocks.end()){
+							isExit = true;
+						}
+					}
 					//Add metadata to label the function as a HyperOp
-					Value * values[2];
+					Value * values[3];
 					values[0] = MDString::get(ctxt, HYPEROP);
 					values[1] = newFunction;
+					values[2] = isEntry?"Entry":(isExit?"Exit":"Intermediate");
 					MDNode *funcAnnotation = MDNode::get(ctxt, values);
 					hyperOpAndAnnotationMap.insert(make_pair(newFunction, funcAnnotation));
 					annotationsNode->addOperand(funcAnnotation);
@@ -562,20 +593,53 @@ struct HyperOpCreationPass: public ModulePass {
 
 				//Ensure breadth biased traversal such that all predecessors of a basic block are traversed before the basic block
 				for (int i = 0; i < bbItr->getTerminator()->getNumSuccessors(); i++) {
+					map<unsigned, list<BasicBlock*> > untraversedBasicBlocks;
+					vector<unsigned> depthsInSortedOrder;
 					if (find(traversedBasicBlocks.begin(), traversedBasicBlocks.end(), bbItr->getTerminator()->getSuccessor(i)) == traversedBasicBlocks.end()) {
-						bbTraverser.push_back(bbItr->getTerminator()->getSuccessor(i));
+						BasicBlock* succBB = bbItr->getTerminator()->getSuccessor(i);
+						list<BasicBlock*> visitedBasicBlockList;
+						unsigned distanceFromExit = distanceToExitBlock(succBB, visitedBasicBlockList);
+						list<BasicBlock*> basicBlockList;
+						if(untraversedBasicBlocks.find(distanceFromExit)!=untraversedBasicBlocks.end()){
+							basicBlockList = untraversedBasicBlocks.find(distanceFromExit)->second;
+							untraversedBasicBlocks.erase(distanceFromExit);
+							depthsInSortedOrder.erase(distanceFromExit);
+						}
+						basicBlockList.push_back(succBB);
+						untraversedBasicBlocks.insert(make_pair(distanceFromExit, basicBlockList));
+						depthsInSortedOrder.push_back(distanceFromExit);
+					}
+
+					//Sort the basic blocks in descending order of their distance to exit block
+					list<BasicBlock* > sortedSuccBasicBlockList;
+					for(unsigned i=0;i<depthsInSortedOrder.size();i++){
+						unsigned min = depthsInSortedOrder[i];
+						for(unsigned j=i+1;j<depthsInSortedOrder.size();j++){
+							if(min>depthsInSortedOrder[j]){
+								unsigned temp= depthsInSortedOrder[j];
+								depthsInSortedOrder[i]=temp;
+								depthsInSortedOrder[j]=min;
+								min = temp;
+							}
+						}
+					}
+
+					for(unsigned i=0;i<depthsInSortedOrder.size();i++){
+						list<BasicBlock*> succBBList = untraversedBasicBlocks.find(i)->second;
+						for(list<BasicBlock*>::iterator succBBItr =succBBList.begin();succBBItr!=succBBList.end(); succBBItr++){
+							bbTraverser.push_front(*succBBItr);
+						}
 					}
 				}
 			}
 		}
 
-		errs() << "state of the module eventually:";
-		M.dump();
 		for (map<Function*, list<Function*> >::iterator originalFunctionItr = originalFunctionToCreatedHyperOpsMap.begin(); originalFunctionItr != originalFunctionToCreatedHyperOpsMap.end(); originalFunctionItr++) {
 			//Remove old functions from module
 			originalFunctionItr->first->eraseFromParent();
 		}
-
+		DEBUG(dbgs(), "Final module contents:");
+		M.print(dbgs());
 		return true;
 	}
 }

@@ -17,6 +17,7 @@
 #include "llvm/MC/MCContext.h"
 #include "llvm/ADT/StringExtras.h"
 using namespace llvm;
+using namespace std;
 
 //TODO Used only 8 bit number here because I need this to address the sync locations and frame locations for replication only which sums upto 20 4 byte locations only
 static int32_t SignExtend8BitNumberTo12Bits(int8_t x) {
@@ -998,7 +999,13 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 				nextCeInstruction = BB->end();
 			}
 			if (endMerge == 0) {
-				endMerge = BB->end();
+				if(firstInstrOfPhop==firstInstructionOfpHyperOp.end()){
+					endMerge = BB->end();
+				}else{
+					list<vector<MachineInstr*> >::iterator nextItr =firstInstrOfPhop;
+					nextItr++;
+					endMerge = (*nextItr)[0];
+				}
 			}
 
 			if (startMerge == BB->end() || nextCeInstruction == BB->end() || startMerge == 0 || nextCeInstruction == 0||nextCeInstruction==startMerge) {
