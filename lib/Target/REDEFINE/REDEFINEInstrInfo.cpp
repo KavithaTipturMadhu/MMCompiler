@@ -245,53 +245,93 @@ unsigned REDEFINEInstrInfo::InsertBranchAtInst(MachineBasicBlock &MBB, MachineIn
 
 void REDEFINEInstrInfo::copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI, DebugLoc DL, unsigned DestReg, unsigned SrcReg, bool KillSrc) const {
 
+	bool isBundledWithPred = MBBI->isBundledWithPred();
+	bool isBundledWithSucc = MBBI->isBundledWithSucc();
+	MachineInstr* Pred;
+	if (isBundledWithPred) {
+		Pred = MBBI;
+		Pred = Pred->getPrevNode();
+	}
+
 	unsigned Opcode;
 	const REDEFINESubtarget &STI = TM.getSubtarget<REDEFINESubtarget>();
+	MachineInstr* createdMachineInstr;
 	//when we are copying a phys reg we want the bits for fp
-	if (REDEFINE::GR32BitRegClass.contains(DestReg, SrcReg))
-		Opcode = REDEFINE::ADDI;
-	else
+	if (REDEFINE::GR32BitRegClass.contains(DestReg, SrcReg) || REDEFINE::FP32BitRegClass.contains(DestReg, SrcReg)) {
+		MachineInstrBuilder builder = BuildMI(MBB, MBBI, DL, get(REDEFINE::ADDI), DestReg).addReg(SrcReg, getKillRegState(KillSrc)).addImm(0);
+		createdMachineInstr = builder.operator ->();
+	} else if (REDEFINE::GR32BitRegClass.contains(DestReg) && REDEFINE::FP32BitRegClass.contains(SrcReg)) {
+		MachineInstrBuilder builder = BuildMI(MBB, MBBI, DL, get(REDEFINE::FMV_X_S), DestReg).addReg(SrcReg, getKillRegState(KillSrc));
+		createdMachineInstr = builder.operator ->();
+	} else if (REDEFINE::GR32BitRegClass.contains(SrcReg) && REDEFINE::FP32BitRegClass.contains(DestReg)) {
+		MachineInstrBuilder builder = BuildMI(MBB, MBBI, DL, get(REDEFINE::FMV_S_X), DestReg).addReg(SrcReg, getKillRegState(KillSrc));
+		createdMachineInstr = builder.operator ->();
+	} else {
 		llvm_unreachable("Impossible reg-to-reg copy");
+	}
 
-	BuildMI(MBB, MBBI, DL, get(Opcode), DestReg).addReg(SrcReg, getKillRegState(KillSrc)).addImm(0);
+	MBBI->clearFlag(MachineInstr::BundledSucc);
+	MBBI->clearFlag(MachineInstr::BundledPred);
+	if (isBundledWithPred) {
+		Pred->clearFlag(MachineInstr::BundledSucc);
+		createdMachineInstr->bundleWithPred();
+	}
+	if (isBundledWithSucc) {
+		createdMachineInstr->bundleWithSucc();
+	}
+
 }
 
 bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const {
+	errs() << "is it here?\n";
+	MI->dump();
 	//TODO Hack for immediates that don't fit in 12 bit addi operand field
-	if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(1).getReg() == REDEFINE::zero && MI->getOperand(2).isImm()) {
-		//Since immediate value cannot spill 11 bits, we need to expand it to multiple addi instructions
-		bool firstPass = true;
-		while (ceil(log2(MI->getOperand(2).getImm())) > 11) {
-			MachineBasicBlock::instr_iterator Pred, Succ;
-			//TODO We know that an immediate value cannot exceed 32 bit value anyway, so casting to 32 bit is expected to be safe
-			int32_t immediateValue = ((int32_t) MI->getOperand(2).getImm());
-			//Split the addi to addi chain
-			bool isMIBundledWithPred = MI->isBundledWithPred();
-			if (isMIBundledWithPred) {
-				Pred = MI.getInstrIterator();
-				--Pred;
-			}
+	if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(1).getReg() == REDEFINE::zero && MI->getOperand(2).isImm() && ceil(log2(MI->getOperand(2).getImm())) > 11) {
+		//Since immediate value cannot spill 11 bits, we need to expand it to lui and add instructions
+		MachineBasicBlock::instr_iterator Pred, Succ;
+		//TODO We know that an immediate value cannot exceed 32 bit value anyway, so casting to 32 bit is expected to be safe
+		int32_t immediateValue = ((int32_t) MI->getOperand(2).getImm());
+		bool isMIBundledWithPred = MI->isBundledWithPred();
+		bool isMIBundledWithSucc = MI->isBundledWithSucc();
+		if (isMIBundledWithPred) {
+			Pred = MI.getInstrIterator();
+			--Pred;
+		}
+		if (isMIBundledWithSucc) {
 			Succ = MI.getInstrIterator();
-			MachineInstrBuilder addi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADDI));
-			addi.addReg(MI->getOperand(0).getReg(), RegState::Kill);
-			if(firstPass){
-				addi.addReg(REDEFINE::zero, RegState::InternalRead);
-				firstPass = false;
-			}else{
-				addi.addReg(MI->getOperand(0).getReg(), RegState::Kill);
-			}
-			addi.addImm(0x7ff);
+			++Succ;
+		}
 
-			MI->getOperand(2).setImm(immediateValue-0x7ff);
-			if (isMIBundledWithPred) {
-				//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
-				Pred->clearFlag(MachineInstr::BundledSucc);
-				addi->bundleWithPred();
-				Succ->clearFlag(MachineInstr::BundledPred);
-			}
+		unsigned addiRegister = MI->getOperand(0).getReg();
+		MachineInstrBuilder lui = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::LUI));
+		lui.addReg(addiRegister, RegState::Define);
+		lui.addImm((immediateValue & 0xfffff000) >> 12);
+		errs() << "added lui:";
+		lui.operator ->()->dump();
 
+		MachineInstrBuilder addi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADDI));
+		addi.addReg(addiRegister, RegState::Kill);
+		addi.addReg(addiRegister, RegState::InternalRead);
+		addi.addImm(immediateValue & 0xfff);
+		errs() << "added add:";
+		addi.operator ->()->dump();
+
+		if (MI->isInsideBundle()) {
+			MI->eraseFromBundle();
+		} else {
+			MI->eraseFromParent();
+		}
+		lui->bundleWithSucc();
+		if (isMIBundledWithPred) {
+			//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
+			Pred->clearFlag(MachineInstr::BundledSucc);
+			lui->bundleWithPred();
+		}
+		if (isMIBundledWithSucc) {
+			Succ->clearFlag(MachineInstr::BundledPred);
 			addi->bundleWithSucc();
 		}
+
 		return true;
 	}
 	return false;
@@ -412,4 +452,3 @@ unsigned REDEFINEInstrInfo::getOpcodeForOffset(unsigned Opcode, int64_t Offset) 
 	}
 	return 0;
 }
-

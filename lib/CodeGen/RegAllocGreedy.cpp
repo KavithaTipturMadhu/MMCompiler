@@ -64,7 +64,6 @@ class RAGreedy: public MachineFunctionPass, public RegAllocBase, private LiveRan
 	map<unsigned, unsigned> shuffledVirt2PhysRegMap;
 	map<unsigned, unsigned> shuffledPhys2PhysRegMap;
 
-
 	// context
 	MachineFunction *MF;
 
@@ -1749,6 +1748,7 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 		indexOfAllocatedPhysicalRegs.insert(make_pair(index++, liveInItr->first));
 	}
 
+	list<MachineInstr*> ignoreCopyInstrList;
 	//Get the live-in registers and map to the ce to which they belong
 	for (MachineFunction::iterator MBBI = MF->begin(), MBBE = MF->end(); MBBI != MBBE; ++MBBI) {
 		int pHyperOpIndex = -1;
@@ -1760,20 +1760,24 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 				pHyperOpIndex++;
 			}
 
-			if(MI->isCopy()){
+			if (MI->isCopy()) {
 				MachineOperand &MO = MI->getOperand(1);
-				if (MO.isReg() && find(liveInPhysicalRegs.begin(), liveInPhysicalRegs.end(), MO.getReg()) != liveInPhysicalRegs.end()) {
-					unsigned physReg = MO.getReg();
-					//MO marks the use of one of the liveIn registers
-					list<unsigned> cePhysRegistersLiveIn;
-					if (ceAndLiveInArgList.find(pHyperOpIndex) != ceAndLiveInArgList.end()) {
-						cePhysRegistersLiveIn = ceAndLiveInArgList.find(pHyperOpIndex)->second;
-						ceAndLiveInArgList.erase(ceAndLiveInArgList.find(pHyperOpIndex));
+				if (MO.isReg()) {
+					if (find(liveInPhysicalRegs.begin(), liveInPhysicalRegs.end(), MO.getReg()) != liveInPhysicalRegs.end()) {
+						unsigned physReg = MO.getReg();
+						//MO marks the use of one of the liveIn registers
+						list<unsigned> cePhysRegistersLiveIn;
+						if (ceAndLiveInArgList.find(pHyperOpIndex) != ceAndLiveInArgList.end()) {
+							cePhysRegistersLiveIn = ceAndLiveInArgList.find(pHyperOpIndex)->second;
+							ceAndLiveInArgList.erase(ceAndLiveInArgList.find(pHyperOpIndex));
+						}
+						if (find(cePhysRegistersLiveIn.begin(), cePhysRegistersLiveIn.end(), physReg) == cePhysRegistersLiveIn.end()) {
+							cePhysRegistersLiveIn.push_back(physReg);
+						}
+						ceAndLiveInArgList.insert(make_pair(pHyperOpIndex, cePhysRegistersLiveIn));
+					}else{
+						ignoreCopyInstrList.push_back(MI);
 					}
-					if (find(cePhysRegistersLiveIn.begin(), cePhysRegistersLiveIn.end(), physReg) == cePhysRegistersLiveIn.end()) {
-						cePhysRegistersLiveIn.push_back(physReg);
-					}
-					ceAndLiveInArgList.insert(make_pair(pHyperOpIndex, cePhysRegistersLiveIn));
 				}
 			}
 		}
@@ -1798,10 +1802,11 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 	for (MachineFunction::iterator MBBI = MF->begin(), MBBE = MF->end(); MBBI != MBBE; ++MBBI) {
 		for (MachineBasicBlock::instr_iterator MII = MBBI->instr_begin(); MII != MBBI->instr_end(); ++MII) {
 			MachineInstr *MI = MII;
-			if (MII->isCopy()) {
+			if (MII->isCopy()&&find(ignoreCopyInstrList.begin(), ignoreCopyInstrList.end(), MI)==ignoreCopyInstrList.end()) {
 				MachineOperand & MO = MII->getOperand(1);
 				if (MO.isReg() && find(previouslyUpdatedOperands.begin(), previouslyUpdatedOperands.end(), &MO) == previouslyUpdatedOperands.end()) {
-					DEBUG(dbgs() << "Replacing " << MO.getReg() << " with " << shuffledPhys2PhysRegMap.find(MO.getReg())->second << "\n");
+					DEBUG(dbgs() << "Replacing " << MO.getReg() << " with " << shuffledPhys2PhysRegMap.find(MO.getReg())->second << " for instruction");
+					MI->print(dbgs());
 					MO.setReg(shuffledPhys2PhysRegMap.find(MO.getReg())->second);
 					previouslyUpdatedOperands.push_back(&MO);
 				}
@@ -1811,6 +1816,7 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 
 	allocatePhysRegs();
 	releaseMemory();
+	mf.dump();
 
 	return true;
 }

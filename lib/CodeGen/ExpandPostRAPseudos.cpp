@@ -26,33 +26,33 @@
 using namespace llvm;
 
 namespace {
-	struct ExpandPostRA: public MachineFunctionPass {
-		private:
-			const TargetRegisterInfo *TRI;
-			const TargetInstrInfo *TII;
+struct ExpandPostRA: public MachineFunctionPass {
+private:
+	const TargetRegisterInfo *TRI;
+	const TargetInstrInfo *TII;
 
-		public:
-			static char ID; // Pass identification, replacement for typeid
-			ExpandPostRA() :
-					MachineFunctionPass(ID) {
-			}
+public:
+	static char ID; // Pass identification, replacement for typeid
+	ExpandPostRA() :
+			MachineFunctionPass(ID) {
+	}
 
-			virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-				AU.setPreservesCFG();
-				AU.addPreservedID(MachineLoopInfoID);
-				AU.addPreservedID(MachineDominatorsID);
-				MachineFunctionPass::getAnalysisUsage(AU);
-			}
+	virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+		AU.setPreservesCFG();
+		AU.addPreservedID(MachineLoopInfoID);
+		AU.addPreservedID(MachineDominatorsID);
+		MachineFunctionPass::getAnalysisUsage(AU);
+	}
 
-			/// runOnMachineFunction - pass entry point
-			bool runOnMachineFunction(MachineFunction&);
+	/// runOnMachineFunction - pass entry point
+	bool runOnMachineFunction(MachineFunction&);
 
-		private:
-			bool LowerSubregToReg(MachineInstr *MI);
-			bool LowerCopy(MachineInstr *MI);
+private:
+	bool LowerSubregToReg(MachineInstr *MI);
+	bool LowerCopy(MachineBasicBlock::iterator MI);
 
-			void TransferImplicitDefs(MachineInstr *MI);
-	};
+	void TransferImplicitDefs(MachineInstr *MI);
+};
 } // end anonymous namespace
 
 char ExpandPostRA::ID = 0;
@@ -69,7 +69,8 @@ void ExpandPostRA::TransferImplicitDefs(MachineInstr *MI) {
 
 	for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
 		MachineOperand &MO = MI->getOperand(i);
-		if (!MO.isReg() || !MO.isImplicit() || MO.isUse()) continue;
+		if (!MO.isReg() || !MO.isImplicit() || MO.isUse())
+			continue;
 		CopyMI->addOperand(MachineOperand::CreateReg(MO.getReg(), true, true));
 	}
 }
@@ -110,8 +111,7 @@ bool ExpandPostRA::LowerSubregToReg(MachineInstr *MI) {
 			return true;
 		}
 		DEBUG(dbgs() << "subreg: eliminated!");
-	}
-	else {
+	} else {
 		TII->copyPhysReg(*MBB, MI, MI->getDebugLoc(), DstSubReg, InsReg, MI->getOperand(2).isKill());
 
 		// Implicitly define DstReg for subsequent uses.
@@ -126,7 +126,7 @@ bool ExpandPostRA::LowerSubregToReg(MachineInstr *MI) {
 	return true;
 }
 
-bool ExpandPostRA::LowerCopy(MachineInstr *MI) {
+bool ExpandPostRA::LowerCopy(MachineBasicBlock::iterator MI) {
 	if (MI->allDefsAreDead()) {
 		DEBUG(dbgs() << "dead copy: " << *MI);
 		MI->setDesc(TII->get(TargetOpcode::KILL));
@@ -148,7 +148,6 @@ bool ExpandPostRA::LowerCopy(MachineInstr *MI) {
 			DEBUG(dbgs() << "replaced by:   " << *MI);
 			return true;
 		}
-		//TODO Since the instruction to be deleted is bundled in REDEFINE, need to unbundle it
 		if (MI->isBundled()) {
 			//No need to erase from parent because this automatically removes from parent
 			MI->eraseFromBundle();
@@ -161,18 +160,20 @@ bool ExpandPostRA::LowerCopy(MachineInstr *MI) {
 	}
 
 	DEBUG(dbgs() << "real copy:   " << *MI);
+	((MachineBasicBlock::iterator) MI)->dump();
 	TII->copyPhysReg(*MI->getParent(), MI, MI->getDebugLoc(), DstMO.getReg(), SrcMO.getReg(), SrcMO.isKill());
 
-	if (MI->getNumOperands() > 2) TransferImplicitDefs(MI);
+	if (MI->getNumOperands() > 2)
+		TransferImplicitDefs(MI);
 	DEBUG( {
 		MachineBasicBlock::iterator dMI = MI;
 		dbgs() << "replaced by: " << *(--dMI)
 		;
 	}
 	);
-	if(MI->isInsideBundle()){
+	if (MI->isBundled()) {
 		MI->eraseFromBundle();
-	}else{
+	} else {
 		MI->eraseFromParent();
 	}
 	return true;
@@ -187,9 +188,6 @@ bool ExpandPostRA::runOnMachineFunction(MachineFunction &MF) {
 	TII = MF.getTarget().getInstrInfo();
 
 	bool MadeChange = false;
-	errs()<<"BEFORE EXPANDING\n";
-		MF.dump();
-
 
 	for (MachineFunction::iterator mbbi = MF.begin(), mbbe = MF.end(); mbbi != mbbe; ++mbbi) {
 		//TODO Had to change to this instead of regular iterator because we create pHyperOps as bundles of instructions which  don't get traversed in the non-const iterator case
@@ -210,22 +208,20 @@ bool ExpandPostRA::runOnMachineFunction(MachineFunction &MF) {
 			}
 			// Expand standard pseudos.
 			switch (MI->getOpcode()) {
-				case TargetOpcode::SUBREG_TO_REG:
-					MadeChange |= LowerSubregToReg(MI);
-					break;
-				case TargetOpcode::COPY:
-					MadeChange |= LowerCopy(MI);
-					break;
-				case TargetOpcode::DBG_VALUE:
-					continue;
-				case TargetOpcode::INSERT_SUBREG:
-				case TargetOpcode::EXTRACT_SUBREG:
-					llvm_unreachable("Sub-register pseudos should have been eliminated.");
+			case TargetOpcode::SUBREG_TO_REG:
+				MadeChange |= LowerSubregToReg(MI);
+				break;
+			case TargetOpcode::COPY:
+				MadeChange |= LowerCopy(MI);
+				break;
+			case TargetOpcode::DBG_VALUE:
+				continue;
+			case TargetOpcode::INSERT_SUBREG:
+			case TargetOpcode::EXTRACT_SUBREG:
+				llvm_unreachable("Sub-register pseudos should have been eliminated.");
 			}
 		}
 	}
 
-	errs()<<"what does mf have now?\n";
-		MF.dump();
 	return MadeChange;
 }
