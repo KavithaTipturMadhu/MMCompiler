@@ -697,7 +697,8 @@ void REDEFINEMCInstrScheduler::finishBlock() {
 if (BB->getName().compare(MF.back().getName()) == 0) {
 	Module * parentModule = const_cast<Module*>(BB->getParent()->getFunction()->getParent());
 	DebugLoc location = BB->begin()->getDebugLoc();
-//Add writecm instructions and fbind(fbind is in case of context frames being reused statically and hence, is added optionally); returns are assumed to be merged
+//Add writecm instructions and fbind
+//	fbind is in case of context frames being reused statically and hence, is added optionally; returns are assumed to be merged during HyperOp creation
 	HyperOpInteractionGraph * graph = ((REDEFINETargetMachine&) TM).HIG;
 	Function* Fn = const_cast<Function*>(MF.getFunction());
 	HyperOp* hyperOp = ((REDEFINETargetMachine&) TM).HIG->getHyperOp(Fn);
@@ -947,39 +948,41 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 	firstInstructionOfpHyperOp.push_back(endHyperOpInstructionRegion);
 }
+errs()<<"BB before region shuffle:";
+BB->dump();
 
-//Shuffle instructions first
+//Shuffle instructions of region
 if (firstInstructionOfpHyperOp.size() > 1) {
-	DEBUG(dbgs() << "Merging regions basic block BB#" << BB->getNumber() << "\n");
+	DEBUG(dbgs() << "Merging regions of basic block BB#" << BB->getNumber() << "\n");
 	vector<MachineInstr*> firstRegionBoundaries = firstInstructionOfpHyperOp.front();
 	//Set the start of each region
 
-	for (unsigned i = 0; i < ceCount; i++) {
-		if (firstRegionBoundaries[i] == 0) {
-			for (list<vector<MachineInstr*> >::iterator firstInstrItr = firstInstructionOfpHyperOp.begin(); firstInstrItr != firstInstructionOfpHyperOp.end(); firstInstrItr++) {
-				vector<MachineInstr*> firstInstrOfNextRegion = *firstInstrItr;
-				if (firstInstrOfNextRegion[i] != 0) {
-					firstRegionBoundaries[i] = firstInstrOfNextRegion[i];
-					break;
-				}
-			}
-		}
-	}
+//	for (unsigned i = 0; i < ceCount; i++) {
+//		if (firstRegionBoundaries[i] == 0) {
+//			for (list<vector<MachineInstr*> >::iterator firstInstrItr = firstInstructionOfpHyperOp.begin(); firstInstrItr != firstInstructionOfpHyperOp.end(); firstInstrItr++) {
+//				vector<MachineInstr*> firstInstrOfNextRegion = *firstInstrItr;
+//				if (firstInstrOfNextRegion[i] != 0) {
+//					firstRegionBoundaries[i] = firstInstrOfNextRegion[i];
+//					break;
+//				}
+//			}
+//		}
+//	}
 
 	unsigned i = 0;
 //Merge the instructions of different regions
 	for (unsigned j = 1; j < firstInstructionOfpHyperOp.size(); j++) {
 		unsigned index = 0;
 		vector<MachineInstr*> secondRegionBoundaries;
-		for (list<vector<MachineInstr*> >::iterator firstInstrOfPhop = firstInstructionOfpHyperOp.begin(); firstInstrOfPhop != firstInstructionOfpHyperOp.end(); firstInstrOfPhop++) {
+		for (list<vector<MachineInstr*> >::iterator firstInstrOfPhop = firstInstructionOfpHyperOp.begin(); firstInstrOfPhop != firstInstructionOfpHyperOp.end(); firstInstrOfPhop++, index++) {
 			if (index == j) {
 				secondRegionBoundaries = *firstInstrOfPhop;
 			}
-			index++;
 		}
 
 		//Merge pHyperOps from regions i and j
 		for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
+			errs()<<"merging regions:"<<i<<" and "<<j<<"\n";
 			MachineInstr* nextCeInstruction;
 			MachineInstr* startMerge;
 			MachineInstr* endMerge;
@@ -998,7 +1001,7 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 				endMerge = BB->end();
 			}
 
-			if (startMerge == BB->end() || nextCeInstruction == BB->end() || startMerge == 0 || nextCeInstruction == 0) {
+			if (startMerge == BB->end() || nextCeInstruction == BB->end() || startMerge == 0 || nextCeInstruction == 0||nextCeInstruction==startMerge) {
 				continue;
 			}
 
@@ -1044,9 +1047,9 @@ void REDEFINEMCInstrScheduler::finalizeSchedule() {
 //Find the right order of context frame inputs for a machine function
 unsigned contextFrameSlotAndPhysReg[frameSize];
 //No bijective map available :(
-unsigned physRegAndContextFrameSlot[frameSize];
+map<unsigned, unsigned> physRegAndContextFrameSlot;
 //Phys reg and the ce it is live-in
-unsigned physRegAndLiveIn[frameSize];
+map<unsigned, unsigned> physRegAndLiveIn;
 
 map<unsigned, MachineInstr*> physRegAndFirstMachineOperand;
 map<unsigned, list<unsigned> > ceAndLiveInPhysicalRegMap;
