@@ -975,9 +975,11 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 	for (unsigned j = 1; j < firstInstructionOfpHyperOp.size(); j++) {
 		unsigned index = 0;
 		vector<MachineInstr*> secondRegionBoundaries;
+		list<vector<MachineInstr*> >::iterator currentRegion;
 		for (list<vector<MachineInstr*> >::iterator firstInstrOfPhop = firstInstructionOfpHyperOp.begin(); firstInstrOfPhop != firstInstructionOfpHyperOp.end(); firstInstrOfPhop++, index++) {
 			if (index == j) {
 				secondRegionBoundaries = *firstInstrOfPhop;
+				currentRegion = firstInstrOfPhop;
 			}
 		}
 
@@ -999,12 +1001,10 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 				nextCeInstruction = BB->end();
 			}
 			if (endMerge == 0) {
-				if(firstInstrOfPhop==firstInstructionOfpHyperOp.end()){
+				if(currentRegion==firstInstructionOfpHyperOp.end()){
 					endMerge = BB->end();
 				}else{
-					list<vector<MachineInstr*> >::iterator nextItr =firstInstrOfPhop;
-					nextItr++;
-					endMerge = (*nextItr)[0];
+					endMerge = (*(currentRegion++))[0];
 				}
 			}
 
