@@ -283,8 +283,6 @@ void REDEFINEInstrInfo::copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::i
 }
 
 bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const {
-	errs() << "is it here?\n";
-	MI->dump();
 	//TODO Hack for immediates that don't fit in 12 bit addi operand field
 	if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(1).getReg() == REDEFINE::zero && MI->getOperand(2).isImm() && ceil(log2(MI->getOperand(2).getImm())) > 11) {
 		//Since immediate value cannot spill 11 bits, we need to expand it to lui and add instructions
@@ -303,18 +301,26 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 		}
 
 		unsigned addiRegister = MI->getOperand(0).getReg();
+
 		MachineInstrBuilder lui = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::LUI));
 		lui.addReg(addiRegister, RegState::Define);
 		lui.addImm((immediateValue & 0xfffff000) >> 12);
-		errs() << "added lui:";
-		lui.operator ->()->dump();
 
-		MachineInstrBuilder addi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADDI));
-		addi.addReg(addiRegister, RegState::Kill);
-		addi.addReg(addiRegister, RegState::InternalRead);
-		addi.addImm(immediateValue & 0xfff);
-		errs() << "added add:";
-		addi.operator ->()->dump();
+		int32_t lsbBits = immediateValue & 0xfff;
+		list<MachineInstr*> additionalAddiInstructions;
+		while(ceil(log2(lsbBits)) > 11){
+			MachineInstrBuilder addi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADDI));
+			addi.addReg(addiRegister, RegState::Kill);
+			addi.addReg(addiRegister, RegState::InternalRead);
+			addi.addImm(0x07ff);
+			lsbBits = lsbBits - 0x07ff;
+			additionalAddiInstructions.push_back(addi.operator ->());
+		}
+		MachineInstrBuilder lastAddi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADDI));
+		lastAddi.addReg(addiRegister, RegState::Kill);
+		lastAddi.addReg(addiRegister, RegState::InternalRead);
+		lastAddi.addImm(lsbBits);
+
 
 		if (MI->isInsideBundle()) {
 			MI->eraseFromBundle();
@@ -322,6 +328,10 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 			MI->eraseFromParent();
 		}
 		lui->bundleWithSucc();
+		for(list<MachineInstr*>::iterator interimAddi = additionalAddiInstructions.begin();interimAddi!=additionalAddiInstructions.end();interimAddi++){
+			(*interimAddi)->bundleWithSucc();
+		}
+
 		if (isMIBundledWithPred) {
 			//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
 			Pred->clearFlag(MachineInstr::BundledSucc);
@@ -329,7 +339,7 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 		}
 		if (isMIBundledWithSucc) {
 			Succ->clearFlag(MachineInstr::BundledPred);
-			addi->bundleWithSucc();
+			lastAddi->bundleWithSucc();
 		}
 
 		return true;
