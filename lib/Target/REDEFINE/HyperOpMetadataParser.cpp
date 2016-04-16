@@ -84,10 +84,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 			if (type.compare(HYPEROP) == 0) {
 				Function* function = (Function *) hyperOpMDNode->getOperand(1);
 				HyperOp *hyperOp = new HyperOp(function);
-				StringRef hyperOpType = ((MDString*) hyperOpMDNode->getOperand(1))->getName();
-				if (hyperOpType.compare(HYPEROP_START) == 0) {
+				StringRef hyperOpType = ((MDString*) hyperOpMDNode->getOperand(2));
+				if (hyperOpType.compare(HYPEROP_ENTRY) == 0) {
 					hyperOp->setStart();
-				} else if (hyperOpType.compare(HYPEROP_END) == 0) {
+				} else if (hyperOpType.compare(HYPEROP_EXIT) == 0) {
 					hyperOp->setEnd();
 				}
 				hyperOp->setHyperOpId(hyperOpId++);

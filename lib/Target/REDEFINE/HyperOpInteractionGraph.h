@@ -31,12 +31,11 @@ static string HYPEROP = "HyperOp";
 static string HYPEROP_CONSUMED_BY = "ConsumedBy";
 static string HYPEROP_CONTROLLED_BY = "ControlledBy";
 static string HYPEROP_AFFINITY = "Affinity";
-static string HYPEROP_START = "Entry";
-static string HYPEROP_END = "Exit";
+static string HYPEROP_ENTRY = "Entry";
+static string HYPEROP_EXIT = "Exit";
 static string SCALAR = "Scalar";
 static string LOCAL_REFERENCE = "LocalReference";
 static string GLOBAL_REFERENCE = "GlobalReference";
-
 
 class HyperOpEdge {
 	bool isZeroedOut;
@@ -74,6 +73,7 @@ class HyperOp {
 	bool IsBarrier;
 	bool IsStart;
 	bool IsEnd;
+	bool IsIntermediate;
 	bool IsPredicated;
 	unsigned int TargetResource;
 	unsigned contextFrame;
@@ -103,12 +103,14 @@ public:
 	list<HyperOp*> getDominanceFrontier();
 	void setStart();
 	void setEnd();
+	void setIsIntermediate();
 	void setIsBarrierHyperOp();
 	void setIsPredicatedHyperOp();
 	bool isBarrierHyperOp();
 	bool isStartHyperOp();
 	bool isEndHyperOp();
 	bool isPredicatedHyperOp();
+	bool isIntermediateHyperOp();
 	Function* getFunction();
 	bool isPredecessor(HyperOp*);
 	map<HyperOp*, list<unsigned int> > getChildNodeEdgeWeights();
@@ -141,6 +143,7 @@ public:
 	unsigned int getContextFrame() const;
 	bool isFbindRequired() const;
 	void setFbindRequired(bool fbindRequired);
+
 };
 
 class DataDependenceEdge: public HyperOpEdge {

@@ -161,7 +161,7 @@ bool HyperOp::isPredicatedHyperOp() {
 	return IsPredicated;
 }
 
-void HyperOp::setIsPredicatedHyperOp(){
+void HyperOp::setIsPredicatedHyperOp() {
 	this->IsPredicated = true;
 }
 
@@ -171,6 +171,14 @@ bool HyperOp::isStartHyperOp() {
 
 bool HyperOp::isEndHyperOp() {
 	return this->IsEnd;
+}
+
+bool HyperOp::isIntermediateHyperOp() {
+	return IsIntermediate;
+}
+
+void HyperOp::setIsIntermediate() {
+	IsIntermediate = true;
 }
 
 unsigned int HyperOp::getTargetResource() const {
@@ -1877,13 +1885,13 @@ void HyperOpInteractionGraph::associateStaticContextFrames() {
 		for (map<unsigned, list<HyperOp*> >::iterator contextFrameItr = contextFramesAndAssociatedHyperOps.begin(); contextFrameItr != contextFramesAndAssociatedHyperOps.end(); contextFrameItr++) {
 			list<HyperOp*> conflictingContextFrameHyperOps = contextFrameItr->second;
 			HyperOp* topmostHyperOp = 0;
-			HyperOp* bottommostHyperOp=0;
+			HyperOp* bottommostHyperOp = 0;
 			for (list<HyperOp*>::iterator conflictItr = conflictingContextFrameHyperOps.begin(); conflictItr != conflictingContextFrameHyperOps.end(); conflictItr++) {
 				HyperOp* conflictingHyperOp = *conflictItr;
 				if (topmostHyperOp == 0 || conflictingHyperOp->isPredecessor(topmostHyperOp)) {
 					topmostHyperOp = conflictingHyperOp;
 				}
-				if(bottommostHyperOp==0||!(conflictingHyperOp->isPredecessor(bottommostHyperOp))){
+				if (bottommostHyperOp == 0 || !(conflictingHyperOp->isPredecessor(bottommostHyperOp))) {
 					bottommostHyperOp = conflictingHyperOp;
 				}
 			}
@@ -1892,7 +1900,7 @@ void HyperOpInteractionGraph::associateStaticContextFrames() {
 				if (conflictingHyperOp != topmostHyperOp) {
 					conflictingHyperOp->setFbindRequired(true);
 				}
-				if(conflictingHyperOp==bottommostHyperOp){
+				if (conflictingHyperOp == bottommostHyperOp) {
 					conflictingHyperOp->setFrameNeedsGC(true);
 				}
 			}
