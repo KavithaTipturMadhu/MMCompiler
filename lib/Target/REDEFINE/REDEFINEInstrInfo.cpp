@@ -307,20 +307,20 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 		lui.addImm((immediateValue & 0xfffff000) >> 12);
 
 		int32_t lsbBits = immediateValue & 0xfff;
-		list<MachineInstr*> additionalAddiInstructions;
-		while(ceil(log2(lsbBits)) > 11){
-			MachineInstrBuilder addi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADDI));
-			addi.addReg(addiRegister, RegState::Kill);
-			addi.addReg(addiRegister, RegState::InternalRead);
-			addi.addImm(0x07ff);
-			lsbBits = lsbBits - 0x07ff;
-			additionalAddiInstructions.push_back(addi.operator ->());
+		MachineInstrBuilder addi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADDI));
+		addi.addReg(addiRegister, RegState::Kill);
+		addi.addReg(addiRegister, RegState::InternalRead);
+		addi.addImm(lsbBits&0x7ff);
+		MachineInstrBuilder lastInstr = addi;
+		if(lsbBits&0x800){
+			//Take the top bit from lsb
+			int topBit = lsbBits&0x800>>11;
+			MachineInstrBuilder andi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ANDI));
+			andi.addReg(addiRegister, RegState::Kill);
+			andi.addReg(addiRegister, RegState::InternalRead);
+			andi.addImm(topBit);
+			addi->bundleWithSucc();
 		}
-		MachineInstrBuilder lastAddi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADDI));
-		lastAddi.addReg(addiRegister, RegState::Kill);
-		lastAddi.addReg(addiRegister, RegState::InternalRead);
-		lastAddi.addImm(lsbBits);
-
 
 		if (MI->isInsideBundle()) {
 			MI->eraseFromBundle();
@@ -328,9 +328,6 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 			MI->eraseFromParent();
 		}
 		lui->bundleWithSucc();
-		for(list<MachineInstr*>::iterator interimAddi = additionalAddiInstructions.begin();interimAddi!=additionalAddiInstructions.end();interimAddi++){
-			(*interimAddi)->bundleWithSucc();
-		}
 
 		if (isMIBundledWithPred) {
 			//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
@@ -339,7 +336,7 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 		}
 		if (isMIBundledWithSucc) {
 			Succ->clearFlag(MachineInstr::BundledPred);
-			lastAddi->bundleWithSucc();
+			lastInstr->bundleWithSucc();
 		}
 
 		return true;
