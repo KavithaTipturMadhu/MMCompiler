@@ -285,6 +285,9 @@ void REDEFINEInstrInfo::copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::i
 bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const {
 	//TODO Hack for immediates that don't fit in 12 bit addi operand field
 	if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(1).getReg() == REDEFINE::zero && MI->getOperand(2).isImm() && ceil(log2(MI->getOperand(2).getImm())) > 11) {
+errs()<<"expanding post RA pseudo:";
+MI->dump();
+
 		//Since immediate value cannot spill 11 bits, we need to expand it to lui and add instructions
 		MachineBasicBlock::instr_iterator Pred, Succ;
 		//TODO We know that an immediate value cannot exceed 32 bit value anyway, so casting to 32 bit is expected to be safe
@@ -320,6 +323,7 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 			andi.addReg(addiRegister, RegState::InternalRead);
 			andi.addImm(topBit);
 			addi->bundleWithSucc();
+			lastInstr = andi;
 		}
 
 		if (MI->isInsideBundle()) {

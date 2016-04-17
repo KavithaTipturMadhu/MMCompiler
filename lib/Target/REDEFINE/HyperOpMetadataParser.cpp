@@ -107,7 +107,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 					HyperOpEdge* dependenceEdge = new DataDependenceEdge(aggregateData, name.str());
 					graph->addEdge(metadataMap.find(edgeSource)->second, metadataMap.find(edgeDestination)->second, dependenceEdge);
 					dependenceEdge->setPositionOfInput(position);
-				}else if(dataAggregateType.compare(REFERENCE)==0){
+				//}else if(dataAggregateType.compare(REFERENCE)==0){
 					//TODO
 
 				}

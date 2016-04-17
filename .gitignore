@@ -1,3 +1,7 @@
 *~
 *.log
 *.status
+*.pyc
+*.swp
+*.o
+*.d
