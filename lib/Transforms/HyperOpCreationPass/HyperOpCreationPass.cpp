@@ -73,8 +73,8 @@ struct HyperOpCreationPass: public ModulePass {
 		}
 		//TODO
 		else if (isa<GetElementPtrInst>(argument)) {
-			for (GlobalVariable globalVarItr = m.global_begin(); globalVarItr != m.global_end(); globalVarItr++) {
-				if (((GetElementPtrInst*) argument)->getPointerOperand()->getName().equals(globalVarItr.getName())) {
+			for (Module::global_iterator  globalVarItr = m.global_begin(); globalVarItr != m.global_end(); globalVarItr++) {
+				if (((GetElementPtrInst*) argument)->getPointerOperand()->getName().equals(globalVarItr->getName())) {
 					return GLOBAL_REFERENCE;
 				}
 			}
@@ -306,7 +306,7 @@ struct HyperOpCreationPass: public ModulePass {
 					Value * values[3];
 					values[0] = MDString::get(ctxt, HYPEROP);
 					values[1] = newFunction;
-					values[2] = isEntry ? "Entry" : (isExit ? "Exit" : "Intermediate");
+					values[2] = MDString::get(ctxt, isEntry ? "Entry" : (isExit ? "Exit" : "Intermediate"));
 					MDNode *funcAnnotation = MDNode::get(ctxt, values);
 					hyperOpAndAnnotationMap.insert(make_pair(newFunction, funcAnnotation));
 					annotationsNode->addOperand(funcAnnotation);
