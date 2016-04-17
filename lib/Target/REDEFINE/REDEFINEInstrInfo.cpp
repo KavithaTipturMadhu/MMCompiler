@@ -315,7 +315,6 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 		if(lsbBits&0x800){
 			//Take the top bit from lsb
 			int topBit = (lsbBits&0x800)>>11;
-			errs()<<"topbit:"<<topBit<<"\n";
 			MachineInstrBuilder andi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ANDI));
 			andi.addReg(addiRegister, RegState::Kill);
 			andi.addReg(addiRegister, RegState::InternalRead);
@@ -324,7 +323,7 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 			lastInstr = andi;
 		}
 
-		if (MI->isInsideBundle()) {
+		if (MI->isBundled()) {
 			MI->eraseFromBundle();
 		} else {
 			MI->eraseFromParent();
@@ -340,7 +339,6 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 			Succ->clearFlag(MachineInstr::BundledPred);
 			lastInstr->bundleWithSucc();
 		}
-
 		return true;
 	}
 	return false;
