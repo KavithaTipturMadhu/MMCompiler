@@ -42,11 +42,16 @@ class HyperOpEdge {
 	bool isIgnoredEdge;
 	int positionOfInput;
 protected:
-	string variable;
+	Value* variable;
 public:
 	list<unsigned int> volume;
 	enum type {
-		DATA, CONTROL, ADDRESS
+		SCALAR,
+		//Data that cannot be p
+		LOCAL_REFERENCE,
+		GLOBAL_REFERENCE,
+		CONTROL,
+		CONTEXT_FRAME_ADDRESS
 	} Type;
 	HyperOpEdge();
 	virtual ~HyperOpEdge();
@@ -57,8 +62,8 @@ public:
 	void setIsEdgeIgnored(bool isIgnoredEdge);
 	int getPositionOfInput() const;
 	void setPositionOfInput(int positionOfInput);
-	void setName(string name);
-	string getName();
+	void setValue(Value* );
+	Value* getValue();
 };
 
 class HyperOp {
@@ -101,11 +106,11 @@ public:
 	HyperOp* getImmediateDominator();
 	HyperOp* getImmediatePostDominator();
 	list<HyperOp*> getDominanceFrontier();
-	void setStart();
-	void setEnd();
-	void setIsIntermediate();
-	void setIsBarrierHyperOp();
-	void setIsPredicatedHyperOp();
+	void setStartHyperOp();
+	void setEndHyperOp();
+	void setIntermediateHyperOp();
+	void setBarrierHyperOp();
+	void setPredicatedHyperOp();
 	bool isBarrierHyperOp();
 	bool isStartHyperOp();
 	bool isEndHyperOp();
@@ -144,29 +149,6 @@ public:
 	bool isFbindRequired() const;
 	void setFbindRequired(bool fbindRequired);
 
-};
-
-class DataDependenceEdge: public HyperOpEdge {
-public:
-	AggregateData * Data;
-	DataDependenceEdge(AggregateData *, string variable);
-	list<unsigned int> getVolume();
-};
-
-class ControlDependenceEdge: public HyperOpEdge {
-public:
-	ControlDependenceEdge();
-	list<unsigned int> getVolume();
-};
-
-/**
- * Required in case of dynamic mapping where address of a context frame needs to be forwarded to a HyperOp
- */
-class ContextFrameAddressFordwardEdge: public HyperOpEdge {
-	HyperOp* HyperOpContextFrameForward;
-public:
-	ContextFrameAddressFordwardEdge(HyperOp*);
-	list<unsigned int> getVolume();
 };
 
 class HyperOpInteractionGraph {

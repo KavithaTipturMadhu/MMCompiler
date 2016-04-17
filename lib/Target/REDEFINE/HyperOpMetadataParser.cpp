@@ -74,8 +74,7 @@ HyperOpMetadataParser::~HyperOpMetadataParser() {
 HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 	HyperOpInteractionGraph* graph = new HyperOpInteractionGraph();
 	NamedMDNode * RedefineAnnotations = M->getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
-	HyperOp* one, *two, *three, *four;
-	map<MDNode*, HyperOp*> metadataMap;
+	map<MDNode*, HyperOp*> hyperOpMetadataMap;
 	unsigned hyperOpId = 0;
 	if (RedefineAnnotations != 0) {
 		for (int i = 0; i < RedefineAnnotations->getNumOperands(); i++) {
@@ -84,68 +83,63 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 			if (type.compare(HYPEROP) == 0) {
 				Function* function = (Function *) hyperOpMDNode->getOperand(1);
 				HyperOp *hyperOp = new HyperOp(function);
-				StringRef hyperOpType = ((MDString*) hyperOpMDNode->getOperand(1))->getName();
+				StringRef hyperOpType = ((MDString*) hyperOpMDNode->getOperand(2))->getName();
 				if (hyperOpType.compare(HYPEROP_START) == 0) {
-					hyperOp->setStart();
+					hyperOp->setStartHyperOp();
 				} else if (hyperOpType.compare(HYPEROP_END) == 0) {
-					hyperOp->setEnd();
+					hyperOp->setEndHyperOp();
+				} else {
+					hyperOp->setIntermediateHyperOp();
 				}
 				hyperOp->setHyperOpId(hyperOpId++);
 				graph->addHyperOp(hyperOp);
-				metadataMap.insert(std::make_pair(hyperOpMDNode, hyperOp));
-			} else if (type.compare(HYPEROP_CONSUMED_BY) == 0) {
-				MDNode* edgeSource = (MDNode*) hyperOpMDNode->getOperand(1);
-				MDNode* edgeDestination = (MDNode*) hyperOpMDNode->getOperand(2);
-				StringRef name = ((MDString*) hyperOpMDNode->getOperand(3))->getName();
-				StringRef dataAggregateType = ((MDString*) hyperOpMDNode->getOperand(4))->getName();
-				StringRef positionStr = ((MDString*) hyperOpMDNode->getOperand(5))->getName();
-				int position = atoi(positionStr.data());
-				AggregateData* aggregateData;
-				if (dataAggregateType.compare(SCALAR) == 0) {
-//					processScalar(aggregateData, name);
-					aggregateData = new Scalar();
-					HyperOpEdge* dependenceEdge = new DataDependenceEdge(aggregateData, name.str());
-					graph->addEdge(metadataMap.find(edgeSource)->second, metadataMap.find(edgeDestination)->second, dependenceEdge);
-					dependenceEdge->setPositionOfInput(position);
-				//}else if(dataAggregateType.compare(REFERENCE)==0){
-					//TODO
+				hyperOpMetadataMap.insert(std::make_pair(hyperOpMDNode, hyperOp));
+			}
+		}
+	}
+	//Traverse instructions for metadata
+	for (Module::iterator moduleItr = M->begin(); moduleItr != M->end(); moduleItr++) {
+		//Traverse through instructions of the module
+		HyperOp* sourceHyperOp = graph->getHyperOp(moduleItr);
+		for (Function::iterator funcItr = (*moduleItr).begin(); funcItr != (*moduleItr).end(); funcItr++) {
+			Instruction* instr = *funcItr;
+			if (instr->hasMetadata()) {
+				MDNode* consumedByMDNode = instr->getMetadata(HYPEROP_CONSUMED_BY);
+				if (consumedByMDNode != 0) {
+					MDNode* consumerList = consumedByMDNode->getOperand(0);
+					for (unsigned consumerMDNodeIndex = 0; consumerMDNodeIndex != consumerList->getNumOperands(); consumerMDNodeIndex++) {
+						//Create an edge between two HyperOps labeled by the instruction
+						MDNode* consumerMDNode = consumerList->getOperand(consumerMDNodeIndex);
+						HyperOp* consumerHyperOp = hyperOpMetadataMap[consumerMDNode->getOperand(0)];
+						StringRef dataType =((MDString*)consumerMDNode->getOperand(1))->getName();
+						HyperOpEdge edge;
+						if(dataType.compare(SCALAR)==0){
+							edge.Type = HyperOpEdge::DATA;
+						}else if(dataType.compare(LOCAL_REFERENCE)==0){
+							edge.Type = HyperOpEdge::ADDRESS;
+						}
+
+						sourceHyperOp->addChildEdge();
+					}
+				}
+				MDNode* controlledByMDNode = instr->getMetadata(HYPEROP_CONTROLLED_BY);
+				if (controlledByMDNode != 0) {
+					MDNode* predicatedList = consumedByMDNode->getOperand(0);
+					for (unsigned predicatedMDNode = 0; predicatedMDNode != predicatedList->getNumOperands(); predicatedMDNode++) {
+						MDNode* predicatedHyperOp = predicatedList->getOperand(predicatedMDNode);
+					}
 
 				}
-//				if (dataAggregateType.compare(RANGE) == 0) {
-//					processRange(aggregateData, dataAggregateType);
-//				}
-//				if (dataAggregateType.compare(REGION) == 0) {
-//					processRegion(aggregateData, dataAggregateType);
-//				}
-//				if (dataAggregateType.compare(UNION) == 0) {
-//					processUnion(aggregateData, dataAggregateType);
-//				}
-			} else if (type.compare(HYPEROP_CONTROLLED_BY) == 0) {
-				//add control edges
-				MDNode* edgeSource = (MDNode*) hyperOpMDNode->getOperand(1);
-				MDNode* edgeDestination = (MDNode*) hyperOpMDNode->getOperand(2);
-				StringRef name = ((MDString*) hyperOpMDNode->getOperand(3))->getName();
-				HyperOpEdge* dependenceEdge = new ControlDependenceEdge();
-				dependenceEdge->setName(name.str());
-				HyperOp* source = metadataMap.find(edgeSource)->second;
-				HyperOp* destination = metadataMap.find(edgeDestination)->second;
-				destination->setIsPredicatedHyperOp();
-				graph->addEdge(source, destination , dependenceEdge);
-			} else if (type.compare(HYPEROP_AFFINITY) == 0) {
-				//Add mapping details
-				HyperOp* hyperOp = metadataMap.find((MDNode*) hyperOpMDNode->getOperand(1))->second;
-				int target = atoi(((MDString*) hyperOpMDNode->getOperand(2))->getName().data());
-				hyperOp->setTargetResource(target);
 			}
 		}
 	}
 
 	for (list<HyperOp*>::iterator itr = graph->Vertices.begin(); itr != graph->Vertices.end(); itr++) {
 		if ((*itr)->ChildMap.empty()) {
-			(*itr)->setEnd();
+			(*itr)->setEndHyperOp();
 		}
 		if ((*itr)->ParentMap.empty()) {
-			(*itr)->setStart();
+			(*itr)->setStartHyperOp();
 		}
 	}
 
