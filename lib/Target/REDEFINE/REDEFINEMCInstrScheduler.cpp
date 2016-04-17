@@ -854,7 +854,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		MachineInstrBuilder writeToContextFrame;
 		if (edge->Type == HyperOpEdge::DATA) {
 			writeToContextFrame = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::WRITECM));
-		} else if (edge->Type == HyperOpEdge::CONTROL) {
+		} else if (edge->Type == HyperOpEdge::PREDICATE) {
 			//TODO Forced serialization edges need not be added if there is any other edge between the producer and consumer HyperOps
 			writeToContextFrame = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::WRITECMP));
 		}

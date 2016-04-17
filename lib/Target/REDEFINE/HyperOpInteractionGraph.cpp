@@ -48,8 +48,25 @@ void HyperOpEdge::setPositionOfInput(int positionOfInput) {
 void HyperOpEdge::setValue(Value* value) {
 	this->variable = value;
 }
+
 Value* HyperOpEdge::getValue() {
 	return variable;
+}
+
+HyperOpEdge::Type HyperOpEdge::getType() {
+	return Type;
+}
+
+void HyperOpEdge::setType(HyperOpEdge::Type type) {
+	Type = type;
+}
+
+unsigned HyperOpEdge::getPredicateValue() {
+	return predicateValue;
+}
+
+void HyperOpEdge::setPredicateValue(unsigned predicateValue) {
+	this->predicateValue = predicateValue;
 }
 
 const list<HyperOp*>& HyperOp::getCreateFrameList() const {
@@ -224,7 +241,7 @@ map<HyperOp*, list<unsigned int> > HyperOp::getChildNodeEdgeWeights() {
 			if (edge->isEdgeZeroedOut() || edge->isEdgeIgnored()) {
 				communicationVolume.clear();
 				communicationVolume.push_back(0);
-			} else if (edge->Type == HyperOpEdge::CONTROL || edge->Type == HyperOpEdge::SCALAR||edge->Type == HyperOpEdge::GLOBAL_REFERENCE) {
+			} else if (edge->Type == HyperOpEdge::PREDICATE || edge->Type == HyperOpEdge::SCALAR) {
 				//Linearize communication volume since this is only in linear order of magnitude
 				unsigned int volume = 0;
 				if (communicationVolume.size() > 0) {
@@ -278,7 +295,7 @@ map<HyperOp*, list<unsigned int> > HyperOp::getParentNodeEdgeWeights() {
 			if (edge->isEdgeZeroedOut() || edge->isEdgeIgnored()) {
 				communicationVolume.clear();
 				communicationVolume.push_back(0);
-			} else if (edge->Type == HyperOpEdge::CONTROL || edge->Type == HyperOpEdge::ADDRESS) {
+			} else if (edge->Type == HyperOpEdge::PREDICATE || edge->Type == HyperOpEdge::ADDRESS) {
 				unsigned int volume = 0;
 				if (communicationVolume.size() > 0) {
 					volume = communicationVolume.front();
@@ -415,6 +432,10 @@ HyperOpEdge::~HyperOpEdge() {
 
 }
 
+void HyperOpEdge::setVolume(list<unsigned> volume) {
+	this->volume = volume;
+}
+
 list<unsigned int> HyperOpEdge::getVolume() {
 	return volume;
 }
@@ -422,6 +443,7 @@ list<unsigned int> HyperOpEdge::getVolume() {
 void HyperOpEdge::zeroOutEdge(bool zeroOut) {
 	this->isZeroedOut = zeroOut;
 }
+
 
 bool HyperOpEdge::isEdgeZeroedOut() {
 	return this->isZeroedOut;
@@ -1202,7 +1224,8 @@ void HyperOpInteractionGraph::clusterNodes() {
 
 			//Merge represents a serial schedule being generated between two clusters, edges need to be added such that there is a serial schedule between the
 			if (sourceClusterNodeFirst != 0) {
-				HyperOpEdge *edge = new ControlDependenceEdge();
+				HyperOpEdge *edge = new HyperOpEdge();
+				edge->setType(HyperOpEdge::PREDICATE);
 				edge->setIsEdgeIgnored(true);
 				additionalEdgesMap.push_back(std::make_pair((HyperOpEdge*) edge, make_pair(sourceClusterNodeFirst, targetNodeForMerge)));
 				sourceClusterNodeFirst->addChildEdge((HyperOpEdge*) edge, targetNodeForMerge);
@@ -1210,7 +1233,8 @@ void HyperOpInteractionGraph::clusterNodes() {
 				targetNodeForMerge->setPredicatedHyperOp();
 			}
 			if (sourceClusterNodeSecond != 0) {
-				HyperOpEdge *edge = new ControlDependenceEdge();
+				HyperOpEdge *edge = new HyperOpEdge();
+				edge->setType(HyperOpEdge::PREDICATE);
 				edge->setIsEdgeIgnored(true);
 				additionalEdgesMap.push_back(std::make_pair(edge, make_pair(targetNodeForMerge, sourceClusterNodeSecond)));
 				targetNodeForMerge->addChildEdge((HyperOpEdge*) edge, sourceClusterNodeSecond);

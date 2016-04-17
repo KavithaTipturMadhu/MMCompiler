@@ -42,7 +42,9 @@ struct HyperOpCreationPass: public ModulePass {
 	const unsigned int FRAME_SIZE = 4;
 
 	enum HyperOpArgumentType {
-		SCALAR, LOCAL_REFERENCE, GLOBAL_REFERENCE
+		SCALAR,
+		LOCAL_REFERENCE,
+		PREDICATE
 	};
 
 	typedef map<unsigned, pair<list<Value*>, HyperOpArgumentType> > HyperOpArgumentMap;
@@ -75,7 +77,8 @@ struct HyperOpCreationPass: public ModulePass {
 		else if (isa<GetElementPtrInst>(argument)) {
 			for (Module::global_iterator  globalVarItr = m.global_begin(); globalVarItr != m.global_end(); globalVarItr++) {
 				if (((GetElementPtrInst*) argument)->getPointerOperand()->getName().equals(globalVarItr->getName())) {
-					return GLOBAL_REFERENCE;
+					//Global variable being read, just treat it as a predicate
+					return PREDICATE;
 				}
 			}
 			return LOCAL_REFERENCE;
