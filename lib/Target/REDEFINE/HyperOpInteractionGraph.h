@@ -37,25 +37,29 @@ static string SCALAR = "Scalar";
 static string LOCAL_REFERENCE = "LocalReference";
 static string GLOBAL_REFERENCE = "GlobalReference";
 
+class HyperOp;
+
 class HyperOpEdge {
 	bool isZeroedOut;
 	bool isIgnoredEdge;
 	int positionOfInput;
 protected:
 	Value* variable;
+	unsigned predicateValue;
+	HyperOp* contextFrameAddress;
 public:
 	list<unsigned int> volume;
-	enum type {
+	enum edgeType {
 		SCALAR,
-		//Data that cannot be p
+		//Data that cannot be passed as a scalar is passed as reference instead through memory
 		LOCAL_REFERENCE,
-		GLOBAL_REFERENCE,
-		CONTROL,
+		PREDICATE,
 		CONTEXT_FRAME_ADDRESS
 	} Type;
 	HyperOpEdge();
 	virtual ~HyperOpEdge();
-	virtual list<unsigned int> getVolume();
+	list<unsigned int> getVolume();
+	void setVolume(list<unsigned> volume);
 	void zeroOutEdge(bool zeroOut);
 	bool isEdgeZeroedOut();
 	bool isEdgeIgnored() const;
@@ -64,6 +68,12 @@ public:
 	void setPositionOfInput(int positionOfInput);
 	void setValue(Value* );
 	Value* getValue();
+	edgeType getType() ;
+	void setType( edgeType type);
+	unsigned getPredicateValue();
+	void setPredicateValue(unsigned predicateValue);
+	HyperOp* getContextFrameAddress() ;
+	void setContextFrameAddress(HyperOp* contextFrameAddress);
 };
 
 class HyperOp {

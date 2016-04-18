@@ -41,6 +41,13 @@ int HyperOpEdge::getPositionOfInput() const {
 	return positionOfInput;
 }
 
+HyperOp* HyperOpEdge::getContextFrameAddress() {
+	return contextFrameAddress;
+}
+
+void HyperOpEdge::setContextFrameAddress(HyperOp* contextFrameAddress) {
+	this->contextFrameAddress = contextFrameAddress;
+}
 void HyperOpEdge::setPositionOfInput(int positionOfInput) {
 	this->positionOfInput = positionOfInput;
 }
@@ -224,7 +231,7 @@ map<HyperOp*, list<unsigned int> > HyperOp::getChildNodeEdgeWeights() {
 			if (edge->isEdgeZeroedOut() || edge->isEdgeIgnored()) {
 				communicationVolume.clear();
 				communicationVolume.push_back(0);
-			} else if (edge->Type == HyperOpEdge::CONTROL || edge->Type == HyperOpEdge::SCALAR||edge->Type == HyperOpEdge::GLOBAL_REFERENCE) {
+			} else if (edge->Type == HyperOpEdge::PREDICATE || edge->Type == HyperOpEdge::SCALAR) {
 				//Linearize communication volume since this is only in linear order of magnitude
 				unsigned int volume = 0;
 				if (communicationVolume.size() > 0) {
@@ -234,7 +241,7 @@ map<HyperOp*, list<unsigned int> > HyperOp::getChildNodeEdgeWeights() {
 				}
 				communicationVolume.push_front(volume);
 			} else if (edge->Type == HyperOpEdge::LOCAL_REFERENCE) {
-				list<unsigned int> tempVolume = ((ScalarDataDependenceEdge*) edge)->getVolume();
+				list<unsigned int> tempVolume = edge->getVolume();
 				list<unsigned int> volume;
 				int originalSize = communicationVolume.size();
 				int tempVolumeSize = tempVolume.size();
@@ -278,7 +285,7 @@ map<HyperOp*, list<unsigned int> > HyperOp::getParentNodeEdgeWeights() {
 			if (edge->isEdgeZeroedOut() || edge->isEdgeIgnored()) {
 				communicationVolume.clear();
 				communicationVolume.push_back(0);
-			} else if (edge->Type == HyperOpEdge::CONTROL || edge->Type == HyperOpEdge::ADDRESS) {
+			} else if (edge->Type == HyperOpEdge::PREDICATE || edge->Type == HyperOpEdge::SCALAR) {
 				unsigned int volume = 0;
 				if (communicationVolume.size() > 0) {
 					volume = communicationVolume.front();
@@ -287,8 +294,8 @@ map<HyperOp*, list<unsigned int> > HyperOp::getParentNodeEdgeWeights() {
 				}
 				communicationVolume.push_front(volume);
 
-			} else if (edge->Type == HyperOpEdge::DATA) {
-				list<unsigned int> tempVolume = ((ScalarDataDependenceEdge*) edge)->getVolume();
+			} else if (edge->Type == HyperOpEdge::LOCAL_REFERENCE) {
+				list<unsigned int> tempVolume = edge->getVolume();
 				list<unsigned int> volume;
 				int originalSize = communicationVolume.size();
 				int tempVolumeSize = tempVolume.size();
@@ -706,12 +713,14 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 			for (list<HyperOp*>::iterator dominanceFrontierIterator = vertexDomFrontier.begin(); dominanceFrontierIterator != vertexDomFrontier.end(); dominanceFrontierIterator++) {
 				HyperOp* dominanceFrontierHyperOp = *dominanceFrontierIterator;
 				if (dominanceFrontierHyperOp->getImmediateDominator() == vertex->getImmediateDominator()) {
-					ContextFrameAddressFordwardEdge* contextFrameEdge = new ContextFrameAddressFordwardEdge(dominanceFrontierHyperOp);
+					HyperOpEdge* contextFrameEdge = new HyperOpEdge();
+					contextFrameEdge->setContextFrameAddress(dominanceFrontierHyperOp);
 					this->addEdge(vertex->getImmediateDominator(), vertex, (HyperOpEdge*) contextFrameEdge);
 				} else {
 					list<HyperOp*> immediateDominatorDominanceFrontier = vertex->getImmediateDominator()->getDominanceFrontier();
 					if (std::find(immediateDominatorDominanceFrontier.begin(), immediateDominatorDominanceFrontier.end(), dominanceFrontierHyperOp) != immediateDominatorDominanceFrontier.end()) {
-						ContextFrameAddressFordwardEdge* contextFrameEdge = new ContextFrameAddressFordwardEdge(dominanceFrontierHyperOp);
+						HyperOpEdge* contextFrameEdge = new HyperOpEdge();
+						contextFrameEdge->setContextFrameAddress(dominanceFrontierHyperOp);
 						this->addEdge(vertex->getImmediateDominator(), vertex, (HyperOpEdge*) contextFrameEdge);
 					}
 				}
@@ -973,14 +982,16 @@ pair<list<unsigned int>, list<pair<list<HyperOp*>, unsigned int> > > mergeNodesA
 		//Merge represents a serial schedule being generated between two clusters, edges need to be added such that there is a serial schedule between the
 		if (sourceClusterNodeFirst != 0) {
 			//The edge ensures that the parent node has been executed and always receives a true predicate from the parent
-			ControlDependenceEdge *edge = new ControlDependenceEdge();
+			HyperOpEdge *edge = new HyperOpEdge();
+			edge->setType(HyperOpEdge::PREDICATE);
 			edge->setIsEdgeIgnored(true);
 			additionalEdgesMap.push_back(std::make_pair((HyperOpEdge*) edge, make_pair(sourceClusterNodeFirst, targetNodeForMerge)));
 			sourceClusterNodeFirst->addChildEdge((HyperOpEdge*) edge, targetNodeForMerge);
 			targetNodeForMerge->addParentEdge((HyperOpEdge*) edge, sourceClusterNodeFirst);
 		}
 		if (sourceClusterNodeSecond != 0) {
-			ControlDependenceEdge *edge = new ControlDependenceEdge();
+			HyperOpEdge *edge = new HyperOpEdge();
+			edge->setType(HyperOpEdge::PREDICATE);
 			edge->setIsEdgeIgnored(true);
 			additionalEdgesMap.push_back(std::make_pair((HyperOpEdge*) edge, make_pair(targetNodeForMerge, sourceClusterNodeSecond)));
 			targetNodeForMerge->addChildEdge((HyperOpEdge*) edge, sourceClusterNodeSecond);
@@ -1202,7 +1213,8 @@ void HyperOpInteractionGraph::clusterNodes() {
 
 			//Merge represents a serial schedule being generated between two clusters, edges need to be added such that there is a serial schedule between the
 			if (sourceClusterNodeFirst != 0) {
-				HyperOpEdge *edge = new ControlDependenceEdge();
+				HyperOpEdge *edge = new HyperOpEdge();
+				edge->setType(HyperOpEdge::PREDICATE);
 				edge->setIsEdgeIgnored(true);
 				additionalEdgesMap.push_back(std::make_pair((HyperOpEdge*) edge, make_pair(sourceClusterNodeFirst, targetNodeForMerge)));
 				sourceClusterNodeFirst->addChildEdge((HyperOpEdge*) edge, targetNodeForMerge);
@@ -1210,7 +1222,8 @@ void HyperOpInteractionGraph::clusterNodes() {
 				targetNodeForMerge->setPredicatedHyperOp();
 			}
 			if (sourceClusterNodeSecond != 0) {
-				HyperOpEdge *edge = new ControlDependenceEdge();
+				HyperOpEdge *edge = new HyperOpEdge();
+				edge->setType(HyperOpEdge::PREDICATE);
 				edge->setIsEdgeIgnored(true);
 				additionalEdgesMap.push_back(std::make_pair(edge, make_pair(targetNodeForMerge, sourceClusterNodeSecond)));
 				targetNodeForMerge->addChildEdge((HyperOpEdge*) edge, sourceClusterNodeSecond);
@@ -1920,11 +1933,13 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 			map<HyperOpEdge*, HyperOp*> children = vertex->ChildMap;
 			for (map<HyperOpEdge*, HyperOp*>::iterator childItr = children.begin(); childItr != children.end(); childItr++) {
 				os << vertex->getFunction()->getName() << "->" << childItr->second->getFunction()->getName() << "[label=";
-				if ((*childItr).first->Type == HyperOpEdge::DATA) {
-					os << "data";
-				} else if ((*childItr).first->Type == HyperOpEdge::ADDRESS) {
+				if ((*childItr).first->Type == HyperOpEdge::SCALAR) {
+					os << "scalar";
+				} else if ((*childItr).first->Type == HyperOpEdge::LOCAL_REFERENCE) {
 					os << "address";
-				} else {
+				} else if((*childItr).first->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS){
+					os << "context frame address";
+				}else {
 					os << "control";
 				}
 				os << "];\n";
