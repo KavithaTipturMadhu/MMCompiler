@@ -96,6 +96,21 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 				hyperOpMetadataMap.insert(std::make_pair(hyperOpMDNode, hyperOp));
 			}
 		}
+		//Traversing again to ensure that all nodes are added before labeling them as entry/exit/intermediate
+		for (int i = 0; i < RedefineAnnotations->getNumOperands(); i++) {
+			MDNode* hyperOpMDNode = RedefineAnnotations->getOperand(i);
+			StringRef type = ((MDString*) hyperOpMDNode->getOperand(0))->getName();
+			if (type.compare(HYPEROP_ENTRY) == 0) {
+				HyperOp* entryHyperOp = hyperOpMetadataMap[(MDNode*) hyperOpMDNode->getOperand(1)];
+				entryHyperOp->setStartHyperOp();
+			} else if (type.compare(HYPEROP_EXIT) == 0) {
+				HyperOp* exitHyperOp = hyperOpMetadataMap[(MDNode*) hyperOpMDNode->getOperand(1)];
+				exitHyperOp->setEndHyperOp();
+			} else if (type.compare(HYPEROP_INTERMEDIATE) == 0) {
+				HyperOp* intermediateHyperOp = hyperOpMetadataMap[(MDNode*) hyperOpMDNode->getOperand(1)];
+				intermediateHyperOp->setIntermediateHyperOp();
+			}
+		}
 	}
 	//Traverse instructions for metadata
 	for (Module::iterator moduleItr = M->begin(); moduleItr != M->end(); moduleItr++) {
@@ -107,11 +122,11 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 				if (instr->hasMetadata()) {
 					MDNode* consumedByMDNode = instr->getMetadata(HYPEROP_CONSUMED_BY);
 					if (consumedByMDNode != 0) {
-						MDNode* consumerList = (MDNode*)consumedByMDNode->getOperand(0);
+						MDNode* consumerList = (MDNode*) consumedByMDNode->getOperand(0);
 						for (unsigned consumerMDNodeIndex = 0; consumerMDNodeIndex != consumerList->getNumOperands(); consumerMDNodeIndex++) {
 							//Create an edge between two HyperOps labeled by the instruction
-							MDNode* consumerMDNode = (MDNode*)consumerList->getOperand(consumerMDNodeIndex);
-							HyperOp* consumerHyperOp = hyperOpMetadataMap[(MDNode*)consumerMDNode->getOperand(0)];
+							MDNode* consumerMDNode = (MDNode*) consumerList->getOperand(consumerMDNodeIndex);
+							HyperOp* consumerHyperOp = hyperOpMetadataMap[(MDNode*) consumerMDNode->getOperand(0)];
 							StringRef dataType = ((MDString*) consumerMDNode->getOperand(1))->getName();
 							HyperOpEdge edge;
 							if (dataType.compare(SCALAR) == 0) {
@@ -131,23 +146,22 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 					}
 					MDNode* controlledByMDNode = instr->getMetadata(HYPEROP_CONTROLLED_BY);
 					if (controlledByMDNode != 0) {
-						MDNode* predicatedList = (MDNode*)controlledByMDNode->getOperand(0);
+						MDNode* predicatedList = (MDNode*) controlledByMDNode->getOperand(0);
 						for (unsigned predicatedMDNodeIndex = 0; predicatedMDNodeIndex != predicatedList->getNumOperands(); predicatedMDNodeIndex++) {
-							MDNode* predicatedMDNode = (MDNode*)predicatedList->getOperand(predicatedMDNodeIndex);
+							MDNode* predicatedMDNode = (MDNode*) predicatedList->getOperand(predicatedMDNodeIndex);
 							//Create an edge between two HyperOps labeled by the instruction
-							HyperOp* predicatedHyperOp = hyperOpMetadataMap[(MDNode*)predicatedMDNode->getOperand(0)];
+							HyperOp* predicatedHyperOp = hyperOpMetadataMap[(MDNode*) predicatedMDNode->getOperand(0)];
 							HyperOpEdge edge;
 							edge.Type = HyperOpEdge::PREDICATE;
 							//Unconditional predicate
 							if (predicatedMDNode->getNumOperands() > 1) {
 								edge.setValue((Value*) instr);
-								unsigned predicateValue =  ((ConstantInt*) predicatedMDNode->getOperand(1))->getUniqueInteger().getZExtValue();
+								unsigned predicateValue = ((ConstantInt*) predicatedMDNode->getOperand(1))->getUniqueInteger().getZExtValue();
 								edge.setPredicateValue(predicateValue);
 							}
 							sourceHyperOp->addChildEdge(&edge, predicatedHyperOp);
 							predicatedHyperOp->addParentEdge(&edge, sourceHyperOp);
 						}
-
 					}
 				}
 			}
@@ -156,3 +170,4 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 
 	return graph;
 }
+

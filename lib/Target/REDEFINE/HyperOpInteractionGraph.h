@@ -33,9 +33,9 @@ static string HYPEROP_CONTROLLED_BY = "ControlledBy";
 static string HYPEROP_AFFINITY = "Affinity";
 static string HYPEROP_ENTRY = "Entry";
 static string HYPEROP_EXIT = "Exit";
+static string HYPEROP_INTERMEDIATE = "Intermediate";
 static string SCALAR = "Scalar";
 static string LOCAL_REFERENCE = "LocalReference";
-static string GLOBAL_REFERENCE = "GlobalReference";
 
 class HyperOp;
 

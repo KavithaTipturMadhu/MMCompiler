@@ -37,7 +37,7 @@ struct HyperOpCreationPass: public ModulePass {
 	const string HYPEROP_START = "Start";
 	const string HYPEROP_END = "End";
 	const string SCALAR_ARGUMENT = "Scalar";
-	const string REFERENCE_ARGUMENT = "Reference";
+	const string LOCAL_REFERENCE_ARGUMENT = "LocalReference";
 
 	const unsigned int FRAME_SIZE = 4;
 
@@ -73,7 +73,7 @@ struct HyperOpCreationPass: public ModulePass {
 		}
 		//TODO
 		else if (isa<GetElementPtrInst>(argument)) {
-			for (Module::global_iterator  globalVarItr = m.global_begin(); globalVarItr != m.global_end(); globalVarItr++) {
+			for (Module::global_iterator globalVarItr = m.global_begin(); globalVarItr != m.global_end(); globalVarItr++) {
 				if (((GetElementPtrInst*) argument)->getPointerOperand()->getName().equals(globalVarItr->getName())) {
 					return GLOBAL_REFERENCE;
 				}
@@ -311,13 +311,33 @@ struct HyperOpCreationPass: public ModulePass {
 					hyperOpAndAnnotationMap.insert(make_pair(newFunction, funcAnnotation));
 					annotationsNode->addOperand(funcAnnotation);
 
+					//Is the function an entry node?
+					if (isEntry) {
+						Value* values[2];
+						values[0] = MDString::get(ctxt, HYPEROP_ENTRY);
+						values[1] = funcAnnotation;
+						MDNode* entryNode = MDNode::get(ctxt, values);
+						annotationsNode->addOperand(entryNode);
+					} else if (isExit) {
+						Value* values[2];
+						values[0] = MDString::get(ctxt, HYPEROP_EXIT);
+						values[1] = funcAnnotation;
+						MDNode* exitNode = MDNode::get(ctxt, values);
+						annotationsNode->addOperand(exitNode);
+					} else {
+						Value* values[2];
+						values[0] = MDString::get(ctxt, HYPEROP_INTERMEDIATE);
+						values[1] = funcAnnotation;
+						MDNode* intermediateNode = MDNode::get(ctxt, values);
+						annotationsNode->addOperand(intermediateNode);
+					}
+
 					list<Instruction*> instructionsToBeMoved;
 					//Add produces meta data from source HyperOp to the HyperOp being created
 					for (HyperOpArgumentMap::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
 						list<Value*> individualArguments = hyperOpArgumentItr->second.first;
 						HyperOpArgumentType argumentType = hyperOpArgumentItr->second.second;
 						unsigned positionOfArgument = hyperOpArgumentItr->first;
-
 						for (list<Value*>::iterator individualArgItr = individualArguments.begin(); individualArgItr != individualArguments.end(); individualArgItr++) {
 							Value* argument = *individualArgItr;
 							if (isa<Instruction>(argument)) {
@@ -344,10 +364,8 @@ struct HyperOpCreationPass: public ModulePass {
 											Function * sourceFunction = createdHyperOp;
 											Value * values[3];
 											values[0] = funcAnnotation;
-											if (argumentType == SCALAR) {
+											if (argumentType == HyperOpArgumentType::SCALAR) {
 												values[1] = MDString::get(ctxt, SCALAR_ARGUMENT);
-											} else {
-												values[1] = MDString::get(ctxt, REFERENCE_ARGUMENT);
 											}
 											values[2] = ConstantInt::get(ctxt, APInt(32, positionOfArgument));
 											MDNode * consumedByMetadata = MDNode::get(ctxt, values);
