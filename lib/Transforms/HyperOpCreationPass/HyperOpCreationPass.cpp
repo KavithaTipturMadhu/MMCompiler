@@ -303,10 +303,9 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 					//Add metadata to label the function as a HyperOp
-					Value * values[3];
+					Value * values[2];
 					values[0] = MDString::get(ctxt, HYPEROP);
 					values[1] = newFunction;
-					values[2] = MDString::get(ctxt, isEntry ? HYPEROP_ENTRY : (isExit ? HYPEROP_EXIT : HYPEROP_INTERMEDIATE));
 					MDNode *funcAnnotation = MDNode::get(ctxt, values);
 					hyperOpAndAnnotationMap.insert(make_pair(newFunction, funcAnnotation));
 					annotationsNode->addOperand(funcAnnotation);
@@ -318,13 +317,14 @@ struct HyperOpCreationPass: public ModulePass {
 						values[1] = funcAnnotation;
 						MDNode* entryNode = MDNode::get(ctxt, values);
 						annotationsNode->addOperand(entryNode);
-					} else if (isExit) {
+					}
+					if (isExit) {
 						Value* values[2];
 						values[0] = MDString::get(ctxt, HYPEROP_EXIT);
 						values[1] = funcAnnotation;
 						MDNode* exitNode = MDNode::get(ctxt, values);
 						annotationsNode->addOperand(exitNode);
-					} else {
+					} if(!isEntry||!isExit) {
 						Value* values[2];
 						values[0] = MDString::get(ctxt, HYPEROP_INTERMEDIATE);
 						values[1] = funcAnnotation;
@@ -359,6 +359,7 @@ struct HyperOpCreationPass: public ModulePass {
 												}
 											}
 										}
+
 										if (atleastOneUseInOtherHyperOp) {
 											//Add "consumedby" metadata on the function locals that need to be passed to other HyperOps
 											Function * sourceFunction = createdHyperOp;
@@ -366,6 +367,8 @@ struct HyperOpCreationPass: public ModulePass {
 											values[0] = funcAnnotation;
 											if (argumentType == HyperOpArgumentType::SCALAR) {
 												values[1] = MDString::get(ctxt, SCALAR_ARGUMENT);
+											}else if(argumentType == HyperOpArgumentType::LOCAL_REFERENCE){
+												values[1] = MDString::get(ctxt, LOCAL_REFERENCE_ARGUMENT);
 											}
 											values[2] = ConstantInt::get(ctxt, APInt(32, positionOfArgument));
 											MDNode * consumedByMetadata = MDNode::get(ctxt, values);
