@@ -304,7 +304,7 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 
 		MachineInstrBuilder lui = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::LUI));
 		lui.addReg(addiRegister, RegState::Define);
-		lui.addImm((immediateValue & 0x7ffff800) >> 11);
+		lui.addImm((immediateValue & 0x7ffff800) << 1);
 
 		int32_t topBit = immediateValue & 0x80000000;
 		MachineInstrBuilder shiftInstr;

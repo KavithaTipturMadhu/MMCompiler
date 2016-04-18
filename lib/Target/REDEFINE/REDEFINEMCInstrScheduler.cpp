@@ -1013,6 +1013,8 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 			}
 
 			while (startMerge != endMerge) {
+				errs()<<"Merging:";
+				startMerge->dump();
 				MachineInstr* instructionToMerge = startMerge;
 				startMerge = startMerge->getNextNode();
 				BB->splice(nextCeInstruction, BB, instructionToMerge);
