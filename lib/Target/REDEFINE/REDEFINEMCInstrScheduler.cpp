@@ -805,8 +805,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		//Get the index of the stack allocated object, starting from 0 because negative offsets from fp contain function arguments
 		for (int i = 0; i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
 			const AllocaInst* allocInstr = MF.getFrameInfo()->getObjectAllocation(i);
-			//TODO Bad code, why do you use string comparison?
-			if (edge->getName().compare(allocInstr->getName()) == 0) {
+			//TODO
+			if (edge->getValue()==allocInstr) {
 				//Find the offset of the object wrt SP
 				objectIndex = i;
 				break;
@@ -852,9 +852,9 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			LIS->getOrCreateInterval(registerContainingData);
 		}
 		MachineInstrBuilder writeToContextFrame;
-		if (edge->Type == HyperOpEdge::DATA) {
+		if (edge->Type == HyperOpEdge::SCALAR) {
 			writeToContextFrame = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::WRITECM));
-		} else if (edge->Type == HyperOpEdge::CONTROL) {
+		} else if (edge->Type == HyperOpEdge::PREDICATE) {
 			//TODO Forced serialization edges need not be added if there is any other edge between the producer and consumer HyperOps
 			writeToContextFrame = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::WRITECMP));
 		}

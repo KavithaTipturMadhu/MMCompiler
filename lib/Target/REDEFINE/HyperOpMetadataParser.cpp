@@ -84,9 +84,9 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 				Function* function = (Function *) hyperOpMDNode->getOperand(1);
 				HyperOp *hyperOp = new HyperOp(function);
 				StringRef hyperOpType = ((MDString*) hyperOpMDNode->getOperand(2))->getName();
-				if (hyperOpType.compare(HYPEROP_START) == 0) {
+				if (hyperOpType.compare(HYPEROP_ENTRY) == 0) {
 					hyperOp->setStartHyperOp();
-				} else if (hyperOpType.compare(HYPEROP_END) == 0) {
+				} else if (hyperOpType.compare(HYPEROP_EXIT) == 0) {
 					hyperOp->setEndHyperOp();
 				} else {
 					hyperOp->setIntermediateHyperOp();
@@ -102,51 +102,53 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 		//Traverse through instructions of the module
 		HyperOp* sourceHyperOp = graph->getHyperOp(moduleItr);
 		for (Function::iterator funcItr = (*moduleItr).begin(); funcItr != (*moduleItr).end(); funcItr++) {
-			Instruction* instr = *funcItr;
-			if (instr->hasMetadata()) {
-				MDNode* consumedByMDNode = instr->getMetadata(HYPEROP_CONSUMED_BY);
-				if (consumedByMDNode != 0) {
-					MDNode* consumerList = consumedByMDNode->getOperand(0);
-					for (unsigned consumerMDNodeIndex = 0; consumerMDNodeIndex != consumerList->getNumOperands(); consumerMDNodeIndex++) {
-						//Create an edge between two HyperOps labeled by the instruction
-						MDNode* consumerMDNode = consumerList->getOperand(consumerMDNodeIndex);
-						HyperOp* consumerHyperOp = hyperOpMetadataMap[consumerMDNode->getOperand(0)];
-						StringRef dataType = ((MDString*) consumerMDNode->getOperand(1))->getName();
-						HyperOpEdge edge;
-						if (dataType.compare(SCALAR) == 0) {
-							edge.Type = HyperOpEdge::SCALAR;
-						} else if (dataType.compare(LOCAL_REFERENCE) == 0) {
-							edge.Type = HyperOpEdge::LOCAL_REFERENCE;
-							list<unsigned> volumeOfCommunication;
-							volumeOfCommunication.push_back(sizeof((Value*) instr));
-							edge.setVolume(volumeOfCommunication);
-						}
-						unsigned positionOfInput = (ConstantInt) consumerMDNode->getOperand(2);
-						edge.setValue((Value*) instr);
-						edge.setPositionOfInput(positionOfInput);
-						sourceHyperOp->addChildEdge(&edge, consumerHyperOp);
-						consumerHyperOp->addParentEdge(&edge, sourceHyperOp);
-					}
-				}
-				MDNode* controlledByMDNode = instr->getMetadata(HYPEROP_CONTROLLED_BY);
-				if (controlledByMDNode != 0) {
-					MDNode* predicatedList = consumedByMDNode->getOperand(0);
-					for (unsigned predicatedMDNodeIndex = 0; predicatedMDNodeIndex != predicatedList->getNumOperands(); predicatedMDNodeIndex++) {
-						MDNode* predicatedMDNode = predicatedList->getOperand(predicatedMDNodeIndex);
-						//Create an edge between two HyperOps labeled by the instruction
-						HyperOp* predicatedHyperOp = hyperOpMetadataMap[predicatedMDNode->getOperand(0)];
-						HyperOpEdge edge;
-						edge.Type = HyperOpEdge::PREDICATE;
-						//Unconditional predicate
-						if (predicatedMDNode->getNumOperands() > 1) {
+			for (BasicBlock::iterator bbItr = (*funcItr).begin(); bbItr != (*funcItr).end(); bbItr++) {
+				Instruction* instr = bbItr;
+				if (instr->hasMetadata()) {
+					MDNode* consumedByMDNode = instr->getMetadata(HYPEROP_CONSUMED_BY);
+					if (consumedByMDNode != 0) {
+						MDNode* consumerList = (MDNode*)consumedByMDNode->getOperand(0);
+						for (unsigned consumerMDNodeIndex = 0; consumerMDNodeIndex != consumerList->getNumOperands(); consumerMDNodeIndex++) {
+							//Create an edge between two HyperOps labeled by the instruction
+							MDNode* consumerMDNode = (MDNode*)consumerList->getOperand(consumerMDNodeIndex);
+							HyperOp* consumerHyperOp = hyperOpMetadataMap[(MDNode*)consumerMDNode->getOperand(0)];
+							StringRef dataType = ((MDString*) consumerMDNode->getOperand(1))->getName();
+							HyperOpEdge edge;
+							if (dataType.compare(SCALAR) == 0) {
+								edge.Type = HyperOpEdge::SCALAR;
+							} else if (dataType.compare(LOCAL_REFERENCE) == 0) {
+								edge.Type = HyperOpEdge::LOCAL_REFERENCE;
+								list<unsigned> volumeOfCommunication;
+								volumeOfCommunication.push_back(sizeof((Value*) instr));
+								edge.setVolume(volumeOfCommunication);
+							}
+							unsigned positionOfInput = ((ConstantInt*) consumerMDNode->getOperand(2))->getUniqueInteger().getZExtValue();
 							edge.setValue((Value*) instr);
-							unsigned predicateValue = (ConstantInt) predicatedMDNode->getOperand(1);
-							edge.setPredicateValue(predicateValue);
+							edge.setPositionOfInput(positionOfInput);
+							sourceHyperOp->addChildEdge(&edge, consumerHyperOp);
+							consumerHyperOp->addParentEdge(&edge, sourceHyperOp);
 						}
-						sourceHyperOp->addChildEdge(&edge, predicatedHyperOp);
-						predicatedHyperOp->addParentEdge(&edge, sourceHyperOp);
 					}
+					MDNode* controlledByMDNode = instr->getMetadata(HYPEROP_CONTROLLED_BY);
+					if (controlledByMDNode != 0) {
+						MDNode* predicatedList = (MDNode*)controlledByMDNode->getOperand(0);
+						for (unsigned predicatedMDNodeIndex = 0; predicatedMDNodeIndex != predicatedList->getNumOperands(); predicatedMDNodeIndex++) {
+							MDNode* predicatedMDNode = (MDNode*)predicatedList->getOperand(predicatedMDNodeIndex);
+							//Create an edge between two HyperOps labeled by the instruction
+							HyperOp* predicatedHyperOp = hyperOpMetadataMap[(MDNode*)predicatedMDNode->getOperand(0)];
+							HyperOpEdge edge;
+							edge.Type = HyperOpEdge::PREDICATE;
+							//Unconditional predicate
+							if (predicatedMDNode->getNumOperands() > 1) {
+								edge.setValue((Value*) instr);
+								unsigned predicateValue =  ((ConstantInt*) predicatedMDNode->getOperand(1))->getUniqueInteger().getZExtValue();
+								edge.setPredicateValue(predicateValue);
+							}
+							sourceHyperOp->addChildEdge(&edge, predicatedHyperOp);
+							predicatedHyperOp->addParentEdge(&edge, sourceHyperOp);
+						}
 
+					}
 				}
 			}
 		}

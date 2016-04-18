@@ -295,7 +295,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 					bool isEntry = false;
 					bool isExit = false;
-					if (accumulatedBasicBlocks.front()->getParent()->getName() == "redefinemain") {
+					if (accumulatedBasicBlocks.front()->getParent()->getName() == MAIN_FUNCTION) {
 						if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &funcItr->getEntryBlock()) != accumulatedBasicBlocks.end()) {
 							isEntry = true;
 						} else if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &funcItr->back()) != accumulatedBasicBlocks.end()) {
@@ -306,7 +306,7 @@ struct HyperOpCreationPass: public ModulePass {
 					Value * values[3];
 					values[0] = MDString::get(ctxt, HYPEROP);
 					values[1] = newFunction;
-					values[2] = MDString::get(ctxt, isEntry ? "Entry" : (isExit ? "Exit" : "Intermediate"));
+					values[2] = MDString::get(ctxt, isEntry ? HYPEROP_ENTRY : (isExit ? HYPEROP_EXIT : HYPEROP_INTERMEDIATE));
 					MDNode *funcAnnotation = MDNode::get(ctxt, values);
 					hyperOpAndAnnotationMap.insert(make_pair(newFunction, funcAnnotation));
 					annotationsNode->addOperand(funcAnnotation);
@@ -642,6 +642,12 @@ struct HyperOpCreationPass: public ModulePass {
 		M.dump();
 		return true;
 	}
+
+private:
+	const char* MAIN_FUNCTION = "main";
+	const char* HYPEROP_ENTRY = "Entry";
+	const char* HYPEROP_EXIT = "Exit";
+	const char* HYPEROP_INTERMEDIATE = "Intermediate";
 }
 ;
 char HyperOpCreationPass::ID = 2;

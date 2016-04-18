@@ -31,8 +31,8 @@ static string HYPEROP = "HyperOp";
 static string HYPEROP_CONSUMED_BY = "ConsumedBy";
 static string HYPEROP_CONTROLLED_BY = "ControlledBy";
 static string HYPEROP_AFFINITY = "Affinity";
-static string HYPEROP_START = "Entry";
-static string HYPEROP_END = "Exit";
+static string HYPEROP_ENTRY = "Entry";
+static string HYPEROP_EXIT = "Exit";
 static string SCALAR = "Scalar";
 static string LOCAL_REFERENCE = "LocalReference";
 static string GLOBAL_REFERENCE = "GlobalReference";
@@ -49,7 +49,7 @@ protected:
 	HyperOp* contextFrameAddress;
 public:
 	list<unsigned int> volume;
-	enum edgeType {
+	enum EdgeType {
 		SCALAR,
 		//Data that cannot be passed as a scalar is passed as reference instead through memory
 		LOCAL_REFERENCE,
@@ -68,8 +68,8 @@ public:
 	void setPositionOfInput(int positionOfInput);
 	void setValue(Value* );
 	Value* getValue();
-	edgeType getType() ;
-	void setType( edgeType type);
+	EdgeType getType() ;
+	void setType(EdgeType type);
 	unsigned getPredicateValue();
 	void setPredicateValue(unsigned predicateValue);
 	HyperOp* getContextFrameAddress() ;

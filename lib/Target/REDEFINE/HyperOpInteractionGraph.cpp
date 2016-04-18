@@ -41,6 +41,19 @@ int HyperOpEdge::getPositionOfInput() const {
 	return positionOfInput;
 }
 
+HyperOpEdge::EdgeType HyperOpEdge::getType() {
+	return Type;
+}
+void HyperOpEdge::setType(HyperOpEdge::EdgeType type) {
+	this->Type = type;
+}
+unsigned HyperOpEdge::getPredicateValue() {
+	return this->predicateValue;
+}
+void HyperOpEdge::setPredicateValue(unsigned predicateValue) {
+	this->predicateValue = predicateValue;
+}
+
 HyperOp* HyperOpEdge::getContextFrameAddress() {
 	return contextFrameAddress;
 }
@@ -424,6 +437,10 @@ HyperOpEdge::~HyperOpEdge() {
 
 list<unsigned int> HyperOpEdge::getVolume() {
 	return volume;
+}
+
+void HyperOpEdge::setVolume(list<unsigned> volume){
+	this->volume = volume;
 }
 
 void HyperOpEdge::zeroOutEdge(bool zeroOut) {
@@ -1937,9 +1954,9 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 					os << "scalar";
 				} else if ((*childItr).first->Type == HyperOpEdge::LOCAL_REFERENCE) {
 					os << "address";
-				} else if((*childItr).first->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS){
+				} else if ((*childItr).first->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
 					os << "context frame address";
-				}else {
+				} else {
 					os << "control";
 				}
 				os << "];\n";
