@@ -366,9 +366,9 @@ struct HyperOpCreationPass: public ModulePass {
 											Function * sourceFunction = createdHyperOp;
 											Value * values[3];
 											values[0] = funcAnnotation;
-											if (argumentType == HyperOpArgumentType::SCALAR) {
+											if (argumentType == SCALAR) {
 												values[1] = MDString::get(ctxt, SCALAR_ARGUMENT);
-											}else if(argumentType == HyperOpArgumentType::LOCAL_REFERENCE){
+											}else if(argumentType == LOCAL_REFERENCE){
 												values[1] = MDString::get(ctxt, LOCAL_REFERENCE_ARGUMENT);
 											}
 											values[2] = ConstantInt::get(ctxt, APInt(32, positionOfArgument));

@@ -906,7 +906,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				if (funcArgIndex == edge->getPositionOfInput()) {
 					break;
 				}
-				Argument* argument = *funcArgItr;
+				Argument* argument = &*funcArgItr;
 				if (!Fn->getAttributes().hasAttribute(funcArgIndex, Attribute::InReg)) {
 					//Reference argument being passed
 					frameLocationOfTargetData += (argument->getType()->getPrimitiveSizeInBits() / 8);
@@ -937,7 +937,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				}
 			}
 
-			for (unsigned allocatedDataIndex = 0; allocatedDataIndex != allocInstr->getArraySize(); allocatedDataIndex++) {
+			for (unsigned allocatedDataIndex = 0; allocatedDataIndex != ((ConstantInt*)allocInstr->getArraySize())->getZExtValue(); allocatedDataIndex++) {
 				//Add a load instruction from memory and store to the memory frame of the consumer HyperOp
 				for (list<pair<Type*, unsigned> >::iterator containedPrimitiveItr = primitiveTypesMap.begin(); containedPrimitiveItr != primitiveTypesMap.end(); containedPrimitiveItr++) {
 					Type* containedType = containedPrimitiveItr->first;
