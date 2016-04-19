@@ -27,10 +27,10 @@ static unsigned getShortenedInstr(unsigned Opcode) {
 // Return the VK_* enumeration for MachineOperand target flags Flags.
 static MCSymbolRefExpr::VariantKind getVariantKind(unsigned Flags) {
 	switch (Flags & REDEFINEII::MO_SYMBOL_MODIFIER) {
-		case 0:
-			return MCSymbolRefExpr::VK_None;
-		case REDEFINEII::MO_GOT:
-			return MCSymbolRefExpr::VK_GOT;
+	case 0:
+		return MCSymbolRefExpr::VK_None;
+	case REDEFINEII::MO_GOT:
+		return MCSymbolRefExpr::VK_GOT;
 	}
 	llvm_unreachable("Unrecognised MO_ACCESS_MODEL");
 }
@@ -42,18 +42,18 @@ REDEFINEMCInstLower::REDEFINEMCInstLower(Mangler *mang, MCContext &ctx, REDEFINE
 MCOperand REDEFINEMCInstLower::lowerSymbolOperand(const MachineOperand &MO, const MCSymbol *Symbol, int64_t Offset) const {
 	MCSymbolRefExpr::VariantKind Kind = getVariantKind(MO.getTargetFlags());
 	switch (MO.getTargetFlags()) {
-		case REDEFINEII::MO_ABS_HI:
-			Kind = MCSymbolRefExpr::VK_Mips_ABS_HI;
-			break;
-		case REDEFINEII::MO_ABS_LO:
-			Kind = MCSymbolRefExpr::VK_Mips_ABS_LO;
-			break;
-		case REDEFINEII::MO_TPREL_HI:
-			Kind = MCSymbolRefExpr::VK_Mips_TPREL_HI;
-			break;
-		case REDEFINEII::MO_TPREL_LO:
-			Kind = MCSymbolRefExpr::VK_Mips_TPREL_LO;
-			break;
+	case REDEFINEII::MO_ABS_HI:
+		Kind = MCSymbolRefExpr::VK_Mips_ABS_HI;
+		break;
+	case REDEFINEII::MO_ABS_LO:
+		Kind = MCSymbolRefExpr::VK_Mips_ABS_LO;
+		break;
+	case REDEFINEII::MO_TPREL_HI:
+		Kind = MCSymbolRefExpr::VK_Mips_TPREL_HI;
+		break;
+	case REDEFINEII::MO_TPREL_LO:
+		Kind = MCSymbolRefExpr::VK_Mips_TPREL_LO;
+		break;
 	}
 	const MCExpr *Expr = MCSymbolRefExpr::Create(Symbol, Kind, Ctx);
 	if (Offset) {
@@ -64,73 +64,65 @@ MCOperand REDEFINEMCInstLower::lowerSymbolOperand(const MachineOperand &MO, cons
 }
 
 MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
-	//REDEFINE memory allocation
-	//Machine functions are processed one after the other; hence we increment addresses when machine function switches next
-	static unsigned dgmMemoryAddress = 0;
-	static const MachineFunction* function;
-	bool firstIterationOfFrameIndexProcessing = true;
+	Module* parentModule = MO.getMBB()->getBasicBlock()->getParent();
+	static long int maxGlobalSize = 0;
+	static map<const GlobalVariable*, long int> globalVarStartAddressMap;
+	for (Module::global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
+		GlobalVariable *globalVar = &*globalArgItr;
+		globalVarStartAddressMap[globalVar] = maxGlobalSize;
+		maxGlobalSize += globalVar->getType()->getPrimitiveSizeInBits() / 8;
+	}
+
 	switch (MO.getType()) {
-		case MachineOperand::MO_Register:
-			// Ignore all implicit register operands.
-			if (MO.isImplicit()) return MCOperand();
-			return MCOperand::CreateReg(MO.getReg());
+	case MachineOperand::MO_Register:
+		// Ignore all implicit register operands.
+		if (MO.isImplicit())
+			return MCOperand();
+		return MCOperand::CreateReg(MO.getReg());
 
-		case MachineOperand::MO_Immediate:
-			return MCOperand::CreateImm(MO.getImm());
+	case MachineOperand::MO_Immediate:
+		return MCOperand::CreateImm(MO.getImm());
 
-		case MachineOperand::MO_MachineBasicBlock:
-			return lowerSymbolOperand(MO, MO.getMBB()->getSymbol(),
-			/* MO has no offset field */0);
+	case MachineOperand::MO_MachineBasicBlock:
+		return lowerSymbolOperand(MO, MO.getMBB()->getSymbol(),
+		/* MO has no offset field */0);
 
-		case MachineOperand::MO_GlobalAddress:
-			return lowerSymbolOperand(MO, Mang->getSymbol(MO.getGlobal()), MO.getOffset());
+	case MachineOperand::MO_GlobalAddress: {
+//		return lowerSymbolOperand(MO, Mang->getSymbol(MO.getGlobal()), MO.getOffset());
+		return MCOperand::CreateImm(globalVarStartAddressMap[MO.getGlobal()] + MO.getOffset());
+	}
 
-		case MachineOperand::MO_ExternalSymbol: {
-			StringRef Name = MO.getSymbolName();
-			return lowerSymbolOperand(MO, AsmPrinter.GetExternalSymbolSymbol(Name), MO.getOffset());
-		}
+	case MachineOperand::MO_ExternalSymbol: {
+		StringRef Name = MO.getSymbolName();
+		return lowerSymbolOperand(MO, AsmPrinter.GetExternalSymbolSymbol(Name), MO.getOffset());
+	}
 		//TODO: Somehow, getObjectOffset doesn't work, need to check why;
-		//TODO: Take into account the liveness information of HyperOps during memory allocation
-		case MachineOperand::MO_FrameIndex: {
-			if (firstIterationOfFrameIndexProcessing||(function->getName().compare(MO.getParent()->getParent()->getParent()->getName())!=0)) {
-				if (!firstIterationOfFrameIndexProcessing) {
-					int maxOffsetInPreviousHyperOp = 0;
-					for (int i = MO.getParent()->getParent()->getParent()->getFrameInfo()->getObjectIndexBegin(); i < MO.getParent()->getParent()->getParent()->getFrameInfo()->getObjectIndexEnd(); i++) {
-						maxOffsetInPreviousHyperOp += MO.getParent()->getParent()->getParent()->getFrameInfo()->getObjectSize(i);
-					}
-					//Spill over previous base address to base memory for the next HyperOp
-					dgmMemoryAddress += maxOffsetInPreviousHyperOp;
-				}
-				firstIterationOfFrameIndexProcessing = false;
-				function = MO.getParent()->getParent()->getParent();
-			}
-
-			unsigned currentObjectOffset = 0;
-			for (int i = 0; i < MO.getIndex(); i++) {
-				currentObjectOffset += MO.getParent()->getParent()->getParent()->getFrameInfo()->getObjectSize(i);
-			}
-
-			MCOperand retVal = MCOperand::CreateImm(dgmMemoryAddress + currentObjectOffset);
-			return retVal;
+	case MachineOperand::MO_FrameIndex: {
+		unsigned currentObjectOffset = 0;
+		for (int i = MO.getMBB()->getParent()->getFrameInfo()->getObjectIndexBegin(); i < MO.getIndex(); i++) {
+			currentObjectOffset += MO.getMBB()->getParent()->getFrameInfo()->getObjectSize(i);
 		}
+		MCOperand retVal = MCOperand::CreateImm(currentObjectOffset + maxGlobalSize);
+		return retVal;
+	}
 
-		case MachineOperand::MO_JumpTableIndex:
-			return lowerSymbolOperand(MO, AsmPrinter.GetJTISymbol(MO.getIndex()),
-			/* MO has no offset field */0);
+	case MachineOperand::MO_JumpTableIndex:
+		return lowerSymbolOperand(MO, AsmPrinter.GetJTISymbol(MO.getIndex()),
+		/* MO has no offset field */0);
 
-		case MachineOperand::MO_ConstantPoolIndex:
-			return lowerSymbolOperand(MO, AsmPrinter.GetCPISymbol(MO.getIndex()), MO.getOffset());
+	case MachineOperand::MO_ConstantPoolIndex:
+		return lowerSymbolOperand(MO, AsmPrinter.GetCPISymbol(MO.getIndex()), MO.getOffset());
 
-		case MachineOperand::MO_BlockAddress: {
-			const BlockAddress *BA = MO.getBlockAddress();
-			return lowerSymbolOperand(MO, AsmPrinter.GetBlockAddressSymbol(BA), MO.getOffset());
-		}
+	case MachineOperand::MO_BlockAddress: {
+		const BlockAddress *BA = MO.getBlockAddress();
+		return lowerSymbolOperand(MO, AsmPrinter.GetBlockAddressSymbol(BA), MO.getOffset());
+	}
 		//Making use of MC Symbol to enable patching of HyperOp ids in fbind and createinst instructions later
-		case MachineOperand::MO_MCSymbol:{
-			return lowerSymbolOperand(MO, MO.getMCSymbol(), 0);
-		}
-		default:
-			llvm_unreachable("unknown operand type");
+	case MachineOperand::MO_MCSymbol: {
+		return lowerSymbolOperand(MO, MO.getMCSymbol(), 0);
+	}
+	default:
+		llvm_unreachable("unknown operand type");
 	}
 }
 
@@ -138,12 +130,14 @@ void REDEFINEMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) const {
 	unsigned Opcode = MI->getOpcode();
 	// When emitting binary code, start with the shortest form of an instruction
 	// and then relax it where necessary.
-	if (!AsmPrinter.OutStreamer.hasRawTextSupport()) Opcode = getShortenedInstr(Opcode);
+	if (!AsmPrinter.OutStreamer.hasRawTextSupport())
+		Opcode = getShortenedInstr(Opcode);
 	OutMI.setOpcode(Opcode);
 	for (unsigned I = 0, E = MI->getNumOperands(); I != E; ++I) {
 		const MachineOperand &MO = MI->getOperand(I);
 		MCOperand MCOp = lowerOperand(MO);
-		if (MCOp.isValid()) OutMI.addOperand(MCOp);
+		if (MCOp.isValid())
+			OutMI.addOperand(MCOp);
 	}
 }
 

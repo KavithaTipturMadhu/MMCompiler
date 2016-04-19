@@ -1,0 +1,937 @@
+Index: docs/LangRef.rst
+===================================================================
+--- docs/LangRef.rst
++++ docs/LangRef.rst
+@@ -8020,9 +8020,9 @@
+ 
+       declare float     @llvm.fabs.f32(float  %Val)
+       declare double    @llvm.fabs.f64(double %Val)
+-      declare x86_fp80  @llvm.fabs.f80(x86_fp80  %Val)
++      declare x86_fp80  @llvm.fabs.f80(x86_fp80 %Val)
+       declare fp128     @llvm.fabs.f128(fp128 %Val)
+-      declare ppc_fp128 @llvm.fabs.ppcf128(ppc_fp128  %Val)
++      declare ppc_fp128 @llvm.fabs.ppcf128(ppc_fp128 %Val)
+ 
+ Overview:
+ """""""""
+@@ -8042,6 +8042,89 @@
+ This function returns the same values as the libm ``fabs`` functions
+ would, and handles error conditions in the same way.
+ 
++'``llvm.minnum.*``' Intrinsic
++^^^^^^^^^^^^^^^^^^^^^^^^^^^
++
++Syntax:
++"""""""
++
++This is an overloaded intrinsic. You can use ``llvm.minnum`` on any
++floating point or vector of floating point type. Not all targets support
++all types however.
++
++::
++
++      declare float     @llvm.minnum.f32(float %Val)
++      declare double    @llvm.minnum.f64(double %Val)
++      declare x86_fp80  @llvm.minnum.f80(x86_fp80 %Val)
++      declare fp128     @llvm.minnum.f128(fp128 %Val)
++      declare ppc_fp128 @llvm.minnum.ppcf128(ppc_fp128 %Val)
++
++Overview:
++"""""""""
++
++The '``llvm.minnum.*``' intrinsics return the minimum of the two
++arguments.
++
++
++Arguments:
++""""""""""
++
++The arguments and return value are floating point numbers of the same
++type.
++
++Semantics:
++""""""""""
++
++Follows the IEEE-754 semantics for minNum, which also match for libm's
++fmin.
++
++If either operand is a NaN, returns the other non-NaN operand. Returns
++NaN only if both operands are NaN. If the operands compare equal,
++returns a value that compares equal to both operands. This means that
++fmin(+/-0.0, +/-0.0) could return either -0.0 or 0.0.
++
++'``llvm.maxnum.*``' Intrinsic
++^^^^^^^^^^^^^^^^^^^^^^^^^^^
++
++Syntax:
++"""""""
++
++This is an overloaded intrinsic. You can use ``llvm.maxnum`` on any
++floating point or vector of floating point type. Not all targets support
++all types however.
++
++::
++
++      declare float     @llvm.maxnum.f32(float  %Val)
++      declare double    @llvm.maxnum.f64(double %Val)
++      declare x86_fp80  @llvm.maxnum.f80(x86_fp80  %Val)
++      declare fp128     @llvm.maxnum.f128(fp128 %Val)
++      declare ppc_fp128 @llvm.maxnum.ppcf128(ppc_fp128  %Val)
++
++Overview:
++"""""""""
++
++The '``llvm.maxnum.*``' intrinsics return the maximum of the two
++arguments.
++
++
++Arguments:
++""""""""""
++
++The arguments and return value are floating point numbers of the same
++type.
++
++Semantics:
++""""""""""
++Follows the IEEE-754 semantics for maxNum, which also match for libm's
++fmax.
++
++If either operand is a NaN, returns the other non-NaN operand. Returns
++NaN only if both operands are NaN. If the operands compare equal,
++returns a value that compares equal to both operands. This means that
++fmax(+/-0.0, +/-0.0) could return either -0.0 or 0.0.
++
+ '``llvm.copysign.*``' Intrinsic
+ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 
+Index: include/llvm/IR/Intrinsics.td
+===================================================================
+--- include/llvm/IR/Intrinsics.td
++++ include/llvm/IR/Intrinsics.td
+@@ -328,6 +328,8 @@
+   def int_exp  : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>]>;
+   def int_exp2 : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>]>;
+   def int_fabs : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>]>;
++  def int_minnum : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>, LLVMMatchType<0>]>;
++  def int_maxnum : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>, LLVMMatchType<0>]>;
+   def int_copysign : Intrinsic<[llvm_anyfloat_ty],
+                                [LLVMMatchType<0>, LLVMMatchType<0>]>;
+   def int_floor : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>]>;
+Index: include/llvm/IR/PatternMatch.h
+===================================================================
+--- include/llvm/IR/PatternMatch.h
++++ include/llvm/IR/PatternMatch.h
+@@ -1228,6 +1228,18 @@
+   return m_Intrinsic<Intrinsic::bswap>(Op0);
+ }
+ 
++template<typename Opnd0, typename Opnd1>
++inline typename m_Intrinsic_Ty<Opnd0, Opnd1>::Ty
++m_FMin(const Opnd0 &Op0, const Opnd1 &Op1) {
++  return m_Intrinsic<Intrinsic::minnum>(Op0, Op1);
++}
++
++template<typename Opnd0, typename Opnd1>
++inline typename m_Intrinsic_Ty<Opnd0, Opnd1>::Ty
++m_FMax(const Opnd0 &Op0, const Opnd1 &Op1) {
++  return m_Intrinsic<Intrinsic::maxnum>(Op0, Op1);
++}
++
+ } // end namespace PatternMatch
+ } // end namespace llvm
+ 
+Index: include/llvm/Target/TargetSelectionDAG.td
+===================================================================
+--- include/llvm/Target/TargetSelectionDAG.td
++++ include/llvm/Target/TargetSelectionDAG.td
+@@ -373,6 +373,8 @@
+ def frem       : SDNode<"ISD::FREM"       , SDTFPBinOp>;
+ def fma        : SDNode<"ISD::FMA"        , SDTFPTernaryOp>;
+ def fabs       : SDNode<"ISD::FABS"       , SDTFPUnaryOp>;
++def fminnum    : SDNode<"ISD::FMINNUM"    , SDTFPBinOp>;
++def fmaxnum    : SDNode<"ISD::FMAXNUM"    , SDTFPBinOp>;
+ def fgetsign   : SDNode<"ISD::FGETSIGN"   , SDTFPToIntOp>;
+ def fneg       : SDNode<"ISD::FNEG"       , SDTFPUnaryOp>;
+ def fsqrt      : SDNode<"ISD::FSQRT"      , SDTFPUnaryOp>;
+Index: include/llvm/Transforms/Utils/VectorUtils.h
+===================================================================
+--- include/llvm/Transforms/Utils/VectorUtils.h
++++ include/llvm/Transforms/Utils/VectorUtils.h
+@@ -36,6 +36,8 @@
+   case Intrinsic::log10:
+   case Intrinsic::log2:
+   case Intrinsic::fabs:
++  case Intrinsic::minnum:
++  case Intrinsic::maxnum:
+   case Intrinsic::copysign:
+   case Intrinsic::floor:
+   case Intrinsic::ceil:
+@@ -153,6 +155,14 @@
+   case LibFunc::fabsf:
+   case LibFunc::fabsl:
+     return checkUnaryFloatSignature(*CI, Intrinsic::fabs);
++  case LibFunc::fmin:
++  case LibFunc::fminf:
++  case LibFunc::fminl:
++    return checkBinaryFloatSignature(*CI, Intrinsic::minnum);
++  case LibFunc::fmax:
++  case LibFunc::fmaxf:
++  case LibFunc::fmaxl:
++    return checkBinaryFloatSignature(*CI, Intrinsic::maxnum);
+   case LibFunc::copysign:
+   case LibFunc::copysignf:
+   case LibFunc::copysignl:
+Index: lib/Analysis/ConstantFolding.cpp
+===================================================================
+--- lib/Analysis/ConstantFolding.cpp
++++ lib/Analysis/ConstantFolding.cpp
+@@ -1229,6 +1229,8 @@
+ bool llvm::canConstantFoldCallTo(const Function *F) {
+   switch (F->getIntrinsicID()) {
+   case Intrinsic::fabs:
++  case Intrinsic::minnum:
++  case Intrinsic::maxnum:
+   case Intrinsic::log:
+   case Intrinsic::log2:
+   case Intrinsic::log10:
+@@ -1625,6 +1627,19 @@
+           V1.copySign(V2);
+           return ConstantFP::get(Ty->getContext(), V1);
+         }
++
++        if (IntrinsicID == Intrinsic::minnum) {
++          const APFloat &C1 = Op1->getValueAPF();
++          const APFloat &C2 = Op2->getValueAPF();
++          return ConstantFP::get(Ty->getContext(), C1.minnum(C2));
++        }
++
++        if (IntrinsicID == Intrinsic::maxnum) {
++          const APFloat &C1 = Op1->getValueAPF();
++          const APFloat &C2 = Op2->getValueAPF();
++          return ConstantFP::get(Ty->getContext(), C1.maxnum(C2));
++        }
++
+         if (!TLI)
+           return nullptr;
+         if (Name == "pow" && TLI->has(LibFunc::pow))
+Index: lib/Analysis/TargetTransformInfo.cpp
+===================================================================
+--- lib/Analysis/TargetTransformInfo.cpp
++++ lib/Analysis/TargetTransformInfo.cpp
+@@ -475,6 +475,8 @@
+     // These will all likely lower to a single selection DAG node.
+     if (Name == "copysign" || Name == "copysignf" || Name == "copysignl" ||
+         Name == "fabs" || Name == "fabsf" || Name == "fabsl" || Name == "sin" ||
++        Name == "fmin" || Name == "fminf" || Name == "fminl" ||
++        Name == "fmax" || Name == "fmaxf" || Name == "fmaxl" ||
+         Name == "sinf" || Name == "sinl" || Name == "cos" || Name == "cosf" ||
+         Name == "cosl" || Name == "sqrt" || Name == "sqrtf" || Name == "sqrtl")
+       return false;
+Index: lib/Analysis/ValueTracking.cpp
+===================================================================
+--- lib/Analysis/ValueTracking.cpp
++++ lib/Analysis/ValueTracking.cpp
+@@ -2577,6 +2577,8 @@
+        case Intrinsic::fma:
+        case Intrinsic::fmuladd:
+        case Intrinsic::fabs:
++       case Intrinsic::minnum:
++       case Intrinsic::maxnum:
+          return true;
+        // TODO: some fp intrinsics are marked as having the same error handling
+        // as libm. They're safe to speculate when they won't error.
+Index: lib/Transforms/InstCombine/InstCombineCalls.cpp
+===================================================================
+--- lib/Transforms/InstCombine/InstCombineCalls.cpp
++++ lib/Transforms/InstCombine/InstCombineCalls.cpp
+@@ -519,6 +519,87 @@
+       }
+     }
+     break;
++  case Intrinsic::minnum:
++  case Intrinsic::maxnum: {
++    Value *Arg0 = II->getArgOperand(0);
++    Value *Arg1 = II->getArgOperand(1);
++
++    // fmin(x, x) -> x
++    if (Arg0 == Arg1)
++      return ReplaceInstUsesWith(CI, Arg0);
++
++    const ConstantFP *C0 = dyn_cast<ConstantFP>(Arg0);
++    const ConstantFP *C1 = dyn_cast<ConstantFP>(Arg1);
++
++    // Canonicalize constants into the RHS.
++    if (C0 && !C1) {
++      II->setArgOperand(0, Arg1);
++      II->setArgOperand(1, Arg0);
++      return II;
++    }
++
++    // fmin(x, nan) -> x
++    if (C1 && C1->isNaN())
++      return ReplaceInstUsesWith(CI, Arg0);
++
++    // fmin(undef, x) -> x
++    if (isa<UndefValue>(Arg0))
++      return ReplaceInstUsesWith(CI, Arg1);
++
++    // fmin(x, undef) -> x
++    if (isa<UndefValue>(Arg1))
++      return ReplaceInstUsesWith(CI, Arg0);
++
++    Value *X = nullptr;
++    Value *Y = nullptr;
++    if (II->getIntrinsicID() == Intrinsic::minnum) {
++      // fmin(x, fmin(x, y)) -> fmin(x, y)
++      // fmin(y, fmin(x, y)) -> fmin(x, y)
++      if (match(Arg1, m_FMin(m_Value(X), m_Value(Y)))) {
++        if (Arg0 == X || Arg0 == Y)
++          return ReplaceInstUsesWith(CI, Arg1);
++      }
++
++      // fmin(fmin(x, y), x) -> fmin(x, y)
++      // fmin(fmin(x, y), y) -> fmin(x, y)
++      if (match(Arg0, m_FMin(m_Value(X), m_Value(Y)))) {
++        if (Arg1 == X || Arg1 == Y)
++          return ReplaceInstUsesWith(CI, Arg0);
++      }
++
++      // TODO: fmin(nnan x, inf) -> x
++      // TODO: fmin(nnan ninf x, flt_max) -> x
++      if (C1 && C1->isInfinity()) {
++        // fmin(x, -inf) -> -inf
++        if (C1->isNegative())
++          return ReplaceInstUsesWith(CI, Arg1);
++      }
++    } else {
++      assert(II->getIntrinsicID() == Intrinsic::maxnum);
++      // fmax(x, fmax(x, y)) -> fmax(x, y)
++      // fmax(y, fmax(x, y)) -> fmax(x, y)
++      if (match(Arg1, m_FMax(m_Value(X), m_Value(Y)))) {
++        if (Arg0 == X || Arg0 == Y)
++          return ReplaceInstUsesWith(CI, Arg1);
++      }
++
++      // fmax(fmax(x, y), x) -> fmax(x, y)
++      // fmax(fmax(x, y), y) -> fmax(x, y)
++      if (match(Arg0, m_FMax(m_Value(X), m_Value(Y)))) {
++        if (Arg1 == X || Arg1 == Y)
++          return ReplaceInstUsesWith(CI, Arg0);
++      }
++
++      // TODO: fmax(nnan x, -inf) -> x
++      // TODO: fmax(nnan ninf x, -flt_max) -> x
++      if (C1 && C1->isInfinity()) {
++        // fmax(x, inf) -> inf
++        if (!C1->isNegative())
++          return ReplaceInstUsesWith(CI, Arg1);
++      }
++    }
++    break;
++  }
+   case Intrinsic::ppc_altivec_lvx:
+   case Intrinsic::ppc_altivec_lvxl:
+     // Turn PPC lvx -> load if the pointer is known aligned.
+Index: lib/Transforms/Vectorize/BBVectorize.cpp
+===================================================================
+--- lib/Transforms/Vectorize/BBVectorize.cpp
++++ lib/Transforms/Vectorize/BBVectorize.cpp
+@@ -685,6 +685,8 @@
+       case Intrinsic::trunc:
+       case Intrinsic::floor:
+       case Intrinsic::fabs:
++      case Intrinsic::minnum:
++      case Intrinsic::maxnum:
+         return Config.VectorizeMath;
+       case Intrinsic::bswap:
+       case Intrinsic::ctpop:
+Index: test/Transforms/InstCombine/maxnum.ll
+===================================================================
+--- /dev/null
++++ test/Transforms/InstCombine/maxnum.ll
+@@ -0,0 +1,222 @@
++; RUN: opt -S -instcombine < %s | FileCheck %s
++
++declare float @llvm.maxnum.f32(float, float) #0
++declare float @llvm.maxnum.v2f32(<2 x float>, <2 x float>) #0
++declare <4 x float> @llvm.maxnum.v4f32(<4 x float>, <4 x float>) #0
++
++declare double @llvm.maxnum.f64(double, double) #0
++declare <2 x double> @llvm.maxnum.v2f64(<2 x double>, <2 x double>) #0
++
++; CHECK-LABEL: @constant_fold_maxnum_f32
++; CHECK-NEXT: ret float 2.000000e+00
++define float @constant_fold_maxnum_f32() #0 {
++  %x = call float @llvm.maxnum.f32(float 1.0, float 2.0) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_maxnum_f32_inv
++; CHECK-NEXT: ret float 2.000000e+00
++define float @constant_fold_maxnum_f32_inv() #0 {
++  %x = call float @llvm.maxnum.f32(float 2.0, float 1.0) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_maxnum_f32_nan0
++; CHECK-NEXT: ret float 2.000000e+00
++define float @constant_fold_maxnum_f32_nan0() #0 {
++  %x = call float @llvm.maxnum.f32(float 0x7FF8000000000000, float 2.0) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_maxnum_f32_nan1
++; CHECK-NEXT: ret float 2.000000e+00
++define float @constant_fold_maxnum_f32_nan1() #0 {
++  %x = call float @llvm.maxnum.f32(float 2.0, float 0x7FF8000000000000) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_maxnum_f32_nan_nan
++; CHECK-NEXT: ret float 0x7FF8000000000000
++define float @constant_fold_maxnum_f32_nan_nan() #0 {
++  %x = call float @llvm.maxnum.f32(float 0x7FF8000000000000, float 0x7FF8000000000000) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_maxnum_f32_p0_p0
++; CHECK-NEXT: ret float 0.000000e+00
++define float @constant_fold_maxnum_f32_p0_p0() #0 {
++  %x = call float @llvm.maxnum.f32(float 0.0, float 0.0) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_maxnum_f32_p0_n0
++; CHECK-NEXT: ret float 0.000000e+00
++define float @constant_fold_maxnum_f32_p0_n0() #0 {
++  %x = call float @llvm.maxnum.f32(float 0.0, float -0.0) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_maxnum_f32_n0_p0
++; CHECK-NEXT: ret float -0.000000e+00
++define float @constant_fold_maxnum_f32_n0_p0() #0 {
++  %x = call float @llvm.maxnum.f32(float -0.0, float 0.0) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_maxnum_f32_n0_n0
++; CHECK-NEXT: ret float -0.000000e+00
++define float @constant_fold_maxnum_f32_n0_n0() #0 {
++  %x = call float @llvm.maxnum.f32(float -0.0, float -0.0) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_maxnum_v4f32
++; CHECK-NEXT: ret <4 x float> <float 2.000000e+00, float 8.000000e+00, float 1.000000e+01, float 9.000000e+00>
++define <4 x float> @constant_fold_maxnum_v4f32() #0 {
++  %x = call <4 x float> @llvm.maxnum.v4f32(<4 x float> <float 1.0, float 8.0, float 3.0, float 9.0>, <4 x float> <float 2.0, float 2.0, float 10.0, float 5.0>)
++  ret <4 x float> %x
++}
++
++; CHECK-LABEL: @constant_fold_maxnum_f64
++; CHECK-NEXT: ret double 2.000000e+00
++define double @constant_fold_maxnum_f64() #0 {
++  %x = call double @llvm.maxnum.f64(double 1.0, double 2.0) #0
++  ret double %x
++}
++
++; CHECK-LABEL: @constant_fold_maxnum_f64_nan0
++; CHECK-NEXT: ret double 2.000000e+00
++define double @constant_fold_maxnum_f64_nan0() #0 {
++  %x = call double @llvm.maxnum.f64(double 0x7FF8000000000000, double 2.0) #0
++  ret double %x
++}
++
++; CHECK-LABEL: @constant_fold_maxnum_f64_nan1
++; CHECK-NEXT: ret double 2.000000e+00
++define double @constant_fold_maxnum_f64_nan1() #0 {
++  %x = call double @llvm.maxnum.f64(double 2.0, double 0x7FF8000000000000) #0
++  ret double %x
++}
++
++; CHECK-LABEL: @constant_fold_maxnum_f64_nan_nan
++; CHECK-NEXT: ret double 0x7FF8000000000000
++define double @constant_fold_maxnum_f64_nan_nan() #0 {
++  %x = call double @llvm.maxnum.f64(double 0x7FF8000000000000, double 0x7FF8000000000000) #0
++  ret double %x
++}
++
++; CHECK-LABEL: @canonicalize_constant_maxnum_f32
++; CHECK: call float @llvm.maxnum.f32(float %x, float 1.000000e+00)
++define float @canonicalize_constant_maxnum_f32(float %x) #0 {
++  %y = call float @llvm.maxnum.f32(float 1.0, float %x) #0
++  ret float %y
++}
++
++; CHECK-LABEL: @noop_maxnum_f32
++; CHECK-NEXT: ret float %x
++define float @noop_maxnum_f32(float %x) #0 {
++  %y = call float @llvm.maxnum.f32(float %x, float %x) #0
++  ret float %y
++}
++
++; CHECK-LABEL: @maxnum_f32_nan_val
++; CHECK-NEXT: ret float %x
++define float @maxnum_f32_nan_val(float %x) #0 {
++  %y = call float @llvm.maxnum.f32(float 0x7FF8000000000000, float %x) #0
++  ret float %y
++}
++
++; CHECK-LABEL: @maxnum_f32_val_nan
++; CHECK-NEXT: ret float %x
++define float @maxnum_f32_val_nan(float %x) #0 {
++  %y = call float @llvm.maxnum.f32(float %x, float 0x7FF8000000000000) #0
++  ret float %y
++}
++
++; CHECK-LABEL: @fold_maxnum_f32_undef_undef
++; CHECK-NEXT: ret float undef
++define float @fold_maxnum_f32_undef_undef(float %x) nounwind {
++  %val = call float @llvm.maxnum.f32(float undef, float undef) #0
++  ret float %val
++}
++
++; CHECK-LABEL: @fold_maxnum_f32_val_undef
++; CHECK-NEXT: ret float %x
++define float @fold_maxnum_f32_val_undef(float %x) nounwind {
++  %val = call float @llvm.maxnum.f32(float %x, float undef) #0
++  ret float %val
++}
++
++; CHECK-LABEL: @fold_maxnum_f32_undef_val
++; CHECK-NEXT: ret float %x
++define float @fold_maxnum_f32_undef_val(float %x) nounwind {
++  %val = call float @llvm.maxnum.f32(float undef, float %x) #0
++  ret float %val
++}
++
++; CHECK-LABEL: @maxnum_x_maxnum_x_y
++; CHECK-NEXT: call float @llvm.maxnum.f32(float %x, float %y)
++; CHECK-NEXT: ret float
++define float @maxnum_x_maxnum_x_y(float %x, float %y) #0 {
++  %a = call float @llvm.maxnum.f32(float %x, float %y) #0
++  %b = call float @llvm.maxnum.f32(float %x, float %a) #0
++  ret float %b
++}
++
++; CHECK-LABEL: @maxnum_y_maxnum_x_y
++; CHECK-NEXT: call float @llvm.maxnum.f32(float %x, float %y)
++; CHECK-NEXT: ret float
++define float @maxnum_y_maxnum_x_y(float %x, float %y) #0 {
++  %a = call float @llvm.maxnum.f32(float %x, float %y) #0
++  %b = call float @llvm.maxnum.f32(float %y, float %a) #0
++  ret float %b
++}
++
++; CHECK-LABEL: @maxnum_z_maxnum_x_y
++; CHECK-NEXT: call float @llvm.maxnum.f32(float %x, float %y)
++; CHECK-NEXT: call float @llvm.maxnum.f32(float %z, float %a)
++; CHECK-NEXT: ret float
++define float @maxnum_z_maxnum_x_y(float %x, float %y, float %z) #0 {
++  %a = call float @llvm.maxnum.f32(float %x, float %y) #0
++  %b = call float @llvm.maxnum.f32(float %z, float %a) #0
++  ret float %b
++}
++
++; CHECK-LABEL: @maxnum_maxnum_x_y_z
++; CHECK-NEXT: call float @llvm.maxnum.f32(float %x, float %y)
++; CHECK-NEXT: call float @llvm.maxnum.f32(float %a, float %z)
++; CHECK-NEXT: ret float
++define float @maxnum_maxnum_x_y_z(float %x, float %y, float %z) #0 {
++  %a = call float @llvm.maxnum.f32(float %x, float %y) #0
++  %b = call float @llvm.maxnum.f32(float %a, float %z) #0
++  ret float %b
++}
++
++; CHECK-LABEL: @maxnum4
++; CHECK-NEXT: call float @llvm.maxnum.f32(float %x, float %y)
++; CHECK-NEXT: call float @llvm.maxnum.f32(float %z, float %w)
++; CHECK-NEXT: call float @llvm.maxnum.f32(float %a, float %b)
++; CHECK-NEXT: ret float
++define float @maxnum4(float %x, float %y, float %z, float %w) #0 {
++  %a = call float @llvm.maxnum.f32(float %x, float %y) #0
++  %b = call float @llvm.maxnum.f32(float %z, float %w) #0
++  %c = call float @llvm.maxnum.f32(float %a, float %b) #0
++  ret float %c
++}
++
++; CHECK-LABEL: @fold_maxnum_f32_inf_val
++; CHECK-NEXT: ret float 0x7FF0000000000000
++define float @fold_maxnum_f32_inf_val(float %x) nounwind {
++  %val = call float @llvm.maxnum.f32(float 0x7FF0000000000000, float %x) #0
++  ret float %val
++}
++
++; CHECK-LABEL: @fold_maxnum_f32_neginf_val
++; CHECK-NEXT: call float @llvm.maxnum.f32(float %x, float 0xFFF0000000000000)
++; CHECK-NEXT: ret float
++define float @fold_maxnum_f32_neginf_val(float %x) nounwind {
++  %val = call float @llvm.maxnum.f32(float 0xFFF0000000000000, float %x) #0
++  ret float %val
++}
++
++attributes #0 = { nounwind readnone }
+Index: test/Transforms/InstCombine/minnum.ll
+===================================================================
+--- /dev/null
++++ test/Transforms/InstCombine/minnum.ll
+@@ -0,0 +1,244 @@
++; RUN: opt -S -instcombine < %s | FileCheck %s
++
++declare float @llvm.minnum.f32(float, float) #0
++declare float @llvm.minnum.v2f32(<2 x float>, <2 x float>) #0
++declare <4 x float> @llvm.minnum.v4f32(<4 x float>, <4 x float>) #0
++
++declare double @llvm.minnum.f64(double, double) #0
++declare <2 x double> @llvm.minnum.v2f64(<2 x double>, <2 x double>) #0
++
++declare float @llvm.fmax.f32(float, float) #0
++
++; CHECK-LABEL: @constant_fold_minnum_f32
++; CHECK-NEXT: ret float 1.000000e+00
++define float @constant_fold_minnum_f32() #0 {
++  %x = call float @llvm.minnum.f32(float 1.0, float 2.0) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_minnum_f32_inv
++; CHECK-NEXT: ret float 1.000000e+00
++define float @constant_fold_minnum_f32_inv() #0 {
++  %x = call float @llvm.minnum.f32(float 2.0, float 1.0) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_minnum_f32_nan0
++; CHECK-NEXT: ret float 2.000000e+00
++define float @constant_fold_minnum_f32_nan0() #0 {
++  %x = call float @llvm.minnum.f32(float 0x7FF8000000000000, float 2.0) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_minnum_f32_nan1
++; CHECK-NEXT: ret float 2.000000e+00
++define float @constant_fold_minnum_f32_nan1() #0 {
++  %x = call float @llvm.minnum.f32(float 2.0, float 0x7FF8000000000000) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_minnum_f32_nan_nan
++; CHECK-NEXT: ret float 0x7FF8000000000000
++define float @constant_fold_minnum_f32_nan_nan() #0 {
++  %x = call float @llvm.minnum.f32(float 0x7FF8000000000000, float 0x7FF8000000000000) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_minnum_f32_p0_p0
++; CHECK-NEXT: ret float 0.000000e+00
++define float @constant_fold_minnum_f32_p0_p0() #0 {
++  %x = call float @llvm.minnum.f32(float 0.0, float 0.0) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_minnum_f32_p0_n0
++; CHECK-NEXT: ret float 0.000000e+00
++define float @constant_fold_minnum_f32_p0_n0() #0 {
++  %x = call float @llvm.minnum.f32(float 0.0, float -0.0) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_minnum_f32_n0_p0
++; CHECK-NEXT: ret float -0.000000e+00
++define float @constant_fold_minnum_f32_n0_p0() #0 {
++  %x = call float @llvm.minnum.f32(float -0.0, float 0.0) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_minnum_f32_n0_n0
++; CHECK-NEXT: ret float -0.000000e+00
++define float @constant_fold_minnum_f32_n0_n0() #0 {
++  %x = call float @llvm.minnum.f32(float -0.0, float -0.0) #0
++  ret float %x
++}
++
++; CHECK-LABEL: @constant_fold_minnum_v4f32
++; CHECK-NEXT: ret <4 x float> <float 1.000000e+00, float 2.000000e+00, float 3.000000e+00, float 5.000000e+00>
++define <4 x float> @constant_fold_minnum_v4f32() #0 {
++  %x = call <4 x float> @llvm.minnum.v4f32(<4 x float> <float 1.0, float 8.0, float 3.0, float 9.0>, <4 x float> <float 2.0, float 2.0, float 10.0, float 5.0>)
++  ret <4 x float> %x
++}
++
++; CHECK-LABEL: @constant_fold_minnum_f64
++; CHECK-NEXT: ret double 1.000000e+00
++define double @constant_fold_minnum_f64() #0 {
++  %x = call double @llvm.minnum.f64(double 1.0, double 2.0) #0
++  ret double %x
++}
++
++; CHECK-LABEL: @constant_fold_minnum_f64_nan0
++; CHECK-NEXT: ret double 2.000000e+00
++define double @constant_fold_minnum_f64_nan0() #0 {
++  %x = call double @llvm.minnum.f64(double 0x7FF8000000000000, double 2.0) #0
++  ret double %x
++}
++
++; CHECK-LABEL: @constant_fold_minnum_f64_nan1
++; CHECK-NEXT: ret double 2.000000e+00
++define double @constant_fold_minnum_f64_nan1() #0 {
++  %x = call double @llvm.minnum.f64(double 2.0, double 0x7FF8000000000000) #0
++  ret double %x
++}
++
++; CHECK-LABEL: @constant_fold_minnum_f64_nan_nan
++; CHECK-NEXT: ret double 0x7FF8000000000000
++define double @constant_fold_minnum_f64_nan_nan() #0 {
++  %x = call double @llvm.minnum.f64(double 0x7FF8000000000000, double 0x7FF8000000000000) #0
++  ret double %x
++}
++
++; CHECK-LABEL: @canonicalize_constant_minnum_f32
++; CHECK: call float @llvm.minnum.f32(float %x, float 1.000000e+00)
++define float @canonicalize_constant_minnum_f32(float %x) #0 {
++  %y = call float @llvm.minnum.f32(float 1.0, float %x) #0
++  ret float %y
++}
++
++; CHECK-LABEL: @noop_minnum_f32
++; CHECK-NEXT: ret float %x
++define float @noop_minnum_f32(float %x) #0 {
++  %y = call float @llvm.minnum.f32(float %x, float %x) #0
++  ret float %y
++}
++
++; CHECK-LABEL: @minnum_f32_nan_val
++; CHECK-NEXT: ret float %x
++define float @minnum_f32_nan_val(float %x) #0 {
++  %y = call float @llvm.minnum.f32(float 0x7FF8000000000000, float %x) #0
++  ret float %y
++}
++
++; CHECK-LABEL: @minnum_f32_val_nan
++; CHECK-NEXT: ret float %x
++define float @minnum_f32_val_nan(float %x) #0 {
++  %y = call float @llvm.minnum.f32(float %x, float 0x7FF8000000000000) #0
++  ret float %y
++}
++
++; CHECK-LABEL: @fold_minnum_f32_undef_undef
++; CHECK-NEXT: ret float undef
++define float @fold_minnum_f32_undef_undef(float %x) nounwind {
++  %val = call float @llvm.minnum.f32(float undef, float undef) #0
++  ret float %val
++}
++
++; CHECK-LABEL: @fold_minnum_f32_val_undef
++; CHECK-NEXT: ret float %x
++define float @fold_minnum_f32_val_undef(float %x) nounwind {
++  %val = call float @llvm.minnum.f32(float %x, float undef) #0
++  ret float %val
++}
++
++; CHECK-LABEL: @fold_minnum_f32_undef_val
++; CHECK-NEXT: ret float %x
++define float @fold_minnum_f32_undef_val(float %x) nounwind {
++  %val = call float @llvm.minnum.f32(float undef, float %x) #0
++  ret float %val
++}
++
++; CHECK-LABEL: @minnum_x_minnum_x_y
++; CHECK-NEXT: call float @llvm.minnum.f32(float %x, float %y)
++; CHECK-NEXT: ret float
++define float @minnum_x_minnum_x_y(float %x, float %y) #0 {
++  %a = call float @llvm.minnum.f32(float %x, float %y) #0
++  %b = call float @llvm.minnum.f32(float %x, float %a) #0
++  ret float %b
++}
++
++; CHECK-LABEL: @minnum_y_minnum_x_y
++; CHECK-NEXT: call float @llvm.minnum.f32(float %x, float %y)
++; CHECK-NEXT: ret float
++define float @minnum_y_minnum_x_y(float %x, float %y) #0 {
++  %a = call float @llvm.minnum.f32(float %x, float %y) #0
++  %b = call float @llvm.minnum.f32(float %y, float %a) #0
++  ret float %b
++}
++
++; CHECK-LABEL: @minnum_z_minnum_x_y
++; CHECK-NEXT: call float @llvm.minnum.f32(float %x, float %y)
++; CHECK-NEXT: call float @llvm.minnum.f32(float %z, float %a)
++; CHECK-NEXT: ret float
++define float @minnum_z_minnum_x_y(float %x, float %y, float %z) #0 {
++  %a = call float @llvm.minnum.f32(float %x, float %y) #0
++  %b = call float @llvm.minnum.f32(float %z, float %a) #0
++  ret float %b
++}
++
++; CHECK-LABEL: @minnum_minnum_x_y_z
++; CHECK-NEXT: call float @llvm.minnum.f32(float %x, float %y)
++; CHECK-NEXT: call float @llvm.minnum.f32(float %a, float %z)
++; CHECK-NEXT: ret float
++define float @minnum_minnum_x_y_z(float %x, float %y, float %z) #0 {
++  %a = call float @llvm.minnum.f32(float %x, float %y) #0
++  %b = call float @llvm.minnum.f32(float %a, float %z) #0
++  ret float %b
++}
++
++; CHECK-LABEL: @minnum4
++; CHECK-NEXT: call float @llvm.minnum.f32(float %x, float %y)
++; CHECK-NEXT: call float @llvm.minnum.f32(float %z, float %w)
++; CHECK-NEXT: call float @llvm.minnum.f32(float %a, float %b)
++; CHECK-NEXT: ret float
++define float @minnum4(float %x, float %y, float %z, float %w) #0 {
++  %a = call float @llvm.minnum.f32(float %x, float %y) #0
++  %b = call float @llvm.minnum.f32(float %z, float %w) #0
++  %c = call float @llvm.minnum.f32(float %a, float %b) #0
++  ret float %c
++}
++
++; CHECK-LABEL: @minnum_x_fmax_x_y
++; CHECK-NEXT: call float @llvm.fmax.f32
++; CHECK-NEXT: call float @llvm.minnum.f32
++; CHECK-NEXT: ret float
++define float @minnum_x_fmax_x_y(float %x, float %y) #0 {
++  %a = call float @llvm.fmax.f32(float %x, float %y) #0
++  %b = call float @llvm.minnum.f32(float %x, float %a) #0
++  ret float %b
++}
++
++; CHECK-LABEL: @fmax_x_minnum_x_y
++; CHECK-NEXT: call float @llvm.minnum.f32
++; CHECK-NEXT: call float @llvm.fmax.f32
++; CHECK-NEXT: ret float
++define float @fmax_x_minnum_x_y(float %x, float %y) #0 {
++  %a = call float @llvm.minnum.f32(float %x, float %y) #0
++  %b = call float @llvm.fmax.f32(float %x, float %a) #0
++  ret float %b
++}
++
++; CHECK-LABEL: @fold_minnum_f32_inf_val
++; CHECK-NEXT: call float @llvm.minnum.f32(float %x, float 0x7FF0000000000000)
++; CHECK-NEXT: ret float
++define float @fold_minnum_f32_inf_val(float %x) nounwind {
++  %val = call float @llvm.minnum.f32(float 0x7FF0000000000000, float %x) #0
++  ret float %val
++}
++
++; CHECK-LABEL: @fold_minnum_f32_minf_val
++; CHECK-NEXT: ret float 0xFFF0000000000000
++define float @fold_minnum_f32_minf_val(float %x) nounwind {
++  %val = call float @llvm.minnum.f32(float 0xFFF0000000000000, float %x) #0
++  ret float %val
++}
++
++attributes #0 = { nounwind readnone }
+Index: test/Transforms/LoopVectorize/intrinsic.ll
+===================================================================
+--- test/Transforms/LoopVectorize/intrinsic.ll
++++ test/Transforms/LoopVectorize/intrinsic.ll
+@@ -1192,3 +1192,59 @@
+ for.end:                                          ; preds = %for.body, %entry
+   ret void
+ }
++
++declare float @llvm.minnum.f32(float, float) nounwind readnone
++
++;CHECK-LABEL: @minnum_f32(
++;CHECK: llvm.minnum.v4f32
++;CHECK: ret void
++define void @minnum_f32(i32 %n, float* noalias %y, float* noalias %x, float* noalias %z) nounwind uwtable {
++entry:
++  %cmp9 = icmp sgt i32 %n, 0
++  br i1 %cmp9, label %for.body, label %for.end
++
++for.body:                                         ; preds = %entry, %for.body
++  %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
++  %arrayidx = getelementptr inbounds float* %y, i64 %indvars.iv
++  %0 = load float* %arrayidx, align 4
++  %arrayidx2 = getelementptr inbounds float* %z, i64 %indvars.iv
++  %1 = load float* %arrayidx2, align 4
++  %call = tail call float @llvm.minnum.f32(float %0, float %1) nounwind readnone
++  %arrayidx4 = getelementptr inbounds float* %x, i64 %indvars.iv
++  store float %call, float* %arrayidx4, align 4
++  %indvars.iv.next = add i64 %indvars.iv, 1
++  %lftr.wideiv = trunc i64 %indvars.iv.next to i32
++  %exitcond = icmp eq i32 %lftr.wideiv, %n
++  br i1 %exitcond, label %for.end, label %for.body
++
++for.end:                                          ; preds = %for.body, %entry
++  ret void
++}
++
++declare float @llvm.maxnum.f32(float, float) nounwind readnone
++
++;CHECK-LABEL: @maxnum_f32(
++;CHECK: llvm.maxnum.v4f32
++;CHECK: ret void
++define void @maxnum_f32(i32 %n, float* noalias %y, float* noalias %x, float* noalias %z) nounwind uwtable {
++entry:
++  %cmp9 = icmp sgt i32 %n, 0
++  br i1 %cmp9, label %for.body, label %for.end
++
++for.body:                                         ; preds = %entry, %for.body
++  %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
++  %arrayidx = getelementptr inbounds float* %y, i64 %indvars.iv
++  %0 = load float* %arrayidx, align 4
++  %arrayidx2 = getelementptr inbounds float* %z, i64 %indvars.iv
++  %1 = load float* %arrayidx2, align 4
++  %call = tail call float @llvm.maxnum.f32(float %0, float %1) nounwind readnone
++  %arrayidx4 = getelementptr inbounds float* %x, i64 %indvars.iv
++  store float %call, float* %arrayidx4, align 4
++  %indvars.iv.next = add i64 %indvars.iv, 1
++  %lftr.wideiv = trunc i64 %indvars.iv.next to i32
++  %exitcond = icmp eq i32 %lftr.wideiv, %n
++  br i1 %exitcond, label %for.end, label %for.body
++
++for.end:                                          ; preds = %for.body, %entry
++  ret void
++}
+Index: test/Transforms/SimplifyCFG/speculate-math.ll
+===================================================================
+--- test/Transforms/SimplifyCFG/speculate-math.ll
++++ test/Transforms/SimplifyCFG/speculate-math.ll
+@@ -4,6 +4,8 @@
+ declare float @llvm.fma.f32(float, float, float) nounwind readonly
+ declare float @llvm.fmuladd.f32(float, float, float) nounwind readonly
+ declare float @llvm.fabs.f32(float) nounwind readonly
++declare float @llvm.minnum.f32(float, float) nounwind readonly
++declare float @llvm.maxnum.f32(float, float) nounwind readonly
+ 
+ ; CHECK-LABEL: @sqrt_test(
+ ; CHECK: select
+@@ -73,3 +75,36 @@
+   ret void
+ }
+ 
++; CHECK-LABEL: @minnum_test(
++; CHECK: select
++define void @minnum_test(float addrspace(1)* noalias nocapture %out, float %a, float %b) nounwind {
++entry:
++  %cmp.i = fcmp olt float %a, 0.000000e+00
++  br i1 %cmp.i, label %test_minnum.exit, label %cond.else.i
++
++cond.else.i:                                      ; preds = %entry
++  %0 = tail call float @llvm.minnum.f32(float %a, float %b) nounwind readnone
++  br label %test_minnum.exit
++
++test_minnum.exit:                                   ; preds = %cond.else.i, %entry
++  %cond.i = phi float [ %0, %cond.else.i ], [ 0x7FF8000000000000, %entry ]
++  store float %cond.i, float addrspace(1)* %out, align 4
++  ret void
++}
++
++; CHECK-LABEL: @maxnum_test(
++; CHECK: select
++define void @maxnum_test(float addrspace(1)* noalias nocapture %out, float %a, float %b) nounwind {
++entry:
++  %cmp.i = fcmp olt float %a, 0.000000e+00
++  br i1 %cmp.i, label %test_maxnum.exit, label %cond.else.i
++
++cond.else.i:                                      ; preds = %entry
++  %0 = tail call float @llvm.maxnum.f32(float %a, float %b) nounwind readnone
++  br label %test_maxnum.exit
++
++test_maxnum.exit:                                   ; preds = %cond.else.i, %entry
++  %cond.i = phi float [ %0, %cond.else.i ], [ 0x7FF8000000000000, %entry ]
++  store float %cond.i, float addrspace(1)* %out, align 4
++  ret void
++}
