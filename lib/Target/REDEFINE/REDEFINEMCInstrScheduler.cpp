@@ -892,32 +892,44 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					allocInstr = MF.getFrameInfo()->getObjectAllocation(i);
 					break;
 				}
-				frameLocationOfSourceData+= MF.getFrameInfo()->getObjectSize(i);
+				frameLocationOfSourceData += MF.getFrameInfo()->getObjectSize(i);
 			}
-
 
 			MachineFunction *consumerMF = ((REDEFINETargetMachine&) TM).functionMap[consumer->getFunction()];
-			int frameLocationOfTargetData  = 0;
-			for(unsigned i=consumerMF->getFrameInfo()->getObjectIndexBegin();i<0;i++){
-
+			int frameLocationOfTargetData = 0;
+			//Compute frame objects' size
+			for (unsigned i = 0; i < consumerMF->getFrameInfo()->getObjectIndexEnd(); i++) {
+				frameLocationOfTargetData += consumerMF->getFrameInfo()->getObjectSize(i);
+			}
+			int funcArgIndex = 0;
+			for (Function::arg_iterator funcArgItr = Fn->arg_begin(); funcArgItr != Fn->arg_end(); funcArgItr++, funcArgIndex++) {
+				if (funcArgIndex == edge->getPositionOfInput()) {
+					break;
+				}
+				Argument* argument = *funcArgItr;
+				if (!Fn->getAttributes().hasAttribute(funcArgIndex, Attribute::InReg)) {
+					//Reference argument being passed
+					frameLocationOfTargetData += (argument->getType()->getPrimitiveSizeInBits() / 8);
+				}
 			}
 
+			//Replace all uses of the argument in the consumer machine function
 
 
 			Type* allocatedDataType = allocInstr->getAllocatedType();
 			//Find the primitive types of allocatedDataType
 
 			//Map of primitive data types and their memory locations
-			map<Type*, unsigned> primitiveTypesMap;
+			list<pair<Type*, unsigned> > primitiveTypesMap;
 			list<Type*> containedTypesForTraversal;
 			containedTypesForTraversal.push_front(allocatedDataType);
-			unsigned memoryLocation = 0;
+			unsigned memoryOfType = 0;
 			while (!containedTypesForTraversal.empty()) {
 				Type* traversingType = containedTypesForTraversal.front();
 				containedTypesForTraversal.pop_front();
 				if (traversingType->isPrimitiveType()) {
-					primitiveTypesMap[traversingType] = memoryLocation;
-					memoryLocation += traversingType->getPrimitiveSizeInBits()/8;
+					primitiveTypesMap.push_back(make_pair(traversingType, memoryOfType));
+					memoryOfType += traversingType->getPrimitiveSizeInBits() / 8;
 				} else {
 					for (unsigned i = traversingType->getNumContainedTypes() - 1; i >= 0; i--) {
 						containedTypesForTraversal.push_front(traversingType->getContainedType(i));
@@ -925,12 +937,9 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				}
 			}
 
-			unsigned sourceAddressRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-			MachineInstrBuilder loadAddressToReg = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
-			loadAddressToReg.addReg(sourceAddressRegister, RegState::Define).addReg(REDEFINE::zero).addFrameIndex(frameLocationOfSourceData);
 			for (unsigned allocatedDataIndex = 0; allocatedDataIndex != allocInstr->getArraySize(); allocatedDataIndex++) {
 				//Add a load instruction from memory and store to the memory frame of the consumer HyperOp
-				for (map<Type*, unsigned>::iterator containedPrimitiveItr = primitiveTypesMap.begin(); containedPrimitiveItr != primitiveTypesMap.end(); containedPrimitiveItr++) {
+				for (list<pair<Type*, unsigned> >::iterator containedPrimitiveItr = primitiveTypesMap.begin(); containedPrimitiveItr != primitiveTypesMap.end(); containedPrimitiveItr++) {
 					Type* containedType = containedPrimitiveItr->first;
 					unsigned registerContainingData;
 					unsigned loadOpcode, storeOpcode;
@@ -946,12 +955,20 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 					//Add load instruction
 					MachineInstrBuilder load = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(loadOpcode));
-					load.addReg(registerContainingData, RegState::Define).addReg(sourceAddressRegister, RegState::InternalRead).addImm(containedPrimitiveItr->second + memoryLocation);
+					load.addReg(registerContainingData, RegState::Define).addReg(REDEFINE::zero, RegState::InternalRead).addFrameIndex(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfSourceData);
 
 					//Corresponding store instruction
 					MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(storeOpcode));
-					store.addReg(registerContainingConsumerBase, RegState::Define).addReg(registerContainingData, RegState::InternalRead).addImm();
+					store.addReg(registerContainingConsumerBase, RegState::Define).addReg(registerContainingData, RegState::InternalRead).addFrameIndex(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData);
 
+					allInstructionsOfRegion.push_back(make_pair(load.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+					LIS->getSlotIndexes()->insertMachineInstrInMaps(load.operator llvm::MachineInstr *());
+
+					allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+					LIS->getSlotIndexes()->insertMachineInstrInMaps(store.operator llvm::MachineInstr *());
+
+					LIS->getOrCreateInterval(registerContainingData);
+					currentCE = (currentCE + 1) % ceCount;
 				}
 			}
 
