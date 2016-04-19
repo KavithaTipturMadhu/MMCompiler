@@ -83,7 +83,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 			if (type.compare(HYPEROP) == 0) {
 				Function* function = (Function *) hyperOpMDNode->getOperand(1);
 				HyperOp *hyperOp = new HyperOp(function);
-				StringRef hyperOpType = ((MDString*) hyperOpMDNode->getOperand(2))->getName();
+				StringRef hyperOpType = ((MDString*) hyperOpMDNode->getOperand(1))->getName();
 				if (hyperOpType.compare(HYPEROP_ENTRY) == 0) {
 					hyperOp->setStartHyperOp();
 				} else if (hyperOpType.compare(HYPEROP_EXIT) == 0) {
@@ -165,6 +165,15 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 					}
 				}
 			}
+		}
+	}
+
+	for (list<HyperOp*>::iterator itr = graph->Vertices.begin(); itr != graph->Vertices.end(); itr++) {
+		if ((*itr)->ChildMap.empty()) {
+			(*itr)->setEndHyperOp();
+		}
+		if ((*itr)->ParentMap.empty()) {
+			(*itr)->setStartHyperOp();
 		}
 	}
 

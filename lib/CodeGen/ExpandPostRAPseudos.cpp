@@ -49,7 +49,7 @@ public:
 
 private:
 	bool LowerSubregToReg(MachineInstr *MI);
-	bool LowerCopy(MachineBasicBlock::iterator MI);
+	bool LowerCopy(MachineBasicBlock::instr_iterator MI);
 
 	void TransferImplicitDefs(MachineInstr *MI);
 };
@@ -126,7 +126,7 @@ bool ExpandPostRA::LowerSubregToReg(MachineInstr *MI) {
 	return true;
 }
 
-bool ExpandPostRA::LowerCopy(MachineBasicBlock::iterator MI) {
+bool ExpandPostRA::LowerCopy(MachineBasicBlock::instr_iterator MI) {
 	if (MI->allDefsAreDead()) {
 		DEBUG(dbgs() << "dead copy: " << *MI);
 		MI->setDesc(TII->get(TargetOpcode::KILL));
@@ -193,7 +193,7 @@ bool ExpandPostRA::runOnMachineFunction(MachineFunction &MF) {
 		//TODO Had to change to this instead of regular iterator because we create pHyperOps as bundles of instructions which  don't get traversed in the non-const iterator case
 		for (MachineBasicBlock::instr_iterator mi = mbbi->instr_begin(), me = mbbi->instr_end(); mi != me;) {
 
-			MachineBasicBlock::iterator MI = mi;
+			MachineBasicBlock::instr_iterator MI = mi;
 			// Advance iterator here because MI may be erased.
 			++mi;
 

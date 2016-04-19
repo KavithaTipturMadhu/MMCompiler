@@ -304,32 +304,28 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 
 		MachineInstrBuilder lui = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::LUI));
 		lui.addReg(addiRegister, RegState::Define);
-		lui.addImm((immediateValue & 0xfffff000) >> 12);
+		lui.addImm((immediateValue & 0x7ffff800) >> 11);
 
-		int32_t lsbBits = immediateValue & 0xfff;
+		int32_t topBit = immediateValue & 0x80000000;
+		MachineInstrBuilder shiftInstr;
+		if (topBit == 0) {
+			shiftInstr = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::SRLI)).addReg(addiRegister).addReg(addiRegister).addImm(1);
+		} else {
+			shiftInstr = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::SLLI)).addReg(addiRegister).addReg(addiRegister).addImm(1);
+		}
+
 		MachineInstrBuilder addi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADDI));
 		addi.addReg(addiRegister, RegState::Kill);
 		addi.addReg(addiRegister, RegState::InternalRead);
-		addi.addImm(lsbBits&0x7ff);
-		MachineInstrBuilder lastInstr = addi;
-		if(lsbBits&0x800){
-			//Take the top bit from lsb
-			int topBit = (lsbBits&0x800)>>11;
-			errs()<<"topbit:"<<topBit<<"\n";
-			MachineInstrBuilder andi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ANDI));
-			andi.addReg(addiRegister, RegState::Kill);
-			andi.addReg(addiRegister, RegState::InternalRead);
-			andi.addImm(topBit);
-			addi->bundleWithSucc();
-			lastInstr = andi;
-		}
+		addi.addImm(immediateValue & 0x7ff);
 
-		if (MI->isInsideBundle()) {
+		if (MI->isBundled()) {
 			MI->eraseFromBundle();
 		} else {
 			MI->eraseFromParent();
 		}
 		lui->bundleWithSucc();
+		shiftInstr->bundleWithSucc();
 
 		if (isMIBundledWithPred) {
 			//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
@@ -338,9 +334,8 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 		}
 		if (isMIBundledWithSucc) {
 			Succ->clearFlag(MachineInstr::BundledPred);
-			lastInstr->bundleWithSucc();
+			addi->bundleWithSucc();
 		}
-
 		return true;
 	}
 	return false;

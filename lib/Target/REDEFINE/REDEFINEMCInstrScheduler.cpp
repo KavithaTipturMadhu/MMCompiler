@@ -770,37 +770,37 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		HyperOpEdge* edge = childItr->first;
 		HyperOp* consumer = childItr->second;
 
+		unsigned registerContainingConsumerBase = -1;
+		//Check if the consumer's context frame address has already been loaded to memory; If not, add an instruction to load the context frame address to a register
+		for (list<pair<HyperOp*, unsigned> >::iterator consumerItr = consumerHyperOps[currentCE].begin(); consumerItr != consumerHyperOps[currentCE].end(); consumerItr++) {
+			if (consumerItr->first == consumer) {
+				registerContainingConsumerBase = consumerItr->second;
+				break;
+			}
+		}
+		if (registerContainingConsumerBase == -1) {
+			registerContainingConsumerBase = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+			MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
+			addi.addReg(registerContainingConsumerBase, RegState::Define);
+			addi.addReg(REDEFINE::zero, RegState::InternalRead);
+			addi.addImm(consumer->getContextFrame() * frameSize);
+			consumerHyperOps[currentCE].push_back(make_pair(consumer, registerContainingConsumerBase));
+			if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
+				firstInstructionOfpHyperOpInRegion[currentCE] = addi.operator llvm::MachineInstr *();
+			}
+			allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+			//Add instruction to the region
+			allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+			LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
+			LIS->getOrCreateInterval(registerContainingConsumerBase);
+		}
+
 		if (edge->getType() == HyperOpEdge::SCALAR || edge->getType() == HyperOpEdge::PREDICATE) {
 			//position is multiplied by 4 since the context memory is byte addressable
 			unsigned contextFrameOffset = edge->getPositionOfInput() * 4;
 			if (edge->getPositionOfInput() == -1) {
 				//predicate can take any offset wrt context frame base, it does not have a dedicated slot
 				contextFrameOffset = 0;
-			}
-
-			unsigned registerContainingConsumerBase = -1;
-			//Check if the consumer's context frame address has already been loaded to memory; If not, add an instruction to load the context frame address to a register
-			for (list<pair<HyperOp*, unsigned> >::iterator consumerItr = consumerHyperOps[currentCE].begin(); consumerItr != consumerHyperOps[currentCE].end(); consumerItr++) {
-				if (consumerItr->first == consumer) {
-					registerContainingConsumerBase = consumerItr->second;
-					break;
-				}
-			}
-			if (registerContainingConsumerBase == -1) {
-				registerContainingConsumerBase = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-				MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
-				addi.addReg(registerContainingConsumerBase, RegState::Define);
-				addi.addReg(REDEFINE::zero, RegState::InternalRead);
-				addi.addImm(consumer->getContextFrame() * frameSize);
-				consumerHyperOps[currentCE].push_back(make_pair(consumer, registerContainingConsumerBase));
-				if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
-					firstInstructionOfpHyperOpInRegion[currentCE] = addi.operator llvm::MachineInstr *();
-				}
-				allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
-				//Add instruction to the region
-				allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
-				LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
-				LIS->getOrCreateInterval(registerContainingConsumerBase);
 			}
 
 			unsigned objectIndex = -1;
@@ -884,6 +884,52 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 		//if local reference, add writes to the local memory of consumer HyperOp and remove the consumer HyperOp's argument
 		else if (edge->getType() == HyperOpEdge::LOCAL_REFERENCE) {
+			const AllocaInst* allocInstr;
+			unsigned int frameLocationOfSourceData = -1;
+			//Get the index of the stack allocated object, starting from 0 because negative offsets from fp contain function arguments
+			for (unsigned int i = 0; i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
+				//TODO
+				if (edge->getValue() == allocInstr) {
+					allocInstr = MF.getFrameInfo()->getObjectAllocation(i);
+					frameLocationOfSourceData = i;
+					break;
+				}
+			}
+
+			Type* allocatedDataType = allocInstr->getAllocatedType();
+			//Find the primitive types of allocatedDataType
+
+			//Map of primitive data types and their memory locations
+			map<Type*, unsigned> primitiveTypesMap;
+			list<Type*> containedTypesForTraversal;
+			containedTypesForTraversal.push_front(allocatedDataType);
+			unsigned memoryLocation = 0;
+			while (!containedTypesForTraversal.empty()) {
+				Type* traversingType = containedTypesForTraversal.front();
+				containedTypesForTraversal.pop_front();
+				if (traversingType->isPrimitiveType()) {
+					primitiveTypesMap[traversingType] = memoryLocation;
+					memoryLocation += 4;
+				} else {
+					for (unsigned i = traversingType->getNumContainedTypes() - 1; i >= 0; i--) {
+						containedTypesForTraversal.push_front(traversingType->getContainedType(i));
+					}
+				}
+			}
+
+			unsigned sourceAddressRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+			MachineInstrBuilder loadAddressToReg = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
+			loadAddressToReg.addReg(sourceAddressRegister, RegState::Define).addReg(REDEFINE::zero);
+			loadAddressToReg.addFrameIndex(i);
+			for (unsigned allocatedDataIndex = 0; allocatedDataIndex != allocInstr->getArraySize(); allocatedDataIndex++) {
+				//Add a load instruction from memory and store to the memory frame of the consumer HyperOp
+				for (map<Type*, unsigned>::iterator containedPrimitiveItr = primitiveTypesMap.begin(); containedPrimitiveItr != primitiveTypesMap.end(); containedPrimitiveItr++) {
+					//Add load instruction
+
+					loadAddressToReg.addReg()
+					MachineInstrBuilder load = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get());
+				}
+			}
 
 		}
 	}
