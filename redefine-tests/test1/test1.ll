@@ -28,12 +28,12 @@ entry:
   %4 = load i32* %d.addr, align 4
   %add2 = add nsw i32 %add1, %4
   store i32 %add2, i32* %y, align 4
-  %5 = load i32* %e.addr, align 4
-  %6 = load i32* %x, align 4
-  %mul = mul nsw i32 %5, %6
-  %7 = load i32* %y, align 4
-  %add3 = add nsw i32 %mul, %7
-  store i32 %add3, i32* %z, align 4
+  ;%5 = load i32* %e.addr, align 4
+  ;%6 = load i32* %x, align 4
+  ;%mul = mul nsw i32 %5, %6
+  ;%7 = load i32* %y, align 4
+  ;%add3 = add nsw i32 %mul, %7
+  ;store i32 %add3, i32* %z, align 4
   ret void
 }
 

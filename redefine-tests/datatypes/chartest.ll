@@ -4,7 +4,7 @@ target triple = "redefine"
 
 ; Function Attrs: nounwind
 define i32 @entry1(i32 inreg) {
-entry0:
+entry:
   %a = alloca i32, align 4
   store i32 %0, i32* %a, align 4
   %1 = alloca i32, align 4
