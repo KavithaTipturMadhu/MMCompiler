@@ -106,11 +106,9 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 			}
 
 			unsigned currentObjectOffset = 0;
-			//Compute offset of the current memory location
 			for (int i = 0; i < MO.getIndex(); i++) {
 				currentObjectOffset += MO.getParent()->getParent()->getParent()->getFrameInfo()->getObjectSize(i);
 			}
-
 
 			MCOperand retVal = MCOperand::CreateImm(dgmMemoryAddress + currentObjectOffset);
 			return retVal;

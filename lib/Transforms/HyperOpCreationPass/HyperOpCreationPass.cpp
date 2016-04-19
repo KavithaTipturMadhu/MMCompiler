@@ -37,7 +37,7 @@ struct HyperOpCreationPass: public ModulePass {
 	const string HYPEROP_START = "Start";
 	const string HYPEROP_END = "End";
 	const string SCALAR_ARGUMENT = "Scalar";
-	const string REFERENCE_ARGUMENT = "Reference";
+	const string REFERENCE_ARGUMENT = "LocalReference";
 
 	const unsigned int FRAME_SIZE = 4;
 
@@ -295,10 +295,10 @@ struct HyperOpCreationPass: public ModulePass {
 
 					bool isEntry = false;
 					bool isExit = false;
-					if (accumulatedBasicBlocks.front()->getParent()->getName() == "redefinemain") {
+					if (accumulatedBasicBlocks.front()->getParent()->getName() == "main") {
 						if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &funcItr->getEntryBlock()) != accumulatedBasicBlocks.end()) {
 							isEntry = true;
-						} else if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &funcItr->back()) != accumulatedBasicBlocks.end()) {
+						} if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &funcItr->back()) != accumulatedBasicBlocks.end()) {
 							isExit = true;
 						}
 					}
@@ -306,6 +306,7 @@ struct HyperOpCreationPass: public ModulePass {
 					Value * values[3];
 					values[0] = MDString::get(ctxt, HYPEROP);
 					values[1] = newFunction;
+
 					values[2] = MDString::get(ctxt, isEntry ? "Entry" : (isExit ? "Exit" : "Intermediate"));
 					MDNode *funcAnnotation = MDNode::get(ctxt, values);
 					hyperOpAndAnnotationMap.insert(make_pair(newFunction, funcAnnotation));
@@ -346,7 +347,7 @@ struct HyperOpCreationPass: public ModulePass {
 											values[0] = funcAnnotation;
 											if (argumentType == SCALAR) {
 												values[1] = MDString::get(ctxt, SCALAR_ARGUMENT);
-											} else {
+											} else if(argumentType == LOCAL_REFERENCE){
 												values[1] = MDString::get(ctxt, REFERENCE_ARGUMENT);
 											}
 											values[2] = ConstantInt::get(ctxt, APInt(32, positionOfArgument));

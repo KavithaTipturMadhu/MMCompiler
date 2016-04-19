@@ -885,16 +885,24 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		//if local reference, add writes to the local memory of consumer HyperOp and remove the consumer HyperOp's argument
 		else if (edge->getType() == HyperOpEdge::LOCAL_REFERENCE) {
 			const AllocaInst* allocInstr;
-			unsigned int frameLocationOfSourceData = -1;
+			int frameLocationOfSourceData = 0;
 			//Get the index of the stack allocated object, starting from 0 because negative offsets from fp contain function arguments
 			for (unsigned int i = 0; i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
-				//TODO
 				if (edge->getValue() == allocInstr) {
 					allocInstr = MF.getFrameInfo()->getObjectAllocation(i);
-					frameLocationOfSourceData = i;
 					break;
 				}
+				frameLocationOfSourceData+= MF.getFrameInfo()->getObjectSize(i);
 			}
+
+
+			MachineFunction *consumerMF = ((REDEFINETargetMachine&) TM).functionMap[consumer->getFunction()];
+			int frameLocationOfTargetData  = 0;
+			for(unsigned i=consumerMF->getFrameInfo()->getObjectIndexBegin();i<0;i++){
+
+			}
+
+
 
 			Type* allocatedDataType = allocInstr->getAllocatedType();
 			//Find the primitive types of allocatedDataType
@@ -909,7 +917,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				containedTypesForTraversal.pop_front();
 				if (traversingType->isPrimitiveType()) {
 					primitiveTypesMap[traversingType] = memoryLocation;
-					memoryLocation += 4;
+					memoryLocation += traversingType->getPrimitiveSizeInBits()/8;
 				} else {
 					for (unsigned i = traversingType->getNumContainedTypes() - 1; i >= 0; i--) {
 						containedTypesForTraversal.push_front(traversingType->getContainedType(i));
@@ -919,15 +927,31 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 			unsigned sourceAddressRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 			MachineInstrBuilder loadAddressToReg = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
-			loadAddressToReg.addReg(sourceAddressRegister, RegState::Define).addReg(REDEFINE::zero);
-			loadAddressToReg.addFrameIndex(i);
+			loadAddressToReg.addReg(sourceAddressRegister, RegState::Define).addReg(REDEFINE::zero).addFrameIndex(frameLocationOfSourceData);
 			for (unsigned allocatedDataIndex = 0; allocatedDataIndex != allocInstr->getArraySize(); allocatedDataIndex++) {
 				//Add a load instruction from memory and store to the memory frame of the consumer HyperOp
 				for (map<Type*, unsigned>::iterator containedPrimitiveItr = primitiveTypesMap.begin(); containedPrimitiveItr != primitiveTypesMap.end(); containedPrimitiveItr++) {
-					//Add load instruction
+					Type* containedType = containedPrimitiveItr->first;
+					unsigned registerContainingData;
+					unsigned loadOpcode, storeOpcode;
+					if (containedType->isFloatTy()) {
+						loadOpcode = REDEFINE::FLW;
+						storeOpcode = REDEFINE::FSW;
+						registerContainingData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::f32);
+					} else {
+						loadOpcode = REDEFINE::LW;
+						storeOpcode = REDEFINE::SW;
+						registerContainingData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+					}
 
-					loadAddressToReg.addReg()
-					MachineInstrBuilder load = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get());
+					//Add load instruction
+					MachineInstrBuilder load = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(loadOpcode));
+					load.addReg(registerContainingData, RegState::Define).addReg(sourceAddressRegister, RegState::InternalRead).addImm(containedPrimitiveItr->second + memoryLocation);
+
+					//Corresponding store instruction
+					MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(storeOpcode));
+					store.addReg(registerContainingConsumerBase, RegState::Define).addReg(registerContainingData, RegState::InternalRead).addImm();
+
 				}
 			}
 

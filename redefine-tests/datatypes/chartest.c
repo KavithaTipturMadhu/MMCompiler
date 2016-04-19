@@ -1,8 +1,8 @@
 int test(){
 char e,f;
 
-e='w';
-f='a';
+e=1;
+f=2;
 
 if(e>f)
 	return e;

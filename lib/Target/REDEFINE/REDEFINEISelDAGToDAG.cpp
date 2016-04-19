@@ -241,6 +241,7 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 		((REDEFINETargetMachine&) TM).HIG->associateStaticContextFrames();
 		((REDEFINETargetMachine&) TM).HIG->print(dbgs());
 	}
+	((REDEFINETargetMachine&) TM).functionMap.insert(make_pair(Fn, &mf));
 	return SelectionDAGISel::runOnMachineFunction(mf);
 }
 

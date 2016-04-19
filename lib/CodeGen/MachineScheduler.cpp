@@ -224,7 +224,6 @@ bool MachineScheduler::runOnMachineFunction(MachineFunction &mf) {
 		// exitRegion(), even for empty regions. So the local iterators 'I' and
 		// 'RegionEnd' are invalid across these calls.
 		unsigned RemainingInstrs = MBB->size();
-		errs()<<"size of bb:"<<MBB->size()<<"\n";
 
 		for (MachineBasicBlock::iterator RegionEnd = MBB->end(); RegionEnd != MBB->begin(); RegionEnd = Scheduler->begin()) {
 			// Avoid decrementing RegionEnd for blocks with no terminator.
