@@ -1,0 +1,38 @@
+digraph{
+main[label="Name:main
+Dom:NULL, PostDom:main0
+Map:0:0, Context frame:0
+"];
+main0[label="Name:main0
+Dom:main, PostDom:main4
+Map:0:0, Context frame:1
+"];
+fib00[label="Name:fib0
+Dom:fib0, PostDom:main0
+Map:0:0, Context frame:50
+"];
+fib01[label="Name:fib0
+Dom:fib0, PostDom:fib1
+Map:0:1, Context frame:0
+"];
+fib0[label="Name:fib0
+Dom:fib0, PostDom:fib1
+Map:0:0, Context frame:0
+"];
+fib1[label="Name:fib1
+Dom:NULL, PostDom:main0
+Map:0:0, Context frame:23
+"];
+main->main0[label="reference"];
+main->fib0[label="scalar"];
+fib0->fib00[label="scalar"];
+fib0->fib00[label="address"];
+fib0->fib01[label="scalar"];
+fib0->fib01[label="address"];
+fib00->fib1[label="scalar"];
+fib01->fib1[label="scalar"];
+fib1->main0[label="scalar"];
+main->fib0[label="address"];
+fib0->fib1[label="address"];
+fib0->main0[label="scalar"];
+}
