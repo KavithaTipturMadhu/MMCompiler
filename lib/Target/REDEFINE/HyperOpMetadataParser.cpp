@@ -137,9 +137,9 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 								volumeOfCommunication.push_back(sizeof((Value*) instr));
 								edge.setVolume(volumeOfCommunication);
 							}
-							unsigned positionOfInput = ((ConstantInt*) consumerMDNode->getOperand(2))->getUniqueInteger().getZExtValue();
+							unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue();
 							edge.setValue((Value*) instr);
-							edge.setPositionOfInput(positionOfInput);
+							edge.setPositionOfContextSlot(positionOfContextSlot);
 							sourceHyperOp->addChildEdge(&edge, consumerHyperOp);
 							consumerHyperOp->addParentEdge(&edge, sourceHyperOp);
 						}

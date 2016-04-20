@@ -797,8 +797,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 		if (edge->getType() == HyperOpEdge::SCALAR || edge->getType() == HyperOpEdge::PREDICATE) {
 			//position is multiplied by 4 since the context memory is byte addressable
-			unsigned contextFrameOffset = edge->getPositionOfInput() * 4;
-			if (edge->getPositionOfInput() == -1) {
+			unsigned contextFrameOffset = edge->getPositionOfContextSlot() * 4;
+			if (edge->getPositionOfContextSlot() == -1) {
 				//predicate can take any offset wrt context frame base, it does not have a dedicated slot
 				contextFrameOffset = 0;
 			}
@@ -887,7 +887,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			int frameLocationOfSourceData = 0;
 			//Get the index of the stack allocated object, starting from 0 because negative offsets from fp contain function arguments
 			for (unsigned int i = 0; i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
-				if (edge->getValue() == allocInstr) {
+				if (edge->getValue() == MF.getFrameInfo()->getObjectAllocation(i)) {
 					allocInstr = MF.getFrameInfo()->getObjectAllocation(i);
 					break;
 				}
@@ -900,7 +900,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			int funcArgIndex = consumerMF->getFrameInfo()->getObjectIndexBegin();
 			int beginArgIndex = 0;
 			for (Function::arg_iterator funcArgItr = Fn->arg_begin(); funcArgItr != Fn->arg_end(); funcArgItr++, beginArgIndex++) {
-				if (beginArgIndex == edge->getPositionOfInput()) {
+				if (beginArgIndex == edge->getPositionOfContextSlot()) {
 					break;
 				}
 				Argument* argument = &*funcArgItr;
@@ -943,7 +943,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 					if (containedType->isFloatTy()) {
 						unsigned floatingPointRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::f32);
-						MachineInstrBuilder floatingPointConversion = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::FMV_X_S)).addReg(floatingPointRegister, RegState::Define).addReg(registerContainingData,RegState::InternalRead);
+						MachineInstrBuilder floatingPointConversion = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::FMV_X_S)).addReg(floatingPointRegister, RegState::Define).addReg(registerContainingData, RegState::InternalRead);
 						allInstructionsOfRegion.push_back(make_pair(floatingPointConversion.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(floatingPointConversion.operator llvm::MachineInstr *());
 						LIS->getOrCreateInterval(floatingPointRegister);
@@ -1334,7 +1334,7 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 map<HyperOpEdge*, HyperOp*> parentMap = graph->getHyperOp(const_cast<Function*>(MF.getFunction()))->ParentMap;
 for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = parentMap.begin(); parentItr != parentMap.end(); parentItr++) {
 	HyperOpEdge* edge = parentItr->first;
-	unsigned previousPhysReg = contextFrameSlotAndPhysReg[edge->getPositionOfInput()];
-	edge->setPositionOfInput(physRegAndContextFrameSlot[previousPhysReg]);
+	unsigned previousPhysReg = contextFrameSlotAndPhysReg[edge->getPositionOfContextSlot()];
+	edge->setPositionOfContextSlot(physRegAndContextFrameSlot[previousPhysReg]);
 }
 }

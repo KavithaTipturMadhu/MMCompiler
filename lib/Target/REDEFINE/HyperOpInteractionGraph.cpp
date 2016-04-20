@@ -37,9 +37,6 @@ HyperOp::HyperOp(Function* function) {
 
 HyperOp::~HyperOp() {
 }
-int HyperOpEdge::getPositionOfInput() const {
-	return positionOfInput;
-}
 
 HyperOpEdge::EdgeType HyperOpEdge::getType() {
 	return Type;
@@ -55,10 +52,14 @@ HyperOp* HyperOpEdge::getContextFrameAddress() {
 void HyperOpEdge::setContextFrameAddress(HyperOp* contextFrameAddress) {
 	this->contextFrameAddress = contextFrameAddress;
 }
-void HyperOpEdge::setPositionOfInput(int positionOfInput) {
-	this->positionOfInput = positionOfInput;
+
+int HyperOpEdge::getPositionOfContextSlot() const {
+	return positionOfContextSlot;
 }
 
+void HyperOpEdge::setPositionOfContextSlot(int positionOfInput) {
+	this->positionOfContextSlot = positionOfInput;
+}
 void HyperOpEdge::setValue(Value* value) {
 	this->variable = value;
 }
@@ -423,7 +424,7 @@ HyperOpEdge::HyperOpEdge() {
 	this->Type = SCALAR;
 	this->isZeroedOut = false;
 	this->isIgnoredEdge = false;
-	this->positionOfInput = -1;
+	this->positionOfContextSlot = -1;
 }
 HyperOpEdge::~HyperOpEdge() {
 

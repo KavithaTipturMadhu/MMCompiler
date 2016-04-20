@@ -42,7 +42,9 @@ class HyperOp;
 class HyperOpEdge {
 	bool isZeroedOut;
 	bool isIgnoredEdge;
+	int positionOfContextSlot;
 	int positionOfInput;
+
 protected:
 	Value* variable;
 	HyperOp* contextFrameAddress;
@@ -63,8 +65,8 @@ public:
 	bool isEdgeZeroedOut();
 	bool isEdgeIgnored() const;
 	void setIsEdgeIgnored(bool isIgnoredEdge);
-	int getPositionOfInput() const;
-	void setPositionOfInput(int positionOfInput);
+	int getPositionOfContextSlot() const;
+	void setPositionOfContextSlot(int positionOfInput);
 	void setValue(Value* );
 	Value* getValue();
 	EdgeType getType() ;
