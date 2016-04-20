@@ -45,7 +45,6 @@ class HyperOpEdge {
 	int positionOfInput;
 protected:
 	Value* variable;
-	unsigned predicateValue;
 	HyperOp* contextFrameAddress;
 public:
 	list<unsigned int> volume;
@@ -70,8 +69,6 @@ public:
 	Value* getValue();
 	EdgeType getType() ;
 	void setType(EdgeType type);
-	unsigned getPredicateValue();
-	void setPredicateValue(unsigned predicateValue);
 	HyperOp* getContextFrameAddress() ;
 	void setContextFrameAddress(HyperOp* contextFrameAddress);
 };

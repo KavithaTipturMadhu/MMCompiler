@@ -47,12 +47,6 @@ HyperOpEdge::EdgeType HyperOpEdge::getType() {
 void HyperOpEdge::setType(HyperOpEdge::EdgeType type) {
 	this->Type = type;
 }
-unsigned HyperOpEdge::getPredicateValue() {
-	return this->predicateValue;
-}
-void HyperOpEdge::setPredicateValue(unsigned predicateValue) {
-	this->predicateValue = predicateValue;
-}
 
 HyperOp* HyperOpEdge::getContextFrameAddress() {
 	return contextFrameAddress;

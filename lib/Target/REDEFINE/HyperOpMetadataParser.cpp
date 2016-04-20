@@ -153,12 +153,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 							HyperOp* predicatedHyperOp = hyperOpMetadataMap[(MDNode*) predicatedMDNode->getOperand(0)];
 							HyperOpEdge edge;
 							edge.Type = HyperOpEdge::PREDICATE;
-							//Unconditional predicate
-							if (predicatedMDNode->getNumOperands() > 1) {
-								edge.setValue((Value*) instr);
-								unsigned predicateValue = ((ConstantInt*) predicatedMDNode->getOperand(1))->getUniqueInteger().getZExtValue();
-								edge.setPredicateValue(predicateValue);
-							}
+							edge.setValue((Value*) instr);
 							sourceHyperOp->addChildEdge(&edge, predicatedHyperOp);
 							predicatedHyperOp->addParentEdge(&edge, sourceHyperOp);
 						}

@@ -12,6 +12,7 @@
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/Target/Mangler.h"
+#include "llvm/IR/Module.h"
 
 using namespace llvm;
 
@@ -64,12 +65,12 @@ MCOperand REDEFINEMCInstLower::lowerSymbolOperand(const MachineOperand &MO, cons
 }
 
 MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
-	Module* parentModule = MO.getMBB()->getBasicBlock()->getParent();
+	const Module* parentModule = MO.getMBB()->getBasicBlock()->getParent()->getParent();
 	static long int maxGlobalSize = 0;
-	static map<const GlobalVariable*, long int> globalVarStartAddressMap;
-	for (Module::global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
-		GlobalVariable *globalVar = &*globalArgItr;
-		globalVarStartAddressMap[globalVar] = maxGlobalSize;
+	static map<StringRef, long int> globalVarStartAddressMap;
+	for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
+		const GlobalVariable *globalVar = &*globalArgItr;
+		globalVarStartAddressMap[globalVar->getName()] = maxGlobalSize;
 		maxGlobalSize += globalVar->getType()->getPrimitiveSizeInBits() / 8;
 	}
 
@@ -89,7 +90,7 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 
 	case MachineOperand::MO_GlobalAddress: {
 //		return lowerSymbolOperand(MO, Mang->getSymbol(MO.getGlobal()), MO.getOffset());
-		return MCOperand::CreateImm(globalVarStartAddressMap[MO.getGlobal()] + MO.getOffset());
+		return MCOperand::CreateImm(globalVarStartAddressMap.find(MO.getGlobal()->getName())->second+ MO.getOffset());
 	}
 
 	case MachineOperand::MO_ExternalSymbol: {
