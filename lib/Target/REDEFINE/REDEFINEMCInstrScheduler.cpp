@@ -936,7 +936,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				for (list<pair<Type*, unsigned> >::iterator containedPrimitiveItr = primitiveTypesMap.begin(); containedPrimitiveItr != primitiveTypesMap.end(); containedPrimitiveItr++) {
 					Type* containedType = containedPrimitiveItr->first;
 					unsigned registerContainingData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerContainingData, RegState::Define).addReg(REDEFINE::t6, RegState::InternalRead);
+					MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerContainingData, RegState::Define).addReg(REDEFINE::zero, RegState::InternalRead);
 					allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
 					LIS->getOrCreateInterval(registerContainingData);
@@ -971,8 +971,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	if (hyperOp->frameNeedsGC()) {
 		//Add fdelete instruction
 		MachineInstrBuilder shiftRight = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::SRLI));
-		shiftRight.addReg(REDEFINE::t6, RegState::Kill);
-		shiftRight.addReg(REDEFINE::t6, RegState::InternalRead);
+		shiftRight.addReg(REDEFINE::zero, RegState::Kill);
+		shiftRight.addReg(REDEFINE::zero, RegState::InternalRead);
 		//Shift right by 6 bits to get the address of the frame
 		shiftRight.addImm(6);
 		if (firstInstructionOfpHyperOpInRegion[0] == 0) {
@@ -980,7 +980,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		}
 
 		MachineInstrBuilder fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE));
-		fdelete.addReg(REDEFINE::t6, RegState::InternalRead);
+		fdelete.addReg(REDEFINE::zero, RegState::InternalRead);
 		fdelete.addImm(0);
 
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftRight.operator llvm::MachineInstr *());
@@ -1042,46 +1042,45 @@ errs() << "BB before region shuffle:";
 BB->dump();
 
 //Shuffle instructions of region
+vector<MachineInstr*> firstRegionBoundaries = firstInstructionOfpHyperOp.front();
 if (firstInstructionOfpHyperOp.size() > 1) {
 	DEBUG(dbgs() << "Merging regions of basic block BB#" << BB->getNumber() << "\n");
-	vector<MachineInstr*> firstRegionBoundaries = firstInstructionOfpHyperOp.front();
 	//Set the start of each region
+	for (unsigned i = 0; i < ceCount; i++) {
+		if (firstRegionBoundaries[i] == 0) {
+			for (list<vector<MachineInstr*> >::iterator firstInstrItr = firstInstructionOfpHyperOp.begin(); firstInstrItr != firstInstructionOfpHyperOp.end(); firstInstrItr++) {
+				vector<MachineInstr*> firstInstrOfNextRegion = *firstInstrItr;
+				if (firstInstrOfNextRegion[i] != 0) {
+					firstRegionBoundaries[i] = firstInstrOfNextRegion[i];
+					break;
+				}
+			}
+		}
+	}
 
-//	for (unsigned i = 0; i < ceCount; i++) {
-//		if (firstRegionBoundaries[i] == 0) {
-//			for (list<vector<MachineInstr*> >::iterator firstInstrItr = firstInstructionOfpHyperOp.begin(); firstInstrItr != firstInstructionOfpHyperOp.end(); firstInstrItr++) {
-//				vector<MachineInstr*> firstInstrOfNextRegion = *firstInstrItr;
-//				if (firstInstrOfNextRegion[i] != 0) {
-//					firstRegionBoundaries[i] = firstInstrOfNextRegion[i];
-//					break;
-//				}
-//			}
-//		}
-//	}
+	//Compute successive regions for merge after first regions
 
-	unsigned i = 0;
 //Merge the instructions of different regions
 	for (unsigned j = 1; j < firstInstructionOfpHyperOp.size(); j++) {
 		unsigned index = 0;
-		vector<MachineInstr*> secondRegionBoundaries;
+		vector<MachineInstr*> mergingRegionBoundaries;
 		list<vector<MachineInstr*> >::iterator currentRegion;
 		for (list<vector<MachineInstr*> >::iterator firstInstrOfPhop = firstInstructionOfpHyperOp.begin(); firstInstrOfPhop != firstInstructionOfpHyperOp.end(); firstInstrOfPhop++, index++) {
 			if (index == j) {
-				secondRegionBoundaries = *firstInstrOfPhop;
+				mergingRegionBoundaries = *firstInstrOfPhop;
 				currentRegion = firstInstrOfPhop;
 			}
 		}
 
 		//Merge pHyperOps from regions i and j
 		for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
-			errs() << "merging regions:" << i << " and " << j << "\n";
 			MachineInstr* nextCeInstruction;
 			MachineInstr* startMerge;
 			MachineInstr* endMerge;
-			startMerge = secondRegionBoundaries[ceIndex];
+			startMerge = mergingRegionBoundaries[ceIndex];
 			if (ceIndex + 1 != ceCount) {
 				nextCeInstruction = firstRegionBoundaries[ceIndex + 1];
-				endMerge = secondRegionBoundaries[ceIndex + 1];
+				endMerge = mergingRegionBoundaries[ceIndex + 1];
 			} else {
 				nextCeInstruction = BB->end();
 				endMerge = BB->end();
@@ -1097,12 +1096,14 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 				}
 			}
 
-			if (startMerge == BB->end() || nextCeInstruction == BB->end() || startMerge == 0 || nextCeInstruction == 0 || nextCeInstruction == startMerge) {
+			if (startMerge == BB->end() || nextCeInstruction == BB->end() || startMerge == 0 || nextCeInstruction == 0 || startMerge <= nextCeInstruction || startMerge == endMerge) {
 				continue;
 			}
 
 			while (startMerge != endMerge) {
 				MachineInstr* instructionToMerge = startMerge;
+				errs() << "merging instruction ";
+				instructionToMerge->dump();
 				startMerge = startMerge->getNextNode();
 				BB->splice(nextCeInstruction, BB, instructionToMerge);
 			}
@@ -1118,14 +1119,14 @@ if (!firstInstructionOfpHyperOp.empty()) {
 	DEBUG(dbgs() << "Creating pHyperOp bundles for CEs\n");
 	for (unsigned i = 0; i < ceCount; i++) {
 		//TODO some changes required here if somehow an empty region is the first one to be processed
-		MachineInstr* firstInstructionInCE = firstInstructionOfpHyperOp.front()[i];
+		MachineInstr* firstInstructionInCE = firstRegionBoundaries[i];
 		MachineInstr* firstInstructionInNextCE;
 
 		if (firstInstructionInCE == BB->end() || firstInstructionInCE == 0) {
 			continue;
 		}
 		if (i < ceCount - 1) {
-			firstInstructionInNextCE = firstInstructionOfpHyperOp.front()[i + 1];
+			firstInstructionInNextCE = firstRegionBoundaries[i + 1];
 		} else {
 			firstInstructionInNextCE = BB->end();
 		}
