@@ -25,6 +25,7 @@
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/ADT/StringExtras.h"
+#include "REDEFINEUtils.h"
 
 using namespace llvm;
 
@@ -86,8 +87,6 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 				OutStreamer.EmitLabel(label);
 				startOfBBInPHyperOp[pHyperOpIndex].pop_front();
 			}
-			errs()<<"printing instruction:";
-			(*mcItr)->dump();
 			EmitInstruction(*mcItr);
 		}
 	}
@@ -145,6 +144,20 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 	string nextHyperOpInst(NEXT_HYPEROP_INST_ANNOTATION);
 	nextHyperOpInst.append("\t").append("0").append("\n");
 	OutStreamer.EmitRawText(StringRef(nextHyperOpInst));
+
+	string inputs = ".data\t";
+	const Module* parentModule = MF->getFunction()->getParent();
+	inputs.append(itostr(parentModule->getGlobalList().size())).append("\n");
+	OutStreamer.EmitRawText(StringRef(inputs));
+	long int maxGlobalSize = 0;
+	for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
+		const GlobalVariable *globalVar = &*globalArgItr;
+		//Every global is a pointer type
+		string inputs = "i\t";
+		inputs.append(itostr(maxGlobalSize)).append("\n");
+		maxGlobalSize += REDEFINEUtils::getSizeOfType(globalVar->getType());
+		OutStreamer.EmitRawText(StringRef(inputs));
+	}
 }
 
 void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
@@ -174,7 +187,6 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		topology.append("\t").append(itostr(maxXInTopology)).append("\t").append(itostr(maxYInTopology)).append("\n");
 		OutStreamer.EmitRawText(StringRef(topology));
 		firstFunctionBeingProcessed = false;
-
 	}
 
 	string hyperOpLabel = "HyperOp#";
@@ -189,9 +201,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 
 //Adding distribution count of operands
 	string distCount = ".distcnt\t";
-	errs() << "ce count:" << ceCount << "\n";
 	for (unsigned i = 0; i < ceCount; i++) {
-		errs() << "dist count:" << hyperOp->getNumInputsPerCE(i) << "\n";
 		distCount.append(itostr(hyperOp->getNumInputsPerCE(i))).append("\t");
 	}
 	distCount.append("\n");

@@ -65,36 +65,33 @@ def t0   : GPR32<5, "x5">, DwarfRegNum<[5]>;
 def t1   : GPR32<6, "x6">, DwarfRegNum<[6]>;
 def t2   : GPR32<7, "x7">, DwarfRegNum<[7]>;
 def fp   : GPR32<8, "x8">, DwarfRegNum<[8]>;
-def s0   : GPR32<8, "x8">, DwarfRegNum<[8]>{
-  let Aliases = [fp];
-}
-def s1   : GPR32<9, "x9">, DwarfRegNum<[9]>;
+def s0   : GPR32<9, "x9">, DwarfRegNum<[9]>;
+def s1   : GPR32<10, "x10">, DwarfRegNum<[10]>;
 //return values
-def a0   : GPR32<10,"x10">, DwarfRegNum<[10]>;
-def a1   : GPR32<11,"x11">, DwarfRegNum<[11]>;
+def a0   : GPR32<11,"x11">, DwarfRegNum<[11]>;
+def a1   : GPR32<12,"x12">, DwarfRegNum<[12]>;
 //function arguments
-def a2   : GPR32<12,"x12">, DwarfRegNum<[12]>;
-def a3   : GPR32<13,"x13">, DwarfRegNum<[13]>;
-def a4   : GPR32<14,"x14">, DwarfRegNum<[14]>;
-def a5   : GPR32<15,"x15">, DwarfRegNum<[15]>;
-def a6   : GPR32<16,"x16">, DwarfRegNum<[16]>;
-def a7   : GPR32<17,"x17">, DwarfRegNum<[17]>;
+def a2   : GPR32<13,"x13">, DwarfRegNum<[13]>;
+def a3   : GPR32<14,"x14">, DwarfRegNum<[14]>;
+def a4   : GPR32<15,"x15">, DwarfRegNum<[15]>;
+def a5   : GPR32<16,"x16">, DwarfRegNum<[16]>;
+def a6   : GPR32<17,"x17">, DwarfRegNum<[17]>;
+def a7   : GPR32<18,"x18">, DwarfRegNum<[18]>;
 //saved registers
-def s2   : GPR32<18,"x18">, DwarfRegNum<[18]>;
-def s3   : GPR32<19,"x19">, DwarfRegNum<[19]>;
-def s4   : GPR32<20,"x20">, DwarfRegNum<[20]>;
-def s5   : GPR32<21,"x21">, DwarfRegNum<[21]>;
-def s6   : GPR32<22,"x22">, DwarfRegNum<[22]>;
-def s7   : GPR32<23,"x23">, DwarfRegNum<[23]>;
-def s8   : GPR32<24,"x24">, DwarfRegNum<[24]>;
-def s9   : GPR32<25,"x25">, DwarfRegNum<[25]>;
-def s10  : GPR32<26,"x26">, DwarfRegNum<[26]>;
-def s11  : GPR32<27,"x27">, DwarfRegNum<[27]>;
+def s2   : GPR32<19,"x19">, DwarfRegNum<[19]>;
+def s3   : GPR32<20,"x20">, DwarfRegNum<[20]>;
+def s4   : GPR32<21,"x21">, DwarfRegNum<[21]>;
+def s5   : GPR32<22,"x22">, DwarfRegNum<[22]>;
+def s6   : GPR32<23,"x23">, DwarfRegNum<[23]>;
+def s7   : GPR32<24,"x24">, DwarfRegNum<[24]>;
+def s8   : GPR32<25,"x25">, DwarfRegNum<[25]>;
+def s9   : GPR32<26,"x26">, DwarfRegNum<[26]>;
+def s10  : GPR32<27,"x27">, DwarfRegNum<[27]>;
+def s11  : GPR32<28,"x28">, DwarfRegNum<[28]>;
 //temp registers
-def t3   : GPR32<28,"x28">, DwarfRegNum<[28]>;
-def t4   : GPR32<29,"x29">, DwarfRegNum<[29]>;
-def t5   : GPR32<30,"x30">, DwarfRegNum<[30]>;
-def t6   : GPR32<31,"x31">, DwarfRegNum<[31]>;
+def t3   : GPR32<29,"x29">, DwarfRegNum<[29]>;
+def t4   : GPR32<30,"x30">, DwarfRegNum<[30]>;
+def t5   : GPR32<31,"x31">, DwarfRegNum<[31]>;
 
 //Integer regs 32bit
 defm GR32 : REDEFINERegClass<"GR32", i32, 32, (add

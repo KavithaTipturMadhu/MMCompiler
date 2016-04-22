@@ -13,7 +13,8 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/Target/Mangler.h"
 #include "llvm/IR/Module.h"
-
+#include "llvm/IR/Type.h"
+#include "REDEFINEUtils.h"
 using namespace llvm;
 
 // Where relaxable pairs of reloc-generating instructions exist,
@@ -65,15 +66,14 @@ MCOperand REDEFINEMCInstLower::lowerSymbolOperand(const MachineOperand &MO, cons
 }
 
 MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
-	const Module* parentModule = MO.getMBB()->getBasicBlock()->getParent()->getParent();
-	static long int maxGlobalSize = 0;
-	static map<StringRef, long int> globalVarStartAddressMap;
+	std::map<StringRef, long int> globalVarStartAddressMap;
+	long int maxGlobalSize = 0;
+	const Module* parentModule = MO.getParent()->getParent()->getParent()->getFunction()->getParent();
 	for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
 		const GlobalVariable *globalVar = &*globalArgItr;
-		globalVarStartAddressMap[globalVar->getName()] = maxGlobalSize;
-		maxGlobalSize += globalVar->getType()->getPrimitiveSizeInBits() / 8;
+		globalVarStartAddressMap.insert(std::make_pair(globalVar->getName(), maxGlobalSize));
+		maxGlobalSize += REDEFINEUtils::getSizeOfType(globalVar->getType());
 	}
-
 	switch (MO.getType()) {
 	case MachineOperand::MO_Register:
 		// Ignore all implicit register operands.
@@ -90,7 +90,7 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 
 	case MachineOperand::MO_GlobalAddress: {
 //		return lowerSymbolOperand(MO, Mang->getSymbol(MO.getGlobal()), MO.getOffset());
-		return MCOperand::CreateImm(globalVarStartAddressMap.find(MO.getGlobal()->getName())->second+ MO.getOffset());
+		return MCOperand::CreateImm(globalVarStartAddressMap.find(MO.getGlobal()->getName())->second + MO.getOffset());
 	}
 
 	case MachineOperand::MO_ExternalSymbol: {
@@ -100,8 +100,8 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 		//TODO: Somehow, getObjectOffset doesn't work, need to check why;
 	case MachineOperand::MO_FrameIndex: {
 		unsigned currentObjectOffset = 0;
-		for (int i = MO.getMBB()->getParent()->getFrameInfo()->getObjectIndexBegin(); i < MO.getIndex(); i++) {
-			currentObjectOffset += MO.getMBB()->getParent()->getFrameInfo()->getObjectSize(i);
+		for (int i = MO.getParent()->getParent()->getParent()->getFrameInfo()->getObjectIndexBegin(); i < MO.getIndex(); i++) {
+			currentObjectOffset += MO.getParent()->getParent()->getParent()->getFrameInfo()->getObjectSize(i);
 		}
 		MCOperand retVal = MCOperand::CreateImm(currentObjectOffset + maxGlobalSize);
 		return retVal;
