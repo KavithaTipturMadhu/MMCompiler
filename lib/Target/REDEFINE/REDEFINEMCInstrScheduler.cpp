@@ -936,7 +936,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				for (list<pair<Type*, unsigned> >::iterator containedPrimitiveItr = primitiveTypesMap.begin(); containedPrimitiveItr != primitiveTypesMap.end(); containedPrimitiveItr++) {
 					Type* containedType = containedPrimitiveItr->first;
 					unsigned registerContainingData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerContainingData, RegState::Define).addReg(REDEFINE::zero, RegState::InternalRead);
+					MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerContainingData, RegState::Define).addReg(REDEFINE::t5, RegState::InternalRead);
 					allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
 					LIS->getOrCreateInterval(registerContainingData);
