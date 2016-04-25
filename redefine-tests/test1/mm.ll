@@ -866,6 +866,6 @@ HyperOp#0:
 .isnextHyOpInstValid	0
 .nextHyperOpInst	0
 .data	3
-i	40
-i	80
-i	120
+i	0
+i	16
+i	64

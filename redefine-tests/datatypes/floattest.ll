@@ -44,4 +44,4 @@ attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"=
 
 !redefine.annotations = !{!0}
 
-!0 = metadata !{metadata !"HyperOp", float ()* @test, i32 0}
+!0 = metadata !{metadata !"HyperOp", float ()* @test}
