@@ -136,43 +136,48 @@ void REDEFINEMCInstrScheduler::schedule() {
 		traversedSUnitsWithIndex[SU] = numVertices;
 		traversedSUnitList.push_back(SU);
 		numVertices++;
+		if (ceCount == 1) {
+			instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, 0));
+		}
 		updateQueues(SU, IsTopNode);
 	}
 
-	//Number of balancing constraints
-	idx_t ncon = 1;
-	//CSR format of storage
-	idx_t xadj[numVertices + 1];
-	vector<idx_t> adjcny;
-	idx_t nparts = ceCount;
-	idx_t objval;
+	if (ceCount > 1) {
+		//Number of balancing constraints
+		idx_t ncon = 1;
+		//CSR format of storage
+		idx_t xadj[numVertices + 1];
+		vector<idx_t> adjcny;
+		idx_t nparts = ceCount;
+		idx_t objval;
 
-	idx_t part[numVertices + 1];
-	//Create a metis partitioning problem and solve using partkway API
-	idx_t currentAdjIndex = 0;
-	xadj[0] = currentAdjIndex;
-	unsigned xadjIndex = 1;
-	for (list<SUnit*>::iterator traversedSUnitItr = traversedSUnitList.begin(); traversedSUnitItr != traversedSUnitList.end(); traversedSUnitItr++, xadjIndex++) {
-		SUnit* traversedSUnit = *traversedSUnitItr;
-		idx_t indexOfSUnit = traversedSUnitsWithIndex[traversedSUnit];
-		currentAdjIndex += traversedSUnit->Succs.size() - 1;
-		if (currentAdjIndex == -1) {
-			currentAdjIndex = 0;
+		idx_t part[numVertices + 1];
+		//Create a metis partitioning problem and solve using partkway API
+		idx_t currentAdjIndex = 0;
+		xadj[0] = currentAdjIndex;
+		unsigned xadjIndex = 1;
+		for (list<SUnit*>::iterator traversedSUnitItr = traversedSUnitList.begin(); traversedSUnitItr != traversedSUnitList.end(); traversedSUnitItr++, xadjIndex++) {
+			SUnit* traversedSUnit = *traversedSUnitItr;
+			idx_t indexOfSUnit = traversedSUnitsWithIndex[traversedSUnit];
+			currentAdjIndex += traversedSUnit->Succs.size() - 1;
+			if (currentAdjIndex == -1) {
+				currentAdjIndex = 0;
+			}
+			xadj[xadjIndex] = currentAdjIndex;
+			for (SmallVector<SDep, 4>::iterator successorItr = traversedSUnit->Succs.begin(); successorItr != traversedSUnit->Succs.end(); successorItr++) {
+				SUnit* successor = successorItr->getSUnit();
+				idx_t successorIndex = traversedSUnitsWithIndex.find(successor)->second;
+				adjcny.push_back(successorIndex);
+			}
 		}
-		xadj[xadjIndex] = currentAdjIndex;
-		for (SmallVector<SDep, 4>::iterator successorItr = traversedSUnit->Succs.begin(); successorItr != traversedSUnit->Succs.end(); successorItr++) {
-			SUnit* successor = successorItr->getSUnit();
-			idx_t successorIndex = traversedSUnitsWithIndex.find(successor)->second;
-			adjcny.push_back(successorIndex);
+
+		METIS_PartGraphKway(&numVertices, &ncon, xadj, &adjcny[0], NULL, NULL, NULL, &nparts, NULL, NULL, NULL, &objval, part);
+
+		unsigned indexOfSUnit = 0;
+		for (list<SUnit*>::iterator traversedSUnitItr = traversedSUnitList.begin(); traversedSUnitItr != traversedSUnitList.end(); traversedSUnitItr++) {
+			instructionAndPHyperOpMapForRegion.push_back(make_pair(*traversedSUnitItr, part[indexOfSUnit]));
+			indexOfSUnit++;
 		}
-	}
-
-	METIS_PartGraphKway(&numVertices, &ncon, xadj, &adjcny[0], NULL, NULL, NULL, &nparts, NULL, NULL, NULL, &objval, part);
-
-	unsigned indexOfSUnit = 0;
-	for (list<SUnit*>::iterator traversedSUnitItr = traversedSUnitList.begin(); traversedSUnitItr != traversedSUnitList.end(); traversedSUnitItr++) {
-		instructionAndPHyperOpMapForRegion.push_back(make_pair(*traversedSUnitItr, part[indexOfSUnit]));
-		indexOfSUnit++;
 	}
 
 	assert(CurrentTop == CurrentBottom && "Nonempty unscheduled zone.");
@@ -614,7 +619,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 
 //Dump in memory all the registers that are live-out
 	DEBUG(dbgs() << "Dumping all live-out registers to memory\n");
-	MachineInstr* lastInstr = BB->getFirstInstrTerminator();
+	MachineInstr* lastInstr = RegionEnd;
 	for (unsigned i = 0, e = RPTracker.getPressure().LiveOutRegs.size(); i < e; i++) {
 		unsigned liveoutRegister = RPTracker.getPressure().LiveOutRegs[i];
 		SmallVector<unsigned, 8> LiveInRegs = RPTracker.getPressure().LiveInRegs;
@@ -888,7 +893,9 @@ for (unsigned i = 0; i < ceCount; i++) {
 firstInstructionOfpHyperOp.push_front(firstInstrCopy);
 errs() << "state of bb after exit region:";
 BB->dump();
-RegionBegin = firstInstruction;
+if (firstInstruction != 0) {
+	RegionBegin = firstInstruction;
+}
 }
 
 void REDEFINEMCInstrScheduler::finishBlock() {
