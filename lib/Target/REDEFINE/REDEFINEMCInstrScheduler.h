@@ -21,7 +21,10 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
+#include "metis.h"
+
 using namespace llvm;
+
 
 namespace llvm {
 
@@ -34,24 +37,27 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	unsigned nextFrameLocation;
 	//This is introduced to spill all the liveout registers in a basic block to be used by successive basic blocks
 	map<unsigned, unsigned> registerAndFrameLocation;
+
 	//Instruction and the pHyperOp it belongs to
 	list<pair<SUnit*, unsigned> > instructionAndPHyperOpMapForRegion;
 
 	//Instruction in a region, the pHyperOp it belongs to and its position in the region
-	list<pair<MachineInstr*, pair<unsigned, unsigned> > >  allInstructionsOfRegion;
+	list<pair<MachineInstr*, pair<unsigned, unsigned> > > allInstructionsOfRegion;
 
 	//We need this to do additional code motion and ease creation of pHyperOp bundles
 	//TODO
-	vector<MachineInstr* > firstInstructionOfpHyperOpInRegion;
+	vector<MachineInstr*> firstInstructionOfpHyperOpInRegion;
 	//For each region, firstInstructionOfpHyperOpInRegion
 	list<vector<MachineInstr*> > firstInstructionOfpHyperOp;
+
+	vector<unsigned> registersUsedInBB;
 
 	//Position tracking a new insertion
 	unsigned insertPosition = 0;
 
 	//TODO
 	//Used to track the SP location in use
-	vector<unsigned > faninOfHyperOp;
+	vector<unsigned> faninOfHyperOp;
 
 	//TODO
 	//First index corresponds to the CE and the value corresponds to the register containing the base address of the scratch pad location of the consumer CE to which the producer CE is writing to

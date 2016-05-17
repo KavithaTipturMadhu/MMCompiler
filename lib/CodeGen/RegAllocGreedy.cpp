@@ -426,13 +426,26 @@ unsigned RAGreedy::tryAssign(LiveInterval &VirtReg, AllocationOrder &Order, Smal
 		if (!Matrix->checkInterference(VirtReg, PhysReg))
 			break;
 
-	if (!PhysReg || Order.isHint()) {
+	//TODO I have no idea what the impact of this is going to be, adding Order.isHint(MRI->getSimpleHint(VirtReg.reg)) instead of the following conditional
+	//if (!PhysReg || Order.isHint()
+	if (!PhysReg || Order.isHint()||Order.isHint(MRI->getSimpleHint(VirtReg.reg))) {
 		//Get the shuffled register if the register is live-in in some CE
 		if (find(liveInVirtualRegs.begin(), liveInVirtualRegs.end(), VirtReg.reg) != liveInVirtualRegs.end()) {
 			DEBUG(dbgs() << "reg " << VirtReg.reg << " that was live-in gets phys reg:" << shuffledVirt2PhysRegMap.find(VirtReg.reg)->second << " instead of phys reg:" << PhysReg << "\n");
 			return shuffledVirt2PhysRegMap.find(VirtReg.reg)->second;
 		}
 		return PhysReg;
+	}
+
+	errs() << "live range of register " << MRI->getRegClass(VirtReg.reg)->getName() << ":\n";
+	errs() << "begin index instruction:";
+	if (VirtReg.empty()) {
+		errs() << "empty live range\n";
+	} else {
+		errs() << "start index instruction:";
+		LIS->getInstructionFromIndex(VirtReg.beginIndex())->dump();
+		errs() << "end index instruction:";
+		LIS->getInstructionFromIndex(VirtReg.endIndex())->dump();
 	}
 
 	// PhysReg is available, but there may be a better choice.
@@ -1775,7 +1788,7 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 							cePhysRegistersLiveIn.push_back(physReg);
 						}
 						ceAndLiveInArgList.insert(make_pair(pHyperOpIndex, cePhysRegistersLiveIn));
-					}else{
+					} else {
 						ignoreCopyInstrList.push_back(MI);
 					}
 				}
@@ -1802,7 +1815,7 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 	for (MachineFunction::iterator MBBI = MF->begin(), MBBE = MF->end(); MBBI != MBBE; ++MBBI) {
 		for (MachineBasicBlock::instr_iterator MII = MBBI->instr_begin(); MII != MBBI->instr_end(); ++MII) {
 			MachineInstr *MI = MII;
-			if (MII->isCopy()&&find(ignoreCopyInstrList.begin(), ignoreCopyInstrList.end(), MI)==ignoreCopyInstrList.end()) {
+			if (MII->isCopy() && find(ignoreCopyInstrList.begin(), ignoreCopyInstrList.end(), MI) == ignoreCopyInstrList.end()) {
 				MachineOperand & MO = MII->getOperand(1);
 				if (MO.isReg() && find(previouslyUpdatedOperands.begin(), previouslyUpdatedOperands.end(), &MO) == previouslyUpdatedOperands.end()) {
 					DEBUG(dbgs() << "Replacing " << MO.getReg() << " with " << shuffledPhys2PhysRegMap.find(MO.getReg())->second << " for instruction");

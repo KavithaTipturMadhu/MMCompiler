@@ -1341,6 +1341,9 @@ int factorial(int n) {
 	return retVal;
 }
 int combination(int n, int r) {
+	if(n<r){
+		return 0;
+	}
 	return factorial(n) / (factorial(n - r) * factorial(r));
 }
 
@@ -1385,22 +1388,22 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 	}
 
 //A conflict between edges is defined as edges that execute concurrently across clusters and don't share the same source or target cluster
-	list<pair<pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> > > conflictingEdges;
-	for (list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > >::iterator edgeItr = communicationMap.begin(); edgeItr != communicationMap.end(); edgeItr++) {
-		list<unsigned int> edgeStartTime = (edgeItr->second).second;
-		list<unsigned int> edgeEndTime = addHierarchicalVolume((edgeItr->second).first, (edgeItr->second).second);
-		for (list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > >::iterator conflictingEdgeItr = communicationMap.begin(); conflictingEdgeItr != communicationMap.end(); conflictingEdgeItr++) {
-			//If not the same edges
-			if (edgeItr != conflictingEdgeItr && (!(edgeItr->first.first == conflictingEdgeItr->first.first && edgeItr->first.second == conflictingEdgeItr->first.second))) {
-				list<unsigned int> conflictEdgeStartTime = (conflictingEdgeItr->second).second;
-				list<unsigned int> conflictEdgeEndTime = addHierarchicalVolume((conflictingEdgeItr->second).first, (conflictingEdgeItr->second).second);
-				if (!(compareHierarchicalVolume(conflictEdgeStartTime, edgeEndTime) >= 0 || compareHierarchicalVolume(conflictEdgeEndTime, edgeStartTime) >= 0)) {
-					//Edges that execute concurrently
-					conflictingEdges.push_back(std::make_pair(edgeItr->first, conflictingEdgeItr->first));
-				}
-			}
-		}
-	}
+//	list<pair<pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> > > conflictingEdges;
+//	for (list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > >::iterator edgeItr = communicationMap.begin(); edgeItr != communicationMap.end(); edgeItr++) {
+//		list<unsigned int> edgeStartTime = (edgeItr->second).second;
+//		list<unsigned int> edgeEndTime = addHierarchicalVolume((edgeItr->second).first, (edgeItr->second).second);
+//		for (list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > >::iterator conflictingEdgeItr = communicationMap.begin(); conflictingEdgeItr != communicationMap.end(); conflictingEdgeItr++) {
+//			//If not the same edges
+//			if (edgeItr != conflictingEdgeItr && (!(edgeItr->first.first == conflictingEdgeItr->first.first && edgeItr->first.second == conflictingEdgeItr->first.second))) {
+//				list<unsigned int> conflictEdgeStartTime = (conflictingEdgeItr->second).second;
+//				list<unsigned int> conflictEdgeEndTime = addHierarchicalVolume((conflictingEdgeItr->second).first, (conflictingEdgeItr->second).second);
+//				if (!(compareHierarchicalVolume(conflictEdgeStartTime, edgeEndTime) >= 0 || compareHierarchicalVolume(conflictEdgeEndTime, edgeStartTime) >= 0)) {
+//					//Edges that execute concurrently
+//					conflictingEdges.push_back(std::make_pair(edgeItr->first, conflictingEdgeItr->first));
+//				}
+//			}
+//		}
+//	}
 
 //Create the linear programming problem
 	int Ncol = clusterList.size() * 2;
@@ -1447,7 +1450,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 			colno[2] = addedVariableIndex;
 			row[2] = maxDimM + 1;
 			colno[3] = addedVariableIndex + 1;
-			row[3] = -1;
+			row[3] = 1;
 			add_constraintex(lp, 4, row, colno, GE, 0);
 
 			colno[0] = i;
@@ -1457,7 +1460,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 			colno[2] = addedVariableIndex;
 			row[2] = maxDimM + 1;
 			colno[3] = addedVariableIndex + 1;
-			row[3] = 1;
+			row[3] = -1;
 			add_constraintex(lp, 4, row, colno, LE, maxDimM + 1);
 			set_binary(lp, addedVariableIndex, 1);
 			set_lowbo(lp, addedVariableIndex + 1, 0);
@@ -1471,17 +1474,17 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 			colno[2] = addedVariableIndex;
 			row[2] = maxDimN + 1;
 			colno[3] = addedVariableIndex + 1;
-			row[3] = -1;
+			row[3] = 1;
 			add_constraintex(lp, 4, row, colno, GE, 0);
 
 			colno[0] = i + 1;
 			row[0] = 1;
 			colno[1] = j + 1;
-			row[1] = -1;
+			row[1] = 1;
 			colno[2] = addedVariableIndex;
 			row[2] = maxDimN + 1;
 			colno[3] = addedVariableIndex + 1;
-			row[3] = 1;
+			row[3] = -1;
 			add_constraintex(lp, 4, row, colno, LE, maxDimN + 1);
 			set_binary(lp, addedVariableIndex, 1);
 			set_lowbo(lp, addedVariableIndex + 1, 0);
