@@ -154,7 +154,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		const GlobalVariable *globalVar = &*globalArgItr;
 		//Every global is a pointer type
 		string inputs = "i\t";
-		inputs.append(itostr(maxGlobalSize)).append("\n");
+		inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
 		maxGlobalSize += REDEFINEUtils::getSizeOfType(globalVar->getType());
 		OutStreamer.EmitRawText(StringRef(inputs));
 	}
@@ -187,6 +187,8 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		topology.append("\t").append(itostr(maxXInTopology)).append("\t").append(itostr(maxYInTopology)).append("\n");
 		OutStreamer.EmitRawText(StringRef(topology));
 		firstFunctionBeingProcessed = false;
+
+
 	}
 
 	string hyperOpLabel = "HyperOp#";
