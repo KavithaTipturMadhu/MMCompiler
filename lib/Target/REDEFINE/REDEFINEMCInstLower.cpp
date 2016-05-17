@@ -10,11 +10,13 @@
 #include "REDEFINEMCInstLower.h"
 #include "REDEFINEAsmPrinter.h"
 #include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/Target/Mangler.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "REDEFINEUtils.h"
+#include "llvm/ADT/StringExtras.h"
 using namespace llvm;
 
 // Where relaxable pairs of reloc-generating instructions exist,
@@ -42,22 +44,22 @@ REDEFINEMCInstLower::REDEFINEMCInstLower(Mangler *mang, MCContext &ctx, REDEFINE
 }
 
 MCOperand REDEFINEMCInstLower::lowerSymbolOperand(const MachineOperand &MO, const MCSymbol *Symbol, int64_t Offset) const {
-	MCSymbolRefExpr::VariantKind Kind = getVariantKind(MO.getTargetFlags());
-	switch (MO.getTargetFlags()) {
-	case REDEFINEII::MO_ABS_HI:
-		Kind = MCSymbolRefExpr::VK_Mips_ABS_HI;
-		break;
-	case REDEFINEII::MO_ABS_LO:
-		Kind = MCSymbolRefExpr::VK_Mips_ABS_LO;
-		break;
-	case REDEFINEII::MO_TPREL_HI:
-		Kind = MCSymbolRefExpr::VK_Mips_TPREL_HI;
-		break;
-	case REDEFINEII::MO_TPREL_LO:
-		Kind = MCSymbolRefExpr::VK_Mips_TPREL_LO;
-		break;
-	}
-	const MCExpr *Expr = MCSymbolRefExpr::Create(Symbol, Kind, Ctx);
+//	MCSymbolRefExpr::VariantKind Kind = getVariantKind(MO.getTargetFlags());
+//	switch (MO.getTargetFlags()) {
+//	case REDEFINEII::MO_ABS_HI:
+//		Kind = MCSymbolRefExpr::VK_Mips_ABS_HI;
+//		break;
+//	case REDEFINEII::MO_ABS_LO:
+//		Kind = MCSymbolRefExpr::VK_Mips_ABS_LO;
+//		break;
+//	case REDEFINEII::MO_TPREL_HI:
+//		Kind = MCSymbolRefExpr::VK_Mips_TPREL_HI;
+//		break;
+//	case REDEFINEII::MO_TPREL_LO:
+//		Kind = MCSymbolRefExpr::VK_Mips_TPREL_LO;
+//		break;
+//	}
+	const MCExpr *Expr = MCSymbolRefExpr::Create(Symbol, MCSymbolRefExpr::VK_None, Ctx);
 	if (Offset) {
 		const MCExpr *OffsetExpr = MCConstantExpr::Create(Offset, Ctx);
 		Expr = MCBinaryExpr::CreateAdd(Expr, OffsetExpr, Ctx);
@@ -89,8 +91,10 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 		/* MO has no offset field */0);
 
 	case MachineOperand::MO_GlobalAddress: {
-//		return lowerSymbolOperand(MO, Mang->getSymbol(MO.getGlobal()), MO.getOffset());
-		return MCOperand::CreateImm(globalVarStartAddressMap.find(MO.getGlobal()->getName())->second + MO.getOffset());
+//		return MCOperand::CreateImm(globalVarStartAddressMap.find(MO.getGlobal()->getName())->second + MO.getOffset());
+		string globalName="ga#";
+		globalName.append(itostr(globalVarStartAddressMap.find(MO.getGlobal()->getName())->second + MO.getOffset()));
+		return lowerSymbolOperand(MO, Ctx.GetOrCreateSymbol(StringRef(globalName)), 0);
 	}
 
 	case MachineOperand::MO_ExternalSymbol: {
