@@ -246,12 +246,12 @@ bool MachineScheduler::runOnMachineFunction(MachineFunction &mf) {
 
 			// Skip empty scheduling regions (0 or 1 schedulable instructions).
 			//TODO for REDEFINE: Changed this to schedule instructions with 0 or 1 instructions also since the BB might contain terminators only and not necessarily other instructions
-			if (I == RegionEnd|| I == llvm::prior(RegionEnd)) {
-			 //Close the current region. Bundle the terminator if needed.
-			 //This invalidates 'RegionEnd' and 'I'.
-				Scheduler->exitRegion();
-				continue;
-			}
+//			if (I == RegionEnd|| I == llvm::prior(RegionEnd)) {
+//			 //Close the current region. Bundle the terminator if needed.
+//			 //This invalidates 'RegionEnd' and 'I'.
+//				Scheduler->exitRegion();
+//				continue;
+//			}
 			DEBUG(dbgs() << "********** MI Scheduling **********\n");
 			DEBUG(dbgs() << MF->getName() << ":BB#" << MBB->getNumber() << " " << MBB->getName() << "\n  From: " << *I << "    To: "; if (RegionEnd != MBB->end()) dbgs() << *RegionEnd; else dbgs() << "End"; dbgs() << " Remaining: " << RemainingInstrs << "\n");
 
@@ -267,7 +267,7 @@ bool MachineScheduler::runOnMachineFunction(MachineFunction &mf) {
 			// scheduler for the top of it's scheduled region.
 			RegionEnd = Scheduler->begin();
 		}
-		assert(RemainingInstrs == 0 && "Instruction count mismatch!");
+//		assert(RemainingInstrs == 0 && "Instruction count mismatch!");
 		Scheduler->finishBlock();
 	}
 

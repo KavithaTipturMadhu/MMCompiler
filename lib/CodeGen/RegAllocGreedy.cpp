@@ -437,17 +437,6 @@ unsigned RAGreedy::tryAssign(LiveInterval &VirtReg, AllocationOrder &Order, Smal
 		return PhysReg;
 	}
 
-	errs() << "live range of register " << MRI->getRegClass(VirtReg.reg)->getName() << ":\n";
-	errs() << "begin index instruction:";
-	if (VirtReg.empty()) {
-		errs() << "empty live range\n";
-	} else {
-		errs() << "start index instruction:";
-		LIS->getInstructionFromIndex(VirtReg.beginIndex())->dump();
-		errs() << "end index instruction:";
-		LIS->getInstructionFromIndex(VirtReg.endIndex())->dump();
-	}
-
 	// PhysReg is available, but there may be a better choice.
 
 	// If we missed a simple hint, try to cheaply evict interference from the

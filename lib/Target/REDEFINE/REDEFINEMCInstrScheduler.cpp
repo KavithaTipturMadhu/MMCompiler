@@ -90,16 +90,6 @@ void REDEFINEMCInstrScheduler::enterRegion(MachineBasicBlock *bb, MachineBasicBl
 		}
 	}
 	insertPosition = 0;
-//	errs()<<"\n Entering a new region between ";
-//	begin->dump();
-//	errs()<<" and ";
-//	if(end!=BB->end()){
-//		end->dump();
-//	}else{
-//		errs()<<"nothing\n";
-//	}
-//	errs()<<"state of bb ";
-//	bb->dump();
 }
 
 void REDEFINEMCInstrScheduler::schedule() {
@@ -235,7 +225,7 @@ if (IsTopNode) {
 
 void REDEFINEMCInstrScheduler::startBlock(MachineBasicBlock *bb) {
 BB = bb;
-DEBUG(dbgs() << "Starting new basic block BB#" << BB->getNumber() << "\n");
+DEBUG(dbgs() << "\n-------------\nStarting new basic block BB#" << BB->getNumber() << "\n");
 //Initialize frame index to point to the first free location in memory offset by frame address
 if (BB->getBasicBlock()->getName().compare(BB->getBasicBlock()->getParent()->getEntryBlock().getName()) == 0) {
 	nextFrameLocation = BB->getParent()->getFrameInfo()->getObjectIndexEnd();
@@ -618,39 +608,39 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 	}
 
 //Dump in memory all the registers that are live-out
-	DEBUG(dbgs() << "Dumping all live-out registers to memory\n");
+	DEBUG(dbgs() << "Computing all live-out registers of the basic block\n");
 	MachineInstr* lastInstr = RegionEnd;
-	for (unsigned i = 0, e = RPTracker.getPressure().LiveOutRegs.size(); i < e; i++) {
-		unsigned liveoutRegister = RPTracker.getPressure().LiveOutRegs[i];
-		SmallVector<unsigned, 8> LiveInRegs = RPTracker.getPressure().LiveInRegs;
-		//Find out the definition of the live-out register
-		VNInfo* regValueNumber = LIS->getInterval(liveoutRegister).getVNInfoBefore(LIS->getInstructionIndex(&BB->back()));
-		MachineInstr* reachingDefinitionInstruction = LIS->getInstructionFromIndex(regValueNumber->def);
-		int ceContainingInstruction = -1;
-		for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstructionItr = allInstructionsOfRegion.begin(); allInstructionItr != allInstructionsOfRegion.end(); allInstructionItr++) {
-			if (allInstructionItr->first == reachingDefinitionInstruction) {
-				ceContainingInstruction = allInstructionItr->second.first;
-				break;
-			}
-		}
-
-		//If the register was live-in and not redefined in the basic block, do nothing since the data is in memory already; Otherwise, add a sw instruction
-		if (!(ceContainingInstruction == -1 && find(LiveInRegs.begin(), LiveInRegs.end(), liveoutRegister) != LiveInRegs.end())) {
-			MachineInstrBuilder storeInMem = BuildMI(*BB, lastInstr, lastInstr->getDebugLoc(), TII->get(REDEFINE::SW));
-			storeInMem.addReg(REDEFINE::zero);
-			storeInMem.addReg(liveoutRegister);
-			if (registerAndFrameLocation.find(liveoutRegister) == registerAndFrameLocation.end()) {
-				registerAndFrameLocation.insert(make_pair(liveoutRegister, nextFrameLocation));
-				storeInMem.addFrameIndex(nextFrameLocation);
-				nextFrameLocation += 1;
-			} else {
-				storeInMem.addFrameIndex(registerAndFrameLocation.find(liveoutRegister)->second);
-			}
-
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(storeInMem.operator llvm::MachineInstr *());
-			allInstructionsOfRegion.push_back(make_pair(storeInMem.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
-		}
-	}
+//	for (unsigned i = 0, e = RPTracker.getPressure().LiveOutRegs.size(); i < e; i++) {
+//		unsigned liveoutRegister = RPTracker.getPressure().LiveOutRegs[i];
+//		SmallVector<unsigned, 8> LiveInRegs = RPTracker.getPressure().LiveInRegs;
+//		//Find out the definition of the live-out register
+//		VNInfo* regValueNumber = LIS->getInterval(liveoutRegister).getVNInfoBefore(LIS->getInstructionIndex(&BB->back()));
+//		MachineInstr* reachingDefinitionInstruction = LIS->getInstructionFromIndex(regValueNumber->def);
+//		int ceContainingInstruction = -1;
+//		for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstructionItr = allInstructionsOfRegion.begin(); allInstructionItr != allInstructionsOfRegion.end(); allInstructionItr++) {
+//			if (allInstructionItr->first == reachingDefinitionInstruction) {
+//				ceContainingInstruction = allInstructionItr->second.first;
+//				break;
+//			}
+//		}
+//
+//		//If the register was live-in and not redefined in the basic block, do nothing since the data is in memory already; Otherwise, add a sw instruction
+//		if (!(ceContainingInstruction == -1 && find(LiveInRegs.begin(), LiveInRegs.end(), liveoutRegister) != LiveInRegs.end())) {
+//			MachineInstrBuilder storeInMem = BuildMI(*BB, lastInstr, lastInstr->getDebugLoc(), TII->get(REDEFINE::SW));
+//			storeInMem.addReg(REDEFINE::zero);
+//			storeInMem.addReg(liveoutRegister);
+//			if (registerAndFrameLocation.find(liveoutRegister) == registerAndFrameLocation.end()) {
+//				registerAndFrameLocation.insert(make_pair(liveoutRegister, nextFrameLocation));
+//				storeInMem.addFrameIndex(nextFrameLocation);
+//				nextFrameLocation += 1;
+//			} else {
+//				storeInMem.addFrameIndex(registerAndFrameLocation.find(liveoutRegister)->second);
+//			}
+//
+//			LIS->getSlotIndexes()->insertMachineInstrInMaps(storeInMem.operator llvm::MachineInstr *());
+//			allInstructionsOfRegion.push_back(make_pair(storeInMem.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
+//		}
+//	}
 
 //See if some predecessors exist which require additional inter-pHyperOp communication instructions
 	for (unsigned i = 0; i < machineInstruction->getNumOperands(); i++) {
@@ -884,18 +874,17 @@ MachineInstr* firstInstruction = 0;
 for (unsigned i = 0; i < ceCount; i++) {
 	firstInstruction = firstInstructionOfpHyperOpInRegion[i];
 	if (firstInstruction != 0) {
-		errs() << "first instruction in the region:";
-		firstInstruction->dump();
 		break;
 	}
 }
 
 firstInstructionOfpHyperOp.push_front(firstInstrCopy);
-errs() << "state of bb after exit region:";
-BB->dump();
 if (firstInstruction != 0) {
 	RegionBegin = firstInstruction;
 }
+errs() << "state of bb before exit region:";
+BB->dump();
+errs() << "end of exit region\n";
 }
 
 void REDEFINEMCInstrScheduler::finishBlock() {
@@ -997,7 +986,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			//Add instruction to the region
 			allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 			LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
-//			LIS->getOrCreateInterval(registerContainingConsumerBase);
 		}
 
 		if (edge->getType() == HyperOpEdge::SCALAR || edge->getType() == HyperOpEdge::PREDICATE) {
@@ -1039,8 +1027,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				//Add instruction to bundle
 				allInstructionsOfRegion.push_back(make_pair(loadInstr.operator ->(), make_pair(currentCE, insertPosition++)));
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(loadInstr.operator llvm::MachineInstr *());
-//				LIS->getOrCreateInterval(registerContainingData);
-
 			}
 			//No need to access memory for a true predicate, copying via addi will do
 			else {
@@ -1055,7 +1041,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				//Add instruction to bundle
 				allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
-//				LIS->getOrCreateInterval(registerContainingData);
 			}
 			MachineInstrBuilder writeToContextFrame;
 			if (edge->Type == HyperOpEdge::SCALAR) {
@@ -1144,14 +1129,12 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerContainingData, RegState::Define).addReg(REDEFINE::t5);
 					allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
-//					LIS->getOrCreateInterval(registerContainingData);
 
 					if (containedType->isFloatTy()) {
 						unsigned floatingPointRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::f32);
 						MachineInstrBuilder floatingPointConversion = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::FMV_X_S)).addReg(floatingPointRegister, RegState::Define).addReg(registerContainingData);
 						allInstructionsOfRegion.push_back(make_pair(floatingPointConversion.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(floatingPointConversion.operator llvm::MachineInstr *());
-//						LIS->getOrCreateInterval(floatingPointRegister);
 
 						MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::FSW));
 						store.addReg(registerContainingConsumerBase, RegState::Define).addReg(floatingPointRegister).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData);
