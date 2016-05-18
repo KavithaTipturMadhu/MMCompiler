@@ -130,12 +130,12 @@ void REDEFINEMCInstrScheduler::schedule() {
 		if (ceCount == 1) {
 			instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, 0));
 		}
-	instructionAndPHyperOpMapForRegion.push_back(make_pair(SU,ceIndex));
-	ceIndex=(ceIndex+1)%ceCount;
+		instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, ceIndex));
+		ceIndex = (ceIndex + 1) % ceCount;
 		updateQueues(SU, IsTopNode);
 	}
 
-	if (ceCount <0) {
+	if (ceCount < 0) {
 		//Number of balancing constraints
 		idx_t ncon = 1;
 		//CSR format of storage
@@ -749,6 +749,10 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 
 						//Add readpm instruction in the target CE
 						readpm.addReg(operand.getReg(), RegState::Define);
+						redefinitionsInCE[ceContainingInstruction].push_back(operand.getReg());
+						if (registerAndDefiningCEMap.find(operand.getReg()) == registerAndDefiningCEMap.end()) {
+							registerAndDefiningCEMap[operand.getReg()] = ceContainingPredecessorInstruction;
+						}
 						readpm.addReg(registerContainingBaseAddress[ceContainingInstruction][ceContainingInstruction]);
 						readpm.addImm(offsetInScratchpad);
 
@@ -954,10 +958,10 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 //End of add fbind
 
 //LLVM IR is assumed to be in mem form; Loading from the memory location with the same name as the value should do for all the data being communicated between HyperOps
-	vector<list<pair<HyperOp*, unsigned> > > consumerHyperOps;
+	vector < list<pair<HyperOp*, unsigned> > > consumerHyperOps;
 	consumerHyperOps.reserve(ceCount);
 	for (unsigned j = 0; j < ceCount; j++) {
-		list<pair<HyperOp*, unsigned> > consumerList;
+		list < pair<HyperOp*, unsigned> > consumerList;
 		consumerHyperOps.push_back(consumerList);
 	}
 
@@ -1107,7 +1111,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			//Find the primitive types of allocatedDataType
 
 			//Map of primitive data types and their memory locations
-			list<pair<Type*, unsigned> > primitiveTypesMap;
+			list < pair<Type*, unsigned> > primitiveTypesMap;
 			list<Type*> containedTypesForTraversal;
 			containedTypesForTraversal.push_front(allocatedDataType);
 			unsigned memoryOfType = 0;
