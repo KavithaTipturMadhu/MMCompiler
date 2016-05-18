@@ -131,6 +131,7 @@ void REDEFINEMCInstrScheduler::schedule() {
 	map<SUnit*, idx_t> traversedSUnitsWithIndex;
 	//Since map doesn't maintain the order of insertion, using a list
 	list<SUnit*> traversedSUnitList;
+	unsigned ceIndex = 0;
 	while (SUnit *SU = SchedImpl->pickNode(IsTopNode)) {
 		scheduleMI(SU, IsTopNode);
 		traversedSUnitsWithIndex[SU] = numVertices;
@@ -139,10 +140,12 @@ void REDEFINEMCInstrScheduler::schedule() {
 		if (ceCount == 1) {
 			instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, 0));
 		}
+	instructionAndPHyperOpMapForRegion.push_back(make_pair(SU,ceIndex));
+	ceIndex=(ceIndex+1)%ceCount;
 		updateQueues(SU, IsTopNode);
 	}
 
-	if (ceCount > 1) {
+	if (ceCount <0) {
 		//Number of balancing constraints
 		idx_t ncon = 1;
 		//CSR format of storage
