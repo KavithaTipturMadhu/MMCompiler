@@ -129,13 +129,14 @@ void REDEFINEMCInstrScheduler::schedule() {
 		numVertices++;
 		if (ceCount == 1) {
 			instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, 0));
-		}
+		}else{
 		instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, ceIndex));
+		}
 		ceIndex = (ceIndex + 1) % ceCount;
 		updateQueues(SU, IsTopNode);
 	}
 
-	if (ceCount < 0) {
+	if (ceCount > 0) {
 		//Number of balancing constraints
 		idx_t ncon = 1;
 		//CSR format of storage
