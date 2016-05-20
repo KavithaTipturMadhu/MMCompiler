@@ -21,7 +21,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
-#include "metis.h"
+//#include "metis.h"
 
 using namespace llvm;
 
@@ -34,7 +34,6 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	static const unsigned datawidth = 4;
 	unsigned ceCount;
 	unsigned frameSize;
-	unsigned nextFrameLocation;
 	//This is introduced to spill all the liveout registers in a basic block to be used by successive basic blocks
 	map<unsigned, unsigned> registerAndFrameLocation;
 

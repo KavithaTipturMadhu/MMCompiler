@@ -73,7 +73,6 @@ REDEFINEMCInstrScheduler::REDEFINEMCInstrScheduler(MachineSchedContext *C, Machi
 		ScheduleDAGMI(C, S) {
 	ceCount = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
 	frameSize = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCfSize();
-	nextFrameLocation = -1;
 }
 
 REDEFINEMCInstrScheduler::~REDEFINEMCInstrScheduler() {
@@ -137,18 +136,20 @@ void REDEFINEMCInstrScheduler::schedule() {
 
 	bool IsTopNode = true;
 
-	idx_t numVertices = 0;
+//	idx_t numVertices = 0;
 
 	//List of traversed SUnits and an associated index;
-	map<SUnit*, idx_t> traversedSUnitsWithIndex;
+//	METIS TODO : map<SUnit*, idx_t> traversedSUnitsWithIndex;
+
 	//Since map doesn't maintain the order of insertion, using a list
 	list<SUnit*> traversedSUnitList;
 	unsigned ceIndex = 0;
 	while (SUnit *SU = SchedImpl->pickNode(IsTopNode)) {
 		scheduleMI(SU, IsTopNode);
-		traversedSUnitsWithIndex[SU] = numVertices;
+//		METIS TODO: traversedSUnitsWithIndex[SU] = numVertices;
+//		METIS TODO:  numVertices++;
+
 		traversedSUnitList.push_back(SU);
-		numVertices++;
 		if (ceCount == 1) {
 			instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, 0));
 		} else {
@@ -157,45 +158,45 @@ void REDEFINEMCInstrScheduler::schedule() {
 		ceIndex = (ceIndex + 1) % ceCount;
 		updateQueues(SU, IsTopNode);
 	}
-
-	if (ceCount < 0) {
-		//Number of balancing constraints
-		idx_t ncon = 1;
-		//CSR format of storage
-		idx_t xadj[numVertices + 1];
-		vector<idx_t> adjcny;
-		idx_t nparts = ceCount;
-		idx_t objval;
-
-		idx_t part[numVertices + 1];
-		//Create a metis partitioning problem and solve using partkway API
-		idx_t currentAdjIndex = 0;
-		xadj[0] = currentAdjIndex;
-		unsigned xadjIndex = 1;
-		for (list<SUnit*>::iterator traversedSUnitItr = traversedSUnitList.begin(); traversedSUnitItr != traversedSUnitList.end(); traversedSUnitItr++, xadjIndex++) {
-			SUnit* traversedSUnit = *traversedSUnitItr;
-			idx_t indexOfSUnit = traversedSUnitsWithIndex[traversedSUnit];
-			currentAdjIndex += traversedSUnit->Succs.size() - 1;
-			if (currentAdjIndex == -1) {
-				currentAdjIndex = 0;
-			}
-			xadj[xadjIndex] = currentAdjIndex;
-			for (SmallVector<SDep, 4>::iterator successorItr = traversedSUnit->Succs.begin(); successorItr != traversedSUnit->Succs.end(); successorItr++) {
-				SUnit* successor = successorItr->getSUnit();
-				idx_t successorIndex = traversedSUnitsWithIndex.find(successor)->second;
-				adjcny.push_back(successorIndex);
-			}
-		}
-
-		idx_t* adjcnyArray = &adjcny[0];
-		METIS_PartGraphKway(&numVertices, &ncon, xadj, &adjcny[0], NULL, NULL, NULL, &nparts, NULL, NULL, NULL, &objval, part);
-
-		unsigned indexOfSUnit = 0;
-		for (list<SUnit*>::iterator traversedSUnitItr = traversedSUnitList.begin(); traversedSUnitItr != traversedSUnitList.end(); traversedSUnitItr++) {
-			instructionAndPHyperOpMapForRegion.push_back(make_pair(*traversedSUnitItr, part[indexOfSUnit]));
-			indexOfSUnit++;
-		}
-	}
+// METIS TODO:
+//	if (ceCount > 1) {
+//		//Number of balancing constraints
+//		idx_t ncon = 1;
+//		//CSR format of storage
+//		idx_t xadj[numVertices + 1];
+//		vector<idx_t> adjcny;
+//		idx_t nparts = ceCount;
+//		idx_t objval;
+//
+//		idx_t part[numVertices + 1];
+//		//Create a metis partitioning problem and solve using partkway API
+//		idx_t currentAdjIndex = 0;
+//		xadj[0] = currentAdjIndex;
+//		unsigned xadjIndex = 1;
+//		for (list<SUnit*>::iterator traversedSUnitItr = traversedSUnitList.begin(); traversedSUnitItr != traversedSUnitList.end(); traversedSUnitItr++, xadjIndex++) {
+//			SUnit* traversedSUnit = *traversedSUnitItr;
+//			idx_t indexOfSUnit = traversedSUnitsWithIndex[traversedSUnit];
+//			currentAdjIndex += traversedSUnit->Succs.size() - 1;
+//			if (currentAdjIndex == -1) {
+//				currentAdjIndex = 0;
+//			}
+//			xadj[xadjIndex] = currentAdjIndex;
+//			for (SmallVector<SDep, 4>::iterator successorItr = traversedSUnit->Succs.begin(); successorItr != traversedSUnit->Succs.end(); successorItr++) {
+//				SUnit* successor = successorItr->getSUnit();
+//				idx_t successorIndex = traversedSUnitsWithIndex.find(successor)->second;
+//				adjcny.push_back(successorIndex);
+//			}
+//		}
+//
+//		idx_t* adjcnyArray = &adjcny[0];
+//		METIS_PartGraphKway(&numVertices, &ncon, xadj, &adjcny[0], NULL, NULL, NULL, &nparts, NULL, NULL, NULL, &objval, part);
+//
+//		unsigned indexOfSUnit = 0;
+//		for (list<SUnit*>::iterator traversedSUnitItr = traversedSUnitList.begin(); traversedSUnitItr != traversedSUnitList.end(); traversedSUnitItr++) {
+//			instructionAndPHyperOpMapForRegion.push_back(make_pair(*traversedSUnitItr, part[indexOfSUnit]));
+//			indexOfSUnit++;
+//		}
+//	}
 
 	assert(CurrentTop == CurrentBottom && "Nonempty unscheduled zone.");
 	placeDebugValues();
@@ -253,10 +254,6 @@ if (IsTopNode) {
 void REDEFINEMCInstrScheduler::startBlock(MachineBasicBlock *bb) {
 BB = bb;
 DEBUG(dbgs() << "\n-------------\nStarting new basic block BB#" << BB->getNumber() << "\n");
-//Initialize frame index to point to the first free location in memory offset by frame address
-if (BB->getBasicBlock()->getName().compare(BB->getBasicBlock()->getParent()->getEntryBlock().getName()) == 0) {
-	nextFrameLocation = BB->getParent()->getFrameInfo()->getObjectIndexEnd();
-}
 
 firstInstructionOfpHyperOp.clear();
 faninOfHyperOp.clear();
@@ -286,8 +283,6 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 	unsigned ceContainingInstruction = ScheduledInstrItr->second;
 	SUnit* SU = ScheduledInstrItr->first;
 	MachineInstr* machineInstruction = SU->getInstr();
-	errs() << "\n============\ndealing with instruction:";
-	machineInstruction->dump();
 	unsigned additionalFanin = 0;
 	for (SmallVector<SDep, 4>::iterator predecessorItr = SU->Preds.begin(); predecessorItr != SU->Preds.end(); predecessorItr++) {
 		for (list<pair<SUnit*, unsigned> >::iterator predecessorInstrItr = instructionAndPHyperOpMapForRegion.begin(); predecessorInstrItr != instructionAndPHyperOpMapForRegion.end(); predecessorInstrItr++) {
@@ -400,8 +395,6 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 		for (SmallVector<SDep, 4>::iterator predecessorItr = SU->Preds.begin(); predecessorItr != SU->Preds.end(); predecessorItr++) {
 			SDep dependence = (*predecessorItr);
 			SUnit* predecessor = predecessorItr->getSUnit();
-			errs() << "predecessor:";
-			predecessor->getInstr()->dump();
 			unsigned ceContainingPredecessorInstruction = -1;
 			for (list<pair<SUnit*, unsigned> >::iterator predecessorInstrItr = instructionAndPHyperOpMapForRegion.begin(); predecessorInstrItr != instructionAndPHyperOpMapForRegion.end(); predecessorInstrItr++) {
 				if (predecessorInstrItr->first->getInstr() == predecessor->getInstr()) {
@@ -638,41 +631,6 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 		faninOfHyperOp[i] = 0;
 	}
 
-//Dump in memory all the registers that are live-out
-	DEBUG(dbgs() << "Computing all live-out registers of the basic block\n");
-	MachineInstr* lastInstr = RegionEnd;
-//	for (unsigned i = 0, e = RPTracker.getPressure().LiveOutRegs.size(); i < e; i++) {
-//		unsigned liveoutRegister = RPTracker.getPressure().LiveOutRegs[i];
-//		SmallVector<unsigned, 8> LiveInRegs = RPTracker.getPressure().LiveInRegs;
-//		//Find out the definition of the live-out register
-//		VNInfo* regValueNumber = LIS->getInterval(liveoutRegister).getVNInfoBefore(LIS->getInstructionIndex(&BB->back()));
-//		MachineInstr* reachingDefinitionInstruction = LIS->getInstructionFromIndex(regValueNumber->def);
-//		int ceContainingInstruction = -1;
-//		for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstructionItr = allInstructionsOfRegion.begin(); allInstructionItr != allInstructionsOfRegion.end(); allInstructionItr++) {
-//			if (allInstructionItr->first == reachingDefinitionInstruction) {
-//				ceContainingInstruction = allInstructionItr->second.first;
-//				break;
-//			}
-//		}
-//
-//		//If the register was live-in and not redefined in the basic block, do nothing since the data is in memory already; Otherwise, add a sw instruction
-//		if (!(ceContainingInstruction == -1 && find(LiveInRegs.begin(), LiveInRegs.end(), liveoutRegister) != LiveInRegs.end())) {
-//			MachineInstrBuilder storeInMem = BuildMI(*BB, lastInstr, lastInstr->getDebugLoc(), TII->get(REDEFINE::SW));
-//			storeInMem.addReg(REDEFINE::zero);
-//			storeInMem.addReg(liveoutRegister);
-//			if (registerAndFrameLocation.find(liveoutRegister) == registerAndFrameLocation.end()) {
-//				registerAndFrameLocation.insert(make_pair(liveoutRegister, nextFrameLocation));
-//				storeInMem.addFrameIndex(nextFrameLocation);
-//				nextFrameLocation += 1;
-//			} else {
-//				storeInMem.addFrameIndex(registerAndFrameLocation.find(liveoutRegister)->second);
-//			}
-//
-//			LIS->getSlotIndexes()->insertMachineInstrInMaps(storeInMem.operator llvm::MachineInstr *());
-//			allInstructionsOfRegion.push_back(make_pair(storeInMem.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
-//		}
-//	}
-
 //See if some predecessors exist which require additional inter-pHyperOp communication instructions
 	for (unsigned i = 0; i < machineInstruction->getNumOperands(); i++) {
 		MachineOperand& operand = machineInstruction->getOperand(i);
@@ -706,6 +664,9 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 			} else {
 				for (unsigned ceContainingInstruction = 0; ceContainingInstruction < ceCount; ceContainingInstruction++) {
 					if (ceContainingInstruction != ceContainingPredecessorInstruction) {
+						if (redefinitionsInCE.find(ceContainingInstruction) != redefinitionsInCE.end() && find(redefinitionsInCE[ceContainingInstruction].begin(), redefinitionsInCE[ceContainingInstruction].end(), operand.getReg()) != redefinitionsInCE[ceContainingInstruction].end()) {
+							continue;
+						}
 						//Hardcoded first location to be used for communicating the operand of branch instruction because there is no use in doing any fancy register allocation in this
 						//Since sync barrier has already been executed, sp locations can be reused from 0
 						//TODO while technically we can run out of communication registers here as well, it is highly unlikely we ever will since the number of branch instructions cant be so high
@@ -890,8 +851,13 @@ for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstruct
 		if (operand.isReg() && registerAndDefiningCEMap.find(operand.getReg()) != registerAndDefiningCEMap.end() && registerAndDefiningCEMap[operand.getReg()] != ce) {
 			//Defined in a different CE
 			if (replacementRegisterMap[ce].find(operand.getReg()) == replacementRegisterMap[ce].end()) {
-				//First definition in ce
-				replacementRegisterMap[ce][operand.getReg()] = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+				unsigned originalRegister = operand.getReg();
+				if ((*MRI.getRegClass(originalRegister)->vt_begin()) == MVT::i32) {
+					//First definition in ce
+					replacementRegisterMap[ce][operand.getReg()] = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+				} else {
+					replacementRegisterMap[ce][operand.getReg()] = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::f32);
+				}
 			}
 			unsigned replacementRegister = replacementRegisterMap[ce].find(operand.getReg())->second;
 			operand.setReg(replacementRegister);
@@ -902,12 +868,6 @@ for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstruct
 vector<MachineInstr*> firstInstrRegionCopy;
 for (unsigned i = 0; i < ceCount; i++) {
 	firstInstrRegionCopy.push_back(firstInstructionOfpHyperOpInRegion[i]);
-	errs() << "first instruction region for ce " << i << ":";
-	if (firstInstructionOfpHyperOpInRegion[i] != 0) {
-		firstInstructionOfpHyperOpInRegion[i]->dump();
-	} else {
-		errs() << "zero\n";
-	}
 }
 
 MachineInstr* firstInstruction = 0;
@@ -923,9 +883,6 @@ firstInstructionOfpHyperOp.push_front(firstInstrRegionCopy);
 if (firstInstruction != 0) {
 	RegionBegin = firstInstruction;
 }
-errs() << "end of exit region\n";
-errs() << "state of bb before exit region:";
-BB->dump();
 }
 
 void REDEFINEMCInstrScheduler::finishBlock() {
@@ -1321,7 +1278,7 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 				}
 			}
 
-			if (startMerge == BB->end() || nextCeInstruction == BB->end() || startMerge == 0 || nextCeInstruction == 0 || instructionAppearsBefore(BB, startMerge , nextCeInstruction) || startMerge == endMerge) {
+			if (startMerge == BB->end() || nextCeInstruction == BB->end() || startMerge == 0 || nextCeInstruction == 0 || instructionAppearsBefore(BB, startMerge, nextCeInstruction) || startMerge == endMerge) {
 				continue;
 			}
 
