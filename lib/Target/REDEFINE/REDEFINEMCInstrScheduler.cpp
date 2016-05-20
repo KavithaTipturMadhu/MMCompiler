@@ -24,6 +24,28 @@ static int32_t SignExtend8BitNumberTo12Bits(int8_t x) {
 	return int32_t(x << 4) >> 4;
 }
 
+//Returns true if firstInstr appears before secondInstr in the MBB
+static bool instructionAppearsBefore(MachineBasicBlock* MBB, MachineInstr* firstInstr, MachineInstr* secondInstr) {
+	int firstPosition = -1, secondPosition = -1;
+	unsigned currentPosition = 0;
+	for (MachineBasicBlock::iterator instrItr = MBB->begin(); instrItr != MBB->end(); instrItr++, currentPosition++) {
+		MachineInstr* instr = instrItr;
+		if (instr == firstInstr) {
+			firstPosition = currentPosition;
+		} else if (instr == secondInstr) {
+			secondPosition = currentPosition;
+		}
+		if (firstPosition >= 0 && secondPosition >= 0) {
+			break;
+		}
+	}
+
+	if (firstPosition < secondPosition) {
+		return true;
+	}
+	return false;
+}
+
 /**
  * SPM is partitioned 3-way:
  * _______________________
@@ -165,6 +187,7 @@ void REDEFINEMCInstrScheduler::schedule() {
 			}
 		}
 
+		idx_t* adjcnyArray = &adjcny[0];
 		METIS_PartGraphKway(&numVertices, &ncon, xadj, &adjcny[0], NULL, NULL, NULL, &nparts, NULL, NULL, NULL, &objval, part);
 
 		unsigned indexOfSUnit = 0;
@@ -263,6 +286,8 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 	unsigned ceContainingInstruction = ScheduledInstrItr->second;
 	SUnit* SU = ScheduledInstrItr->first;
 	MachineInstr* machineInstruction = SU->getInstr();
+	errs() << "\n============\ndealing with instruction:";
+	machineInstruction->dump();
 	unsigned additionalFanin = 0;
 	for (SmallVector<SDep, 4>::iterator predecessorItr = SU->Preds.begin(); predecessorItr != SU->Preds.end(); predecessorItr++) {
 		for (list<pair<SUnit*, unsigned> >::iterator predecessorInstrItr = instructionAndPHyperOpMapForRegion.begin(); predecessorInstrItr != instructionAndPHyperOpMapForRegion.end(); predecessorInstrItr++) {
@@ -375,6 +400,8 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 		for (SmallVector<SDep, 4>::iterator predecessorItr = SU->Preds.begin(); predecessorItr != SU->Preds.end(); predecessorItr++) {
 			SDep dependence = (*predecessorItr);
 			SUnit* predecessor = predecessorItr->getSUnit();
+			errs() << "predecessor:";
+			predecessor->getInstr()->dump();
 			unsigned ceContainingPredecessorInstruction = -1;
 			for (list<pair<SUnit*, unsigned> >::iterator predecessorInstrItr = instructionAndPHyperOpMapForRegion.begin(); predecessorInstrItr != instructionAndPHyperOpMapForRegion.end(); predecessorInstrItr++) {
 				if (predecessorInstrItr->first->getInstr() == predecessor->getInstr()) {
@@ -872,9 +899,15 @@ for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstruct
 	}
 }
 
-vector<MachineInstr*> firstInstrCopy;
+vector<MachineInstr*> firstInstrRegionCopy;
 for (unsigned i = 0; i < ceCount; i++) {
-	firstInstrCopy.push_back(firstInstructionOfpHyperOpInRegion[i]);
+	firstInstrRegionCopy.push_back(firstInstructionOfpHyperOpInRegion[i]);
+	errs() << "first instruction region for ce " << i << ":";
+	if (firstInstructionOfpHyperOpInRegion[i] != 0) {
+		firstInstructionOfpHyperOpInRegion[i]->dump();
+	} else {
+		errs() << "zero\n";
+	}
 }
 
 MachineInstr* firstInstruction = 0;
@@ -886,13 +919,13 @@ for (unsigned i = 0; i < ceCount; i++) {
 	}
 }
 
-firstInstructionOfpHyperOp.push_front(firstInstrCopy);
+firstInstructionOfpHyperOp.push_front(firstInstrRegionCopy);
 if (firstInstruction != 0) {
 	RegionBegin = firstInstruction;
 }
+errs() << "end of exit region\n";
 errs() << "state of bb before exit region:";
 BB->dump();
-errs() << "end of exit region\n";
 }
 
 void REDEFINEMCInstrScheduler::finishBlock() {
@@ -1253,8 +1286,6 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 	}
 
 //Compute successive regions for merge after first regions
-
-//Merge the instructions of different regions
 	for (unsigned j = 1; j < firstInstructionOfpHyperOp.size(); j++) {
 		unsigned index = 0;
 		vector<MachineInstr*> mergingRegionBoundaries;
@@ -1290,7 +1321,7 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 				}
 			}
 
-			if (startMerge == BB->end() || nextCeInstruction == BB->end() || startMerge == 0 || nextCeInstruction == 0 || startMerge <= nextCeInstruction || startMerge == endMerge) {
+			if (startMerge == BB->end() || nextCeInstruction == BB->end() || startMerge == 0 || nextCeInstruction == 0 || instructionAppearsBefore(BB, startMerge , nextCeInstruction) || startMerge == endMerge) {
 				continue;
 			}
 
