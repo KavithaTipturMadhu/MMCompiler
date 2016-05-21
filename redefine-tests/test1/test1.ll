@@ -87,3 +87,8 @@ for.end17:                                        ; preds = %for.cond
 
 attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
+
+!redefine.annotations = !{!0}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @main}
+

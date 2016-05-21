@@ -33,6 +33,7 @@ HyperOp::HyperOp(Function* function) {
 	this->contextFrame = 0;
 	this->executionTimeEstimate.push_back(1);
 	this->fbindRequired = false;
+	this->gcRequired = false;
 }
 
 HyperOp::~HyperOp() {
@@ -413,8 +414,8 @@ bool HyperOp::frameNeedsGC() const {
 	return gcRequired;
 }
 
-void HyperOp::setFrameNeedsGC(bool intrinsicFrame) {
-	this->gcRequired = intrinsicFrame;
+void HyperOp::setFrameNeedsGC(bool gcRequired) {
+	this->gcRequired = gcRequired;
 }
 
 list<unsigned int> HyperOp::getTopLevel() {
@@ -434,7 +435,7 @@ list<unsigned int> HyperOpEdge::getVolume() {
 	return volume;
 }
 
-void HyperOpEdge::setVolume(list<unsigned> volume){
+void HyperOpEdge::setVolume(list<unsigned> volume) {
 	this->volume = volume;
 }
 
@@ -1341,7 +1342,7 @@ int factorial(int n) {
 	return retVal;
 }
 int combination(int n, int r) {
-	if(n<r){
+	if (n < r) {
 		return 0;
 	}
 	return factorial(n) / (factorial(n - r) * factorial(r));

@@ -21,6 +21,7 @@ using namespace std;
 #include "llvm/Transforms/IPO/InlinerPass.h"
 #include "llvm/Analysis/DependenceAnalysis.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "HyperOpCreationPass"
@@ -57,6 +58,7 @@ struct HyperOpCreationPass: public ModulePass {
 		//Mandatory merge return to be invoked on each function
 		AU.addRequired<UnifyFunctionExitNodes>();
 		AU.addRequired<DependenceAnalysis>();
+		AU.addRequired<AliasAnalysis>();
 	}
 
 	bool pathExistsInCFG(BasicBlock* source, BasicBlock* target) {
@@ -134,7 +136,7 @@ struct HyperOpCreationPass: public ModulePass {
 		Function* mainFunction;
 		for (Module::iterator funcItr = M.begin(); funcItr != M.end(); funcItr++) {
 			Function* function = funcItr;
-			if (function->getName().compare(MAIN_FUNCTION) == 0) {
+			if (function->getName().compare(REDEFINE_START_FUNCTION) == 0) {
 				mainFunction = function;
 				break;
 			}
@@ -170,6 +172,7 @@ struct HyperOpCreationPass: public ModulePass {
 			list<BasicBlock*> traversedBasicBlocks;
 			list<BasicBlock*> bbTraverser;
 			bbTraverser.push_back(function->begin());
+			errs() << "processing function:" << function->getName() << "\n";
 			while (!bbTraverser.empty()) {
 				BasicBlock* bbItr = bbTraverser.front();
 				bbTraverser.pop_front();
@@ -210,9 +213,10 @@ struct HyperOpCreationPass: public ModulePass {
 					//Create a HyperOp at this boundary
 					endOfHyperOp = true;
 				} else {
-					bbTraverser.pop_front();
 					accumulatedBasicBlocks.push_back(bbItr);
 					for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
+						errs() << "dealing with instruction:";
+						instItr->dump();
 						if (!(isa<AllocaInst>(instItr) || isa<ReturnInst>(instItr))) {
 							//Function calls that couldn't be inlined when generating the IR
 							if (isa<CallInst>(instItr) || isa<InvokeInst>(instItr)) {
@@ -316,6 +320,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 				//Create a new HyperOp
 				if (endOfHyperOp || bbItr->getNextNode() == function->end()) {
+					errs() << "creating a new HyperOp\n";
 					list<const Function*> addedParentsToCurrentHyperOp;
 
 					//Couldn't use splice here since it clears away accumulatedBasicBlocks list
@@ -341,7 +346,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 					bool isEntry = false;
 					bool isExit = false;
-					if (accumulatedBasicBlocks.front()->getParent()->getName() == MAIN_FUNCTION) {
+					if (accumulatedBasicBlocks.front()->getParent()->getName() == REDEFINE_START_FUNCTION) {
 						if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &function->getEntryBlock()) != accumulatedBasicBlocks.end()) {
 							isEntry = true;
 						}
@@ -372,7 +377,7 @@ struct HyperOpCreationPass: public ModulePass {
 						MDNode* exitNode = MDNode::get(ctxt, values);
 						annotationsNode->addOperand(exitNode);
 					}
-					if (!isEntry || !isExit) {
+					if (!isEntry && !isExit) {
 						Value* values[2];
 						values[0] = MDString::get(ctxt, HYPEROP_INTERMEDIATE);
 						values[1] = funcAnnotation;
@@ -627,7 +632,7 @@ struct HyperOpCreationPass: public ModulePass {
 					retBB->getInstList().insert(retBB->getFirstInsertionPt(), retInst);
 
 					//Find out if there exist any branch instructions leading to the HyperOp, add metadata to the instruction
-					errs()<<"Dealing with conditional branches\n";
+					errs() << "Dealing with conditional branches\n";
 					for (map<Instruction*, unsigned>::iterator conditionalBranchSourceItr = conditionalBranchSources.begin(); conditionalBranchSourceItr != conditionalBranchSources.end(); conditionalBranchSourceItr++) {
 						//Find the branch instruction operand's clone
 						Instruction* clonedInstruction = (Instruction*) originalToClonedInstMap.find(conditionalBranchSourceItr->first)->second;
@@ -710,11 +715,10 @@ struct HyperOpCreationPass: public ModulePass {
 						storeInst->insertAfter(ai);
 						ai->setMetadata(HYPEROP_CONTROLLED_BY, predicatesRelation);
 						addedParentsToCurrentHyperOp.push_back(sourceParentFunction);
-
 						//TODO compute unconditional jump chains
 					}
 
-					//Check the reaching definition of the global reference object to this HyperOp
+//					//Check the reaching definition of the global reference object to this HyperOp
 					for (HyperOpArgumentMap::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
 						HyperOpArgumentType type = hyperOpArgItr->second.second;
 						if (type == GLOBAL_REFERENCE) {
@@ -782,7 +786,6 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
-					DEBUG(dbgs() << "Created HyperOp:");
 					newFunction->print(dbgs());
 					accumulatedBasicBlocks.clear();
 					hyperOpArguments.clear();
@@ -790,12 +793,12 @@ struct HyperOpCreationPass: public ModulePass {
 					endOfHyperOp = false;
 				}
 
+				vector<unsigned> depthsInSortedOrder;
+				map<unsigned, list<BasicBlock*> > untraversedBasicBlocks;
 				//Ensure breadth biased traversal such that all predecessors of a basic block are traversed before the basic block
-				for (int i = 0; i < bbItr->getTerminator()->getNumSuccessors(); i++) {
-					map<unsigned, list<BasicBlock*> > untraversedBasicBlocks;
-					vector<unsigned> depthsInSortedOrder;
-					if (find(traversedBasicBlocks.begin(), traversedBasicBlocks.end(), bbItr->getTerminator()->getSuccessor(i)) == traversedBasicBlocks.end()) {
-						BasicBlock* succBB = bbItr->getTerminator()->getSuccessor(i);
+				for (unsigned succIndex = 0; succIndex < bbItr->getTerminator()->getNumSuccessors(); succIndex++) {
+					BasicBlock* succBB = bbItr->getTerminator()->getSuccessor(succIndex);
+					if (find(traversedBasicBlocks.begin(), traversedBasicBlocks.end(), succBB) == traversedBasicBlocks.end()) {
 						list<BasicBlock*> visitedBasicBlockList;
 						unsigned distanceFromExit = distanceToExitBlock(succBB, visitedBasicBlockList);
 						list<BasicBlock*> basicBlockList;
@@ -805,14 +808,16 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 						basicBlockList.push_back(succBB);
 						untraversedBasicBlocks.insert(make_pair(distanceFromExit, basicBlockList));
-						if (find(depthsInSortedOrder.begin(), depthsInSortedOrder.end(), distanceFromExit) == depthsInSortedOrder.end()) {
+						if (depthsInSortedOrder.empty() || find(depthsInSortedOrder.begin(), depthsInSortedOrder.end(), distanceFromExit) == depthsInSortedOrder.end()) {
 							depthsInSortedOrder.push_back(distanceFromExit);
 						}
 					}
+				}
 
-					//Sort the basic blocks in descending order of their distance to exit block
-					list<BasicBlock*> sortedSuccBasicBlockList;
-					for (unsigned i = 0; i < depthsInSortedOrder.size(); i++) {
+				//Sort the basic blocks in descending order of their distance to exit block
+				list<BasicBlock*> sortedSuccBasicBlockList;
+				if (depthsInSortedOrder.size() > 1) {
+					for (unsigned i = 0; i < depthsInSortedOrder.size() - 1; i++) {
 						unsigned min = depthsInSortedOrder[i];
 						for (unsigned j = i + 1; j < depthsInSortedOrder.size(); j++) {
 							if (min > depthsInSortedOrder[j]) {
@@ -823,12 +828,15 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 						}
 					}
+				}
 
-					for (unsigned i = 0; i < depthsInSortedOrder.size(); i++) {
-						list<BasicBlock*> succBBList = untraversedBasicBlocks.find(i)->second;
-						for (list<BasicBlock*>::iterator succBBItr = succBBList.begin(); succBBItr != succBBList.end(); succBBItr++) {
-							bbTraverser.push_front(*succBBItr);
-						}
+				errs()<<"adding nodes for traversal\n";
+				for (unsigned i = 0; i < depthsInSortedOrder.size(); i++) {
+					list<BasicBlock*> succBBList = untraversedBasicBlocks.find(depthsInSortedOrder[i])->second;
+					for (list<BasicBlock*>::iterator succBBItr = succBBList.begin(); succBBItr != succBBList.end(); succBBItr++) {
+						errs()<<"pushing successor to list:";
+						(*succBBItr)->dump();
+						bbTraverser.push_front(*succBBItr);
 					}
 				}
 			}
@@ -844,7 +852,7 @@ struct HyperOpCreationPass: public ModulePass {
 	}
 
 private:
-	const char* MAIN_FUNCTION = "main";
+	const char* REDEFINE_START_FUNCTION = "redefine_start";
 	const char* HYPEROP_ENTRY = "Entry";
 	const char* HYPEROP_EXIT = "Exit";
 	const char* HYPEROP_INTERMEDIATE = "Intermediate";
