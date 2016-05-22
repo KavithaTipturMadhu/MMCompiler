@@ -1048,7 +1048,6 @@ void printDS(list<HyperOp*> dominantSequence) {
 	for (list<HyperOp*>::iterator dominantSequenceItr = dominantSequence.begin(); dominantSequenceItr != dominantSequence.end(); dominantSequenceItr++) {
 		errs() << (*dominantSequenceItr)->getFunction()->getName() << "->";
 	}
-	errs() << "\n";
 }
 
 void HyperOpInteractionGraph::clusterNodes() {
@@ -1283,6 +1282,8 @@ void HyperOpInteractionGraph::clusterNodes() {
 		}
 		//Add the edge to examined list;
 		examinedEdges.push_back(std::make_pair(source, target));
+
+		printDS(dominantSequencePair.first);
 	}
 
 	//Merge clusters till the number of compute resources matches the number of clusters created
