@@ -1283,7 +1283,8 @@ void HyperOpInteractionGraph::clusterNodes() {
 		//Add the edge to examined list;
 		examinedEdges.push_back(std::make_pair(source, target));
 
-		printDS(dominantSequencePair.first);
+		printDS(dominantSequencePair.first );
+		this->print(errs());
 	}
 
 	//Merge clusters till the number of compute resources matches the number of clusters created
@@ -1716,6 +1717,8 @@ void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrame
 	if (cluster.size() == 1) {
 		(*cluster.begin())->setContextFrame(0);
 	} else {
+		list<HyperOp*> temporaryCluster;
+		std::copy(cluster.begin(), cluster.end(), back_inserter(temporaryCluster));
 		int column[4];
 		REAL row[4];
 		map<int, pair<list<int>, list<int> > > conflictGraph;
@@ -1841,7 +1844,7 @@ void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrame
 			/* variable values */
 			get_variables(lp, resultRow);
 			int i = 0;
-			for (list<HyperOp*>::iterator vertexIterator = cluster.begin(); vertexIterator != cluster.end(); vertexIterator++) {
+			for (list<HyperOp*>::iterator vertexIterator = temporaryCluster.begin(); vertexIterator != temporaryCluster.end(); vertexIterator++) {
 				(*vertexIterator)->setContextFrame((unsigned) resultRow[i++]);
 			}
 		}
@@ -1924,7 +1927,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 	if (!this->Vertices.empty()) {
 		for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 			HyperOp* vertex = *vertexIterator;
-			os << vertex->getFunction()->getName() << "[label=\"Name:" << vertex->getFunction()->getName() << "\n";
+			os << vertex->getFunction()->getName() << "[label=\"Name:" << vertex->getFunction()->getName() << ",";
 			string dom, postdom;
 			if ((*vertexIterator)->getImmediateDominator() != 0) {
 				dom = (*vertexIterator)->getImmediateDominator()->getFunction()->getName();
@@ -1937,8 +1940,8 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 				postdom = "NULL";
 			}
 
-			os << "Dom:" << dom << ", PostDom:" << postdom << "\n";
-			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << "\n";
+			os << "Dom:" << dom << ", PostDom:" << postdom << ",";
+			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
 			os << "Domf:";
 			if (!vertex->getDominanceFrontier().empty()) {
 				list<HyperOp*> domf = vertex->getDominanceFrontier();
@@ -1946,7 +1949,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 					os << (*domfItr)->getFunction()->getName() << ";";
 				}
 			}
-			os << "\n\"];\n";
+			os << "\"];\n";
 			map<HyperOpEdge*, HyperOp*> children = vertex->ChildMap;
 			for (map<HyperOpEdge*, HyperOp*>::iterator childItr = children.begin(); childItr != children.end(); childItr++) {
 				os << vertex->getFunction()->getName() << "->" << childItr->second->getFunction()->getName() << "[label=";

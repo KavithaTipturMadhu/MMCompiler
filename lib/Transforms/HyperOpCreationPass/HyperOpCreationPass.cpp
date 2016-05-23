@@ -152,7 +152,7 @@ struct HyperOpCreationPass: public ModulePass {
 				for (BasicBlock::reverse_iterator instrItr = bbItr->rbegin(); instrItr != bbItr->rend(); instrItr++) {
 					if (isa<CallInst>(&*instrItr)) {
 						Function* calledFunction = ((CallInst*) &*instrItr)->getCalledFunction();
-						if (find(orderOfFunctionProcessing.begin(), orderOfFunctionProcessing.end(), calledFunction) == orderOfFunctionProcessing.end()) {
+						if (!calledFunction->isIntrinsic() && find(orderOfFunctionProcessing.begin(), orderOfFunctionProcessing.end(), calledFunction) == orderOfFunctionProcessing.end()) {
 							stack.push_front(calledFunction);
 						}
 					}

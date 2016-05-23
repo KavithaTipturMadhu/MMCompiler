@@ -63,20 +63,20 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 							MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(consumerMDNodeIndex);
 							HyperOp* consumerHyperOp = hyperOpMetadataMap[(MDNode*) consumerMDNode->getOperand(0)];
 							StringRef dataType = ((MDString*) consumerMDNode->getOperand(1))->getName();
-							HyperOpEdge edge;
+							HyperOpEdge* edge=new HyperOpEdge();
 							if (dataType.compare(SCALAR) == 0) {
-								edge.Type = HyperOpEdge::SCALAR;
+								edge->Type = HyperOpEdge::SCALAR;
 							} else if (dataType.compare(LOCAL_REFERENCE) == 0) {
-								edge.Type = HyperOpEdge::LOCAL_REFERENCE;
+								edge->Type = HyperOpEdge::LOCAL_REFERENCE;
 								list<unsigned> volumeOfCommunication;
 								volumeOfCommunication.push_back(sizeof((Value*) instr));
-								edge.setVolume(volumeOfCommunication);
+								edge->setVolume(volumeOfCommunication);
 							}
 							unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue();
-							edge.setValue((Value*) instr);
-							edge.setPositionOfContextSlot(positionOfContextSlot);
-							sourceHyperOp->addChildEdge(&edge, consumerHyperOp);
-							consumerHyperOp->addParentEdge(&edge, sourceHyperOp);
+							edge->setValue((Value*) instr);
+							edge->setPositionOfContextSlot(positionOfContextSlot);
+							sourceHyperOp->addChildEdge(edge, consumerHyperOp);
+							consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 						}
 					}
 					MDNode* controlledByMDNode = instr->getMetadata(HYPEROP_CONTROLLED_BY);
@@ -85,11 +85,11 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 							MDNode* predicatedMDNode = (MDNode*) controlledByMDNode->getOperand(predicatedMDNodeIndex);
 							//Create an edge between two HyperOps labeled by the instruction
 							HyperOp* predicatedHyperOp = hyperOpMetadataMap[(MDNode*) predicatedMDNode->getOperand(0)];
-							HyperOpEdge edge;
-							edge.Type = HyperOpEdge::PREDICATE;
-							edge.setValue((Value*) instr);
-							sourceHyperOp->addChildEdge(&edge, predicatedHyperOp);
-							predicatedHyperOp->addParentEdge(&edge, sourceHyperOp);
+							HyperOpEdge* edge=new HyperOpEdge();
+							edge->Type = HyperOpEdge::PREDICATE;
+							edge->setValue((Value*) instr);
+							sourceHyperOp->addChildEdge(edge, predicatedHyperOp);
+							predicatedHyperOp->addParentEdge(edge, sourceHyperOp);
 						}
 					}
 				}
@@ -106,6 +106,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 //			}
 //		}
 
+	graph->print(errs());
 	return graph;
 }
 
