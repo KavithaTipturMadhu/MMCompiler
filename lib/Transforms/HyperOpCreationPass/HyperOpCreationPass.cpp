@@ -42,7 +42,7 @@ struct HyperOpCreationPass: public ModulePass {
 	const string SCALAR_ARGUMENT = "Scalar";
 	const string LOCAL_REFERENCE_ARGUMENT = "LocalReference";
 
-	const unsigned int FRAME_SIZE = 4;
+	const unsigned int FRAME_SIZE = 16;
 
 	enum HyperOpArgumentType {
 		SCALAR, LOCAL_REFERENCE, GLOBAL_REFERENCE
