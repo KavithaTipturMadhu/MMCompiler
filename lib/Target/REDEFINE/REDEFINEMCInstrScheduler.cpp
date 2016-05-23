@@ -502,13 +502,8 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 					redefinitionsInCE[ceContainingInstruction].push_back(dependence.getReg());
 				} else {
 					//dependence still exists, associate a dummy virtual register
-					unsigned dummySource = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					writepm.addReg(dummySource);
-					unsigned dummyTarget = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					readpm.addReg(dummyTarget, RegState::Define);
-					//Interval still needs creating since these registers have no uses and the repair intervals messes up registers without uses
-					LIS->getOrCreateInterval(dummySource);
-					LIS->getOrCreateInterval(dummyTarget);
+					writepm.addReg(REDEFINE::zero);
+					readpm.addReg(REDEFINE::zero);
 				}
 
 				writepm.addImm(offsetInScratchpad);

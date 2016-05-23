@@ -5,3 +5,5 @@
 *.swp
 *.o
 *.d
+#./include/llvm/Config/config.h
+include/llvm/Config/config.h

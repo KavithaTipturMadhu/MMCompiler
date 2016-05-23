@@ -152,9 +152,16 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 	long int maxGlobalSize = 0;
 	for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
 		const GlobalVariable *globalVar = &*globalArgItr;
-		//Every global is a pointer type
-		string inputs = "i\t";
-		inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+		string inputs;
+		if (globalVar->getName().startswith("redefine_in_")) {
+			//Every global is a pointer type
+			inputs = "i\t";
+			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+
+		} else if (globalVar->getName().startswith("redefine_out_")) {
+			inputs = "o\t";
+			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+		}
 		maxGlobalSize += REDEFINEUtils::getSizeOfType(globalVar->getType());
 		OutStreamer.EmitRawText(StringRef(inputs));
 	}
@@ -162,6 +169,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 
 void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 	static bool firstFunctionBeingProcessed = true;
+	static list<unsigned> crWithNumHopsPrinted;
 	int ceCount = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
 	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
 	HyperOp* hyperOp = HIG->getHyperOp(const_cast<Function*>(MF->getFunction()));
@@ -172,7 +180,6 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		int fabricColumnCount = (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getN();
 		for (list<HyperOp*>::iterator hyperOpItr = HIG->Vertices.begin(); hyperOpItr != HIG->Vertices.end(); hyperOpItr++) {
 			HyperOp* hyperOp = *hyperOpItr;
-			errs() << "HyperOp:" << hyperOp->getFunction()->getName() << "\n";
 			int mappedToX = hyperOp->getTargetResource() / fabricRowCount;
 			int mappedToY = hyperOp->getTargetResource() % fabricColumnCount;
 			if (mappedToX > maxXInTopology) {
@@ -188,7 +195,21 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		OutStreamer.EmitRawText(StringRef(topology));
 		firstFunctionBeingProcessed = false;
 
+	}
 
+	if(find(crWithNumHopsPrinted.begin(), crWithNumHopsPrinted.end(),hyperOp->getTargetResource())==crWithNumHopsPrinted.end()){
+		unsigned targetResource = hyperOp->getTargetResource();
+		unsigned numResourcesInTarget = 0;
+		//First time dealing with the target resource
+		for(list<HyperOp*>::iterator hyperOpItr = HIG->Vertices.begin();hyperOpItr!=HIG->Vertices.end();hyperOpItr++){
+			if((*hyperOpItr)->getTargetResource()==targetResource){
+				numResourcesInTarget++;
+			}
+		}
+		string numHopsInCR(".numHyop_in_this_CR\t");
+		numHopsInCR.append(itostr(numResourcesInTarget)).append("\n");
+		OutStreamer.EmitRawText(StringRef(numHopsInCR));
+		crWithNumHopsPrinted.push_back(targetResource);
 	}
 
 	string hyperOpLabel = "HyperOp#";
