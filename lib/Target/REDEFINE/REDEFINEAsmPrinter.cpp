@@ -248,12 +248,12 @@ void REDEFINEAsmPrinter::printOperand(const MachineInstr *MI, int OpNo, raw_ostr
 	case REDEFINEII::MO_ABS_LO:
 		O << "%lo(";
 		break;
-	case REDEFINEII::MO_TPREL_HI:
-		O << "%tprel_hi(";
-		break;
-	case REDEFINEII::MO_TPREL_LO:
-		O << "%tprel_lo(";
-		break;
+//	case REDEFINEII::MO_TPREL_HI:
+//		O << "%tprel_hi(";
+//		break;
+//	case REDEFINEII::MO_TPREL_LO:
+//		O << "%tprel_lo(";
+//		break;
 	}
 	switch (MO.getType()) {
 	case MachineOperand::MO_Register:
