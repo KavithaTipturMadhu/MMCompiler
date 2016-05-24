@@ -61,12 +61,16 @@ struct HyperOpCreationPass: public ModulePass {
 		AU.addRequired<AliasAnalysis>();
 	}
 
-	bool pathExistsInCFG(BasicBlock* source, BasicBlock* target) {
+	bool pathExistsInCFG(BasicBlock* source, BasicBlock* target, list<BasicBlock*> visitedBasicBlocks) {
+		visitedBasicBlocks.push_back(source);
 		for (int i = 0; i < source->getTerminator()->getNumSuccessors(); i++) {
-			if (source->getTerminator()->getSuccessor(i) == target) {
-				return true;
-			} else if (pathExistsInCFG(source->getTerminator()->getSuccessor(i), target)) {
-				return true;
+			BasicBlock* succBB = source->getTerminator()->getSuccessor(i);
+			if (find(visitedBasicBlocks.begin(), visitedBasicBlocks.end(), succBB) == visitedBasicBlocks.end()) {
+				if (succBB == target) {
+					return true;
+				} else if (pathExistsInCFG(source->getTerminator()->getSuccessor(i), target, visitedBasicBlocks)) {
+					return true;
+				}
 			}
 		}
 		return false;
@@ -97,7 +101,7 @@ struct HyperOpCreationPass: public ModulePass {
 		visitedBasicBlocks.push_back(basicBlock);
 		for (unsigned i = 0; i < basicBlock->getTerminator()->getNumSuccessors(); i++) {
 			BasicBlock* succBB = basicBlock->getTerminator()->getSuccessor(i);
-			if (find(visitedBasicBlocks.begin(), visitedBasicBlocks.end(), succBB) == visitedBasicBlocks.end()&& (first || depthOfSuccessor > distanceToExitBlock(succBB, visitedBasicBlocks))) {
+			if (find(visitedBasicBlocks.begin(), visitedBasicBlocks.end(), succBB) == visitedBasicBlocks.end() && (first || depthOfSuccessor > distanceToExitBlock(succBB, visitedBasicBlocks))) {
 				depthOfSuccessor = distanceToExitBlock(succBB, visitedBasicBlocks);
 				first = false;
 			}
@@ -175,7 +179,7 @@ struct HyperOpCreationPass: public ModulePass {
 			errs() << "processing function:" << function->getName() << "\n";
 			while (!bbTraverser.empty()) {
 				BasicBlock* bbItr = bbTraverser.front();
-				errs()<<"next bb:"<<bbItr->getName()<<"\n";
+				errs() << "next bb:" << bbItr->getName() << "\n";
 				bbTraverser.pop_front();
 				bool canAcquireBBItr = true;
 				//If basic block does not have a unique predecessor and basic block is not the entry block
@@ -196,9 +200,10 @@ struct HyperOpCreationPass: public ModulePass {
 							BasicBlock* dependenceSource = *predecessorItr;
 							for (list<BasicBlock*>::iterator secondPredecessorItr = predecessorsFromSameFunction.begin(); secondPredecessorItr != predecessorItr && secondPredecessorItr != predecessorsFromSameFunction.end(); secondPredecessorItr++) {
 								BasicBlock *dependenceTarget = *secondPredecessorItr;
-								errs()<<"checking path between "<<dependenceSource->getName()<<" and "<<dependenceTarget->getName()<<"\n";
+								errs() << "checking path between " << dependenceSource->getName() << " and " << dependenceTarget->getName() << "\n";
 								//If dependence target does not belong to the same HyperOp
-								if (pathExistsInCFG(dependenceSource, dependenceTarget)
+								list<BasicBlock*> visitedBasicBlocks;
+								if (pathExistsInCFG(dependenceSource, dependenceTarget, visitedBasicBlocks)
 										&& (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), dependenceSource) != accumulatedBasicBlocks.end() && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), dependenceTarget) == accumulatedBasicBlocks.end())) {
 									canAcquireBBItr = false;
 									break;
@@ -211,7 +216,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
-				errs()<<"am i here?\n";
+				errs() << "am i here?\n";
 				if (!canAcquireBBItr) {
 					//Create a HyperOp at this boundary
 					endOfHyperOp = true;
@@ -265,8 +270,8 @@ struct HyperOpCreationPass: public ModulePass {
 								Value * argument = instItr->getOperand(i);
 								errs() << "whats happening to argument ";
 								argument->dump();
-								if (!isa<Constant>(argument) && !argument->getType()->isLabelTy()) {
-									if ((isa<Instruction>(argument)) && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
+								if (!isa < Constant > (argument) &&!argument->getType()->isLabelTy()) {
+									if ((isa<Instruction>(argument)) &&find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
 										//Instruction belongs to the same bb, need not be added as an argument
 										continue;
 									}
@@ -409,7 +414,7 @@ struct HyperOpCreationPass: public ModulePass {
 								for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentMap> >::iterator createdHopItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHopItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHopItr++) {
 									list<BasicBlock*> createdHyperOpBBList = createdHopItr->second.first;
 									//Find the HyperOp containing the argument's definition
-									if (isa<AllocaInst>(argument) && find(createdHyperOpBBList.begin(), createdHyperOpBBList.end(), parentBBOfDefinition) != createdHyperOpBBList.end()) {
+									if (isa < AllocaInst > (argument) &&find(createdHyperOpBBList.begin(), createdHyperOpBBList.end(), parentBBOfDefinition) != createdHyperOpBBList.end()) {
 										//Check if the source of dependence has any uses in the function it belongs to or in basic blocks not corresponding to the HyperOp being created
 										for (Value::use_iterator argItr = argument->use_begin(); argItr != argument->use_end(); argItr++) {
 											Instruction* useInstruction = (Instruction*) *argItr;
@@ -743,7 +748,7 @@ struct HyperOpCreationPass: public ModulePass {
 									BasicBlock* originalBB = *originalBBItr;
 									for (BasicBlock::iterator instrItr = originalBB->begin(); instrItr != originalBB->end(); instrItr++) {
 										Instruction* instr = instrItr;
-										if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == argValue) {
+										if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(0) == argValue) {
 											basicBlocksWithDefinitions.push_back(originalBB);
 											break;
 										}
@@ -756,7 +761,8 @@ struct HyperOpCreationPass: public ModulePass {
 								BasicBlock* defBB = *defBBItr;
 								for (list<BasicBlock*>::iterator secDefBBItr = basicBlocksWithDefinitions.begin(); secDefBBItr != basicBlocksWithDefinitions.end(); secDefBBItr++) {
 									BasicBlock* secDefBB = *secDefBBItr;
-									if (secDefBB != defBB && (pathExistsInCFG(defBB, secDefBB) || find(discardList.begin(), discardList.end(), secDefBB) != discardList.end())) {
+									list<BasicBlock*> visitedBasicBlocks;
+									if (secDefBB != defBB && (pathExistsInCFG(defBB, secDefBB, visitedBasicBlocks) || find(discardList.begin(), discardList.end(), secDefBB) != discardList.end())) {
 										discardList.push_back(defBB);
 									}
 								}
@@ -766,7 +772,8 @@ struct HyperOpCreationPass: public ModulePass {
 								if (find(discardList.begin(), discardList.end(), *defBBItr) == discardList.end()) {
 									for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 										Instruction* cloneInstruction = (Instruction*) originalToClonedInstMap.find(&(*defBBItr)->front())->second;
-										if (pathExistsInCFG(*defBBItr, *accumulatedBBItr) && find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), cloneInstruction->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
+										list<BasicBlock*> visitedBasicBlocks;
+										if (pathExistsInCFG(*defBBItr, *accumulatedBBItr, visitedBasicBlocks) && find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), cloneInstruction->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
 											//Add a predicate between the source and the target function
 											//Label the instruction with predicates metadata
 											Value * values[1];
