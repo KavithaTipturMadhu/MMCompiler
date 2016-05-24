@@ -90,17 +90,17 @@ struct HyperOpCreationPass: public ModulePass {
 	}
 
 	unsigned distanceToExitBlock(BasicBlock* basicBlock, list<BasicBlock*> visitedBasicBlocks) {
+		errs() << "visiting basic block:" << basicBlock->getName() << "\n";
 		//Merge return assumed here
 		unsigned depthOfSuccessor = 0;
 		bool first = true;
+		visitedBasicBlocks.push_back(basicBlock);
 		for (unsigned i = 0; i < basicBlock->getTerminator()->getNumSuccessors(); i++) {
 			BasicBlock* succBB = basicBlock->getTerminator()->getSuccessor(i);
-			visitedBasicBlocks.push_back(succBB);
-			if (first || depthOfSuccessor > distanceToExitBlock(succBB, visitedBasicBlocks)) {
+			if (find(visitedBasicBlocks.begin(), visitedBasicBlocks.end(), succBB) == visitedBasicBlocks.end()&& (first || depthOfSuccessor > distanceToExitBlock(succBB, visitedBasicBlocks))) {
 				depthOfSuccessor = distanceToExitBlock(succBB, visitedBasicBlocks);
 				first = false;
 			}
-			visitedBasicBlocks.pop_back();
 		}
 		return 1 + depthOfSuccessor;
 	}
@@ -175,6 +175,7 @@ struct HyperOpCreationPass: public ModulePass {
 			errs() << "processing function:" << function->getName() << "\n";
 			while (!bbTraverser.empty()) {
 				BasicBlock* bbItr = bbTraverser.front();
+				errs()<<"next bb:"<<bbItr->getName()<<"\n";
 				bbTraverser.pop_front();
 				bool canAcquireBBItr = true;
 				//If basic block does not have a unique predecessor and basic block is not the entry block
@@ -195,6 +196,7 @@ struct HyperOpCreationPass: public ModulePass {
 							BasicBlock* dependenceSource = *predecessorItr;
 							for (list<BasicBlock*>::iterator secondPredecessorItr = predecessorsFromSameFunction.begin(); secondPredecessorItr != predecessorItr && secondPredecessorItr != predecessorsFromSameFunction.end(); secondPredecessorItr++) {
 								BasicBlock *dependenceTarget = *secondPredecessorItr;
+								errs()<<"checking path between "<<dependenceSource->getName()<<" and "<<dependenceTarget->getName()<<"\n";
 								//If dependence target does not belong to the same HyperOp
 								if (pathExistsInCFG(dependenceSource, dependenceTarget)
 										&& (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), dependenceSource) != accumulatedBasicBlocks.end() && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), dependenceTarget) == accumulatedBasicBlocks.end())) {
@@ -209,6 +211,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
+				errs()<<"am i here?\n";
 				if (!canAcquireBBItr) {
 					//Create a HyperOp at this boundary
 					endOfHyperOp = true;
@@ -260,8 +263,10 @@ struct HyperOpCreationPass: public ModulePass {
 							list<Value*> newHyperOpArguments;
 							for (unsigned int i = 0; i < instItr->getNumOperands(); i++) {
 								Value * argument = instItr->getOperand(i);
-								if (!isa<Constant>(argument)) {
-									if ((isa<Instruction>(argument)) &&find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
+								errs() << "whats happening to argument ";
+								argument->dump();
+								if (!isa<Constant>(argument) && !argument->getType()->isLabelTy()) {
+									if ((isa<Instruction>(argument)) && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
 										//Instruction belongs to the same bb, need not be added as an argument
 										continue;
 									}
@@ -404,7 +409,7 @@ struct HyperOpCreationPass: public ModulePass {
 								for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentMap> >::iterator createdHopItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHopItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHopItr++) {
 									list<BasicBlock*> createdHyperOpBBList = createdHopItr->second.first;
 									//Find the HyperOp containing the argument's definition
-									if (isa < AllocaInst > (argument) &&find(createdHyperOpBBList.begin(), createdHyperOpBBList.end(), parentBBOfDefinition) != createdHyperOpBBList.end()) {
+									if (isa<AllocaInst>(argument) && find(createdHyperOpBBList.begin(), createdHyperOpBBList.end(), parentBBOfDefinition) != createdHyperOpBBList.end()) {
 										//Check if the source of dependence has any uses in the function it belongs to or in basic blocks not corresponding to the HyperOp being created
 										for (Value::use_iterator argItr = argument->use_begin(); argItr != argument->use_end(); argItr++) {
 											Instruction* useInstruction = (Instruction*) *argItr;
@@ -738,7 +743,7 @@ struct HyperOpCreationPass: public ModulePass {
 									BasicBlock* originalBB = *originalBBItr;
 									for (BasicBlock::iterator instrItr = originalBB->begin(); instrItr != originalBB->end(); instrItr++) {
 										Instruction* instr = instrItr;
-										if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(0) == argValue) {
+										if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == argValue) {
 											basicBlocksWithDefinitions.push_back(originalBB);
 											break;
 										}
@@ -793,14 +798,18 @@ struct HyperOpCreationPass: public ModulePass {
 					endOfHyperOp = false;
 				}
 
+				errs() << "not the end of Basic block \n";
+
 				vector<unsigned> depthsInSortedOrder;
 				map<unsigned, list<BasicBlock*> > untraversedBasicBlocks;
 				//Ensure breadth biased traversal such that all predecessors of a basic block are traversed before the basic block
 				for (unsigned succIndex = 0; succIndex < bbItr->getTerminator()->getNumSuccessors(); succIndex++) {
 					BasicBlock* succBB = bbItr->getTerminator()->getSuccessor(succIndex);
+					errs() << "successor of current bb:" << succBB->getName() << "\n";
 					if (find(traversedBasicBlocks.begin(), traversedBasicBlocks.end(), succBB) == traversedBasicBlocks.end()) {
 						list<BasicBlock*> visitedBasicBlockList;
 						unsigned distanceFromExit = distanceToExitBlock(succBB, visitedBasicBlockList);
+						errs() << "successorbb's distance from exit" << distanceFromExit << "\n";
 						list<BasicBlock*> basicBlockList;
 						if (untraversedBasicBlocks.find(distanceFromExit) != untraversedBasicBlocks.end()) {
 							basicBlockList = untraversedBasicBlocks.find(distanceFromExit)->second;
