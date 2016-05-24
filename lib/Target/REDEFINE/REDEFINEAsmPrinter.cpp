@@ -145,26 +145,33 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 	nextHyperOpInst.append("\t").append("0").append("\n");
 	OutStreamer.EmitRawText(StringRef(nextHyperOpInst));
 
-	string inputs = ".data\t";
+	string dataLabel = ".data\t";
 	const Module* parentModule = MF->getFunction()->getParent();
-	inputs.append(itostr(parentModule->getGlobalList().size())).append("\n");
-	OutStreamer.EmitRawText(StringRef(inputs));
 	long int maxGlobalSize = 0;
+	string inputs="";
+	unsigned numInputsAndOutputs = 0;
 	for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
 		const GlobalVariable *globalVar = &*globalArgItr;
-		string inputs;
 		if (globalVar->getName().startswith("redefine_in_")) {
 			//Every global is a pointer type
-			inputs = "i\t";
+			inputs.append("i\t");
 			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+			numInputsAndOutputs++;
 
 		} else if (globalVar->getName().startswith("redefine_out_")) {
-			inputs = "o\t";
+			inputs.append("o\t");
 			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+			numInputsAndOutputs++;
 		}
 		maxGlobalSize += REDEFINEUtils::getSizeOfType(globalVar->getType());
+	}
+
+	dataLabel.append(itostr(numInputsAndOutputs)).append("\n");
+	OutStreamer.EmitRawText(StringRef(dataLabel));
+	if(!inputs.empty()){
 		OutStreamer.EmitRawText(StringRef(inputs));
 	}
+
 }
 
 void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
