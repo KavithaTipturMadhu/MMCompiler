@@ -1905,7 +1905,7 @@ void HyperOpInteractionGraph::associateStaticContextFrames() {
 				if (conflictingHyperOp != topmostHyperOp) {
 					conflictingHyperOp->setFbindRequired(true);
 				}
-				if (conflictingHyperOp == bottommostHyperOp) {
+				if (conflictingHyperOp == bottommostHyperOp&&!conflictingHyperOp->isStartHyperOp()) {
 					conflictingHyperOp->setFrameNeedsGC(true);
 				}
 			}
