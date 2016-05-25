@@ -108,7 +108,11 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 	OutStreamer.EmitRawText(StringRef(isValid));
 
 	string isActive(ACTIVE_ANNOTATION);
-	isActive.append("\t").append("1").append("\n");
+	if (hyperOp->isStartHyperOp()) {
+		isActive.append("\t").append("0").append("\n");
+	} else {
+		isActive.append("\t").append("1").append("\n");
+	}
 	OutStreamer.EmitRawText(StringRef(isActive));
 
 	//Every frame is a raw frame, no intrinsic frames available
@@ -148,7 +152,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 	string dataLabel = ".data\t";
 	const Module* parentModule = MF->getFunction()->getParent();
 	long int maxGlobalSize = 0;
-	string inputs="";
+	string inputs = "";
 	unsigned numInputsAndOutputs = 0;
 	for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
 		const GlobalVariable *globalVar = &*globalArgItr;
@@ -168,7 +172,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 
 	dataLabel.append(itostr(numInputsAndOutputs)).append("\n");
 	OutStreamer.EmitRawText(StringRef(dataLabel));
-	if(!inputs.empty()){
+	if (!inputs.empty()) {
 		OutStreamer.EmitRawText(StringRef(inputs));
 	}
 
@@ -204,12 +208,12 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 
 	}
 
-	if(find(crWithNumHopsPrinted.begin(), crWithNumHopsPrinted.end(),hyperOp->getTargetResource())==crWithNumHopsPrinted.end()){
+	if (find(crWithNumHopsPrinted.begin(), crWithNumHopsPrinted.end(), hyperOp->getTargetResource()) == crWithNumHopsPrinted.end()) {
 		unsigned targetResource = hyperOp->getTargetResource();
 		unsigned numResourcesInTarget = 0;
 		//First time dealing with the target resource
-		for(list<HyperOp*>::iterator hyperOpItr = HIG->Vertices.begin();hyperOpItr!=HIG->Vertices.end();hyperOpItr++){
-			if((*hyperOpItr)->getTargetResource()==targetResource){
+		for (list<HyperOp*>::iterator hyperOpItr = HIG->Vertices.begin(); hyperOpItr != HIG->Vertices.end(); hyperOpItr++) {
+			if ((*hyperOpItr)->getTargetResource() == targetResource) {
 				numResourcesInTarget++;
 			}
 		}
