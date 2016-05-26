@@ -108,31 +108,25 @@ struct HyperOpCreationPass: public ModulePass {
 		return 1 + depthOfSuccessor;
 	}
 
-	static void addInitializationInstructions(Constant* initializer, GetElementPtrInst* addrInst, Instruction* insertBefore, Type* type) {
+	static void addInitializationInstructions(GlobalVariable* global, Constant* initializer, vector<Value*> idList, Instruction* insertBefore, Type* type) {
 		//TODO Constant cannot be vector or blockaddress
 		LLVMContext & ctx = insertBefore->getParent()->getContext();
 		if (!type->isAggregateType()) {
 			if (isa<ConstantInt>(initializer) || isa<ConstantFP>(initializer) || isa<ConstantExpr>(initializer) || initializer->isZeroValue()) {
+				GetElementPtrInst* typeAddrInst = GetElementPtrInst::CreateInBounds(global, idList);
+				typeAddrInst->dump();
 				if (initializer->isZeroValue()) {
 					Value* zero = ConstantInt::get(ctx, APInt(32, 0));
-					errs()<<"zero's type:";
-					zero->getType()->dump();
-					errs()<<"addrinst:";
-					addrInst->dump();
-					errs()<<"addInst type:";
-					(cast<PointerType>(addrInst->getType())->getElementType())->dump();
-					StoreInst* storeInst = new StoreInst(zero, addrInst, insertBefore);
+					StoreInst* storeInst = new StoreInst(zero, typeAddrInst, insertBefore);
 				} else {
-					StoreInst* storeInst = new StoreInst(initializer, addrInst, insertBefore);
+					StoreInst* storeInst = new StoreInst(initializer, typeAddrInst, insertBefore);
 				}
 			}
 		} else {
 			for (unsigned subTypeIndex = 0; subTypeIndex < type->getNumContainedTypes(); subTypeIndex++) {
 				Type* subType = type->getContainedType(subTypeIndex);
 				Constant* subTypeInitializer;
-				vector<Value*> idList;
 				idList.push_back(ConstantInt::get(ctx, APInt(32, subTypeIndex)));
-				GetElementPtrInst* subTypeAddrInst = GetElementPtrInst::Create(addrInst, idList, "", insertBefore);
 				//Find out the subtype's initializer
 				if (ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(initializer)) {
 					subTypeInitializer = CDS->getElementAsConstant(subTypeIndex);
@@ -141,7 +135,8 @@ struct HyperOpCreationPass: public ModulePass {
 				} else {
 					subTypeInitializer = initializer;
 				}
-				addInitializationInstructions(subTypeInitializer, subTypeAddrInst, insertBefore, subType);
+				addInitializationInstructions(global, subTypeInitializer, idList, insertBefore, subType);
+				idList.pop_back();
 			}
 		}
 	}
@@ -209,15 +204,12 @@ struct HyperOpCreationPass: public ModulePass {
 				Instruction* startOfBB = function->begin()->begin();
 				//Add initializers to globals that are not redefine inputs or outputs
 				for (Module::global_iterator globalVarItr = M.global_begin(); globalVarItr != M.global_end(); globalVarItr++) {
-					vector<Value*> idList;
 					if (!globalVarItr->getName().startswith(REDEFINE_INPUT_PREFIX) && !globalVarItr->getName().startswith(REDEFINE_OUTPUT_PREFIX)) {
-//						if(globalVarItr->getType()->isPointerTy()){
-//							idList.push_back(0);
-//						}
-						GetElementPtrInst* addrInst = GetElementPtrInst::Create(globalVarItr, idList, "", startOfBB);
 						//Externs are not allowed as of now and hence, there is no need to check if the global var has an initializer at all or otherwise
 						Constant * initializer = globalVarItr->getInitializer();
-						addInitializationInstructions(initializer, addrInst, startOfBB, initializer->getType());
+						vector<Value*> idList;
+						idList.push_back(ConstantInt::get(ctxt, APInt(32,0)));
+						addInitializationInstructions(globalVarItr, initializer, idList, startOfBB, initializer->getType());
 					}
 				}
 				errs() << "start of bb after?";
