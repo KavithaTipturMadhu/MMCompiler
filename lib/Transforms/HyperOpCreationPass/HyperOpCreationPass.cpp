@@ -94,7 +94,6 @@ struct HyperOpCreationPass: public ModulePass {
 	}
 
 	unsigned distanceToExitBlock(BasicBlock* basicBlock, list<BasicBlock*> visitedBasicBlocks) {
-		errs() << "visiting basic block:" << basicBlock->getName() << "\n";
 		//Merge return assumed here
 		unsigned depthOfSuccessor = 0;
 		bool first = true;
@@ -109,6 +108,43 @@ struct HyperOpCreationPass: public ModulePass {
 		return 1 + depthOfSuccessor;
 	}
 
+	static void addInitializationInstructions(Constant* initializer, GetElementPtrInst* addrInst, Instruction* insertBefore, Type* type) {
+		//TODO Constant cannot be vector or blockaddress
+		LLVMContext & ctx = insertBefore->getParent()->getContext();
+		if (!type->isAggregateType()) {
+			if (isa<ConstantInt>(initializer) || isa<ConstantFP>(initializer) || isa<ConstantExpr>(initializer) || initializer->isZeroValue()) {
+				if (initializer->isZeroValue()) {
+					Value* zero = ConstantInt::get(ctx, APInt(32, 0));
+					errs()<<"zero's type:";
+					zero->getType()->dump();
+					errs()<<"addrinst:";
+					addrInst->dump();
+					errs()<<"addInst type:";
+					(cast<PointerType>(addrInst->getType())->getElementType())->dump();
+					StoreInst* storeInst = new StoreInst(zero, addrInst, insertBefore);
+				} else {
+					StoreInst* storeInst = new StoreInst(initializer, addrInst, insertBefore);
+				}
+			}
+		} else {
+			for (unsigned subTypeIndex = 0; subTypeIndex < type->getNumContainedTypes(); subTypeIndex++) {
+				Type* subType = type->getContainedType(subTypeIndex);
+				Constant* subTypeInitializer;
+				vector<Value*> idList;
+				idList.push_back(ConstantInt::get(ctx, APInt(32, subTypeIndex)));
+				GetElementPtrInst* subTypeAddrInst = GetElementPtrInst::Create(addrInst, idList, "", insertBefore);
+				//Find out the subtype's initializer
+				if (ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(initializer)) {
+					subTypeInitializer = CDS->getElementAsConstant(subTypeIndex);
+				} else if (initializer->getNumOperands() > subTypeIndex) {
+					subTypeInitializer = cast<Constant>(initializer->getOperand(subTypeIndex));
+				} else {
+					subTypeInitializer = initializer;
+				}
+				addInitializationInstructions(subTypeInitializer, subTypeAddrInst, insertBefore, subType);
+			}
+		}
+	}
 	virtual bool runOnModule(Module &M) {
 		LLVMContext & ctxt = M.getContext();
 		list<Function*> addedFunctions;
@@ -169,6 +205,24 @@ struct HyperOpCreationPass: public ModulePass {
 			Function* function = orderOfFunctionProcessing.front();
 			orderOfFunctionProcessing.pop_front();
 			StringRef name = function->getName();
+			if (name.compare(REDEFINE_START_FUNCTION) == 0) {
+				Instruction* startOfBB = function->begin()->begin();
+				//Add initializers to globals that are not redefine inputs or outputs
+				for (Module::global_iterator globalVarItr = M.global_begin(); globalVarItr != M.global_end(); globalVarItr++) {
+					vector<Value*> idList;
+					if (!globalVarItr->getName().startswith(REDEFINE_INPUT_PREFIX) && !globalVarItr->getName().startswith(REDEFINE_OUTPUT_PREFIX)) {
+//						if(globalVarItr->getType()->isPointerTy()){
+//							idList.push_back(0);
+//						}
+						GetElementPtrInst* addrInst = GetElementPtrInst::Create(globalVarItr, idList, "", startOfBB);
+						//Externs are not allowed as of now and hence, there is no need to check if the global var has an initializer at all or otherwise
+						Constant * initializer = globalVarItr->getInitializer();
+						addInitializationInstructions(initializer, addrInst, startOfBB, initializer->getType());
+					}
+				}
+				errs() << "start of bb after?";
+				startOfBB->getParent()->dump();
+			}
 			list<BasicBlock*> accumulatedBasicBlocks;
 			HyperOpArgumentMap hyperOpArguments;
 			int hyperOpArgCount = 0;
@@ -176,10 +230,8 @@ struct HyperOpCreationPass: public ModulePass {
 			list<BasicBlock*> traversedBasicBlocks;
 			list<BasicBlock*> bbTraverser;
 			bbTraverser.push_back(function->begin());
-			errs() << "processing function:" << function->getName() << "\n";
 			while (!bbTraverser.empty()) {
 				BasicBlock* bbItr = bbTraverser.front();
-				errs() << "next bb:" << bbItr->getName() << "\n";
 				bbTraverser.pop_front();
 				bool canAcquireBBItr = true;
 				//If basic block does not have a unique predecessor and basic block is not the entry block
@@ -270,8 +322,8 @@ struct HyperOpCreationPass: public ModulePass {
 								Value * argument = instItr->getOperand(i);
 								errs() << "whats happening to argument ";
 								argument->dump();
-								if (!isa < Constant > (argument) &&!argument->getType()->isLabelTy()) {
-									if ((isa<Instruction>(argument)) &&find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
+								if (!isa<Constant>(argument) && !argument->getType()->isLabelTy()) {
+									if ((isa<Instruction>(argument)) && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
 										//Instruction belongs to the same bb, need not be added as an argument
 										continue;
 									}
@@ -414,7 +466,7 @@ struct HyperOpCreationPass: public ModulePass {
 								for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentMap> >::iterator createdHopItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHopItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHopItr++) {
 									list<BasicBlock*> createdHyperOpBBList = createdHopItr->second.first;
 									//Find the HyperOp containing the argument's definition
-									if (isa < AllocaInst > (argument) &&find(createdHyperOpBBList.begin(), createdHyperOpBBList.end(), parentBBOfDefinition) != createdHyperOpBBList.end()) {
+									if (isa<AllocaInst>(argument) && find(createdHyperOpBBList.begin(), createdHyperOpBBList.end(), parentBBOfDefinition) != createdHyperOpBBList.end()) {
 										//Check if the source of dependence has any uses in the function it belongs to or in basic blocks not corresponding to the HyperOp being created
 										for (Value::use_iterator argItr = argument->use_begin(); argItr != argument->use_end(); argItr++) {
 											Instruction* useInstruction = (Instruction*) *argItr;
@@ -748,7 +800,7 @@ struct HyperOpCreationPass: public ModulePass {
 									BasicBlock* originalBB = *originalBBItr;
 									for (BasicBlock::iterator instrItr = originalBB->begin(); instrItr != originalBB->end(); instrItr++) {
 										Instruction* instr = instrItr;
-										if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(0) == argValue) {
+										if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == argValue) {
 											basicBlocksWithDefinitions.push_back(originalBB);
 											break;
 										}
@@ -872,6 +924,8 @@ private:
 	const char* HYPEROP_ENTRY = "Entry";
 	const char* HYPEROP_EXIT = "Exit";
 	const char* HYPEROP_INTERMEDIATE = "Intermediate";
+	const char* REDEFINE_INPUT_PREFIX = "redefine_in_";
+	const char* REDEFINE_OUTPUT_PREFIX = "redefine_out_";
 }
 ;
 char HyperOpCreationPass::ID = 2;
