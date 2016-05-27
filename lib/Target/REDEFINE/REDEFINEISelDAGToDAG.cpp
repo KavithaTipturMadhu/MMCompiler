@@ -228,8 +228,8 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 	Function *Fn = const_cast<Function*>(mf.getFunction());
 	const TargetInstrInfo &TII = *TM.getInstrInfo();
 	const TargetRegisterInfo &TRI = *TM.getRegisterInfo();
-	//Add instructions to write to context frames if the function is the last one being dealt with
-	if (Fn->getName().compare(Fn->getParent()->getFunctionList().front().getName()) == 0) {
+	//Add instructions to write to context frames if the function is the first one being dealt with
+	if (Fn->getName().startswith("redefine_start")) {
 		//Parse the HIG metadata the first time, subsequent HyperOps can use the graph
 		HyperOpMetadataParser parser;
 		((REDEFINETargetMachine&) TM).HIG = parser.parseMetadata(const_cast<Module*>(Fn->getParent()));
