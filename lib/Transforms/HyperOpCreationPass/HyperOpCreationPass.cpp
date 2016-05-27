@@ -113,7 +113,7 @@ struct HyperOpCreationPass: public ModulePass {
 		LLVMContext & ctx = insertBefore->getParent()->getContext();
 		if (!type->isAggregateType()) {
 			if (isa<ConstantInt>(initializer) || isa<ConstantFP>(initializer) || isa<ConstantExpr>(initializer) || initializer->isZeroValue()) {
-				GetElementPtrInst* typeAddrInst = GetElementPtrInst::CreateInBounds(global, idList);
+				GetElementPtrInst* typeAddrInst = GetElementPtrInst::CreateInBounds(global, idList, "", insertBefore);
 				typeAddrInst->dump();
 				if (initializer->isZeroValue()) {
 					Value* zero = ConstantInt::get(ctx, APInt(32, 0));
@@ -122,12 +122,27 @@ struct HyperOpCreationPass: public ModulePass {
 					StoreInst* storeInst = new StoreInst(initializer, typeAddrInst, insertBefore);
 				}
 			}
+		} else if (type->isArrayTy()) {
+			for (unsigned i = 0; i < type->getArrayNumElements(); i++) {
+				Constant* subTypeInitializer;
+				idList.push_back(ConstantInt::get(ctx, APInt(32, i)));
+				//Find the subtype's initializer
+				if (ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(initializer)) {
+					subTypeInitializer = CDS->getElementAsConstant(i);
+				}else if(initializer->getNumOperands()>i){
+					subTypeInitializer = cast<Constant>(initializer->getOperand(i));
+				}else{
+					subTypeInitializer = initializer;
+				}
+				addInitializationInstructions(global, subTypeInitializer, idList, insertBefore, type->getArrayElementType());
+				idList.pop_back();
+			}
 		} else {
 			for (unsigned subTypeIndex = 0; subTypeIndex < type->getNumContainedTypes(); subTypeIndex++) {
 				Type* subType = type->getContainedType(subTypeIndex);
 				Constant* subTypeInitializer;
 				idList.push_back(ConstantInt::get(ctx, APInt(32, subTypeIndex)));
-				//Find out the subtype's initializer
+				//Find the subtype's initializer
 				if (ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(initializer)) {
 					subTypeInitializer = CDS->getElementAsConstant(subTypeIndex);
 				} else if (initializer->getNumOperands() > subTypeIndex) {
@@ -208,12 +223,10 @@ struct HyperOpCreationPass: public ModulePass {
 						//Externs are not allowed as of now and hence, there is no need to check if the global var has an initializer at all or otherwise
 						Constant * initializer = globalVarItr->getInitializer();
 						vector<Value*> idList;
-						idList.push_back(ConstantInt::get(ctxt, APInt(32,0)));
+						idList.push_back(ConstantInt::get(ctxt, APInt(32, 0)));
 						addInitializationInstructions(globalVarItr, initializer, idList, startOfBB, initializer->getType());
 					}
 				}
-				errs() << "start of bb after?";
-				startOfBB->getParent()->dump();
 			}
 			list<BasicBlock*> accumulatedBasicBlocks;
 			HyperOpArgumentMap hyperOpArguments;
@@ -260,7 +273,6 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
-				errs() << "am i here?\n";
 				if (!canAcquireBBItr) {
 					//Create a HyperOp at this boundary
 					endOfHyperOp = true;
@@ -312,8 +324,6 @@ struct HyperOpCreationPass: public ModulePass {
 							list<Value*> newHyperOpArguments;
 							for (unsigned int i = 0; i < instItr->getNumOperands(); i++) {
 								Value * argument = instItr->getOperand(i);
-								errs() << "whats happening to argument ";
-								argument->dump();
 								if (!isa<Constant>(argument) && !argument->getType()->isLabelTy()) {
 									if ((isa<Instruction>(argument)) && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
 										//Instruction belongs to the same bb, need not be added as an argument
@@ -856,11 +866,9 @@ struct HyperOpCreationPass: public ModulePass {
 				//Ensure breadth biased traversal such that all predecessors of a basic block are traversed before the basic block
 				for (unsigned succIndex = 0; succIndex < bbItr->getTerminator()->getNumSuccessors(); succIndex++) {
 					BasicBlock* succBB = bbItr->getTerminator()->getSuccessor(succIndex);
-					errs() << "successor of current bb:" << succBB->getName() << "\n";
 					if (find(traversedBasicBlocks.begin(), traversedBasicBlocks.end(), succBB) == traversedBasicBlocks.end()) {
 						list<BasicBlock*> visitedBasicBlockList;
 						unsigned distanceFromExit = distanceToExitBlock(succBB, visitedBasicBlockList);
-						errs() << "successorbb's distance from exit" << distanceFromExit << "\n";
 						list<BasicBlock*> basicBlockList;
 						if (untraversedBasicBlocks.find(distanceFromExit) != untraversedBasicBlocks.end()) {
 							basicBlockList = untraversedBasicBlocks.find(distanceFromExit)->second;
