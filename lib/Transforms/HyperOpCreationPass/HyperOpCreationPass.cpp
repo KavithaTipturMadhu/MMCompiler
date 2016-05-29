@@ -384,7 +384,6 @@ struct HyperOpCreationPass: public ModulePass {
 
 				//Create a new HyperOp
 				if (endOfHyperOp || bbItr->getNextNode() == function->end()) {
-					errs() << "creating a new HyperOp\n";
 					list<const Function*> addedParentsToCurrentHyperOp;
 
 					//Couldn't use splice here since it clears away accumulatedBasicBlocks list
@@ -404,6 +403,7 @@ struct HyperOpCreationPass: public ModulePass {
 					ArrayRef<Type*> dataTypes(argsList);
 
 					FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()), dataTypes, false);
+					errs() << "creating a new HyperOp with name:"<<name<<"\n";
 					Function *newFunction = Function::Create(FT, Function::ExternalLinkage, name, &M);
 					addedFunctions.push_back(newFunction);
 					createdHyperOpAndOriginalBasicBlockAndArgMap.insert(make_pair(newFunction, make_pair(accumulatedBasicBlocks, hyperOpArguments)));

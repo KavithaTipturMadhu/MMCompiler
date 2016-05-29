@@ -226,10 +226,12 @@ public:
 bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 	checkCLFlags();
 	Function *Fn = const_cast<Function*>(mf.getFunction());
+	errs()<<"dealing with function:"<<Fn->getName()<<"\n";
 	const TargetInstrInfo &TII = *TM.getInstrInfo();
 	const TargetRegisterInfo &TRI = *TM.getRegisterInfo();
+	static unsigned firstFunction=0;
 	//Add instructions to write to context frames if the function is the first one being dealt with
-	if (Fn->getName().startswith("redefine_start")) {
+	if (firstFunction==0) {
 		//Parse the HIG metadata the first time, subsequent HyperOps can use the graph
 		HyperOpMetadataParser parser;
 		((REDEFINETargetMachine&) TM).HIG = parser.parseMetadata(const_cast<Module*>(Fn->getParent()));
@@ -240,8 +242,8 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 		((REDEFINETargetMachine&) TM).HIG->mapClustersToComputeResources();
 		((REDEFINETargetMachine&) TM).HIG->associateStaticContextFrames();
 		((REDEFINETargetMachine&) TM).HIG->print(dbgs());
+		firstFunction = 1;
 	}
-	((REDEFINETargetMachine&) TM).functionMap.insert(make_pair(Fn, &mf));
 	return SelectionDAGISel::runOnMachineFunction(mf);
 }
 

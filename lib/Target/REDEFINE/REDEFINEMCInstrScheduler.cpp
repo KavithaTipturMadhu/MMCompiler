@@ -1081,12 +1081,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				}
 			}
 
-			//If the edge is a forced control edge for precedence
-			if (objectIndex == -1) {
-				//There can only be one such incoming control edge predicating execution, hence not tracking them separately
-				objectIndex = MF.getFrameInfo()->getObjectOffset(MF.getFrameInfo()->getObjectIndexEnd() - 1) + 1;
-			}
-
 			//TODO Add a load instruction to get data from memory onto a register; There could be forced schedule edges that we don't want to add load instructions for the same
 			unsigned registerContainingData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 			if (objectIndex != -1) {

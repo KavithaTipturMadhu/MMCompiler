@@ -40,7 +40,6 @@ class REDEFINETargetMachine: public LLVMTargetMachine {
 
 public:
 	HyperOpInteractionGraph * HIG;
-	map<Function*, MachineFunction*> functionMap;
 	//This is required to allocate registers during pHyperOp creation
 	FunctionLoweringInfo *FuncInfo;
 	REDEFINETargetMachine(const Target &T, StringRef TT, StringRef CPU, StringRef FS, const TargetOptions &Options, Reloc::Model RM, CodeModel::Model CM, CodeGenOpt::Level OL);
