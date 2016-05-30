@@ -1037,31 +1037,28 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	for (map<HyperOpEdge*, HyperOp*>::iterator childItr = hyperOp->ChildMap.begin(); childItr != hyperOp->ChildMap.end(); childItr++) {
 		HyperOpEdge* edge = childItr->first;
 		HyperOp* consumer = childItr->second;
-		errs() << "child node:" << consumer->getFunction()->getName() << "\n";
-		unsigned registerContainingConsumerBase = -1;
-		//Check if the consumer's context frame address has already been loaded to memory; If not, add an instruction to load the context frame address to a register
-		for (list<pair<HyperOp*, unsigned> >::iterator consumerItr = consumerHyperOps[currentCE].begin(); consumerItr != consumerHyperOps[currentCE].end(); consumerItr++) {
-			if (consumerItr->first == consumer) {
-				registerContainingConsumerBase = consumerItr->second;
-				break;
-			}
-		}
-		if (registerContainingConsumerBase == -1) {
-			registerContainingConsumerBase = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-			MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
-			addi.addReg(registerContainingConsumerBase, RegState::Define);
-			addi.addReg(REDEFINE::zero);
-			addi.addImm(consumer->getContextFrame() * frameSize);
-			consumerHyperOps[currentCE].push_back(make_pair(consumer, registerContainingConsumerBase));
-			if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
-				firstInstructionOfpHyperOpInRegion[currentCE] = addi.operator llvm::MachineInstr *();
-			}
-			allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
-		}
-
 		if (edge->getType() == HyperOpEdge::SCALAR || edge->getType() == HyperOpEdge::PREDICATE) {
-			errs() << "edge type:" << edge->getType() << "\n";
+			unsigned registerContainingConsumerBase = -1;
+			//Check if the consumer's context frame address has already been loaded to memory; If not, add an instruction to load the context frame address to a register
+			for (list<pair<HyperOp*, unsigned> >::iterator consumerItr = consumerHyperOps[currentCE].begin(); consumerItr != consumerHyperOps[currentCE].end(); consumerItr++) {
+				if (consumerItr->first == consumer) {
+					registerContainingConsumerBase = consumerItr->second;
+					break;
+				}
+			}
+			if (registerContainingConsumerBase == -1) {
+				registerContainingConsumerBase = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+				MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
+				addi.addReg(registerContainingConsumerBase, RegState::Define);
+				addi.addReg(REDEFINE::zero);
+				addi.addImm(consumer->getContextFrame() * frameSize);
+				consumerHyperOps[currentCE].push_back(make_pair(consumer, registerContainingConsumerBase));
+				if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
+					firstInstructionOfpHyperOpInRegion[currentCE] = addi.operator llvm::MachineInstr *();
+				}
+				allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+				LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
+			}
 			//position is multiplied by 4 since the context memory is byte addressable
 			unsigned contextFrameOffset = edge->getPositionOfContextSlot() * datawidth;
 			if (edge->getPositionOfContextSlot() == -1) {
@@ -1214,7 +1211,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(lw.operator llvm::MachineInstr *());
 
 						MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SW));
-						store.addReg(REDEFINE::t5).addReg(integerRegister).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData +consumer->getContextFrame());
+						store.addReg(REDEFINE::t5).addReg(integerRegister).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame());
 
 						allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(store.operator llvm::MachineInstr *());

@@ -103,10 +103,8 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 	}
 		//TODO: Somehow, getObjectOffset doesn't work, need to check why;
 	case MachineOperand::MO_FrameIndex: {
-		errs() << "trouble while fixing index:" << MO.getIndex() << "\n";
 		const MachineFrameInfo* frameInfo = MO.getParent()->getParent()->getParent()->getFrameInfo();
 		unsigned currentObjectOffset = 0;
-		errs() << "start and end index:" << frameInfo->getObjectIndexBegin() << ", " << frameInfo->getObjectIndexEnd() << "\n";
 		if (MO.getIndex() < 0) {
 			//The object is a reference being passed via memory
 			if (frameInfo->getObjectIndexEnd() > 0) {
