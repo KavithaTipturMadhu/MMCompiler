@@ -346,8 +346,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 	unsigned ceContainingInstruction = ScheduledInstrItr->second;
 	SUnit* SU = ScheduledInstrItr->first;
 	MachineInstr* machineInstruction = SU->getInstr();
-	errs() << "dealing with instruction:";
-	machineInstruction->dump();
+
 	unsigned additionalFanin = 0;
 	for (SmallVector<SDep, 4>::iterator predecessorItr = SU->Preds.begin(); predecessorItr != SU->Preds.end(); predecessorItr++) {
 		for (list<pair<SUnit*, unsigned> >::iterator predecessorInstrItr = instructionAndPHyperOpMapForRegion.begin(); predecessorInstrItr != instructionAndPHyperOpMapForRegion.end(); predecessorInstrItr++) {
@@ -1038,7 +1037,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	for (map<HyperOpEdge*, HyperOp*>::iterator childItr = hyperOp->ChildMap.begin(); childItr != hyperOp->ChildMap.end(); childItr++) {
 		HyperOpEdge* edge = childItr->first;
 		HyperOp* consumer = childItr->second;
-		errs()<<"child node:"<<consumer->getFunction()->getName()<<"\n";
+		errs() << "child node:" << consumer->getFunction()->getName() << "\n";
 		unsigned registerContainingConsumerBase = -1;
 		//Check if the consumer's context frame address has already been loaded to memory; If not, add an instruction to load the context frame address to a register
 		for (list<pair<HyperOp*, unsigned> >::iterator consumerItr = consumerHyperOps[currentCE].begin(); consumerItr != consumerHyperOps[currentCE].end(); consumerItr++) {
@@ -1062,7 +1061,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		}
 
 		if (edge->getType() == HyperOpEdge::SCALAR || edge->getType() == HyperOpEdge::PREDICATE) {
-			errs()<<"edge type:"<<edge->getType()<<"\n";
+			errs() << "edge type:" << edge->getType() << "\n";
 			//position is multiplied by 4 since the context memory is byte addressable
 			unsigned contextFrameOffset = edge->getPositionOfContextSlot() * datawidth;
 			if (edge->getPositionOfContextSlot() == -1) {
@@ -1137,22 +1136,24 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 		//if local reference, add writes to the local memory of consumer HyperOp and remove the consumer HyperOp's argument
 		else if (edge->getType() == HyperOpEdge::LOCAL_REFERENCE) {
-			AllocaInst* allocInstr=cast<AllocaInst>(edge->getValue());
-			int frameLocationOfSourceData = 0;
+			AllocaInst* allocInstr = cast<AllocaInst>(edge->getValue());
+			unsigned frameLocationOfSourceData = 0;
 			//Get the index of the stack allocated object, starting from 0 because negative offsets from fp contain function arguments
 			for (unsigned int i = 0; i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
+				if (MF.getFrameInfo()->getObjectAllocation(i) == allocInstr) {
+					break;
+				}
 				frameLocationOfSourceData += MF.getFrameInfo()->getObjectSize(i);
 			}
 
-			errs()<<"frame location of source data updated to "<<frameLocationOfSourceData<<"\n";
 			//Compute frame objects' size
 			Function* consumerFunction = consumer->getFunction();
-			unsigned frameLocationOfTargetData= 0;
-			for(Function::iterator funcItr = consumerFunction->begin();funcItr!=consumerFunction->end();funcItr++){
-				for(BasicBlock::iterator bbItr = funcItr->begin();bbItr!=funcItr->end();bbItr++){
-					if(isa<AllocaInst>(bbItr)){
+			unsigned frameLocationOfTargetData = 0;
+			for (Function::iterator funcItr = consumerFunction->begin(); funcItr != consumerFunction->end(); funcItr++) {
+				for (BasicBlock::iterator bbItr = funcItr->begin(); bbItr != funcItr->end(); bbItr++) {
+					if (isa<AllocaInst>(bbItr)) {
 						AllocaInst* allocInst = cast<AllocaInst>(bbItr);
-						frameLocationOfTargetData+=REDEFINEUtils::getSizeOfType(allocInst->getAllocatedType());
+						frameLocationOfTargetData += REDEFINEUtils::getSizeOfType(allocInst->getAllocatedType());
 					}
 				}
 			}
@@ -1163,7 +1164,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					break;
 				}
 				Argument* argument = &*funcArgItr;
-				if (!Fn->getAttributes().hasAttribute(beginArgIndex, Attribute::InReg)) {
+				if (!consumerFunction->getAttributes().hasAttribute(beginArgIndex + 1, Attribute::InReg)) {
 					frameLocationOfTargetData += REDEFINEUtils::getSizeOfType(funcArgItr->getType());
 				}
 			}
@@ -1181,11 +1182,9 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				containedTypesForTraversal.pop_front();
 				if (!traversingType->isAggregateType()) {
 					primitiveTypesMap.push_back(make_pair(traversingType, memoryOfType));
-					errs()<<"primitive type added:";
-					traversingType->dump();
 					memoryOfType += traversingType->getPrimitiveSizeInBits() / 8;
 				} else {
-					for (unsigned i = 0; i<traversingType->getNumContainedTypes();i++) {
+					for (unsigned i = 0; i < traversingType->getNumContainedTypes(); i++) {
 						containedTypesForTraversal.push_back(traversingType->getContainedType(i));
 					}
 				}
@@ -1195,25 +1194,27 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				//Add a load instruction from memory and store to the memory frame of the consumer HyperOp
 				for (list<pair<Type*, unsigned> >::iterator containedPrimitiveItr = primitiveTypesMap.begin(); containedPrimitiveItr != primitiveTypesMap.end(); containedPrimitiveItr++) {
 					Type* containedType = containedPrimitiveItr->first;
-					unsigned registerContainingData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					MachineInstrBuilder add = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerContainingData, RegState::Define).addReg(REDEFINE::t5).addReg(REDEFINE::zero);
-					allInstructionsOfRegion.push_back(make_pair(add.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator llvm::MachineInstr *());
-
 					if (containedType->isFloatTy()) {
 						unsigned floatingPointRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::f32);
-						MachineInstrBuilder floatingPointConversion = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::FMV_X_S)).addReg(floatingPointRegister, RegState::Define).addReg(registerContainingData);
-						allInstructionsOfRegion.push_back(make_pair(floatingPointConversion.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
-						LIS->getSlotIndexes()->insertMachineInstrInMaps(floatingPointConversion.operator llvm::MachineInstr *());
+						MachineInstrBuilder lw = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::FLW)).addReg(floatingPointRegister, RegState::Define).addReg(REDEFINE::t5).addImm(
+								allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfSourceData);
+						allInstructionsOfRegion.push_back(make_pair(lw.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(lw.operator llvm::MachineInstr *());
 
 						MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::FSW));
-						store.addReg(registerContainingConsumerBase).addReg(floatingPointRegister).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData);
+						store.addReg(REDEFINE::t5).addReg(floatingPointRegister).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame());
 
 						allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(store.operator llvm::MachineInstr *());
 					} else {
+						unsigned integerRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder lw = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::LW)).addReg(integerRegister, RegState::Define).addReg(REDEFINE::t5).addImm(
+								allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfSourceData);
+						allInstructionsOfRegion.push_back(make_pair(lw.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(lw.operator llvm::MachineInstr *());
+
 						MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SW));
-						store.addReg(registerContainingConsumerBase).addReg(registerContainingData).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData);
+						store.addReg(REDEFINE::t5).addReg(integerRegister).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData +consumer->getContextFrame());
 
 						allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(store.operator llvm::MachineInstr *());

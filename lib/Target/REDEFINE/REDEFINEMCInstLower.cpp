@@ -92,7 +92,7 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 
 	case MachineOperand::MO_GlobalAddress: {
 //		return MCOperand::CreateImm(globalVarStartAddressMap.find(MO.getGlobal()->getName())->second + MO.getOffset());
-		string globalName="ga#";
+		string globalName = "ga#";
 		globalName.append(itostr(globalVarStartAddressMap.find(MO.getGlobal()->getName())->second + MO.getOffset()));
 		return lowerSymbolOperand(MO, Ctx.GetOrCreateSymbol(StringRef(globalName)), 0);
 	}
@@ -103,9 +103,24 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 	}
 		//TODO: Somehow, getObjectOffset doesn't work, need to check why;
 	case MachineOperand::MO_FrameIndex: {
+		errs() << "trouble while fixing index:" << MO.getIndex() << "\n";
+		const MachineFrameInfo* frameInfo = MO.getParent()->getParent()->getParent()->getFrameInfo();
 		unsigned currentObjectOffset = 0;
-		for (int i = MO.getParent()->getParent()->getParent()->getFrameInfo()->getObjectIndexBegin(); i < MO.getIndex(); i++) {
-			currentObjectOffset += MO.getParent()->getParent()->getParent()->getFrameInfo()->getObjectSize(i);
+		errs() << "start and end index:" << frameInfo->getObjectIndexBegin() << ", " << frameInfo->getObjectIndexEnd() << "\n";
+		if (MO.getIndex() < 0) {
+			//The object is a reference being passed via memory
+			if (frameInfo->getObjectIndexEnd() > 0) {
+				for (int i = 0; i <= frameInfo->getObjectIndexEnd(); i++) {
+					currentObjectOffset += frameInfo->getObjectSize(i);
+				}
+			}
+			for (int i = -1; i > MO.getIndex(); i--) {
+				currentObjectOffset += frameInfo->getObjectSize(i);
+			}
+		} else {
+			for (int i = 0; i < MO.getIndex(); i++) {
+				currentObjectOffset += frameInfo->getObjectSize(i);
+			}
 		}
 		MCOperand retVal = MCOperand::CreateImm(currentObjectOffset + maxGlobalSize);
 		return retVal;
