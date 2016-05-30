@@ -49,10 +49,10 @@ static void printExpr(const MCExpr *Expr, raw_ostream &OS) {
 	case MCSymbolRefExpr::VK_None:
 		break;
 	case MCSymbolRefExpr::VK_Mips_ABS_HI:
-		OS << "%hi(";
+		OS << "\"%hi(";
 		break;
 	case MCSymbolRefExpr::VK_Mips_ABS_LO:
-		OS << "%lo(";
+		OS << "\"%lo(";
 		break;
 	case MCSymbolRefExpr::VK_Mips_TPREL_HI:
 		OS << "%tprel_hi(";
@@ -71,7 +71,7 @@ static void printExpr(const MCExpr *Expr, raw_ostream &OS) {
 	}
 
 	if (Kind != MCSymbolRefExpr::VK_None)
-		OS << ')';
+		OS << ")\"";
 }
 
 void REDEFINEInstPrinter::printOperand(const MCOperand &MC, raw_ostream &O) {
