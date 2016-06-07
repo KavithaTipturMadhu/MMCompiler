@@ -106,7 +106,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 //			}
 //		}
 
-	graph->print(errs());
+//	graph->print(errs());
 	return graph;
 }
 
