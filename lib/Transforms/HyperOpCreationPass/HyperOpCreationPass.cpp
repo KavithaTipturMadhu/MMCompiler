@@ -118,8 +118,10 @@ struct HyperOpCreationPass: public ModulePass {
 				if (initializer->isZeroValue()) {
 					Value* zero = ConstantInt::get(ctx, APInt(32, 0));
 					StoreInst* storeInst = new StoreInst(zero, typeAddrInst, insertBefore);
+					storeInst->setAlignment(4);
 				} else {
 					StoreInst* storeInst = new StoreInst(initializer, typeAddrInst, insertBefore);
+					storeInst->setAlignment(4);
 				}
 			}
 		} else if (type->isArrayTy()) {
@@ -237,6 +239,7 @@ struct HyperOpCreationPass: public ModulePass {
 			bbTraverser.push_back(function->begin());
 			while (!bbTraverser.empty()) {
 				BasicBlock* bbItr = bbTraverser.front();
+				errs()<<"traversing bb:"<<bbItr->getName()<<"\n";
 				bbTraverser.pop_front();
 				bool canAcquireBBItr = true;
 				//If basic block does not have a unique predecessor and basic block is not the entry block
@@ -402,7 +405,6 @@ struct HyperOpCreationPass: public ModulePass {
 					ArrayRef<Type*> dataTypes(argsList);
 
 					FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()), dataTypes, false);
-					errs() << "Creating a new HyperOp with name:" << name << "\n";
 					Function *newFunction = Function::Create(FT, Function::ExternalLinkage, name, &M);
 					addedFunctions.push_back(newFunction);
 					createdHyperOpAndOriginalBasicBlockAndArgMap.insert(make_pair(newFunction, make_pair(accumulatedBasicBlocks, hyperOpArguments)));
@@ -517,9 +519,12 @@ struct HyperOpCreationPass: public ModulePass {
 									if (!isa<AllocaInst>(metadataHost)) {
 										//Add an alloca and a store instruction after the argument and label the alloca instruction with metadata
 										AllocaInst* ai = new AllocaInst(argument->getType());
-										ai->insertAfter(clonedInstruction);
+										ai->setAlignment(4);
+										//Alloc instructions need to be inserted in the entry basic block of the function because other allocs are treated as dynamic stack allocs
+										ai->insertBefore(clonedInstruction->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
 										StoreInst* storeInst = new StoreInst(clonedInstruction, ai);
-										storeInst->insertAfter(ai);
+										storeInst->setAlignment(4);
+										storeInst->insertBefore(clonedInstruction);
 										allocaInstCreatedForIntermediateValues.insert(make_pair(clonedInstruction, ai));
 										metadataHost = ai;
 									}
@@ -736,9 +741,11 @@ struct HyperOpCreationPass: public ModulePass {
 						if (!isa<AllocaInst>(metadataHost)) {
 							//Since the temporary does not have a memory location associated with it, add an alloca and a store instruction after the argument and label the alloca instruction with metadata
 							AllocaInst* ai = new AllocaInst(predicateOperand->getType());
-							ai->insertAfter(clonedInstruction);
+							ai->setAlignment(4);
+							ai->insertBefore(clonedInstruction->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
 							StoreInst* storeInst = new StoreInst(clonedInstruction, ai);
-							storeInst->insertAfter(ai);
+							storeInst->setAlignment(4);
+							storeInst->insertBefore(clonedInstruction);
 							allocaInstCreatedForIntermediateValues.insert(make_pair(clonedInstruction, ai));
 							metadataHost = ai;
 						}
@@ -782,9 +789,11 @@ struct HyperOpCreationPass: public ModulePass {
 						MDNode * predicatesRelation = MDNode::get(ctxt, metadataRef);
 						//Allocated a location and store 1 there
 						AllocaInst* ai = new AllocaInst(Type::getInt32Ty(ctxt));
-						ai->insertBefore(retInstOfProducer);
+						ai->setAlignment(4);
+						ai->insertBefore(retInstOfProducer->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
 						StoreInst* storeInst = new StoreInst(ConstantInt::get(ctxt, APInt(32, 1)), ai);
-						storeInst->insertAfter(ai);
+						storeInst->setAlignment(4);
+						storeInst->insertBefore(retInstOfProducer);
 						ai->setMetadata(HYPEROP_CONTROLLED_BY, predicatesRelation);
 						addedParentsToCurrentHyperOp.push_back(sourceParentFunction);
 						//TODO compute unconditional jump chains
@@ -847,10 +856,12 @@ struct HyperOpCreationPass: public ModulePass {
 											MDNode * predicatesRelation = MDNode::get(ctxt, metadataRef);
 											//Allocated a location and store 1 there
 											AllocaInst* ai = new AllocaInst(Type::getInt32Ty(ctxt));
+											ai->setAlignment(4);
 											Instruction* retInstOfProducer = retInstMap.find(const_cast<Function*>(cloneInstruction->getParent()->getParent()))->second;
-											ai->insertBefore(retInstOfProducer);
+											ai->insertBefore(retInstOfProducer->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
 											StoreInst* storeInst = new StoreInst(ConstantInt::get(ctxt, APInt(32, 1)), ai);
-											storeInst->insertAfter(ai);
+											storeInst->setAlignment(4);
+											storeInst->insertBefore(retInstOfProducer);
 											ai->setMetadata(HYPEROP_CONTROLLED_BY, predicatesRelation);
 											addedParentsToCurrentHyperOp.push_back(cloneInstruction->getParent()->getParent());
 										}
