@@ -242,7 +242,6 @@ struct HyperOpCreationPass: public ModulePass {
 			bbTraverser.push_back(function->begin());
 			while (!bbTraverser.empty()) {
 				BasicBlock* bbItr = bbTraverser.front();
-				errs()<<"traversing bb:"<<bbItr->getName()<<"\n";
 				bbTraverser.pop_front();
 				bool canAcquireBBItr = true;
 				//If basic block does not have a unique predecessor and basic block is not the entry block
@@ -276,6 +275,24 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 						}
 					}
+
+//					//Check if the basic block's inclusion results introduces multiple entry points to the same HyperOp
+//					if (canAcquireBBItr && accumulatedBasicBlocks.size() > 1) {
+//						//Find the basic blocks that jump to the basic block being acquired
+//						for (Function::iterator bbItr = function->begin(); bbItr != function->end(); bbItr++) {
+//							for (unsigned i = 0; i < bbItr->getTerminator()->getNumSuccessors(); i++) {
+//								BasicBlock* successor = bbItr->getTerminator()->getSuccessor(i);
+//								if (successor == bbItr && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), bbItr) == accumulatedBasicBlocks.end()) {
+//									//Predicate to the basic block in the current set that comes from outside the basic block set accumulated for the current HyperOp
+//									canAcquireBBItr = false;
+//									break;
+//								}
+//							}
+//							if (!canAcquireBBItr) {
+//								break;
+//							}
+//						}
+//					}
 				}
 
 				if (!canAcquireBBItr) {
@@ -284,7 +301,7 @@ struct HyperOpCreationPass: public ModulePass {
 				} else {
 					accumulatedBasicBlocks.push_back(bbItr);
 					for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
-						errs()<<"dealing with new instruction:";
+						errs() << "dealing with new instruction:";
 						instItr->dump();
 						if (!(isa<AllocaInst>(instItr) || isa<ReturnInst>(instItr))) {
 							//Function calls that couldn't be inlined when generating the IR
@@ -329,8 +346,8 @@ struct HyperOpCreationPass: public ModulePass {
 							list<Value*> newHyperOpArguments;
 							for (unsigned int i = 0; i < instItr->getNumOperands(); i++) {
 								Value * argument = instItr->getOperand(i);
-								if (!isa < Constant > (argument) &&!argument->getType()->isLabelTy()) {
-									if ((isa<Instruction>(argument)) &&find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
+								if (!isa<Constant>(argument) && !argument->getType()->isLabelTy()) {
+									if ((isa<Instruction>(argument)) && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
 										//Instruction belongs to the same bb, need not be added as an argument
 										continue;
 									}
@@ -472,7 +489,7 @@ struct HyperOpCreationPass: public ModulePass {
 								for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentMap> >::iterator createdHopItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHopItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHopItr++) {
 									list<BasicBlock*> createdHyperOpBBList = createdHopItr->second.first;
 									//Find the HyperOp containing the argument's definition
-									if (isa < AllocaInst > (argument) &&find(createdHyperOpBBList.begin(), createdHyperOpBBList.end(), parentBBOfDefinition) != createdHyperOpBBList.end()) {
+									if (isa<AllocaInst>(argument) && find(createdHyperOpBBList.begin(), createdHyperOpBBList.end(), parentBBOfDefinition) != createdHyperOpBBList.end()) {
 										//Check if the source of dependence has any uses in the function it belongs to or in basic blocks not corresponding to the HyperOp being created
 										for (Value::use_iterator argItr = argument->use_begin(); argItr != argument->use_end(); argItr++) {
 											Instruction* useInstruction = (Instruction*) *argItr;
@@ -659,6 +676,7 @@ struct HyperOpCreationPass: public ModulePass {
 							for (unsigned operandIndex = 0; operandIndex < clonedInst->getNumOperands(); operandIndex++) {
 								Value* operandToBeReplaced = clonedInst->getOperand(operandIndex);
 								bool argUpdated = false;
+								//If the argument is an argument to the HyperOp
 								for (HyperOpArgumentMap::iterator argumentItr = hyperOpArguments.begin(); argumentItr != hyperOpArguments.end(); argumentItr++) {
 									unsigned hyperOpArgIndex = argumentItr->first;
 									list<Value*> individualArguments = argumentItr->second.first;
@@ -678,9 +696,10 @@ struct HyperOpCreationPass: public ModulePass {
 										}
 									}
 								}
+
 								//Find the definitions added previously which reach the use
 								if (!argUpdated) {
-									//If the originalOperand is an instruction that was cloned previously and belongs to the list of accumulated HyperOps
+									//If the original operand is an instruction that was cloned previously which belongs to the list of accumulated HyperOps
 									for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 										for (BasicBlock::iterator accumulatedInstItr = (*accumulatedBBItr)->begin(); accumulatedInstItr != (*accumulatedBBItr)->end(); accumulatedInstItr++) {
 											for (Value::use_iterator useItr = accumulatedInstItr->use_begin(); useItr != accumulatedInstItr->use_end(); useItr++) {
@@ -692,6 +711,7 @@ struct HyperOpCreationPass: public ModulePass {
 										}
 									}
 								}
+
 							}
 						}
 						//Update the branch instruction that jump to the current bb's landing pad
@@ -833,7 +853,7 @@ struct HyperOpCreationPass: public ModulePass {
 									BasicBlock* originalBB = *originalBBItr;
 									for (BasicBlock::iterator instrItr = originalBB->begin(); instrItr != originalBB->end(); instrItr++) {
 										Instruction* instr = instrItr;
-										if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(0) == argValue) {
+										if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == argValue) {
 											basicBlocksWithDefinitions.push_back(originalBB);
 											break;
 										}
@@ -893,7 +913,7 @@ struct HyperOpCreationPass: public ModulePass {
 					endOfHyperOp = false;
 				}
 
-				vector<unsigned> depthsInSortedOrder;
+				vector<unsigned> distanceToExit;
 				map<unsigned, list<BasicBlock*> > untraversedBasicBlocks;
 				//Ensure breadth biased traversal such that all predecessors of a basic block are traversed before the basic block
 				for (unsigned succIndex = 0; succIndex < bbItr->getTerminator()->getNumSuccessors(); succIndex++) {
@@ -908,31 +928,32 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 						basicBlockList.push_back(succBB);
 						untraversedBasicBlocks.insert(make_pair(distanceFromExit, basicBlockList));
-						if (depthsInSortedOrder.empty() || find(depthsInSortedOrder.begin(), depthsInSortedOrder.end(), distanceFromExit) == depthsInSortedOrder.end()) {
-							depthsInSortedOrder.push_back(distanceFromExit);
+						if (distanceToExit.empty() || find(distanceToExit.begin(), distanceToExit.end(), distanceFromExit) == distanceToExit.end()) {
+							distanceToExit.push_back(distanceFromExit);
 						}
 					}
 				}
 
-				//Sort the basic blocks in ascending order of their distance to exit block
+				//TODO Sort the basic blocks in descending order of their distance to the exit basic block to ensure that the basic block withmore children gets traversed sooner, is this required though?
 				list<BasicBlock*> sortedSuccBasicBlockList;
-				if (depthsInSortedOrder.size() > 1) {
-					for (unsigned i = 0; i < depthsInSortedOrder.size() - 1; i++) {
-						unsigned max = depthsInSortedOrder[i];
-						for (unsigned j = i + 1; j < depthsInSortedOrder.size(); j++) {
-							if (max < depthsInSortedOrder[j]) {
-								unsigned temp = depthsInSortedOrder[j];
-								depthsInSortedOrder[i] = temp;
-								depthsInSortedOrder[j] = max;
+				if (distanceToExit.size() > 1) {
+					for (unsigned i = 0; i < distanceToExit.size() - 1; i++) {
+						unsigned max = distanceToExit[i];
+						for (unsigned j = i + 1; j < distanceToExit.size(); j++) {
+							if (max < distanceToExit[j]) {
+								unsigned temp = distanceToExit[j];
+								distanceToExit[i] = temp;
+								distanceToExit[j] = max;
 								max = temp;
 							}
 						}
 					}
 				}
 
-				for (unsigned i = 0; i < depthsInSortedOrder.size(); i++) {
-					list<BasicBlock*> succBBList = untraversedBasicBlocks.find(depthsInSortedOrder[i])->second;
+				for (unsigned i = 0; i < distanceToExit.size(); i++) {
+					list<BasicBlock*> succBBList = untraversedBasicBlocks.find(distanceToExit[i])->second;
 					for (list<BasicBlock*>::iterator succBBItr = succBBList.begin(); succBBItr != succBBList.end(); succBBItr++) {
+						//TODO push_front will not work here because all producer basic blocks are expected to be processed i.e., cloned before the consumer basic blocks are cloned, given how
 						bbTraverser.push_back(*succBBItr);
 					}
 				}
