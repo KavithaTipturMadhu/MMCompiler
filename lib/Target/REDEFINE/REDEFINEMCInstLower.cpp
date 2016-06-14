@@ -74,7 +74,7 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 	for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
 		const GlobalVariable *globalVar = &*globalArgItr;
 		globalVarStartAddressMap.insert(std::make_pair(globalVar->getName(), maxGlobalSize));
-		maxGlobalSize += REDEFINEUtils::getSizeOfType(globalVar->getType());
+		maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
 	}
 	switch (MO.getType()) {
 	case MachineOperand::MO_Register:

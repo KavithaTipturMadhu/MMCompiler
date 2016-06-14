@@ -13,8 +13,12 @@
 
 namespace llvm {
 class REDEFINEUtils {
+	static unsigned ALIGNMENT_SIZE = 8;
 public:
 	static unsigned getSizeOfType(Type * type);
+	//This method is to ensure that the types are aligned to 'n' word sizes to guarantee that data movement between DGM and global memory and vice-versa dont need extra packets to be processed
+	static unsigned getAlignedSizeOfType(Type * type);
+
 };
 }
 #endif /* LIB_TARGET_REDEFINE_REDEFINEUTILS_H_ */

@@ -8,12 +8,12 @@
 #include "REDEFINEUtils.h"
 using namespace llvm;
 
+//Returns size of the type in bytes
 unsigned REDEFINEUtils::getSizeOfType(Type * type) {
 	Type* objectType = type;
-	if (isa < PointerType > (type)) {
+	if (isa<PointerType>(type)) {
 		objectType = ((PointerType*) type)->getPointerElementType();
 	}
-
 	if (objectType->isAggregateType()) {
 		unsigned size = 0;
 		for (unsigned i = 0; i < objectType->getNumContainedTypes(); i++) {
@@ -26,4 +26,13 @@ unsigned REDEFINEUtils::getSizeOfType(Type * type) {
 		return size * numElements;
 	}
 	return (objectType->getPrimitiveSizeInBits() / 8);
+}
+
+//Returns size of the type in bytes
+unsigned REDEFINEUtils::getAlignedSizeOfType(Type * type) {
+	unsigned returnSize = getSizeOfType(type);
+	if (returnSize % ALIGNMENT_SIZE > 0) {
+		returnSize += returnSize % ALIGNMENT_SIZE;
+	}
+	return returnSize;
 }

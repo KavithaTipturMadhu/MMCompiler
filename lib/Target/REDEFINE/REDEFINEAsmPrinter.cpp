@@ -166,8 +166,15 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 			inputs.append("o\t");
 			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
 			numInputsAndOutputs++;
+		}	//Mark the global as both input and output
+		else if (globalVar->getName().startswith("redefine_inout_")) {
+			inputs.append("i\t");
+			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+			inputs.append("o\t");
+			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+			numInputsAndOutputs++;
 		}
-		maxGlobalSize += REDEFINEUtils::getSizeOfType(globalVar->getType());
+		maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
 	}
 
 	dataLabel.append(itostr(numInputsAndOutputs)).append("\n");

@@ -289,7 +289,7 @@ if (bb->getParent()->begin()->getName().compare(bb->getName()) == 0) {
 	if (parentModule->getGlobalList().size() > 0) {
 		for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
 			const GlobalVariable *globalVar = &*globalArgItr;
-			maxGlobalSize += REDEFINEUtils::getSizeOfType(globalVar->getType());
+			maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
 		}
 	}
 
@@ -1150,7 +1150,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				for (BasicBlock::iterator bbItr = funcItr->begin(); bbItr != funcItr->end(); bbItr++) {
 					if (isa<AllocaInst>(bbItr)) {
 						AllocaInst* allocInst = cast<AllocaInst>(bbItr);
-						frameLocationOfTargetData += REDEFINEUtils::getSizeOfType(allocInst->getAllocatedType());
+						frameLocationOfTargetData += REDEFINEUtils::getAlignedSizeOfType(allocInst->getAllocatedType());
 					}
 				}
 			}
@@ -1162,7 +1162,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				}
 				Argument* argument = &*funcArgItr;
 				if (!consumerFunction->getAttributes().hasAttribute(beginArgIndex + 1, Attribute::InReg)) {
-					frameLocationOfTargetData += REDEFINEUtils::getSizeOfType(funcArgItr->getType());
+					frameLocationOfTargetData += REDEFINEUtils::getAlignedSizeOfType(funcArgItr->getType());
 				}
 			}
 

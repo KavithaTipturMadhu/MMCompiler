@@ -224,7 +224,7 @@ struct HyperOpCreationPass: public ModulePass {
 				Instruction* startOfBB = function->begin()->begin();
 				//Add initializers to globals that are not redefine inputs or outputs
 				for (Module::global_iterator globalVarItr = M.global_begin(); globalVarItr != M.global_end(); globalVarItr++) {
-					if (!globalVarItr->getName().startswith(REDEFINE_INPUT_PREFIX) && !globalVarItr->getName().startswith(REDEFINE_OUTPUT_PREFIX)) {
+					if (!globalVarItr->getName().startswith(REDEFINE_INPUT_PREFIX) && !globalVarItr->getName().startswith(REDEFINE_OUTPUT_PREFIX)&&!globalVarItr->getName().startswith(REDEFINE_INOUT_PREFIX)) {
 						//Externs are not allowed as of now and hence, there is no need to check if the global var has an initializer at all or otherwise
 						Constant * initializer = globalVarItr->getInitializer();
 						vector<Value*> idList;
@@ -976,6 +976,7 @@ private:
 	const char* HYPEROP_INTERMEDIATE = "Intermediate";
 	const char* REDEFINE_INPUT_PREFIX = "redefine_in_";
 	const char* REDEFINE_OUTPUT_PREFIX = "redefine_out_";
+	const char* REDEFINE_INOUT_PREFIX = "redefine_inout_";
 }
 ;
 char HyperOpCreationPass::ID = 2;
