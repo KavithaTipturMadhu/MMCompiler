@@ -76,6 +76,53 @@ struct HyperOpCreationPass: public ModulePass {
 		return false;
 	}
 
+	//List of basic blocks containing store instructions that reach currentInstr
+	list<BasicBlock*> reachingStoreOperations(Instruction* allocInstr, map<Function*, pair<list<BasicBlock*>, HyperOpArgumentMap> > createdHyperOpAndOriginalBasicBlockAndArgMap, list<BasicBlock*> accumulatedBasicBlocks) {
+		list<BasicBlock*> reachingDefinitions;
+		//Find uses of allocInstr in the basic blocks of created functions
+		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentMap> >::iterator createdFuncItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdFuncItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdFuncItr++) {
+			list<BasicBlock*> basicBlocksWithDefinitions;
+			list<BasicBlock*> originalBasicBlocks = createdFuncItr->second.first;
+			for (list<BasicBlock*>::iterator originalBBItr = originalBasicBlocks.begin(); originalBBItr != originalBasicBlocks.end(); originalBBItr++) {
+				BasicBlock* originalBB = *originalBBItr;
+				for (BasicBlock::iterator instrItr = originalBB->begin(); instrItr != originalBB->end(); instrItr++) {
+					Instruction* instr = instrItr;
+					//Check the uses in BasicBlocks that are predecessors and use allocInstr
+					if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == allocInstr) {
+						basicBlocksWithDefinitions.push_back(originalBB);
+						break;
+					}
+				}
+			}
+
+			//Eliminate all transitive paths and retain the last one
+			list<BasicBlock*> discardList;
+			for (list<BasicBlock*>::iterator defBBItr = basicBlocksWithDefinitions.begin(); defBBItr != basicBlocksWithDefinitions.end(); defBBItr++) {
+				BasicBlock* defBB = *defBBItr;
+				for (list<BasicBlock*>::iterator secDefBBItr = basicBlocksWithDefinitions.begin(); secDefBBItr != basicBlocksWithDefinitions.end(); secDefBBItr++) {
+					BasicBlock* secDefBB = *secDefBBItr;
+					list<BasicBlock*> visitedBasicBlocks;
+					if (secDefBB != defBB && (pathExistsInCFG(defBB, secDefBB, visitedBasicBlocks) || find(discardList.begin(), discardList.end(), secDefBB) != discardList.end())) {
+						discardList.push_back(defBB);
+					}
+				}
+			}
+
+			for (list<BasicBlock*>::iterator defBBItr = basicBlocksWithDefinitions.begin(); defBBItr != basicBlocksWithDefinitions.end(); defBBItr++) {
+				//If the store instr is reachable i.e., not in discard list
+				if (find(discardList.begin(), discardList.end(), *defBBItr) == discardList.end()) {
+					for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
+						list<BasicBlock*> visitedBasicBlocks;
+						if (pathExistsInCFG(*defBBItr, *accumulatedBBItr, visitedBasicBlocks) && find(reachingDefinitions.begin(), reachingDefinitions.end(), defBBItr) == reachingDefinitions.end()) {
+							reachingDefinitions.push_back(*defBBItr);
+						}
+					}
+				}
+			}
+		}
+		return reachingDefinitions;
+	}
+
 	HyperOpArgumentType supportedArgType(Value* argument, Module &m) {
 		if (isa<AllocaInst>(argument) || argument->getType()->getTypeID() == Type::FloatTyID) {
 			return LOCAL_REFERENCE;
@@ -224,7 +271,7 @@ struct HyperOpCreationPass: public ModulePass {
 				Instruction* startOfBB = function->begin()->begin();
 				//Add initializers to globals that are not redefine inputs or outputs
 				for (Module::global_iterator globalVarItr = M.global_begin(); globalVarItr != M.global_end(); globalVarItr++) {
-					if (!globalVarItr->getName().startswith(REDEFINE_INPUT_PREFIX) && !globalVarItr->getName().startswith(REDEFINE_OUTPUT_PREFIX)&&!globalVarItr->getName().startswith(REDEFINE_INOUT_PREFIX)) {
+					if (!globalVarItr->getName().startswith(REDEFINE_INPUT_PREFIX) && !globalVarItr->getName().startswith(REDEFINE_OUTPUT_PREFIX) && !globalVarItr->getName().startswith(REDEFINE_INOUT_PREFIX)) {
 						//Externs are not allowed as of now and hence, there is no need to check if the global var has an initializer at all or otherwise
 						Constant * initializer = globalVarItr->getInitializer();
 						vector<Value*> idList;
@@ -276,23 +323,23 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
-//					//Check if the basic block's inclusion results introduces multiple entry points to the same HyperOp
-//					if (canAcquireBBItr && accumulatedBasicBlocks.size() > 1) {
-//						//Find the basic blocks that jump to the basic block being acquired
-//						for (Function::iterator bbItr = function->begin(); bbItr != function->end(); bbItr++) {
-//							for (unsigned i = 0; i < bbItr->getTerminator()->getNumSuccessors(); i++) {
-//								BasicBlock* successor = bbItr->getTerminator()->getSuccessor(i);
-//								if (successor == bbItr && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), bbItr) == accumulatedBasicBlocks.end()) {
-//									//Predicate to the basic block in the current set that comes from outside the basic block set accumulated for the current HyperOp
-//									canAcquireBBItr = false;
-//									break;
-//								}
-//							}
-//							if (!canAcquireBBItr) {
-//								break;
-//							}
-//						}
-//					}
+					//Check if the basic block's inclusion results introduces multiple entry points to the same HyperOp
+					if (canAcquireBBItr && accumulatedBasicBlocks.size() > 1) {
+						//Find the basic blocks that jump to the basic block being acquired
+						for (Function::iterator bbItr = function->begin(); bbItr != function->end(); bbItr++) {
+							for (unsigned i = 0; i < bbItr->getTerminator()->getNumSuccessors(); i++) {
+								BasicBlock* successor = bbItr->getTerminator()->getSuccessor(i);
+								if (successor == bbItr && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), bbItr) == accumulatedBasicBlocks.end()) {
+									//Predicate to the basic block in the current set that comes from outside the basic block set accumulated for the current HyperOp
+									canAcquireBBItr = false;
+									break;
+								}
+							}
+							if (!canAcquireBBItr) {
+								break;
+							}
+						}
+					}
 				}
 
 				if (!canAcquireBBItr) {
@@ -347,11 +394,24 @@ struct HyperOpCreationPass: public ModulePass {
 							for (unsigned int i = 0; i < instItr->getNumOperands(); i++) {
 								Value * argument = instItr->getOperand(i);
 								if (!isa<Constant>(argument) && !argument->getType()->isLabelTy()) {
-									if ((isa<Instruction>(argument)) && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
-										//Instruction belongs to the same bb, need not be added as an argument
-										continue;
+									//Find the reaching definition of the argument; alloca instruction maybe followed by store instructions to the memory location, we need to identify the set of store instructions to the memory location that reach the current use of the memory location
+									bool hasReachingDefinitionFromOutside = false;
+									if (isa<Instruction>(argument)) {
+										list<BasicBlock*> reachingDefinitions = reachingStoreOperations((Instruction*) argument, createdHyperOpAndOriginalBasicBlockAndArgMap, accumulatedBasicBlocks);
+										//Reaching definition to the memory location is in the same HyperOp, need not be added to hyperOp argument list
+										for(list<BasicBlock*>::iterator reachingDefItr = reachingDefinitions.begin(); reachingDefItr!=reachingDefinitions.end();reachingDefItr++){
+											if(find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), reachingDefItr)==accumulatedBasicBlocks.end()){
+												//Reaching definition is from a different basic block not accumulated currently
+												hasReachingDefinitionFromOutside = true;
+												break;
+											}
+										}
 									}
 
+									//Reaching definition is in the accumulated basic block set
+									if(!hasReachingDefinitionFromOutside){
+										continue;
+									}
 									bool argAddedPreviously = false;
 									//Check if same argument is used multiple times in the same instruction
 									//We need to track the arguments in the instruction separately
@@ -549,7 +609,7 @@ struct HyperOpCreationPass: public ModulePass {
 										metadataHost = ai;
 									}
 									metadataHost->setMetadata(HYPEROP_CONSUMED_BY, newMDNode);
-									//Parent function
+									//Parent function buffered to ensure that unnecessary control dependences need not exist
 									if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), metadataHost->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
 										addedParentsToCurrentHyperOp.push_back(metadataHost->getParent()->getParent());
 									}
@@ -830,20 +890,20 @@ struct HyperOpCreationPass: public ModulePass {
 						storeInst->insertBefore(retInstOfProducer);
 						ai->setMetadata(HYPEROP_CONTROLLED_BY, predicatesRelation);
 						addedParentsToCurrentHyperOp.push_back(sourceParentFunction);
-						//TODO compute unconditional jump chains
 					}
+					//TODO compute unconditional jump chains
 
-//					//Check the reaching definition of the global reference object to this HyperOp
+					//Check the reaching definition of the global reference object to this HyperOp
 					for (HyperOpArgumentMap::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
 						HyperOpArgumentType type = hyperOpArgItr->second.second;
 						if (type == GLOBAL_REFERENCE) {
-							//check the reaching definitions to the Value
+							//check the reaching definitions of the value
 							Value* argValue = hyperOpArgItr->second.first.front();
 							//Check the uses in BasicBlocks that are predecessors and use argValue
 							list<BasicBlock*> basicBlocksWithDefinitions;
 							for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentMap> >::iterator createdFuncItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdFuncItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdFuncItr++) {
 								const Function* createdFunction = createdFuncItr->first;
-								//The function is already a parent
+								//The function is already added as a parent
 								if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), createdFunction) != addedParentsToCurrentHyperOp.end()) {
 									continue;
 								}
