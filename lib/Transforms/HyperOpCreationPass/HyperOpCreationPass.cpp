@@ -113,7 +113,7 @@ struct HyperOpCreationPass: public ModulePass {
 				if (find(discardList.begin(), discardList.end(), *defBBItr) == discardList.end()) {
 					for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 						list<BasicBlock*> visitedBasicBlocks;
-						if (pathExistsInCFG(*defBBItr, *accumulatedBBItr, visitedBasicBlocks) && find(reachingDefinitions.begin(), reachingDefinitions.end(), defBBItr) == reachingDefinitions.end()) {
+						if (pathExistsInCFG(*defBBItr, *accumulatedBBItr, visitedBasicBlocks) && find(reachingDefinitions.begin(), reachingDefinitions.end(), *defBBItr) == reachingDefinitions.end()) {
 							reachingDefinitions.push_back(*defBBItr);
 						}
 					}
@@ -243,6 +243,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 		if (mainFunction == 0) {
 			DEBUG(errs() << "REDEFINE kernel's entry point i.e., redefine_start function missing, aborting\n");
+			return false;
 		}
 		list<Function*> stack;
 		stack.push_front(mainFunction);
@@ -400,7 +401,7 @@ struct HyperOpCreationPass: public ModulePass {
 										list<BasicBlock*> reachingDefinitions = reachingStoreOperations((Instruction*) argument, createdHyperOpAndOriginalBasicBlockAndArgMap, accumulatedBasicBlocks);
 										//Reaching definition to the memory location is in the same HyperOp, need not be added to hyperOp argument list
 										for(list<BasicBlock*>::iterator reachingDefItr = reachingDefinitions.begin(); reachingDefItr!=reachingDefinitions.end();reachingDefItr++){
-											if(find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), reachingDefItr)==accumulatedBasicBlocks.end()){
+											if(find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), *reachingDefItr)==accumulatedBasicBlocks.end()){
 												//Reaching definition is from a different basic block not accumulated currently
 												hasReachingDefinitionFromOutside = true;
 												break;
@@ -853,8 +854,6 @@ struct HyperOpCreationPass: public ModulePass {
 					//Remove unconditional branch instruction, add the annotation to the return instruction of the branch
 					for (list<Instruction*>::iterator unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
 						Instruction* unconditionalBranchInstr = *unconditionalBranchSourceItr;
-						errs() << "unconditional branch instr from elsewhere to the current HyperOp:";
-						unconditionalBranchInstr->dump();
 						Instruction* clonedInstr = (Instruction*) originalToClonedInstMap.find(unconditionalBranchInstr)->second;
 						const Function* sourceParentFunction = clonedInstr->getParent()->getParent();
 						Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
@@ -1014,6 +1013,7 @@ struct HyperOpCreationPass: public ModulePass {
 					list<BasicBlock*> succBBList = untraversedBasicBlocks.find(distanceToExit[i])->second;
 					for (list<BasicBlock*>::iterator succBBItr = succBBList.begin(); succBBItr != succBBList.end(); succBBItr++) {
 						//TODO push_front will not work here because all producer basic blocks are expected to be processed i.e., cloned before the consumer basic blocks are cloned, given how
+						//TODO make any arbitrary traversal order work
 						bbTraverser.push_back(*succBBItr);
 					}
 				}
