@@ -120,7 +120,7 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 				currentObjectOffset += frameInfo->getObjectSize(i);
 			}
 		}
-		MCOperand retVal = MCOperand::CreateImm(currentObjectOffset + maxGlobalSize);
+		MCOperand retVal = MCOperand::CreateImm(currentObjectOffset);
 		return retVal;
 	}
 
