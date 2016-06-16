@@ -19,6 +19,8 @@ using namespace std;
 #include "llvm/IR/InterHyperOpData.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
+#include "REDEFINEUtils.h"
 #include "HyperOpInteractionGraph.h"
 
 /**

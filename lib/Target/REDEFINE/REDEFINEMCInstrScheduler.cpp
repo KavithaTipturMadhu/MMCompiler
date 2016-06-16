@@ -282,6 +282,7 @@ registersUsedInBB.clear();
 
 //First basic block in the function
 if (bb->getParent()->begin()->getName().compare(bb->getName()) == 0) {
+	HyperOpInteractionGraph * graph = ((REDEFINETargetMachine&) TM).HIG;
 	MachineInstr* insertionPoint = bb->begin();
 	string globalAddressString = "\"ga";
 	const Module* parentModule = bb->getParent()->getFunction()->getParent();
@@ -313,6 +314,9 @@ if (bb->getParent()->begin()->getName().compare(bb->getName()) == 0) {
 	unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 	MachineInstrBuilder add = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForGlobalAddr, RegState::Define).addReg(registerForTopBits).addReg(registerForBottomBits);
 	LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator ->());
+
+	MachineInstrBuilder mulForFrameSize = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::MUL)).addReg(REDEFINE::t5, RegState::Define).addReg(REDEFINE::t5).addImm(graph->getMaxMemFrameSize());
+	LIS->getSlotIndexes()->insertMachineInstrInMaps(mulForFrameSize.operator ->());
 
 	MachineInstrBuilder addForGlobalAddr = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(REDEFINE::t5, RegState::Define).addReg(registerForGlobalAddr).addReg(REDEFINE::t5);
 	LIS->getSlotIndexes()->insertMachineInstrInMaps(addForGlobalAddr.operator ->());

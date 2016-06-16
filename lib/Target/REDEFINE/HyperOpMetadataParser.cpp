@@ -49,12 +49,19 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 		}
 	}
 	//Traverse instructions for metadata
+	unsigned maxFrameSizeOfHyperOp = 0;
 	for (Module::iterator moduleItr = M->begin(); moduleItr != M->end(); moduleItr++) {
 		//Traverse through instructions of the module
 		HyperOp* sourceHyperOp = graph->getHyperOp(moduleItr);
 		for (Function::iterator funcItr = (*moduleItr).begin(); funcItr != (*moduleItr).end(); funcItr++) {
 			for (BasicBlock::iterator bbItr = (*funcItr).begin(); bbItr != (*funcItr).end(); bbItr++) {
 				Instruction* instr = bbItr;
+				if (isa<AllocaInst>(instr)) {
+					unsigned frameSizeOfHyperOp = REDEFINEUtils::getSizeOfType(((AllocaInst*) instr)->getType());
+					if (maxFrameSizeOfHyperOp < frameSizeOfHyperOp) {
+						maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
+					}
+				}
 				if (instr->hasMetadata()) {
 					MDNode* consumedByMDNode = instr->getMetadata(HYPEROP_CONSUMED_BY);
 					if (consumedByMDNode != 0) {
@@ -63,7 +70,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 							MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(consumerMDNodeIndex);
 							HyperOp* consumerHyperOp = hyperOpMetadataMap[(MDNode*) consumerMDNode->getOperand(0)];
 							StringRef dataType = ((MDString*) consumerMDNode->getOperand(1))->getName();
-							HyperOpEdge* edge=new HyperOpEdge();
+							HyperOpEdge* edge = new HyperOpEdge();
 							if (dataType.compare(SCALAR) == 0) {
 								edge->Type = HyperOpEdge::SCALAR;
 							} else if (dataType.compare(LOCAL_REFERENCE) == 0) {
@@ -85,7 +92,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 							MDNode* predicatedMDNode = (MDNode*) controlledByMDNode->getOperand(predicatedMDNodeIndex);
 							//Create an edge between two HyperOps labeled by the instruction
 							HyperOp* predicatedHyperOp = hyperOpMetadataMap[(MDNode*) predicatedMDNode->getOperand(0)];
-							HyperOpEdge* edge=new HyperOpEdge();
+							HyperOpEdge* edge = new HyperOpEdge();
 							edge->Type = HyperOpEdge::PREDICATE;
 							edge->setValue((Value*) instr);
 							sourceHyperOp->addChildEdge(edge, predicatedHyperOp);
@@ -106,6 +113,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 //			}
 //		}
 
+	graph->setMaxMemFrameSize(maxFrameSizeOfHyperOp);
 	graph->print(errs());
 	return graph;
 }

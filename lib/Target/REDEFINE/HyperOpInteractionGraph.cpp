@@ -469,6 +469,14 @@ void HyperOpInteractionGraph::setNumContextFrames(unsigned int numContextFrames)
 	this->numContextFrames = numContextFrames;
 }
 
+unsigned int HyperOpInteractionGraph::getMaxMemFrameSize() const {
+	return maxMemFrameSize;
+}
+
+void HyperOpInteractionGraph::setMaxMemFrameSize(unsigned int maxFrameSize) {
+	this->maxMemFrameSize = maxFrameSize;
+}
+
 void HyperOpInteractionGraph::addHyperOp(HyperOp *Vertex) {
 	this->Vertices.push_back(Vertex);
 }
@@ -1283,7 +1291,7 @@ void HyperOpInteractionGraph::clusterNodes() {
 		//Add the edge to examined list;
 		examinedEdges.push_back(std::make_pair(source, target));
 
-		printDS(dominantSequencePair.first );
+		printDS(dominantSequencePair.first);
 		this->print(errs());
 	}
 
@@ -1905,7 +1913,7 @@ void HyperOpInteractionGraph::associateStaticContextFrames() {
 				if (conflictingHyperOp != topmostHyperOp) {
 					conflictingHyperOp->setFbindRequired(true);
 				}
-				if (conflictingHyperOp == bottommostHyperOp&&!conflictingHyperOp->isStartHyperOp()) {
+				if (conflictingHyperOp == bottommostHyperOp && !conflictingHyperOp->isStartHyperOp()) {
 					conflictingHyperOp->setFrameNeedsGC(true);
 				}
 			}

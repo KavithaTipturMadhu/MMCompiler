@@ -164,6 +164,7 @@ class HyperOpInteractionGraph {
 	unsigned int numContextFrames;
 	unsigned int rowCount;
 	unsigned int columnCount;
+	unsigned int maxMemFrameSize;
 	//list of clusters, each cluster is identified as a list of HyperOps
 	list<list<HyperOp*> > clusterList;
 	void computeImmediateDominatorInfo();
@@ -212,5 +213,9 @@ public:
 	void setDimensions(unsigned int columnCount, unsigned int rowCount);
 
 	void setNumContextFrames(unsigned int numContextFrames);
+
+	unsigned int getMaxMemFrameSize() const ;
+
+	void setMaxMemFrameSize(unsigned int maxFrameSize);
 };
 #endif /* LIB_TARGET_RISCV_HYPEROPINTERACTIONGRAPH_H_ */
