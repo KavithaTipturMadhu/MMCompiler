@@ -104,17 +104,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 		}
 	}
 
-//	for (list<HyperOp*>::iterator itr = graph->Vertices.begin(); itr != graph->Vertices.end(); itr++) {
-//			if ((*itr)->ChildMap.empty()) {
-//				(*itr)->setEndHyperOp();
-//			}
-//			if ((*itr)->ParentMap.empty()) {
-//				(*itr)->setStartHyperOp();
-//			}
-//		}
-
 	graph->setMaxMemFrameSize(maxFrameSizeOfHyperOp);
-	graph->print(errs());
 	return graph;
 }
 
