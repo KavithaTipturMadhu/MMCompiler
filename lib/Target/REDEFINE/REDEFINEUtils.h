@@ -13,7 +13,8 @@
 
 namespace llvm {
 class REDEFINEUtils {
-	static unsigned ALIGNMENT_SIZE = 8;
+	//Alignment is supposed to be for 8 words
+	static unsigned ALIGNMENT_SIZE = 32;
 public:
 	static unsigned getSizeOfType(Type * type);
 	//This method is to ensure that the types are aligned to 'n' word sizes to guarantee that data movement between DGM and global memory and vice-versa dont need extra packets to be processed
