@@ -42,6 +42,7 @@ protected:
 	int CECount;
 	int CFCount;
 	int CFSize;
+	//DGM size in bytes for code and data segment only, excluding context frames
 	int DGM;
 	int L1;
 	int M;

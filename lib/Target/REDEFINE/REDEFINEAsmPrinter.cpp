@@ -189,6 +189,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 	static bool firstFunctionBeingProcessed = true;
 	static list<unsigned> crWithNumHopsPrinted;
 	int ceCount = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
+	int dgmSize = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getDgm();
 	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
 	HyperOp* hyperOp = HIG->getHyperOp(const_cast<Function*>(MF->getFunction()));
 //TODO couldn't find any method that gets invoked that could insert topology details
@@ -205,6 +206,19 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 			}
 			if (mappedToY > maxYInTopology) {
 				mappedToY = maxYInTopology;
+			}
+		}
+
+		long int maxGlobalSize = 0;
+		for (Module::const_global_iterator globalArgItr = MF->getFunction()->getParent()->global_begin(); globalArgItr != MF->getFunction()->getParent()->global_end(); globalArgItr++) {
+			maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalArgItr->getType());
+		}
+
+		while (maxGlobalSize > ((maxXInTopology + 1) * (maxYInTopology + 1) * dgmSize)) {
+			if (maxXInTopology < maxYInTopology) {
+				maxXInTopology++;
+			} else {
+				maxYInTopology++;
 			}
 		}
 
