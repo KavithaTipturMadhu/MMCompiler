@@ -315,7 +315,11 @@ if (bb->getParent()->begin()->getName().compare(bb->getName()) == 0) {
 	MachineInstrBuilder add = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForGlobalAddr, RegState::Define).addReg(registerForTopBits).addReg(registerForBottomBits);
 	LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator ->());
 
-	MachineInstrBuilder mulForFrameSize = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::MUL)).addReg(REDEFINE::t5, RegState::Define).addReg(REDEFINE::t5).addImm(graph->getMaxMemFrameSize());
+	unsigned registerForMulOperand = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+	MachineInstrBuilder addiForMul = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addImm(graph->getMaxMemFrameSize());
+ 	LIS->getSlotIndexes()->insertMachineInstrInMaps(addiForMul.operator ->());
+
+	MachineInstrBuilder mulForFrameSize = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::MUL)).addReg(REDEFINE::t5, RegState::Define).addReg(REDEFINE::t5).addReg(registerForMulOperand);
 	LIS->getSlotIndexes()->insertMachineInstrInMaps(mulForFrameSize.operator ->());
 
 	MachineInstrBuilder addForGlobalAddr = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(REDEFINE::t5, RegState::Define).addReg(registerForGlobalAddr).addReg(REDEFINE::t5);
@@ -325,6 +329,7 @@ if (bb->getParent()->begin()->getName().compare(bb->getName()) == 0) {
 	registersForFix.push_back(registerForTopBits);
 	registersForFix.push_back(registerForBottomBits);
 	registersForFix.push_back(registerForGlobalAddr);
+	registersForFix.push_back(registerForMulOperand);
 	registersForFix.push_back(REDEFINE::t5);
 	LIS->repairIntervalsInRange(bb, bb->begin(), bb->end(), registersForFix);
 }
