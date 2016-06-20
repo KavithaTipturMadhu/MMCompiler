@@ -78,26 +78,28 @@ struct HyperOpCreationPass: public ModulePass {
 	}
 
 	//List of basic blocks containing store instructions that reach currentInstr
-	list<BasicBlock*> reachingStoreOperations(Instruction* allocInstr, Function* originalFunction, list<BasicBlock*> accumulatedBasicBlocks) {
-		list<BasicBlock*> reachingDefinitions;
+	map<BasicBlock*,Instruction*> reachingStoreOperations(Instruction* useInstr, Function* originalFunction, list<BasicBlock*> accumulatedBasicBlocks) {
+		map<BasicBlock*, Instruction*> reachingDefinitions;
 		//Find uses of allocInstr in the basic blocks of created functions
-		list<BasicBlock*> basicBlocksWithDefinitions;
+		map<BasicBlock*, Instruction> basicBlocksWithDefinitions;
+		basicBlocksWithDefinitions.insert(make_pair(useInstr->getParent(), useInstr));
 		for (Function::iterator originalBBItr = originalFunction->begin(); originalBBItr != originalFunction->end(); originalBBItr++) {
 			BasicBlock* originalBB = &*originalBBItr;
 			for (BasicBlock::iterator instrItr = originalBB->begin(); instrItr != originalBB->end(); instrItr++) {
 				Instruction* instr = instrItr;
 				//Check the uses in BasicBlocks that are predecessors and use allocInstr
-				if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == allocInstr) {
-					basicBlocksWithDefinitions.push_back(originalBB);
+				list<BasicBlock*> visitedBasicBlocks;
+				if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == useInstr && pathExistsInCFG(originalBB, useInstr->getParent(), visitedBasicBlocks)) {
+					basicBlocksWithDefinitions.insert(make_pair(originalBB, instr));
 					break;
 				}
 			}
 
 			//Eliminate all transitive paths and retain the last one
 			list<BasicBlock*> discardList;
-			for (list<BasicBlock*>::iterator defBBItr = basicBlocksWithDefinitions.begin(); defBBItr != basicBlocksWithDefinitions.end(); defBBItr++) {
-				BasicBlock* defBB = *defBBItr;
-				for (list<BasicBlock*>::iterator secDefBBItr = basicBlocksWithDefinitions.begin(); secDefBBItr != basicBlocksWithDefinitions.end(); secDefBBItr++) {
+			for (map<BasicBlock*, Instruction*>::iterator defBBItr = basicBlocksWithDefinitions.begin(); defBBItr != basicBlocksWithDefinitions.end(); defBBItr++) {
+				BasicBlock* defBB = *defBBItr->first;
+				for (map<BasicBlock*, Instruction*>::iterator secDefBBItr = basicBlocksWithDefinitions.begin(); secDefBBItr != basicBlocksWithDefinitions.end(); secDefBBItr++) {
 					BasicBlock* secDefBB = *secDefBBItr;
 					list<BasicBlock*> visitedBasicBlocks;
 					if (secDefBB != defBB && (pathExistsInCFG(defBB, secDefBB, visitedBasicBlocks) || find(discardList.begin(), discardList.end(), secDefBB) != discardList.end())) {
@@ -106,13 +108,13 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 			}
 
-			for (list<BasicBlock*>::iterator defBBItr = basicBlocksWithDefinitions.begin(); defBBItr != basicBlocksWithDefinitions.end(); defBBItr++) {
+			for (map<BasicBlock*, Instruction*>::iterator defBBItr = basicBlocksWithDefinitions.begin(); defBBItr != basicBlocksWithDefinitions.end(); defBBItr++) {
 				//If the store instr is reachable i.e., not in discard list
 				if (find(discardList.begin(), discardList.end(), *defBBItr) == discardList.end()) {
 					for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 						list<BasicBlock*> visitedBasicBlocks;
-						if (pathExistsInCFG(*defBBItr, *accumulatedBBItr, visitedBasicBlocks) && find(reachingDefinitions.begin(), reachingDefinitions.end(), *defBBItr) == reachingDefinitions.end()) {
-							reachingDefinitions.push_back(*defBBItr);
+						if (pathExistsInCFG(const_cast<BasicBlock*>(*defBBItr->first), *accumulatedBBItr, visitedBasicBlocks) && find(reachingDefinitions.begin(), reachingDefinitions.end(), *defBBItr->first) == reachingDefinitions.end()) {
+							reachingDefinitions.insert(*defBBItr);
 						}
 					}
 				}
@@ -546,7 +548,7 @@ struct HyperOpCreationPass: public ModulePass {
 					//Mark HyperOp function arguments which are not global references or local references as inReg to ease register allocation
 					int functionArgumentIndex = 1;
 					for (HyperOpArgumentList::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
-						errs()<<"hyperop arg "<<functionArgumentIndex<<" with arg type "<<hyperOpArgItr->second<<":";
+						errs() << "hyperop arg " << functionArgumentIndex << " with arg type " << hyperOpArgItr->second << ":";
 						hyperOpArgItr->first.front()->dump();
 						HyperOpArgumentType type = hyperOpArgItr->second;
 						switch (type) {
@@ -722,8 +724,10 @@ struct HyperOpCreationPass: public ModulePass {
 					Value* argument = *individualArgItr;
 					//Local values i.e., temporaries are dumped as alloca instructions
 					if (isa<Instruction>(argument)) {
-						//TODO please verify this
-						BasicBlock* parentBBOfDefinition = ((Instruction*) argument)->getParent();
+						//Get Reaching definitions of the argument to the accumulated basic block list
+						list<BasicBlock*> reachingDefBasicBlocks = reachingStoreOperations((Instruction*)argument,createdHyperOpAndOriginalBasicBlockAndArgMap[newFunction].first.front()->getParent(), accumulatedBasicBlocks);
+
+
 						//Get the producer HyperOp
 						bool atleastOneUseInOtherHyperOp = false;
 						for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHopItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHopItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHopItr++) {
@@ -990,8 +994,25 @@ struct HyperOpCreationPass: public ModulePass {
 						BasicBlock* originalBB = &*originalBBItr;
 						for (BasicBlock::iterator instrItr = originalBB->begin(); instrItr != originalBB->end(); instrItr++) {
 							Instruction* instr = instrItr;
-							if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == argValue) {
-								basicBlocksWithDefinitions.push_back(originalBB);
+							if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == argValue && find(basicBlocksWithDefinitions.begin(), basicBlocksWithDefinitions.end(), originalBB) == basicBlocksWithDefinitions.end()) {
+								//Check if the store instruction is reachable to any of the uses of the argument in the accumulated bb list
+								bool originalBBHasDefinition = false;
+								for (list<Value*>::iterator phiItr = hyperOpArgItr->first.begin(); phiItr != hyperOpArgItr->first.end(); phiItr++) {
+									for (Value::use_iterator useItr = (*phiItr)->use_begin(); useItr != (*phiItr)->use_end(); useItr++) {
+										User* user = *useItr;
+										list<BasicBlock*> visitedBasicBlocks;
+										if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) user)->getParent()) != accumulatedBasicBlocks.end() && pathExistsInCFG(originalBB, ((Instruction*) user)->getParent(), visitedBasicBlocks)) {
+											originalBBHasDefinition = true;
+											break;
+										}
+									}
+									if (originalBBHasDefinition) {
+										break;
+									}
+								}
+								if (originalBBHasDefinition) {
+									basicBlocksWithDefinitions.push_back(originalBB);
+								}
 								break;
 							}
 						}
@@ -1042,7 +1063,7 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 		}
 
-		errs()<<"state of stuff before erasing old functions from parent:";
+		errs() << "state of stuff before erasing old functions from parent:";
 		M.dump();
 
 		for (map<Function*, list<Function*> >::iterator originalFunctionItr = originalFunctionToCreatedHyperOpsMap.begin(); originalFunctionItr != originalFunctionToCreatedHyperOpsMap.end(); originalFunctionItr++) {
