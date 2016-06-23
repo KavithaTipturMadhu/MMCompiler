@@ -719,17 +719,21 @@ struct HyperOpCreationPass: public ModulePass {
 		//Add metadata: This code is moved here to ensure that all the functions (corresponding to HyperOps) that need to be created have already been created
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
 			Function* newFunction = createdHyperOpItr->first;
+			DEBUG(dbgs()<<"Dealing with function "<<newFunction->getName()<<"\n");
 			list<BasicBlock*> accumulatedBasicBlocks = createdHyperOpItr->second.first;
 			HyperOpArgumentList hyperOpArguments = createdHyperOpItr->second.second;
 			list<const Function*> addedParentsToCurrentHyperOp;
 			MDNode* funcAnnotation = hyperOpAndAnnotationMap.find(newFunction)->second;
 			list<Instruction*> instructionsToBeMoved;
 
+			DEBUG(dbgs()<<"Adding consumed by metadata\n");
 			//Add consumedby meta data from source HyperOp to the HyperOp being created
 			unsigned hyperOpArgumentIndex = 0;
 			for (HyperOpArgumentList::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
 				list<Value*> individualArguments = hyperOpArgumentItr->first;
 				HyperOpArgumentType argumentType = hyperOpArgumentItr->second;
+				errs()<<"argument:";
+				individualArguments.front()->dump();
 				if (argumentType == GLOBAL_REFERENCE) {
 					continue;
 				}
@@ -738,6 +742,7 @@ struct HyperOpCreationPass: public ModulePass {
 					if (isa<Instruction>(argument)) {
 						//Get Reaching definitions of the argument to the accumulated basic block list
 						map<BasicBlock*, Instruction*> reachingDefBasicBlocks = reachingStoreOperations((Instruction*) argument, createdHyperOpAndOriginalBasicBlockAndArgMap[newFunction].first.front()->getParent(), accumulatedBasicBlocks);
+						errs()<<"is the problem with reaching def computation?\n";
 						//Get the producer HyperOp
 						bool atleastOneUseInOtherHyperOp = false;
 						for (map<BasicBlock*, Instruction*>::iterator reachingDefItr = reachingDefBasicBlocks.begin(); reachingDefItr != reachingDefBasicBlocks.end(); reachingDefItr++) {
@@ -769,7 +774,7 @@ struct HyperOpCreationPass: public ModulePass {
 								BasicBlock* reachingDefBB = reachingDefItr->first;
 								Instruction* reachingDefInstr = reachingDefItr->second;
 								Instruction* clonedReachingDefInst = (Instruction*)originalToClonedInstMap[reachingDefInstr];
-								if (isa<AllocaInst>(clonedReachingDefInst->getOperand(1)) ||isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(1))) {
+								if (isa<AllocaInst>(clonedReachingDefInst)||isa<StoreInst>(clonedReachingDefInst) ||isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(1))) {
 									//Add "consumedby" metadata to the function locals that need to be passed to other HyperOps
 									Value * values[3];
 									values[0] = funcAnnotation;
@@ -867,7 +872,7 @@ struct HyperOpCreationPass: public ModulePass {
 				newFunction->getEntryBlock().getInstList().insert(newFunction->getEntryBlock().getFirstInsertionPt(), *instrToBeMoved);
 			}
 
-			errs() << "Dealing with conditional branches from other HyperOps\n";
+			DEBUG(dbgs()<<"Dealing with conditional branches from other HyperOps\n");
 			//Compute conditional branch sources
 			map<Instruction*, unsigned> conditionalBranchSources;
 			list<Instruction*> unconditionalBranchSources;
@@ -973,7 +978,7 @@ struct HyperOpCreationPass: public ModulePass {
 				Instruction* retInstOfProducer = retInstMap.find(clonedInstruction->getParent()->getParent())->second;
 				clonedInstruction->setOperand(positionToBeUpdated, retInstOfProducer->getParent());
 			}
-			errs() << "Dealing with unconditional branches from other HyperOps\n";
+			DEBUG(dbgs()<<"Dealing with unconditional branches from other HyperOps\n");
 			//Remove unconditional branch instruction, add the annotation to the return instruction of the branch
 			for (list<Instruction*>::iterator unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
 				Instruction* unconditionalBranchInstr = *unconditionalBranchSourceItr;
