@@ -573,8 +573,6 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 						functionArgumentIndex++;
 					}
-					errs() << "why aren't function attributes set?";
-					newFunction->getAttributes().dump();
 
 					//Map of predicate's source instruction in a different HyperOp, the branch instruction needs to be deleted after the predicate is marked for delivery since we need writecmp instructions to predicate HyperOps instead of regular branch instructions (j, beq etc)
 					map<Instruction*, unsigned> conditionalBranchSources;
@@ -623,7 +621,6 @@ struct HyperOpCreationPass: public ModulePass {
 									hyperOpArgIndex++;
 								}
 
-								errs() << "arg updated?" << argUpdated << "\n";
 								//Find the definitions added previously which reach the use
 								if (!argUpdated) {
 									//If the original operand is an instruction that was cloned previously which belongs to the list of accumulated HyperOps
@@ -732,8 +729,6 @@ struct HyperOpCreationPass: public ModulePass {
 			for (HyperOpArgumentList::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
 				list<Value*> individualArguments = hyperOpArgumentItr->first;
 				HyperOpArgumentType argumentType = hyperOpArgumentItr->second;
-				errs()<<"argument:";
-				individualArguments.front()->dump();
 				if (argumentType == GLOBAL_REFERENCE) {
 					continue;
 				}
@@ -742,7 +737,6 @@ struct HyperOpCreationPass: public ModulePass {
 					if (isa<Instruction>(argument)) {
 						//Get Reaching definitions of the argument to the accumulated basic block list
 						map<BasicBlock*, Instruction*> reachingDefBasicBlocks = reachingStoreOperations((Instruction*) argument, createdHyperOpAndOriginalBasicBlockAndArgMap[newFunction].first.front()->getParent(), accumulatedBasicBlocks);
-						errs()<<"is the problem with reaching def computation?\n";
 						//Get the producer HyperOp
 						bool atleastOneUseInOtherHyperOp = false;
 						for (map<BasicBlock*, Instruction*>::iterator reachingDefItr = reachingDefBasicBlocks.begin(); reachingDefItr != reachingDefBasicBlocks.end(); reachingDefItr++) {
@@ -1102,9 +1096,6 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 			}
 		}
-
-		errs() << "state of stuff before erasing old functions from parent:";
-		M.dump();
 
 		for (map<Function*, list<Function*> >::iterator originalFunctionItr = originalFunctionToCreatedHyperOpsMap.begin(); originalFunctionItr != originalFunctionToCreatedHyperOpsMap.end(); originalFunctionItr++) {
 			//Remove old functions from module
