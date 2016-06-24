@@ -1064,7 +1064,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
 				addi.addReg(registerContainingConsumerBase, RegState::Define);
 				addi.addReg(REDEFINE::zero);
-				addi.addImm(consumer->getContextFrame() * frameSize);
+				addi.addImm(consumer->getContextFrame()<<6);
 				consumerHyperOps[currentCE].push_back(make_pair(consumer, registerContainingConsumerBase));
 				if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
 					firstInstructionOfpHyperOpInRegion[currentCE] = addi.operator llvm::MachineInstr *();
