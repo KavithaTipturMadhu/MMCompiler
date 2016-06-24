@@ -108,7 +108,7 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 		if (MO.getIndex() < 0) {
 			//The object is a reference being passed via memory
 			if (frameInfo->getObjectIndexEnd() > 0) {
-				for (int i = 0; i <= frameInfo->getObjectIndexEnd(); i++) {
+				for (int i = 0; i < frameInfo->getObjectIndexEnd(); i++) {
 					currentObjectOffset += frameInfo->getObjectSize(i);
 				}
 			}

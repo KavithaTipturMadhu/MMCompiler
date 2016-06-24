@@ -30,7 +30,7 @@
 using namespace llvm;
 
 void REDEFINEAsmPrinter::EmitInstruction(const MachineInstr *MI) {
-	errs()<<"printing instruction ";
+	errs() << "printing instruction ";
 	MI->dump();
 	REDEFINEMCInstLower Lower(Mang, MF->getContext(), *this);
 	MCInst LoweredMI;
@@ -127,8 +127,13 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 	OutStreamer.EmitRawText(StringRef(depthHEG));
 
 	string launchCount(LAUNCH_CNT_ANNOTATION);
-	//TODO Should predicates be included in this?
-	unsigned argCount = MF->getFunction()->arg_size();
+	AttributeSet attributes = MF->getFunction()->getAttributes();
+	unsigned argCount = 0;
+	for (unsigned i = 0; i < MF->getFunction()->getNumOperands(); i++) {
+		if (attributes.hasAttribute(i, Attribute::InReg)) {
+			argCount++;
+		}
+	}
 	launchCount.append("\t").append(itostr(argCount)).append("\n");
 	OutStreamer.EmitRawText(StringRef(launchCount));
 
@@ -151,39 +156,39 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 	nextHyperOpInst.append("\t").append("0").append("\n");
 	OutStreamer.EmitRawText(StringRef(nextHyperOpInst));
 
-	string dataLabel = ".data\t";
-	const Module* parentModule = MF->getFunction()->getParent();
-	long int maxGlobalSize = 0;
-	string inputs = "";
-	unsigned numInputsAndOutputs = 0;
-	for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
-		const GlobalVariable *globalVar = &*globalArgItr;
-		if (globalVar->getName().startswith("redefine_in_")) {
-			//Every global is a pointer type
-			inputs.append("i\t");
-			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
-			numInputsAndOutputs++;
-
-		} else if (globalVar->getName().startswith("redefine_out_")) {
-			inputs.append("o\t");
-			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
-			numInputsAndOutputs++;
-		}	//Mark the global as both input and output
-		else if (globalVar->getName().startswith("redefine_inout_")) {
-			inputs.append("i\t");
-			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
-			inputs.append("o\t");
-			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
-			numInputsAndOutputs++;
-		}
-		maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
-	}
-
-	dataLabel.append(itostr(numInputsAndOutputs)).append("\n");
-	OutStreamer.EmitRawText(StringRef(dataLabel));
-	if (!inputs.empty()) {
-		OutStreamer.EmitRawText(StringRef(inputs));
-	}
+//	string dataLabel = ".data\t";
+//	const Module* parentModule = MF->getFunction()->getParent();
+//	long int maxGlobalSize = 0;
+//	string inputs = "";
+//	unsigned numInputsAndOutputs = 0;
+//	for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
+//		const GlobalVariable *globalVar = &*globalArgItr;
+//		if (globalVar->getName().startswith("redefine_in_")) {
+//			//Every global is a pointer type
+//			inputs.append("i\t");
+//			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+//			numInputsAndOutputs++;
+//
+//		} else if (globalVar->getName().startswith("redefine_out_")) {
+//			inputs.append("o\t");
+//			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+//			numInputsAndOutputs++;
+//		}	//Mark the global as both input and output
+//		else if (globalVar->getName().startswith("redefine_inout_")) {
+//			inputs.append("i\t");
+//			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+//			inputs.append("o\t");
+//			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+//			numInputsAndOutputs++;
+//		}
+//		maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
+//	}
+//
+//	dataLabel.append(itostr(numInputsAndOutputs)).append("\n");
+//	OutStreamer.EmitRawText(StringRef(dataLabel));
+//	if (!inputs.empty()) {
+//		OutStreamer.EmitRawText(StringRef(inputs));
+//	}
 
 }
 
@@ -371,6 +376,42 @@ bool REDEFINEAsmPrinter::doInitialization(Module &M) {
 	}
 
 	return false;
+}
+
+void REDEFINEAsmPrinter::EmitEndOfAsmFile(Module &M) {
+	string dataLabel = ".data\t";
+	long int maxGlobalSize = 0;
+	string inputs = "";
+	unsigned numInputsAndOutputs = 0;
+	for (Module::const_global_iterator globalArgItr = M.global_begin(); globalArgItr != M.global_end(); globalArgItr++) {
+		const GlobalVariable *globalVar = &*globalArgItr;
+		if (globalVar->getName().startswith("redefine_in_")) {
+			//Every global is a pointer type
+			inputs.append("i\t");
+			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+			numInputsAndOutputs++;
+
+		} else if (globalVar->getName().startswith("redefine_out_")) {
+			inputs.append("o\t");
+			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+			numInputsAndOutputs++;
+		}	//Mark the global as both input and output
+		else if (globalVar->getName().startswith("redefine_inout_")) {
+			inputs.append("i\t");
+			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+			inputs.append("o\t");
+			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+			numInputsAndOutputs++;
+		}
+		maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
+	}
+
+	dataLabel.append(itostr(numInputsAndOutputs)).append("\n");
+	OutStreamer.EmitRawText(StringRef(dataLabel));
+	if (!inputs.empty()) {
+		OutStreamer.EmitRawText(StringRef(inputs));
+	}
+
 }
 
 bool REDEFINEAsmPrinter::doFinalization(Module &M) {

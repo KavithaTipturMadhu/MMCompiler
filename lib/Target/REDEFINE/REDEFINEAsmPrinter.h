@@ -59,6 +59,7 @@ public:
 	virtual bool doInitialization(Module &M);
 	virtual bool doFinalization(Module &M);
 	virtual void EmitLinkage(unsigned Linkage, MCSymbol *GVSym) const;
+    virtual void EmitEndOfAsmFile(Module &);
 };
 } // end namespace llvm
 
