@@ -296,6 +296,9 @@ if (bb->getParent()->begin()->getName().compare(bb->getName()) == 0) {
 
 	globalAddressString.append("#").append(itostr(maxGlobalSize)).append("\"");
 
+	MachineInstrBuilder registerCopy = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(REDEFINE::t4, RegState::Define).addReg(REDEFINE::t5).addReg(REDEFINE::zero);
+	LIS->getSlotIndexes()->insertMachineInstrInMaps(registerCopy.operator ->());
+
 	//add global address to r31 of REDEFINE
 	unsigned registerForTopBits = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 	MachineInstrBuilder lui = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(registerForTopBits, RegState::Define);
@@ -317,7 +320,7 @@ if (bb->getParent()->begin()->getName().compare(bb->getName()) == 0) {
 
 	unsigned registerForMulOperand = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 	MachineInstrBuilder addiForMul = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addImm(graph->getMaxMemFrameSize());
- 	LIS->getSlotIndexes()->insertMachineInstrInMaps(addiForMul.operator ->());
+	LIS->getSlotIndexes()->insertMachineInstrInMaps(addiForMul.operator ->());
 
 	MachineInstrBuilder mulForFrameSize = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::MUL)).addReg(REDEFINE::t5, RegState::Define).addReg(REDEFINE::t5).addReg(registerForMulOperand);
 	LIS->getSlotIndexes()->insertMachineInstrInMaps(mulForFrameSize.operator ->());
@@ -331,6 +334,7 @@ if (bb->getParent()->begin()->getName().compare(bb->getName()) == 0) {
 	registersForFix.push_back(registerForGlobalAddr);
 	registersForFix.push_back(registerForMulOperand);
 	registersForFix.push_back(REDEFINE::t5);
+	registersForFix.push_back(REDEFINE::t4);
 	LIS->repairIntervalsInRange(bb, bb->begin(), bb->end(), registersForFix);
 }
 }
@@ -1235,21 +1239,12 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 //Does the HyperOp require fdelete?
 	if (hyperOp->frameNeedsGC()) {
 		//Add fdelete instruction
-		MachineInstrBuilder shiftRight = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::SRLI));
-		shiftRight.addReg(REDEFINE::zero);
-		shiftRight.addReg(REDEFINE::zero);
-		//Shift right by 6 bits to get the address of the frame
-		shiftRight.addImm(6);
+		MachineInstrBuilder fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(REDEFINE::t4).addImm(0);
+
 		if (firstInstructionOfpHyperOpInRegion[0] == 0) {
-			firstInstructionOfpHyperOpInRegion[0] = shiftRight.operator llvm::MachineInstr *();
+			firstInstructionOfpHyperOpInRegion[0] = fdelete.operator llvm::MachineInstr *();
 		}
 
-		MachineInstrBuilder fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE));
-		fdelete.addReg(REDEFINE::zero);
-		fdelete.addImm(0);
-
-		LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftRight.operator llvm::MachineInstr *());
-		allInstructionsOfRegion.push_back(make_pair(shiftRight.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(fdelete.operator llvm::MachineInstr *());
 		allInstructionsOfRegion.push_back(make_pair(fdelete.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 	}
