@@ -34,6 +34,7 @@ HyperOp::HyperOp(Function* function) {
 	this->executionTimeEstimate.push_back(1);
 	this->fbindRequired = false;
 	this->gcRequired = false;
+	this->staticHyperOp = true;
 }
 
 HyperOp::~HyperOp() {
@@ -86,6 +87,16 @@ bool HyperOp::isFbindRequired() const {
 void HyperOp::setFbindRequired(bool fbindRequired) {
 	this->fbindRequired = fbindRequired;
 }
+
+
+bool HyperOp::isStaticHyperOp() const {
+	return staticHyperOp;
+}
+
+void HyperOp::setStaticHyperOp(bool staticHyperOp) {
+	this->staticHyperOp = staticHyperOp;
+}
+
 unsigned HyperOp::getHyperOpId() const {
 	return hyperOpId;
 }

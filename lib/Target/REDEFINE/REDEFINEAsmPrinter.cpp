@@ -102,94 +102,60 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 	//Add instance metadata
 	//TODO additional changes for instances of the same HyperOp
 	string isStaticHyperOp(STATIC_HYPEROP_ANNOTATION);
-	isStaticHyperOp.append("\t").append("1").append("\n");
+	isStaticHyperOp.append("\t").append(hyperOp->isStaticHyperOp() ? "1" : "0").append("\n");
 	OutStreamer.EmitRawText(StringRef(isStaticHyperOp));
 
-	string isValid(VALID_ANNOTATION);
-	isValid.append("\t").append("1").append("\n");
-	OutStreamer.EmitRawText(StringRef(isValid));
+	if (hyperOp->isStaticHyperOp()) {
+		string instanceId(HYPEROP_INSTANCE_PREFIX);
+		instanceId.append("\t").append(itostr(hyperOp->getContextFrame()<<6)).append("\t");
+		OutStreamer.EmitRawText(StringRef(instanceId));
 
-	string isActive(ACTIVE_ANNOTATION);
-	if (hyperOp->isStartHyperOp()) {
-		isActive.append("\t").append("0").append("\n");
-	} else {
-		isActive.append("\t").append("1").append("\n");
-	}
-	OutStreamer.EmitRawText(StringRef(isActive));
+		string isValid(VALID_ANNOTATION);
+		isValid.append("\t").append("1").append("\n");
+		OutStreamer.EmitRawText(StringRef(isValid));
 
-	//Every frame is a raw frame, no intrinsic frames available
-	string isIntrinsic(INTRINSIC_ANNOTATION);
-	isIntrinsic.append("\t").append("0").append("\n");
-	OutStreamer.EmitRawText(StringRef(isIntrinsic));
+		string isActive(ACTIVE_ANNOTATION);
+		isActive.append("\t").append(hyperOp->isStartHyperOp() ? "0" : "1").append("\n");
+		OutStreamer.EmitRawText(StringRef(isActive));
 
-	string depthHEG(DEPTH_HEG_ANNOTATION);
-	depthHEG.append("\t").append(itostr(hyperOp->computeDepthInGraph())).append("\n");
-	OutStreamer.EmitRawText(StringRef(depthHEG));
+		//Every frame is a raw frame, no intrinsic frames available
+		string isIntrinsic(INTRINSIC_ANNOTATION);
+		isIntrinsic.append("\t").append("0").append("\n");
+		OutStreamer.EmitRawText(StringRef(isIntrinsic));
 
-	string launchCount(LAUNCH_CNT_ANNOTATION);
-	AttributeSet attributes = MF->getFunction()->getAttributes();
-	unsigned argCount = 0;
-	for (unsigned i = 0; i < MF->getFunction()->getNumOperands(); i++) {
-		if (attributes.hasAttribute(i, Attribute::InReg)) {
-			argCount++;
+		string depthHEG(DEPTH_HEG_ANNOTATION);
+		depthHEG.append("\t").append(itostr(hyperOp->computeDepthInGraph())).append("\n");
+		OutStreamer.EmitRawText(StringRef(depthHEG));
+
+		string launchCount(LAUNCH_CNT_ANNOTATION);
+		AttributeSet attributes = MF->getFunction()->getAttributes();
+		unsigned argCount = 0;
+		for (unsigned i = 0; i < MF->getFunction()->getNumOperands(); i++) {
+			if (attributes.hasAttribute(i, Attribute::InReg)) {
+				argCount++;
+			}
 		}
+		launchCount.append("\t").append(itostr(argCount)).append("\n");
+		OutStreamer.EmitRawText(StringRef(launchCount));
+
+		string operandValidity(OPERAND_VALIDITY_ANNOTATION);
+		operandValidity.append("\t").append(bitset<36>(argCount).to_string()).append("\n");
+		OutStreamer.EmitRawText(StringRef(operandValidity));
+
+		string opWaitCount(OP_WAIT_CNT_ANNOTATION);
+		opWaitCount.append("\t").append(itostr(argCount)).append("\n");
+		OutStreamer.EmitRawText(StringRef(opWaitCount));
+
+		//TODO
+		string isNextHyperOpInstValid(ISNEXT_HOP_INST_VALID_ANNOTATION);
+		isNextHyperOpInstValid.append("\t").append("0").append("\n");
+		OutStreamer.EmitRawText(StringRef(isNextHyperOpInstValid));
+
+		//TODO
+		string nextHyperOpInst(NEXT_HYPEROP_INST_ANNOTATION);
+		nextHyperOpInst.append("\t").append("0").append("\n");
+		OutStreamer.EmitRawText(StringRef(nextHyperOpInst));
 	}
-	launchCount.append("\t").append(itostr(argCount)).append("\n");
-	OutStreamer.EmitRawText(StringRef(launchCount));
-
-	//TODO
-	string operandValidity(OPERAND_VALIDITY_ANNOTATION);
-	operandValidity.append("\t").append(bitset<36>(argCount).to_string()).append("\n");
-	OutStreamer.EmitRawText(StringRef(operandValidity));
-
-	//TODO
-	string opWaitCount(OP_WAIT_CNT_ANNOTATION);
-	opWaitCount.append("\t").append(itostr(argCount)).append("\n");
-	OutStreamer.EmitRawText(StringRef(opWaitCount));
-
-	//TODO
-	string isNextHyperOpInstValid(ISNEXT_HOP_INST_VALID_ANNOTATION);
-	isNextHyperOpInstValid.append("\t").append("0").append("\n");
-	OutStreamer.EmitRawText(StringRef(isNextHyperOpInstValid));
-
-	string nextHyperOpInst(NEXT_HYPEROP_INST_ANNOTATION);
-	nextHyperOpInst.append("\t").append("0").append("\n");
-	OutStreamer.EmitRawText(StringRef(nextHyperOpInst));
-
-//	string dataLabel = ".data\t";
-//	const Module* parentModule = MF->getFunction()->getParent();
-//	long int maxGlobalSize = 0;
-//	string inputs = "";
-//	unsigned numInputsAndOutputs = 0;
-//	for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
-//		const GlobalVariable *globalVar = &*globalArgItr;
-//		if (globalVar->getName().startswith("redefine_in_")) {
-//			//Every global is a pointer type
-//			inputs.append("i\t");
-//			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
-//			numInputsAndOutputs++;
-//
-//		} else if (globalVar->getName().startswith("redefine_out_")) {
-//			inputs.append("o\t");
-//			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
-//			numInputsAndOutputs++;
-//		}	//Mark the global as both input and output
-//		else if (globalVar->getName().startswith("redefine_inout_")) {
-//			inputs.append("i\t");
-//			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
-//			inputs.append("o\t");
-//			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
-//			numInputsAndOutputs++;
-//		}
-//		maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
-//	}
-//
-//	dataLabel.append(itostr(numInputsAndOutputs)).append("\n");
-//	OutStreamer.EmitRawText(StringRef(dataLabel));
-//	if (!inputs.empty()) {
-//		OutStreamer.EmitRawText(StringRef(inputs));
-//	}
-
 }
 
 void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {

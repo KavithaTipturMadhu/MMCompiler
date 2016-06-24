@@ -94,7 +94,7 @@ class HyperOp {
 	list<unsigned int> executionTimeEstimate;
 	list<unsigned int> topLevel;
 	bool fbindRequired;
-
+	bool staticHyperOp;
 	//Frame to be garbage collected?
 	bool gcRequired;
 	unsigned hyperOpId;
@@ -157,7 +157,8 @@ public:
 	unsigned int getContextFrame() const;
 	bool isFbindRequired() const;
 	void setFbindRequired(bool fbindRequired);
-
+	bool isStaticHyperOp() const ;
+	void setStaticHyperOp(bool staticHyperOp);
 };
 
 class HyperOpInteractionGraph {
