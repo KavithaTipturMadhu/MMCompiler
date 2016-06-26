@@ -15,10 +15,48 @@ HyperOpMetadataParser::~HyperOpMetadataParser() {
 	// TODO Auto-generated destructor stub
 }
 
+unsigned getSizeOfLocalReferenceData(Module &M, Instruction* sourceInstr, MDNode* sourceMDNode, map<Function*, MDNode*> functionMetadataMap) {
+	if (isa<AllocaInst>(sourceInstr)) {
+		return REDEFINEUtils::getSizeOfType(sourceInstr->getOperand(0)->getType());
+	}
+	if (isa<LoadInst>(sourceInstr)) {
+		unsigned argIndex = 0;
+		Function* parentFunction = sourceInstr->getParent()->getParent();
+		for (Function::arg_iterator argItr = parentFunction->arg_begin(); argItr != parentFunction->arg_end(); argItr++, argIndex++) {
+			if (argItr == sourceInstr->getOperand(0)) {
+				//Find the function that contains the consumed by annotation
+				for (Module::iterator funcItr = M.begin(); funcItr != M.end(); funcItr) {
+					if (funcItr != parentFunction) {
+						for (Function::iterator bbItr = funcItr->begin(); bbItr != funcItr->end(); bbItr++) {
+							for (BasicBlock::iterator instrItr = bbItr->begin(); instrItr != bbItr->end(); instrItr++) {
+								if (instrItr->hasMetadata()) {
+									MDNode* consumedByMDNode = instrItr->getMetadata(HYPEROP_CONSUMED_BY);
+									if (consumedByMDNode != 0) {
+										for (unsigned i = 0; i < consumedByMDNode->getNumOperands(); i++) {
+											MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(i);
+											if (consumerMDNode->getOperand(0) == sourceMDNode && consumerMDNode->getOperand(2) == argIndex) {
+												return getSizeOfLocalReferenceData(M, instrItr, functionMetadataMap[funcItr], functionMetadataMap);
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return 0;
+}
 HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 	HyperOpInteractionGraph* graph = new HyperOpInteractionGraph();
 	NamedMDNode * RedefineAnnotations = M->getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
 	map<MDNode*, HyperOp*> hyperOpMetadataMap;
+
+	//Since bijective map isnt available
+	map<Function*, MDNode*> functionMetadataMap;
+
 	unsigned hyperOpId = 0;
 	if (RedefineAnnotations != 0) {
 		for (int i = 0; i < RedefineAnnotations->getNumOperands(); i++) {
@@ -30,6 +68,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 				hyperOp->setHyperOpId(hyperOpId++);
 				graph->addHyperOp(hyperOp);
 				hyperOpMetadataMap.insert(std::make_pair(hyperOpMDNode, hyperOp));
+				functionMetadataMap.insert(std::make_pair(function, hyperOpMDNode));
 			}
 		}
 		//Traversing again to ensure that all nodes are added before labeling them as entry/exit/intermediate
@@ -76,12 +115,14 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 							} else if (dataType.compare(LOCAL_REFERENCE) == 0) {
 								edge->Type = HyperOpEdge::LOCAL_REFERENCE;
 								list<unsigned> volumeOfCommunication;
-								volumeOfCommunication.push_back(sizeof((Value*) instr));
+								Function* consumerFunction = consumerHyperOp->getFunction();
+								volumeOfCommunication.push_back(getSizeOfLocalReferenceData(*M, instr, consumedByMDNode, functionMetadataMap));
+								//Position of context slot doesn't make any sense in case of local references but we need it here because we need to find out where the reference is coming from to get the size of the local reference object being passed
+								unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue();
+								edge->setPositionOfContextSlot(positionOfContextSlot);
 								edge->setVolume(volumeOfCommunication);
 							}
-							unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue();
 							edge->setValue((Value*) instr);
-							edge->setPositionOfContextSlot(positionOfContextSlot);
 							sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 							consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 						}
