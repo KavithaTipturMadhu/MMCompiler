@@ -26,7 +26,7 @@ unsigned getSizeOfLocalReferenceData(Module &M, Instruction* sourceInstr, MDNode
 			if (argItr == sourceInstr->getOperand(0)) {
 				//Find the function that contains the consumed by annotation
 				for (Module::iterator funcItr = M.begin(); funcItr != M.end(); funcItr) {
-					if (funcItr != parentFunction) {
+					if (&*funcItr != parentFunction) {
 						for (Function::iterator bbItr = funcItr->begin(); bbItr != funcItr->end(); bbItr++) {
 							for (BasicBlock::iterator instrItr = bbItr->begin(); instrItr != bbItr->end(); instrItr++) {
 								if (instrItr->hasMetadata()) {
@@ -34,7 +34,7 @@ unsigned getSizeOfLocalReferenceData(Module &M, Instruction* sourceInstr, MDNode
 									if (consumedByMDNode != 0) {
 										for (unsigned i = 0; i < consumedByMDNode->getNumOperands(); i++) {
 											MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(i);
-											if (consumerMDNode->getOperand(0) == sourceMDNode && consumerMDNode->getOperand(2) == argIndex) {
+											if (((MDNode*)consumerMDNode->getOperand(0)) == sourceMDNode && ((ConstantInt*)consumerMDNode->getOperand(2))->getZExtValue() == argIndex) {
 												return getSizeOfLocalReferenceData(M, instrItr, functionMetadataMap[funcItr], functionMetadataMap);
 											}
 										}
@@ -49,6 +49,7 @@ unsigned getSizeOfLocalReferenceData(Module &M, Instruction* sourceInstr, MDNode
 	}
 	return 0;
 }
+
 HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 	HyperOpInteractionGraph* graph = new HyperOpInteractionGraph();
 	NamedMDNode * RedefineAnnotations = M->getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
