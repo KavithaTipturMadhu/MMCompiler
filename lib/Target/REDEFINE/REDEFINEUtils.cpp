@@ -28,7 +28,7 @@ unsigned REDEFINEUtils::getSizeOfType(Type * type) {
 	return (objectType->getPrimitiveSizeInBits() / 8);
 }
 
-//Returns size of the type in bytes
+//Returns size of the type aligned by ALIGNMENT_SIZE
 unsigned REDEFINEUtils::getAlignedSizeOfType(Type * type) {
 	unsigned returnSize = getSizeOfType(type);
 	if (returnSize % ALIGNMENT_SIZE > 0) {

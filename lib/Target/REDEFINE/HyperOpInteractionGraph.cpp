@@ -1070,7 +1070,8 @@ void printDS(list<HyperOp*> dominantSequence) {
 }
 
 void HyperOpInteractionGraph::clusterNodes() {
-//	print(errs());
+	print(errs());
+	errs()<<"\nclustering hops\n";
 	list<pair<list<HyperOp*>, unsigned int> > computeClusterList;
 	HyperOp* startHyperOp;
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
@@ -1117,6 +1118,9 @@ void HyperOpInteractionGraph::clusterNodes() {
 			break;
 		}
 
+		errs()<<"dominant sequence computed:";
+		printDS(dominantSequence);
+		errs()<<"zeroing edge between "<<source->getFunction()->getName()<<" and "<<target->getFunction()->getName()<<"\n";
 		//Find the cluster containing source and target
 		list<HyperOp*> sourceCluster;
 		list<HyperOp*> targetCluster;
@@ -1302,7 +1306,7 @@ void HyperOpInteractionGraph::clusterNodes() {
 		//Add the edge to examined list;
 		examinedEdges.push_back(std::make_pair(source, target));
 
-		printDS(dominantSequencePair.first);
+//		printDS(dominantSequencePair.first);
 		this->print(errs());
 	}
 
@@ -1947,27 +1951,27 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 		for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 			HyperOp* vertex = *vertexIterator;
 			os << vertex->getFunction()->getName() << "[label=\"Name:" << vertex->getFunction()->getName() << ",";
-			string dom, postdom;
-			if ((*vertexIterator)->getImmediateDominator() != 0) {
-				dom = (*vertexIterator)->getImmediateDominator()->getFunction()->getName();
-			} else {
-				dom = "NULL";
-			}
-			if ((*vertexIterator)->getImmediatePostDominator() != 0) {
-				postdom = (*vertexIterator)->getImmediatePostDominator()->getFunction()->getName();
-			} else {
-				postdom = "NULL";
-			}
-
-			os << "Dom:" << dom << ", PostDom:" << postdom << ",";
-			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
-			os << "Domf:";
-			if (!vertex->getDominanceFrontier().empty()) {
-				list<HyperOp*> domf = vertex->getDominanceFrontier();
-				for (list<HyperOp*>::iterator domfItr = domf.begin(); domfItr != domf.end(); domfItr++) {
-					os << (*domfItr)->getFunction()->getName() << ";";
-				}
-			}
+//			string dom, postdom;
+//			if ((*vertexIterator)->getImmediateDominator() != 0) {
+//				dom = (*vertexIterator)->getImmediateDominator()->getFunction()->getName();
+//			} else {
+//				dom = "NULL";
+//			}
+//			if ((*vertexIterator)->getImmediatePostDominator() != 0) {
+//				postdom = (*vertexIterator)->getImmediatePostDominator()->getFunction()->getName();
+//			} else {
+//				postdom = "NULL";
+//			}
+//
+//			os << "Dom:" << dom << ", PostDom:" << postdom << ",";
+//			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
+//			os << "Domf:";
+//			if (!vertex->getDominanceFrontier().empty()) {
+//				list<HyperOp*> domf = vertex->getDominanceFrontier();
+//				for (list<HyperOp*>::iterator domfItr = domf.begin(); domfItr != domf.end(); domfItr++) {
+//					os << (*domfItr)->getFunction()->getName() << ";";
+//				}
+//			}
 			os << "\"];\n";
 			map<HyperOpEdge*, HyperOp*> children = vertex->ChildMap;
 			for (map<HyperOpEdge*, HyperOp*>::iterator childItr = children.begin(); childItr != children.end(); childItr++) {
@@ -1975,7 +1979,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 				if ((*childItr).first->Type == HyperOpEdge::SCALAR) {
 					os << "scalar";
 				} else if ((*childItr).first->Type == HyperOpEdge::LOCAL_REFERENCE) {
-					os << "address";
+					os << "localref";
 				} else if ((*childItr).first->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
 					os << "context frame address";
 				} else {

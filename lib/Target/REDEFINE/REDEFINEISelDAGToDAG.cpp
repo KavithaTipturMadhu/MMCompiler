@@ -226,7 +226,6 @@ public:
 bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 	checkCLFlags();
 	Function *Fn = const_cast<Function*>(mf.getFunction());
-	errs()<<"dealing with function:"<<Fn->getName()<<"\n";
 	const TargetInstrInfo &TII = *TM.getInstrInfo();
 	const TargetRegisterInfo &TRI = *TM.getRegisterInfo();
 	static unsigned firstFunction=0;

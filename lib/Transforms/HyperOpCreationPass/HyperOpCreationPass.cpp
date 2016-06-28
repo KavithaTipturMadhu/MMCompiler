@@ -22,6 +22,7 @@ using namespace std;
 #include "llvm/Analysis/DependenceAnalysis.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+//#include "llvm/Analysis/CallGraphSCCPass.h";
 using namespace llvm;
 
 #define DEBUG_TYPE "HyperOpCreationPass"
@@ -60,6 +61,7 @@ struct HyperOpCreationPass: public ModulePass {
 		AU.addRequired<UnifyFunctionExitNodes>();
 		AU.addRequired<DependenceAnalysis>();
 		AU.addRequired<AliasAnalysis>();
+//		AU.addRequired<CallGraphSCCPass>();
 	}
 
 	bool pathExistsInCFG(BasicBlock* source, BasicBlock* target, list<BasicBlock*> visitedBasicBlocks) {
@@ -136,11 +138,18 @@ struct HyperOpCreationPass: public ModulePass {
 	}
 
 	HyperOpArgumentType supportedArgType(Value* argument, Module &m) {
-		if (isa<AllocaInst>(argument) || argument->getType()->getTypeID() == Type::FloatTyID) {
+		if (argument->getType()->getTypeID() == Type::FloatTyID) {
 			return LOCAL_REFERENCE;
 		}
-		//TODO
-		else if (isa<GetElementPtrInst>(argument)) {
+
+		if(isa<AllocaInst>(argument)){
+			if(((AllocaInst*)argument)->getType()->getPointerElementType()->getTypeID()==Type::IntegerTyID){
+				return SCALAR;
+			}
+			return LOCAL_REFERENCE;
+		}
+
+		if (isa<GetElementPtrInst>(argument)) {
 			for (Module::global_iterator globalVarItr = m.global_begin(); globalVarItr != m.global_end(); globalVarItr++) {
 				if (((GetElementPtrInst*) argument)->getPointerOperand()->getName().equals(globalVarItr->getName())) {
 					return GLOBAL_REFERENCE;
@@ -751,6 +760,8 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 				for (list<Value*>::iterator individualArgItr = individualArguments.begin(); individualArgItr != individualArguments.end(); individualArgItr++) {
 					Value* argument = *individualArgItr;
+					errs()<<"problem while dealing with argument ";
+					argument->dump();
 					if (isa<Instruction>(argument)) {
 						//Get Reaching definitions of the argument to the accumulated basic block list
 						map<BasicBlock*, Instruction*> reachingDefBasicBlocks = reachingStoreOperations((Instruction*) argument, createdHyperOpAndOriginalBasicBlockAndArgMap[newFunction].first.front()->getParent(), accumulatedBasicBlocks);
@@ -780,6 +791,7 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 
 						if (atleastOneUseInOtherHyperOp) {
+							errs()<<"the argument is used elsewhere, so adding it as a local reference\n";
 							//Find the HyperOp with the reaching definition
 							for (map<BasicBlock*, Instruction*>::iterator reachingDefItr = reachingDefBasicBlocks.begin(); reachingDefItr != reachingDefBasicBlocks.end(); reachingDefItr++) {
 								BasicBlock* reachingDefBB = reachingDefItr->first;

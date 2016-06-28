@@ -1095,7 +1095,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			if (objectIndex != -1) {
 				MachineInstrBuilder loadInstr = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::LW));
 				loadInstr.addReg(registerContainingData, RegState::Define);
-				loadInstr.addReg(REDEFINE::zero);
+				loadInstr.addReg(REDEFINE::t4);
 				loadInstr.addFrameIndex(objectIndex);
 				if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
 					firstInstructionOfpHyperOpInRegion[currentCE] = loadInstr.operator llvm::MachineInstr *();
@@ -1146,16 +1146,22 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 		//if local reference, add writes to the local memory of consumer HyperOp and remove the consumer HyperOp's argument
 		else if (edge->getType() == HyperOpEdge::LOCAL_REFERENCE) {
-			AllocaInst* allocInstr = cast<AllocaInst>(edge->getValue());
 			unsigned frameLocationOfSourceData = 0;
-			//Get the index of the stack allocated object, starting from 0 because negative offsets from fp contain function arguments
-			for (unsigned int i = 0; i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
-				if (MF.getFrameInfo()->getObjectAllocation(i) == allocInstr) {
-					break;
+			Type* dataType;
+			if(isa<AllocaInst>(edge->getValue())){
+				AllocaInst* allocInstr = (AllocaInst*)(edge->getValue());
+				dataType = allocInstr->getAllocatedType();
+				//Get the index of the stack allocated object, starting from 0 because negative offsets from fp contain function arguments
+				for (unsigned int i = 0; i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
+					if (MF.getFrameInfo()->getObjectAllocation(i) == allocInstr) {
+						break;
+					}
+					frameLocationOfSourceData += MF.getFrameInfo()->getObjectSize(i);
 				}
-				frameLocationOfSourceData += MF.getFrameInfo()->getObjectSize(i);
+			}else if(isa<LoadInst>(edge->getValue())){
+				LoadInst* loadInstr = (LoadInst*)(edge->getValue());
+				dataType = loadInstr->getType();
 			}
-
 			//Compute frame objects' size
 			Function* consumerFunction = consumer->getFunction();
 			unsigned frameLocationOfTargetData = 0;
@@ -1179,13 +1185,12 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				}
 			}
 
-			Type* allocatedDataType = allocInstr->getAllocatedType();
 			//Find the primitive types of allocatedDataType
 
 			//Map of primitive data types and their memory locations
 			list<pair<Type*, unsigned> > primitiveTypesMap;
 			list<Type*> containedTypesForTraversal;
-			containedTypesForTraversal.push_front(allocatedDataType);
+			containedTypesForTraversal.push_front(dataType);
 			unsigned memoryOfType = 0;
 			while (!containedTypesForTraversal.empty()) {
 				Type* traversingType = containedTypesForTraversal.front();

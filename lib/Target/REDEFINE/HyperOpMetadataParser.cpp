@@ -17,7 +17,8 @@ HyperOpMetadataParser::~HyperOpMetadataParser() {
 
 unsigned getSizeOfLocalReferenceData(Module &M, Instruction* sourceInstr, MDNode* sourceMDNode, map<Function*, MDNode*> functionMetadataMap) {
 	if (isa<AllocaInst>(sourceInstr)) {
-		return REDEFINEUtils::getSizeOfType(sourceInstr->getOperand(0)->getType());
+		//Since the size is in bytes, return word size
+		return REDEFINEUtils::getSizeOfType(sourceInstr->getOperand(0)->getType())/4;
 	}
 	if (isa<LoadInst>(sourceInstr)) {
 		unsigned argIndex = 0;
@@ -96,11 +97,19 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 		for (Function::iterator funcItr = (*moduleItr).begin(); funcItr != (*moduleItr).end(); funcItr++) {
 			for (BasicBlock::iterator bbItr = (*funcItr).begin(); bbItr != (*funcItr).end(); bbItr++) {
 				Instruction* instr = bbItr;
+				errs()<<"whats the instr though:";
+				instr->dump();
 				if (isa<AllocaInst>(instr)) {
 					unsigned frameSizeOfHyperOp = REDEFINEUtils::getSizeOfType(((AllocaInst*) instr)->getType());
 					if (maxFrameSizeOfHyperOp < frameSizeOfHyperOp) {
 						maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
 					}
+				}
+				if(isa<LoadInst>(instr)){
+					errs()<<"\n=========\nload instruction ";
+					instr->dump();
+					errs()<<" and its type ";
+					instr->getType()->dump();
 				}
 				if (instr->hasMetadata()) {
 					MDNode* consumedByMDNode = instr->getMetadata(HYPEROP_CONSUMED_BY);
@@ -117,7 +126,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 								edge->Type = HyperOpEdge::LOCAL_REFERENCE;
 								list<unsigned> volumeOfCommunication;
 								Function* consumerFunction = consumerHyperOp->getFunction();
-								volumeOfCommunication.push_back(getSizeOfLocalReferenceData(*M, instr, consumedByMDNode, functionMetadataMap));
+								unsigned volume = getSizeOfLocalReferenceData(*M, instr, consumedByMDNode, functionMetadataMap);
+								volumeOfCommunication.push_back(volume);
 								//Position of context slot doesn't make any sense in case of local references but we need it here because we need to find out where the reference is coming from to get the size of the local reference object being passed
 								unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue();
 								edge->setPositionOfContextSlot(positionOfContextSlot);
