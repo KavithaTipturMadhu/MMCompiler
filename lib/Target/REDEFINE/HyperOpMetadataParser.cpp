@@ -15,10 +15,9 @@ HyperOpMetadataParser::~HyperOpMetadataParser() {
 	// TODO Auto-generated destructor stub
 }
 
-unsigned getSizeOfLocalReferenceData(Module &M, Instruction* sourceInstr, MDNode* sourceMDNode, map<Function*, MDNode*> functionMetadataMap) {
+AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Instruction* sourceInstr, MDNode* sourceMDNode, map<Function*, MDNode*> functionMetadataMap) {
 	if (isa<AllocaInst>(sourceInstr)) {
-		//Since the size is in bytes, return word size
-		return REDEFINEUtils::getSizeOfType(sourceInstr->getOperand(0)->getType())/4;
+		return (AllocaInst*) sourceInstr;
 	}
 	if (isa<LoadInst>(sourceInstr)) {
 		unsigned argIndex = 0;
@@ -35,8 +34,8 @@ unsigned getSizeOfLocalReferenceData(Module &M, Instruction* sourceInstr, MDNode
 									if (consumedByMDNode != 0) {
 										for (unsigned i = 0; i < consumedByMDNode->getNumOperands(); i++) {
 											MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(i);
-											if (((MDNode*)consumerMDNode->getOperand(0)) == sourceMDNode && ((ConstantInt*)consumerMDNode->getOperand(2))->getZExtValue() == argIndex) {
-												return getSizeOfLocalReferenceData(M, instrItr, functionMetadataMap[funcItr], functionMetadataMap);
+											if (((MDNode*) consumerMDNode->getOperand(0)) == sourceMDNode && ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue() == argIndex) {
+												return getAllocInstrForLocalReferenceData(M, instrItr, functionMetadataMap[funcItr], functionMetadataMap);
 											}
 										}
 									}
@@ -97,19 +96,11 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 		for (Function::iterator funcItr = (*moduleItr).begin(); funcItr != (*moduleItr).end(); funcItr++) {
 			for (BasicBlock::iterator bbItr = (*funcItr).begin(); bbItr != (*funcItr).end(); bbItr++) {
 				Instruction* instr = bbItr;
-				errs()<<"whats the instr though:";
-				instr->dump();
 				if (isa<AllocaInst>(instr)) {
 					unsigned frameSizeOfHyperOp = REDEFINEUtils::getSizeOfType(((AllocaInst*) instr)->getType());
 					if (maxFrameSizeOfHyperOp < frameSizeOfHyperOp) {
 						maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
 					}
-				}
-				if(isa<LoadInst>(instr)){
-					errs()<<"\n=========\nload instruction ";
-					instr->dump();
-					errs()<<" and its type ";
-					instr->getType()->dump();
 				}
 				if (instr->hasMetadata()) {
 					MDNode* consumedByMDNode = instr->getMetadata(HYPEROP_CONSUMED_BY);
@@ -126,7 +117,12 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 								edge->Type = HyperOpEdge::LOCAL_REFERENCE;
 								list<unsigned> volumeOfCommunication;
 								Function* consumerFunction = consumerHyperOp->getFunction();
-								unsigned volume = getSizeOfLocalReferenceData(*M, instr, consumedByMDNode, functionMetadataMap);
+								AllocaInst* allocInst = getAllocInstrForLocalReferenceData(*M, instr, consumedByMDNode, functionMetadataMap);
+								if (!isa<AllocaInst>(instr)) {
+									consumerHyperOp->loadInstrAndAllocaMap[instr] = allocInst;
+								}
+								unsigned volume = REDEFINEUtils::getSizeOfType(allocInst->getType()) / 4;
+								(*M, instr, consumedByMDNode, functionMetadataMap);
 								volumeOfCommunication.push_back(volume);
 								//Position of context slot doesn't make any sense in case of local references but we need it here because we need to find out where the reference is coming from to get the size of the local reference object being passed
 								unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue();

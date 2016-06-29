@@ -1064,7 +1064,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
 				addi.addReg(registerContainingConsumerBase, RegState::Define);
 				addi.addReg(REDEFINE::zero);
-				addi.addImm(consumer->getContextFrame()<<6);
+				addi.addImm(consumer->getContextFrame() << 6);
 				consumerHyperOps[currentCE].push_back(make_pair(consumer, registerContainingConsumerBase));
 				if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
 					firstInstructionOfpHyperOpInRegion[currentCE] = addi.operator llvm::MachineInstr *();
@@ -1148,19 +1148,32 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		else if (edge->getType() == HyperOpEdge::LOCAL_REFERENCE) {
 			unsigned frameLocationOfSourceData = 0;
 			Type* dataType;
-			if(isa<AllocaInst>(edge->getValue())){
-				AllocaInst* allocInstr = (AllocaInst*)(edge->getValue());
+			AllocaInst* allocInstr;
+			if (isa<AllocaInst>(edge->getValue())) {
+				allocInstr = (AllocaInst*) (edge->getValue());
 				dataType = allocInstr->getAllocatedType();
-				//Get the index of the stack allocated object, starting from 0 because negative offsets from fp contain function arguments
+				//Get the location of the stack allocated object, starting from 0 because negative offsets from fp contain function arguments
 				for (unsigned int i = 0; i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
 					if (MF.getFrameInfo()->getObjectAllocation(i) == allocInstr) {
 						break;
 					}
 					frameLocationOfSourceData += MF.getFrameInfo()->getObjectSize(i);
 				}
-			}else if(isa<LoadInst>(edge->getValue())){
-				LoadInst* loadInstr = (LoadInst*)(edge->getValue());
-				dataType = loadInstr->getType();
+			} else if (isa<LoadInst>(edge->getValue())) {
+				//Find the alloca instruction that allocates the memory location in the first place
+				unsigned argIndex = 0;
+				LoadInst* sourceInstr = (LoadInst*)edge->getValue();
+				allocInstr = (AllocaInst*)hyperOp->loadInstrAndAllocaMap[sourceInstr];
+				dataType = allocInstr->getType();
+				//Get the location of the stack allocated object in the basic block containing the load instruction and not the alloca instruction because alloca might belong
+				//Reference objects have negative index anyway
+				for (int i = MF.getFrameInfo()->getObjectIndexBegin(); i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
+					if (MF.getFrameInfo()->getObjectAllocation(i) == sourceInstr->getOperand(0)) {
+						break;
+					}
+					frameLocationOfSourceData += MF.getFrameInfo()->getObjectSize(i);
+				}
+
 			}
 			//Compute frame objects' size
 			Function* consumerFunction = consumer->getFunction();
@@ -1168,8 +1181,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			for (Function::iterator funcItr = consumerFunction->begin(); funcItr != consumerFunction->end(); funcItr++) {
 				for (BasicBlock::iterator bbItr = funcItr->begin(); bbItr != funcItr->end(); bbItr++) {
 					if (isa<AllocaInst>(bbItr)) {
-						AllocaInst* allocInst = cast<AllocaInst>(bbItr);
-						frameLocationOfTargetData += REDEFINEUtils::getAlignedSizeOfType(allocInst->getAllocatedType());
+						AllocaInst* targetAllocaInst = cast<AllocaInst>(bbItr);
+						frameLocationOfTargetData += REDEFINEUtils::getAlignedSizeOfType(targetAllocaInst->getAllocatedType());
 					}
 				}
 			}

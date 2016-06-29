@@ -101,6 +101,8 @@ class HyperOp {
 	vector<unsigned> numInputsPerCE;
 
 public:
+	//Map to cache local reference objects that have an alloc instruction in a different HyperOp
+	map<Instruction*, Instruction*> loadInstrAndAllocaMap;
 	map<HyperOpEdge*, HyperOp*> ParentMap;
 	map<HyperOpEdge*, HyperOp*> ChildMap;
 	HyperOp(Function* function);
