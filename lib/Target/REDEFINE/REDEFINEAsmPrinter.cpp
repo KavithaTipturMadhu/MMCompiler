@@ -110,6 +110,13 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		instanceId.append("\t").append(itostr(hyperOp->getContextFrame()<<6)).append("\t");
 		OutStreamer.EmitRawText(StringRef(instanceId));
 
+		if(hyperOp->isStartHyperOp()){
+			//Add a mandatory dummy input to the start HyperOp
+			string operands(".operands");
+			operands.append("\n").append("1").append("\n");
+			OutStreamer.EmitRawText(StringRef(operands));
+		}
+
 		string isValid(VALID_ANNOTATION);
 		isValid.append("\t").append("1").append("\n");
 		OutStreamer.EmitRawText(StringRef(isValid));

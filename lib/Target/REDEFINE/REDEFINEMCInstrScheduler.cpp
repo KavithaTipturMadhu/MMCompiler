@@ -1166,8 +1166,14 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				allocInstr = (AllocaInst*)hyperOp->loadInstrAndAllocaMap[sourceInstr];
 				dataType = allocInstr->getType();
 				//Get the location of the stack allocated object in the basic block containing the load instruction and not the alloca instruction because alloca might belong
-				//Reference objects have negative index
-				for (int i = MF.getFrameInfo()->getObjectIndexBegin(); i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
+				//Arguments have negative index and are added in memory locations that succeed the locals of the stack frame
+				if(MF.getFrameInfo()->getObjectIndexEnd()>0){
+					for(unsigned i=0;i<MF.getFrameInfo()->getObjectIndexEnd();i++){
+						frameLocationOfSourceData += MF.getFrameInfo()->getObjectSize(i);
+					}
+				}
+
+				for (int i = MF.getFrameInfo()->getObjectIndexBegin(); i < 0; i++) {
 					if (MF.getFrameInfo()->getObjectAllocation(i) == sourceInstr->getOperand(0)) {
 						break;
 					}
