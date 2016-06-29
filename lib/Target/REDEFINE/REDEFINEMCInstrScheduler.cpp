@@ -1095,7 +1095,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			if (objectIndex != -1) {
 				MachineInstrBuilder loadInstr = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::LW));
 				loadInstr.addReg(registerContainingData, RegState::Define);
-				loadInstr.addReg(REDEFINE::t4);
+				loadInstr.addReg(REDEFINE::t5);
 				loadInstr.addFrameIndex(objectIndex);
 				if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
 					firstInstructionOfpHyperOpInRegion[currentCE] = loadInstr.operator llvm::MachineInstr *();
@@ -1166,7 +1166,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				allocInstr = (AllocaInst*)hyperOp->loadInstrAndAllocaMap[sourceInstr];
 				dataType = allocInstr->getType();
 				//Get the location of the stack allocated object in the basic block containing the load instruction and not the alloca instruction because alloca might belong
-				//Reference objects have negative index anyway
+				//Reference objects have negative index
 				for (int i = MF.getFrameInfo()->getObjectIndexBegin(); i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
 					if (MF.getFrameInfo()->getObjectAllocation(i) == sourceInstr->getOperand(0)) {
 						break;

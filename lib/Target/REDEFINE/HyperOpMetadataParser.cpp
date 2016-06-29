@@ -122,7 +122,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 									consumerHyperOp->loadInstrAndAllocaMap[instr] = allocInst;
 								}
 								unsigned volume = REDEFINEUtils::getSizeOfType(allocInst->getType()) / 4;
-								(*M, instr, consumedByMDNode, functionMetadataMap);
 								volumeOfCommunication.push_back(volume);
 								//Position of context slot doesn't make any sense in case of local references but we need it here because we need to find out where the reference is coming from to get the size of the local reference object being passed
 								unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue();
