@@ -25,6 +25,13 @@ static int32_t SignExtend8BitNumberTo12Bits(int8_t x) {
 	return int32_t(x << 4) >> 4;
 }
 
+static bool isRegDependence(SDep dependence) {
+	SDep::Kind dependenceKind = dependence.getKind();
+	if (dependenceKind == SDep::Data || dependenceKind == SDep::Anti || dependenceKind == SDep::Output) {
+		return true;
+	}
+	return false;
+}
 //Returns true if firstInstr appears before secondInstr in the MBB
 static bool instructionAppearsBefore(MachineBasicBlock* MBB, MachineInstr* firstInstr, MachineInstr* secondInstr) {
 	int firstPosition = -1, secondPosition = -1;
@@ -279,64 +286,6 @@ for (int i = 0; i < ceCount; i++) {
 	faninOfHyperOp.push_back(0);
 }
 registersUsedInBB.clear();
-
-//First basic block in the function
-if (bb->getParent()->begin()->getName().compare(bb->getName()) == 0) {
-	HyperOpInteractionGraph * graph = ((REDEFINETargetMachine&) TM).HIG;
-	MachineInstr* insertionPoint = bb->begin();
-	string globalAddressString = "\"ga";
-	const Module* parentModule = bb->getParent()->getFunction()->getParent();
-	unsigned maxGlobalSize = 0;
-	if (parentModule->getGlobalList().size() > 0) {
-		for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
-			const GlobalVariable *globalVar = &*globalArgItr;
-			maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
-		}
-	}
-
-	globalAddressString.append("#").append(itostr(maxGlobalSize)).append("\"");
-
-	MachineInstrBuilder registerCopy = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(REDEFINE::t4, RegState::Define).addReg(REDEFINE::t5).addReg(REDEFINE::zero);
-	LIS->getSlotIndexes()->insertMachineInstrInMaps(registerCopy.operator ->());
-
-	//add global address to r31 of REDEFINE
-	unsigned registerForTopBits = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-	MachineInstrBuilder lui = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(registerForTopBits, RegState::Define);
-	string hiGlobalAddrString = string("%hi(").append(globalAddressString).append(")");
-	MCSymbol* hiSymbol = bb->getParent()->getContext().GetOrCreateSymbol(StringRef(hiGlobalAddrString));
-	lui.addSym(hiSymbol);
-	LIS->getSlotIndexes()->insertMachineInstrInMaps(lui.operator ->());
-
-	unsigned registerForBottomBits = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-	MachineInstrBuilder addi = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(registerForBottomBits, RegState::Define).addReg(REDEFINE::zero);
-	string lowGlobalAddrString = string("%lo(").append(globalAddressString).append(")");
-	MCSymbol* loSymbol = bb->getParent()->getContext().GetOrCreateSymbol(StringRef(lowGlobalAddrString));
-	addi.addSym(loSymbol);
-	LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator ->());
-
-	unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-	MachineInstrBuilder add = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForGlobalAddr, RegState::Define).addReg(registerForTopBits).addReg(registerForBottomBits);
-	LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator ->());
-
-	unsigned registerForMulOperand = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-	MachineInstrBuilder addiForMul = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addImm(graph->getMaxMemFrameSize());
-	LIS->getSlotIndexes()->insertMachineInstrInMaps(addiForMul.operator ->());
-
-	MachineInstrBuilder mulForFrameSize = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::MUL)).addReg(REDEFINE::t5, RegState::Define).addReg(REDEFINE::t5).addReg(registerForMulOperand);
-	LIS->getSlotIndexes()->insertMachineInstrInMaps(mulForFrameSize.operator ->());
-
-	MachineInstrBuilder addForGlobalAddr = BuildMI(*bb, insertionPoint, bb->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(REDEFINE::t5, RegState::Define).addReg(registerForGlobalAddr).addReg(REDEFINE::t5);
-	LIS->getSlotIndexes()->insertMachineInstrInMaps(addForGlobalAddr.operator ->());
-
-	vector<unsigned> registersForFix;
-	registersForFix.push_back(registerForTopBits);
-	registersForFix.push_back(registerForBottomBits);
-	registersForFix.push_back(registerForGlobalAddr);
-	registersForFix.push_back(registerForMulOperand);
-	registersForFix.push_back(REDEFINE::t5);
-	registersForFix.push_back(REDEFINE::t4);
-	LIS->repairIntervalsInRange(bb, bb->begin(), bb->end(), registersForFix);
-}
 }
 
 void REDEFINEMCInstrScheduler::exitRegion() {
@@ -346,12 +295,85 @@ MachineFunction &MF = *(BB->getParent());
 MachineBasicBlock& parentBasicBlock = *BB;
 
 map<unsigned, unsigned> registerAndDefiningCEMap;
-//Map containing the renamed register and its
+//Map containing the renamed register and its replacement
 map<unsigned, map<unsigned, unsigned> > replacementRegisterMap;
 
 //Map containing ce and redefinition of a register via a readpm instruction
 //Key of the first map represents the CE and the list contains all the registers already locally defined and hence don't require a readpm from the original definition
 map<unsigned, list<unsigned> > redefinitionsInCE;
+
+//First basic block in the function
+if (BB->getParent()->begin()->getName().compare(BB->getName()) == 0) {
+	HyperOpInteractionGraph * graph = ((REDEFINETargetMachine&) TM).HIG;
+	const Module* parentModule = BB->getParent()->getFunction()->getParent();
+	unsigned maxGlobalSize = 0;
+	if (parentModule->getGlobalList().size() > 0) {
+		for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
+			const GlobalVariable *globalVar = &*globalArgItr;
+			maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
+		}
+	}
+
+	for (unsigned i = 0; i < ceCount; i++) {
+		MachineInstr* insertionPoint = BB->begin();
+		string globalAddressString = "\"ga";
+
+		globalAddressString.append("#").append(itostr(maxGlobalSize)).append("\"");
+
+		unsigned registerForCopyOfInstId = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+		unsigned registerForIncrOfInstId = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+		virtualRegistersForInstAddr[i] = make_pair(registerForCopyOfInstId, registerForIncrOfInstId);
+
+		MachineInstrBuilder registerCopy = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForCopyOfInstId, RegState::Define).addReg(registerForIncrOfInstId).addReg(REDEFINE::zero);
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(registerCopy.operator ->());
+		allInstructionsOfRegion.push_back(make_pair(registerCopy.operator->(), make_pair(i, insertPosition++)));
+
+		//add global address to r31 of REDEFINE
+		unsigned registerForTopBits = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+		MachineInstrBuilder lui = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(registerForTopBits, RegState::Define);
+		string hiGlobalAddrString = string("%hi(").append(globalAddressString).append(")");
+		MCSymbol* hiSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(hiGlobalAddrString));
+		lui.addSym(hiSymbol);
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(lui.operator ->());
+		allInstructionsOfRegion.push_back(make_pair(lui.operator->(), make_pair(i, insertPosition++)));
+
+
+		unsigned registerForBottomBits = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+		MachineInstrBuilder addi = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(registerForBottomBits, RegState::Define).addReg(REDEFINE::zero);
+		string lowGlobalAddrString = string("%lo(").append(globalAddressString).append(")");
+		MCSymbol* loSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(lowGlobalAddrString));
+		addi.addSym(loSymbol);
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator ->());
+		allInstructionsOfRegion.push_back(make_pair(addi.operator->(), make_pair(i, insertPosition++)));
+
+		unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+		MachineInstrBuilder add = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForGlobalAddr, RegState::Define).addReg(registerForTopBits).addReg(registerForBottomBits);
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator ->());
+		allInstructionsOfRegion.push_back(make_pair(add.operator->(), make_pair(i, insertPosition++)));
+
+		unsigned registerForMulOperand = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+		MachineInstrBuilder addiForMul = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addImm(graph->getMaxMemFrameSize());
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(addiForMul.operator ->());
+		allInstructionsOfRegion.push_back(make_pair(addiForMul.operator->(), make_pair(i, insertPosition++)));
+
+		MachineInstrBuilder mulForFrameSize = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MUL)).addReg(registerForIncrOfInstId, RegState::Define).addReg(registerForIncrOfInstId).addReg(registerForMulOperand);
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(mulForFrameSize.operator ->());
+		allInstructionsOfRegion.push_back(make_pair(mulForFrameSize.operator->(), make_pair(i, insertPosition++)));
+
+		MachineInstrBuilder addForGlobalAddr = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForIncrOfInstId, RegState::Define).addReg(registerForGlobalAddr).addReg(registerForIncrOfInstId);
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(addForGlobalAddr.operator ->());
+		allInstructionsOfRegion.push_back(make_pair(addForGlobalAddr.operator->(), make_pair(i, insertPosition++)));
+
+		vector<unsigned> registersForFix;
+		registersForFix.push_back(registerForTopBits);
+		registersForFix.push_back(registerForBottomBits);
+		registersForFix.push_back(registerForGlobalAddr);
+		registersForFix.push_back(registerForMulOperand);
+		registersForFix.push_back(registerForCopyOfInstId);
+		registersForFix.push_back(registerForIncrOfInstId);
+		LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), registersForFix);
+	}
+}
 
 DEBUG(dbgs() << "Partitioning instructions of the region into multiple CEs\n");
 
@@ -484,21 +506,21 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 				}
 			}
 			//Data might be live in register from a previous basic block; read from memory location
-			if (ceContainingPredecessorInstruction < 0 && dependence.isAssignedRegDep()) {
+			if (ceContainingPredecessorInstruction < 0 && isRegDependence(dependence)) {
 				//Find the memory location allocated to the live-out register
 				if (registerAndFrameLocation.find(dependence.getReg()) != registerAndFrameLocation.end()) {
 					unsigned frameLocationToReadFrom = registerAndFrameLocation.find(dependence.getReg())->second;
 					//Add an instruction to read from memory
 					MachineInstrBuilder loadFromMemory = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::ADDI));
 					loadFromMemory.addReg(dependence.getReg(), RegState::Define);
-					loadFromMemory.addReg(REDEFINE::t5);
+					loadFromMemory.addReg(virtualRegistersForInstAddr[ceContainingInstruction].second);
 					loadFromMemory.addFrameIndex(frameLocationToReadFrom);
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(loadFromMemory.operator llvm::MachineInstr *());
 					allInstructionsOfRegion.push_back(make_pair(loadFromMemory.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
 				}
 			} else if (ceContainingPredecessorInstruction != ceContainingInstruction) {
 				//If the register is already read from in the current ce via a readpm instruction, there is no need to read it all over again
-				if (dependence.isAssignedRegDep() && redefinitionsInCE.find(ceContainingInstruction) != redefinitionsInCE.end()
+				if (isRegDependence(dependence) && redefinitionsInCE.find(ceContainingInstruction) != redefinitionsInCE.end()
 						&& find(redefinitionsInCE[ceContainingInstruction].begin(), redefinitionsInCE[ceContainingInstruction].end(), dependence.getReg()) != redefinitionsInCE[ceContainingInstruction].end()) {
 					continue;
 				}
@@ -556,7 +578,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 				MachineInstrBuilder writepm;
 				MachineInstrBuilder readpm;
 				//Memory dependences get chained into the same pHyperOp and hence, we don't actually need the following check
-				if (dependence.isAssignedRegDep()) {
+				if (isRegDependence(dependence)) {
 					const TargetRegisterClass* regClass;
 					if (TRI->isPhysicalRegister(dependence.getReg())) {
 						regClass = TRI->getMinimalPhysRegClass(dependence.getReg());
@@ -579,7 +601,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 				//The previous and next if-else block is not merged because of the following writepm.addReg statement
 				writepm.addReg(registerContainingBaseAddress[ceContainingPredecessorInstruction][ceContainingInstruction]);
 
-				if (dependence.isAssignedRegDep()) {
+				if (isRegDependence(dependence)) {
 					//Use register operand in the inserted writepm
 					writepm.addReg(dependence.getReg());
 					readpm.addReg(dependence.getReg(), RegState::Define);
@@ -589,9 +611,11 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 					//The register is redefined in the current CE and doesn't need to be read again, caching for this purpose
 					redefinitionsInCE[ceContainingInstruction].push_back(dependence.getReg());
 				} else {
-					//dependence still exists, associate a dummy virtual register
+					//dependence still exists but is not a true dependence, associate a dummy virtual register
 					writepm.addReg(REDEFINE::zero);
-					readpm.addReg(REDEFINE::zero);
+					//Zero cannot be defined, hence adding a new dummy register
+					unsigned dummyRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+					readpm.addReg(dummyRegister, RegState::Define);
 				}
 
 				writepm.addImm(offsetInScratchpad);
@@ -610,6 +634,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 	if (firstInstructionOfpHyperOpInRegion[ceContainingInstruction] == 0) {
 		firstInstructionOfpHyperOpInRegion[ceContainingInstruction] = machineInstruction;
 	}
+
 	allInstructionsOfRegion.push_back(make_pair(machineInstruction, make_pair(ceContainingInstruction, insertPosition++)));
 }
 
@@ -738,7 +763,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 					for (unsigned ceContainingInstruction = 0; ceContainingInstruction < ceCount; ceContainingInstruction++) {
 						MachineInstrBuilder loadFromMemory = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::ADDI));
 						loadFromMemory.addReg(operand.getReg(), RegState::Define);
-						loadFromMemory.addReg(REDEFINE::t5);
+						loadFromMemory.addReg(virtualRegistersForInstAddr[ceContainingInstruction].second);
 						loadFromMemory.addFrameIndex(frameLocationToReadFrom);
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(loadFromMemory.operator llvm::MachineInstr *());
 						allInstructionsOfRegion.push_back(make_pair(loadFromMemory.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
@@ -932,6 +957,7 @@ for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstruct
 	for (unsigned i = 0; i < instruction->getNumOperands(); i++) {
 		MachineOperand& operand = instruction->getOperand(i);
 		if (operand.isReg() && registerAndDefiningCEMap.find(operand.getReg()) != registerAndDefiningCEMap.end() && registerAndDefiningCEMap[operand.getReg()] != ce) {
+			operand.print(errs());
 			//Defined in a different CE
 			if (replacementRegisterMap[ce].find(operand.getReg()) == replacementRegisterMap[ce].end()) {
 				unsigned originalRegister = operand.getReg();
@@ -951,6 +977,8 @@ for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstruct
 			}
 			unsigned replacementRegister = replacementRegisterMap[ce].find(operand.getReg())->second;
 			operand.setReg(replacementRegister);
+			errs() << "with reg ";
+			operand.print(errs());
 		}
 	}
 }
@@ -1096,7 +1124,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			if (objectIndex != -1) {
 				MachineInstrBuilder loadInstr = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::LW));
 				loadInstr.addReg(registerContainingData, RegState::Define);
-				loadInstr.addReg(REDEFINE::t5);
+				loadInstr.addReg(virtualRegistersForInstAddr[currentCE].second);
 				loadInstr.addFrameIndex(objectIndex);
 				if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
 					firstInstructionOfpHyperOpInRegion[currentCE] = loadInstr.operator llvm::MachineInstr *();
@@ -1231,25 +1259,25 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					Type* containedType = containedPrimitiveItr->first;
 					if (containedType->isFloatTy()) {
 						unsigned floatingPointRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::f32);
-						MachineInstrBuilder lw = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::FLW)).addReg(floatingPointRegister, RegState::Define).addReg(REDEFINE::t5).addImm(
+						MachineInstrBuilder lw = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::FLW)).addReg(floatingPointRegister, RegState::Define).addReg(virtualRegistersForInstAddr[currentCE]).addImm(
 								allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfSourceData);
 						allInstructionsOfRegion.push_back(make_pair(lw.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(lw.operator llvm::MachineInstr *());
 
 						MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::FSW));
-						store.addReg(REDEFINE::t5).addReg(floatingPointRegister).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame());
+						store.addReg(virtualRegistersForInstAddr[currentCE]).addReg(floatingPointRegister).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame());
 
 						allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(store.operator llvm::MachineInstr *());
 					} else {
 						unsigned integerRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-						MachineInstrBuilder lw = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::LW)).addReg(integerRegister, RegState::Define).addReg(REDEFINE::t5).addImm(
+						MachineInstrBuilder lw = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::LW)).addReg(integerRegister, RegState::Define).addReg(virtualRegistersForInstAddr[currentCE]).addImm(
 								allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfSourceData);
 						allInstructionsOfRegion.push_back(make_pair(lw.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(lw.operator llvm::MachineInstr *());
 
 						MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SW));
-						store.addReg(REDEFINE::t5).addReg(integerRegister).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame());
+						store.addReg(virtualRegistersForInstAddr[currentCE]).addReg(integerRegister).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame());
 
 						allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(store.operator llvm::MachineInstr *());

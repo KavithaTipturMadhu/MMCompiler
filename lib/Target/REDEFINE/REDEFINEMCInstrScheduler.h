@@ -51,6 +51,9 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 
 	vector<unsigned> registersUsedInBB;
 
+	//Contains t4 and t5 registers and their allocated virtual registers in each pHyperOp
+	pair<unsigned, unsigned > virtualRegistersForInstAddr[4];
+
 	//Position tracking a new insertion
 	unsigned insertPosition = 0;
 
@@ -66,6 +69,8 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	map<Function*, list<MachineInstr*> > writeInstrToContextFrame;
 
 	const char* HYPEROP_ID_PREFIX = "HyperOp#";
+
+	unsigned copyOfInstanceId;
 
 public:
 	REDEFINEMCInstrScheduler(MachineSchedContext *C, MachineSchedStrategy *S);
