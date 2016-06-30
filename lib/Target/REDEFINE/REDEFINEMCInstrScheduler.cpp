@@ -359,6 +359,8 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 	unsigned ceContainingInstruction = ScheduledInstrItr->second;
 	SUnit* SU = ScheduledInstrItr->first;
 	MachineInstr* machineInstruction = SU->getInstr();
+	errs() << "scheduling instr:";
+	machineInstruction->dump();
 
 	unsigned additionalFanin = 0;
 	for (SmallVector<SDep, 4>::iterator predecessorItr = SU->Preds.begin(); predecessorItr != SU->Preds.end(); predecessorItr++) {
@@ -489,7 +491,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 					//Add an instruction to read from memory
 					MachineInstrBuilder loadFromMemory = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::ADDI));
 					loadFromMemory.addReg(dependence.getReg(), RegState::Define);
-					loadFromMemory.addReg(REDEFINE::zero);
+					loadFromMemory.addReg(REDEFINE::t5);
 					loadFromMemory.addFrameIndex(frameLocationToReadFrom);
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(loadFromMemory.operator llvm::MachineInstr *());
 					allInstructionsOfRegion.push_back(make_pair(loadFromMemory.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
@@ -570,15 +572,14 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 						writepm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::FWRITEPM));
 						readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::FREADPM));
 					}
-//					} else {
-//						writepm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::WRITEPM));
-//						readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::READPM));
+				} else {
+					writepm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::WRITEPM));
+					readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::READPM));
 				}
 				//The previous and next if-else block is not merged because of the following writepm.addReg statement
 				writepm.addReg(registerContainingBaseAddress[ceContainingPredecessorInstruction][ceContainingInstruction]);
 
 				if (dependence.isAssignedRegDep()) {
-					errs() << "assigned reg dependence\n";
 					//Use register operand in the inserted writepm
 					writepm.addReg(dependence.getReg());
 					readpm.addReg(dependence.getReg(), RegState::Define);
@@ -737,7 +738,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 					for (unsigned ceContainingInstruction = 0; ceContainingInstruction < ceCount; ceContainingInstruction++) {
 						MachineInstrBuilder loadFromMemory = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::ADDI));
 						loadFromMemory.addReg(operand.getReg(), RegState::Define);
-						loadFromMemory.addReg(REDEFINE::zero);
+						loadFromMemory.addReg(REDEFINE::t5);
 						loadFromMemory.addFrameIndex(frameLocationToReadFrom);
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(loadFromMemory.operator llvm::MachineInstr *());
 						allInstructionsOfRegion.push_back(make_pair(loadFromMemory.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
@@ -1162,13 +1163,13 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			} else if (isa<LoadInst>(edge->getValue())) {
 				//Find the alloca instruction that allocates the memory location in the first place
 				unsigned argIndex = 0;
-				LoadInst* sourceInstr = (LoadInst*)edge->getValue();
-				allocInstr = (AllocaInst*)hyperOp->loadInstrAndAllocaMap[sourceInstr];
+				LoadInst* sourceInstr = (LoadInst*) edge->getValue();
+				allocInstr = (AllocaInst*) hyperOp->loadInstrAndAllocaMap[sourceInstr];
 				dataType = allocInstr->getType();
 				//Get the location of the stack allocated object in the basic block containing the load instruction and not the alloca instruction because alloca might belong
 				//Arguments have negative index and are added in memory locations that succeed the locals of the stack frame
-				if(MF.getFrameInfo()->getObjectIndexEnd()>0){
-					for(unsigned i=0;i<MF.getFrameInfo()->getObjectIndexEnd();i++){
+				if (MF.getFrameInfo()->getObjectIndexEnd() > 0) {
+					for (unsigned i = 0; i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
 						frameLocationOfSourceData += MF.getFrameInfo()->getObjectSize(i);
 					}
 				}
