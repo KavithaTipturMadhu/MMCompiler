@@ -427,7 +427,6 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 						MachineInstrBuilder readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::READPM));
 						unsigned readpmTarget = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 						readpm.addReg(readpmTarget, RegState::Define);
-						LIS->getOrCreateInterval(readpmTarget);
 						//Dummy data
 						readpm.addReg(registerForCurrentAddr);
 						immediateSPOffset = -((4 + frameSize) * datawidth);
@@ -606,9 +605,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 				} else {
 					//dependence still exists but is not a true dependence, associate a dummy virtual register
 					writepm.addReg(REDEFINE::zero);
-					//Zero cannot be defined, hence adding a new dummy register
-					unsigned dummyRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					readpm.addReg(dummyRegister, RegState::Define);
+					readpm.addReg(REDEFINE::zero);
 				}
 
 				writepm.addImm(offsetInScratchpad);
@@ -1427,6 +1424,7 @@ for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != B
 			if (!ignore) {
 				registersUsedInBB.push_back(operand.getReg());
 			}
+			errs()<<"register "<<operand.getReg()<<" is "<<PrintReg(operand.getReg(), TRI, operand.getSubReg())<<"\n";
 		}
 	}
 }
