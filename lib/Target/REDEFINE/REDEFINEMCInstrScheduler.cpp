@@ -328,6 +328,9 @@ if (BB->getParent()->begin()->getName().compare(BB->getName()) == 0) {
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(registerCopy.operator ->());
 		allInstructionsOfRegion.push_back(make_pair(registerCopy.operator->(), make_pair(i, insertPosition++)));
 
+		if (firstInstructionOfpHyperOpInRegion[i] == 0) {
+			firstInstructionOfpHyperOpInRegion[i] = registerCopy.operator llvm::MachineInstr *();
+		}
 		//add global address to r31 of REDEFINE
 		unsigned registerForTopBits = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 		MachineInstrBuilder lui = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(registerForTopBits, RegState::Define);
@@ -336,7 +339,6 @@ if (BB->getParent()->begin()->getName().compare(BB->getName()) == 0) {
 		lui.addSym(hiSymbol);
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(lui.operator ->());
 		allInstructionsOfRegion.push_back(make_pair(lui.operator->(), make_pair(i, insertPosition++)));
-
 
 		unsigned registerForBottomBits = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 		MachineInstrBuilder addi = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(registerForBottomBits, RegState::Define).addReg(REDEFINE::zero);
@@ -363,15 +365,6 @@ if (BB->getParent()->begin()->getName().compare(BB->getName()) == 0) {
 		MachineInstrBuilder addForGlobalAddr = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForIncrOfInstId, RegState::Define).addReg(registerForGlobalAddr).addReg(registerForIncrOfInstId);
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(addForGlobalAddr.operator ->());
 		allInstructionsOfRegion.push_back(make_pair(addForGlobalAddr.operator->(), make_pair(i, insertPosition++)));
-
-		vector<unsigned> registersForFix;
-		registersForFix.push_back(registerForTopBits);
-		registersForFix.push_back(registerForBottomBits);
-		registersForFix.push_back(registerForGlobalAddr);
-		registersForFix.push_back(registerForMulOperand);
-		registersForFix.push_back(registerForCopyOfInstId);
-		registersForFix.push_back(registerForIncrOfInstId);
-		LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), registersForFix);
 	}
 }
 
@@ -1259,25 +1252,25 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					Type* containedType = containedPrimitiveItr->first;
 					if (containedType->isFloatTy()) {
 						unsigned floatingPointRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::f32);
-						MachineInstrBuilder lw = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::FLW)).addReg(floatingPointRegister, RegState::Define).addReg(virtualRegistersForInstAddr[currentCE]).addImm(
+						MachineInstrBuilder lw = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::FLW)).addReg(floatingPointRegister, RegState::Define).addReg(virtualRegistersForInstAddr[currentCE].second).addImm(
 								allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfSourceData);
 						allInstructionsOfRegion.push_back(make_pair(lw.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(lw.operator llvm::MachineInstr *());
 
 						MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::FSW));
-						store.addReg(virtualRegistersForInstAddr[currentCE]).addReg(floatingPointRegister).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame());
+						store.addReg(virtualRegistersForInstAddr[currentCE].second).addReg(floatingPointRegister).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame());
 
 						allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(store.operator llvm::MachineInstr *());
 					} else {
 						unsigned integerRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-						MachineInstrBuilder lw = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::LW)).addReg(integerRegister, RegState::Define).addReg(virtualRegistersForInstAddr[currentCE]).addImm(
+						MachineInstrBuilder lw = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::LW)).addReg(integerRegister, RegState::Define).addReg(virtualRegistersForInstAddr[currentCE].second).addImm(
 								allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfSourceData);
 						allInstructionsOfRegion.push_back(make_pair(lw.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(lw.operator llvm::MachineInstr *());
 
 						MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SW));
-						store.addReg(virtualRegistersForInstAddr[currentCE]).addReg(integerRegister).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame());
+						store.addReg(virtualRegistersForInstAddr[currentCE].second).addReg(integerRegister).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame());
 
 						allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(store.operator llvm::MachineInstr *());
@@ -1292,7 +1285,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 //Does the HyperOp require fdelete?
 	if (hyperOp->frameNeedsGC()) {
 		//Add fdelete instruction
-		MachineInstrBuilder fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(REDEFINE::t4).addImm(0);
+		MachineInstrBuilder fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(virtualRegistersForInstAddr[0].first).addImm(0);
 
 		if (firstInstructionOfpHyperOpInRegion[0] == 0) {
 			firstInstructionOfpHyperOpInRegion[0] = fdelete.operator llvm::MachineInstr *();
@@ -1421,6 +1414,7 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 DEBUG(dbgs() << "After Shuffling regions of basic block, state of BB#" << BB->getNumber() << ":\n");
 BB->print(dbgs());
 
+//ACtually we don't need to use inst_itr here cos bundles are created after this, but leaving this for now
 for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != BB->instr_end(); instItr++) {
 	for (unsigned i = 0; i < instItr->getNumOperands(); i++) {
 		MachineOperand& operand = instItr->getOperand(i);
@@ -1643,14 +1637,13 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 					}
 
 					//Remove the original copy instruction
-					if (MI->isInsideBundle()) {
+					if (MI->isBundled()) {
 						MI->eraseFromBundle();
 					}
 				}
 			}
 
 		}
-
 	}
 }
 
@@ -1660,6 +1653,23 @@ for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = parentMap.begin(); parent
 	HyperOpEdge* edge = parentItr->first;
 	unsigned previousPhysReg = contextFrameSlotAndPhysReg[edge->getPositionOfContextSlot()];
 	edge->setPositionOfContextSlot(physRegAndContextFrameSlot[previousPhysReg]);
+}
+
+DEBUG(dbgs() << "Patching the instructions that are supposed to use the physical registers r30 and r31");
+for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
+	unsigned ceIndex = 0;
+	for (MachineBasicBlock::instr_iterator instrItr = bbItr->instr_begin(); instrItr != bbItr->instr_end(); instrItr++) {
+		for (unsigned i = 0; i < instrItr->getNumOperands(); i++) {
+			if (!instrItr->isBundled()) {
+				ceIndex++;
+			}
+			if (instrItr->getOperand(i).isReg()) {
+				if (virtualRegistersForInstAddr[ceIndex].second == instrItr->getOperand(i).getReg()) {
+					instrItr->getOperand(i).setReg(REDEFINE::t5);
+				}
+			}
+		}
+	}
 }
 
 DEBUG(dbgs() << "Final state of Machine Function:");
