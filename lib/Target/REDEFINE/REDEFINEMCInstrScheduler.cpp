@@ -605,7 +605,11 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 				} else {
 					//dependence still exists but is not a true dependence, associate a dummy virtual register
 					writepm.addReg(REDEFINE::zero);
-					readpm.addReg(REDEFINE::zero);
+					//Zero cannot be defined, hence adding a new dummy register
+					unsigned dummyRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+					readpm.addReg(dummyRegister, RegState::Define);
+					//Interval should be manually added
+					LIS->getOrCreateInterval(dummyRegister);
 				}
 
 				writepm.addImm(offsetInScratchpad);
@@ -1424,7 +1428,7 @@ for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != B
 			if (!ignore) {
 				registersUsedInBB.push_back(operand.getReg());
 			}
-			errs()<<"register "<<operand.getReg()<<" is "<<PrintReg(operand.getReg(), TRI, operand.getSubReg())<<"\n";
+//			errs()<<"register "<<operand.getReg()<<" is "<<PrintReg(operand.getReg(), TRI, operand.getSubReg())<<"\n";
 		}
 	}
 }
