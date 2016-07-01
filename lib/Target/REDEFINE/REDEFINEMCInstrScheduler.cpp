@@ -314,8 +314,9 @@ if (BB->getParent()->begin()->getName().compare(BB->getName()) == 0) {
 		}
 	}
 
+	MachineInstr* insertionPoint = BB->begin();
 	for (unsigned i = 0; i < ceCount; i++) {
-		MachineInstr* insertionPoint = BB->begin();
+		MachineInstr* firstInstruction = insertionPoint;
 		string globalAddressString = "\"ga";
 
 		globalAddressString.append("#").append(itostr(maxGlobalSize)).append("\"");
@@ -324,12 +325,12 @@ if (BB->getParent()->begin()->getName().compare(BB->getName()) == 0) {
 		unsigned registerForIncrOfInstId = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 		virtualRegistersForInstAddr[i] = make_pair(registerForCopyOfInstId, registerForIncrOfInstId);
 
-		MachineInstrBuilder registerCopy = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForCopyOfInstId, RegState::Define).addReg(registerForIncrOfInstId).addReg(REDEFINE::zero);
+		MachineInstrBuilder registerCopy = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForCopyOfInstId, RegState::Define).addReg(REDEFINE::t5).addReg(REDEFINE::zero);
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(registerCopy.operator ->());
 		allInstructionsOfRegion.push_back(make_pair(registerCopy.operator->(), make_pair(i, insertPosition++)));
 
 		if (firstInstructionOfpHyperOpInRegion[i] == 0) {
-			firstInstructionOfpHyperOpInRegion[i] = registerCopy.operator llvm::MachineInstr *();
+			firstInstructionOfpHyperOpInRegion[i] = registerCopy.operator->();
 		}
 		//add global address to r31 of REDEFINE
 		unsigned registerForTopBits = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
@@ -358,13 +359,15 @@ if (BB->getParent()->begin()->getName().compare(BB->getName()) == 0) {
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(addiForMul.operator ->());
 		allInstructionsOfRegion.push_back(make_pair(addiForMul.operator->(), make_pair(i, insertPosition++)));
 
-		MachineInstrBuilder mulForFrameSize = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MUL)).addReg(registerForIncrOfInstId, RegState::Define).addReg(registerForIncrOfInstId).addReg(registerForMulOperand);
+		unsigned registerForMul = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+		MachineInstrBuilder mulForFrameSize = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MUL)).addReg(registerForMul, RegState::Define).addReg(REDEFINE::t5).addReg(registerForMulOperand);
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(mulForFrameSize.operator ->());
 		allInstructionsOfRegion.push_back(make_pair(mulForFrameSize.operator->(), make_pair(i, insertPosition++)));
 
-		MachineInstrBuilder addForGlobalAddr = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForIncrOfInstId, RegState::Define).addReg(registerForGlobalAddr).addReg(registerForIncrOfInstId);
+		MachineInstrBuilder addForGlobalAddr = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForIncrOfInstId, RegState::Define).addReg(registerForGlobalAddr).addReg(registerForMul);
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(addForGlobalAddr.operator ->());
 		allInstructionsOfRegion.push_back(make_pair(addForGlobalAddr.operator->(), make_pair(i, insertPosition++)));
+		insertionPoint = firstInstruction;
 	}
 }
 
@@ -374,8 +377,6 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 	unsigned ceContainingInstruction = ScheduledInstrItr->second;
 	SUnit* SU = ScheduledInstrItr->first;
 	MachineInstr* machineInstruction = SU->getInstr();
-	errs() << "scheduling instr:";
-	machineInstruction->dump();
 
 	unsigned additionalFanin = 0;
 	for (SmallVector<SDep, 4>::iterator predecessorItr = SU->Preds.begin(); predecessorItr != SU->Preds.end(); predecessorItr++) {
@@ -489,8 +490,6 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 		for (SmallVector<SDep, 4>::iterator predecessorItr = SU->Preds.begin(); predecessorItr != SU->Preds.end(); predecessorItr++) {
 			SDep dependence = (*predecessorItr);
 			SUnit* predecessor = predecessorItr->getSUnit();
-			errs() << "predecessor instr:";
-			predecessor->getInstr()->dump();
 			unsigned ceContainingPredecessorInstruction = -1;
 			for (list<pair<SUnit*, unsigned> >::iterator predecessorInstrItr = instructionAndPHyperOpMapForRegion.begin(); predecessorInstrItr != instructionAndPHyperOpMapForRegion.end(); predecessorInstrItr++) {
 				if (predecessorInstrItr->first->getInstr() == predecessor->getInstr()) {
@@ -591,6 +590,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 					writepm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::WRITEPM));
 					readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::READPM));
 				}
+
 				//The previous and next if-else block is not merged because of the following writepm.addReg statement
 				writepm.addReg(registerContainingBaseAddress[ceContainingPredecessorInstruction][ceContainingInstruction]);
 
@@ -950,7 +950,6 @@ for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstruct
 	for (unsigned i = 0; i < instruction->getNumOperands(); i++) {
 		MachineOperand& operand = instruction->getOperand(i);
 		if (operand.isReg() && registerAndDefiningCEMap.find(operand.getReg()) != registerAndDefiningCEMap.end() && registerAndDefiningCEMap[operand.getReg()] != ce) {
-			operand.print(errs());
 			//Defined in a different CE
 			if (replacementRegisterMap[ce].find(operand.getReg()) == replacementRegisterMap[ce].end()) {
 				unsigned originalRegister = operand.getReg();
@@ -970,8 +969,6 @@ for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstruct
 			}
 			unsigned replacementRegister = replacementRegisterMap[ce].find(operand.getReg())->second;
 			operand.setReg(replacementRegister);
-			errs() << "with reg ";
-			operand.print(errs());
 		}
 	}
 }
@@ -1419,7 +1416,17 @@ for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != B
 	for (unsigned i = 0; i < instItr->getNumOperands(); i++) {
 		MachineOperand& operand = instItr->getOperand(i);
 		if (operand.isReg() && find(registersUsedInBB.begin(), registersUsedInBB.end(), operand.getReg()) == registersUsedInBB.end()) {
-			registersUsedInBB.push_back(operand.getReg());
+			unsigned operandRegister = operand.getReg();
+			bool ignore = false;
+			for (unsigned i = 0; i < ceCount; i++) {
+				if (virtualRegistersForInstAddr[i].first == operandRegister || virtualRegistersForInstAddr[i].second == operandRegister) {
+					ignore = true;
+					break;
+				}
+			}
+			if (!ignore) {
+				registersUsedInBB.push_back(operand.getReg());
+			}
 		}
 	}
 }
@@ -1666,6 +1673,8 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 			if (instrItr->getOperand(i).isReg()) {
 				if (virtualRegistersForInstAddr[ceIndex].second == instrItr->getOperand(i).getReg()) {
 					instrItr->getOperand(i).setReg(REDEFINE::t5);
+				}else if (virtualRegistersForInstAddr[ceIndex].first == instrItr->getOperand(i).getReg()){
+					instrItr->getOperand(i).setReg(REDEFINE::t4);
 				}
 			}
 		}

@@ -763,8 +763,10 @@ struct HyperOpCreationPass: public ModulePass {
 					errs()<<"problem while dealing with argument ";
 					argument->dump();
 					if (isa<Instruction>(argument)) {
+						Function* originalFunction = createdHyperOpAndOriginalBasicBlockAndArgMap[newFunction].first.front()->getParent();
+						Instruction* originalInstruction = (Instruction*)originalToClonedInstMap[(Instruction*)argument];
 						//Get Reaching definitions of the argument to the accumulated basic block list
-						map<BasicBlock*, Instruction*> reachingDefBasicBlocks = reachingStoreOperations((Instruction*) argument, createdHyperOpAndOriginalBasicBlockAndArgMap[newFunction].first.front()->getParent(), accumulatedBasicBlocks);
+						map<BasicBlock*, Instruction*> reachingDefBasicBlocks = reachingStoreOperations(originalInstruction, originalFunction, accumulatedBasicBlocks);
 						//Get the producer HyperOp
 						bool atleastOneUseInOtherHyperOp = false;
 						for (map<BasicBlock*, Instruction*>::iterator reachingDefItr = reachingDefBasicBlocks.begin(); reachingDefItr != reachingDefBasicBlocks.end(); reachingDefItr++) {
@@ -795,6 +797,7 @@ struct HyperOpCreationPass: public ModulePass {
 							//Find the HyperOp with the reaching definition
 							for (map<BasicBlock*, Instruction*>::iterator reachingDefItr = reachingDefBasicBlocks.begin(); reachingDefItr != reachingDefBasicBlocks.end(); reachingDefItr++) {
 								BasicBlock* reachingDefBB = reachingDefItr->first;
+								errs()<<"reaching def of arg "<<reachingDefBB->getName()<<"\n";
 								Instruction* reachingDefInstr = reachingDefItr->second;
 								Instruction* clonedReachingDefInst = (Instruction*) originalToClonedInstMap[reachingDefInstr];
 								if (isa<AllocaInst>(clonedReachingDefInst) || isa<StoreInst>(clonedReachingDefInst) || isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(1))) {

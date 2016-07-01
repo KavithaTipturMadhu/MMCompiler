@@ -51,8 +51,8 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 
 	vector<unsigned> registersUsedInBB;
 
-	//Contains t4 and t5 registers and their allocated virtual registers in each pHyperOp
-	pair<unsigned, unsigned> virtualRegistersForInstAddr[4];
+	//Contains t4 and t5 registers, a copy of t5 and their allocated virtual registers in each pHyperOp
+	pair<unsigned, unsigned > virtualRegistersForInstAddr[4];
 
 	//Position tracking a new insertion
 	unsigned insertPosition = 0;
