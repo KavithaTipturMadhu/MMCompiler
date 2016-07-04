@@ -587,8 +587,6 @@ struct HyperOpCreationPass: public ModulePass {
 					//Mark HyperOp function arguments which are not global references or local references as inReg to ease register allocation
 					int functionArgumentIndex = 1;
 					for (HyperOpArgumentList::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
-						errs() << "hyperop arg " << functionArgumentIndex << " with arg type " << hyperOpArgItr->second << ":";
-						hyperOpArgItr->first.front()->dump();
 						HyperOpArgumentType type = hyperOpArgItr->second;
 						switch (type) {
 						case GLOBAL_REFERENCE:
@@ -614,8 +612,6 @@ struct HyperOpCreationPass: public ModulePass {
 								originalReturnInstrs.insert(make_pair(function, (ReturnInst*) &*instItr));
 							}
 							Instruction* clonedInst = instItr->clone();
-							errs() << "cloned instruction:";
-							clonedInst->dump();
 							Instruction * originalInstruction = &*instItr;
 							originalToClonedInstMap.insert(std::make_pair(originalInstruction, clonedInst));
 							newBB->getInstList().insert(newBB->end(), clonedInst);
@@ -742,7 +738,7 @@ struct HyperOpCreationPass: public ModulePass {
 		//Add metadata: This code is moved here to ensure that all the functions (corresponding to HyperOps) that need to be created have already been created
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
 			Function* newFunction = createdHyperOpItr->first;
-			DEBUG(dbgs() << "Dealing with function " << newFunction->getName() << "\n");
+			DEBUG(dbgs() << "\n============\nDealing with function " << newFunction->getName() << "\n");
 			list<BasicBlock*> accumulatedBasicBlocks = createdHyperOpItr->second.first;
 			HyperOpArgumentList hyperOpArguments = createdHyperOpItr->second.second;
 			list<const Function*> addedParentsToCurrentHyperOp;
@@ -760,13 +756,16 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 				for (list<Value*>::iterator individualArgItr = individualArguments.begin(); individualArgItr != individualArguments.end(); individualArgItr++) {
 					Value* argument = *individualArgItr;
-					errs()<<"problem while dealing with argument ";
-					argument->dump();
 					if (isa<Instruction>(argument)) {
 						Function* originalFunction = createdHyperOpAndOriginalBasicBlockAndArgMap[newFunction].first.front()->getParent();
-						Instruction* originalInstruction = (Instruction*)originalToClonedInstMap[(Instruction*)argument];
 						//Get Reaching definitions of the argument to the accumulated basic block list
-						map<BasicBlock*, Instruction*> reachingDefBasicBlocks = reachingStoreOperations(originalInstruction, originalFunction, accumulatedBasicBlocks);
+						map<BasicBlock*, Instruction*> reachingDefBasicBlocks;
+						if(isa<AllocaInst>(argument)){
+							//Reaching definitions are only for memory instructions
+							reachingDefBasicBlocks = reachingStoreOperations((Instruction*)argument, originalFunction, accumulatedBasicBlocks);
+						}else{
+							reachingDefBasicBlocks.insert(make_pair(((Instruction*)argument)->getParent(),(Instruction*)argument));
+						}
 						//Get the producer HyperOp
 						bool atleastOneUseInOtherHyperOp = false;
 						for (map<BasicBlock*, Instruction*>::iterator reachingDefItr = reachingDefBasicBlocks.begin(); reachingDefItr != reachingDefBasicBlocks.end(); reachingDefItr++) {
@@ -793,14 +792,12 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 
 						if (atleastOneUseInOtherHyperOp) {
-							errs()<<"the argument is used elsewhere, so adding it as a local reference\n";
 							//Find the HyperOp with the reaching definition
 							for (map<BasicBlock*, Instruction*>::iterator reachingDefItr = reachingDefBasicBlocks.begin(); reachingDefItr != reachingDefBasicBlocks.end(); reachingDefItr++) {
 								BasicBlock* reachingDefBB = reachingDefItr->first;
-								errs()<<"reaching def of arg "<<reachingDefBB->getName()<<"\n";
 								Instruction* reachingDefInstr = reachingDefItr->second;
 								Instruction* clonedReachingDefInst = (Instruction*) originalToClonedInstMap[reachingDefInstr];
-								if (isa<AllocaInst>(clonedReachingDefInst) || isa<StoreInst>(clonedReachingDefInst) || isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(1))) {
+								if (isa<AllocaInst>(clonedReachingDefInst) || isa<StoreInst>(clonedReachingDefInst) || isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(0))) {
 									//Add "consumedby" metadata to the function locals that need to be passed to other HyperOps
 									Value * values[3];
 									values[0] = funcAnnotation;
@@ -820,7 +817,7 @@ struct HyperOpCreationPass: public ModulePass {
 										//local argument is passed on to another HyperOp, find the first load instruction from the memory location and add metadata to it
 										for (Function::iterator bbItr = clonedReachingDefInst->getParent()->getParent()->begin(); bbItr != clonedReachingDefInst->getParent()->getParent()->end(); bbItr++) {
 											for (BasicBlock::iterator instrItr = bbItr->begin(); instrItr != bbItr->end(); instrItr++) {
-												if (isa < LoadInst > (instrItr) &&((LoadInst*) &instrItr)->getOperand(0) == clonedReachingDefInst->getOperand(1)) {
+												if (isa <LoadInst> (instrItr) &&((LoadInst*) &instrItr)->getOperand(0) == clonedReachingDefInst->getOperand(0)) {
 													metadataHost = clonedReachingDefInst;
 													break;
 												}
@@ -846,7 +843,7 @@ struct HyperOpCreationPass: public ModulePass {
 									ArrayRef<Value*> mdNodeArrayRef(newMDNodeValues);
 									MDNode* newMDNode = MDNode::get(ctxt, mdNodeArrayRef);
 
-									if (!isa < AllocaInst > (metadataHost) &&!isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(1))) {
+									if (!isa < AllocaInst > (metadataHost) &&!isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(0))) {
 										//Temporary data, add an alloca and a store instruction after the argument and label the alloca instruction with metadata
 										AllocaInst* ai = new AllocaInst(argument->getType());
 										ai->setAlignment(4);
