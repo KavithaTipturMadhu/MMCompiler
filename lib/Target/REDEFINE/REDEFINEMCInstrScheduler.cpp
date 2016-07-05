@@ -175,8 +175,40 @@ void REDEFINEMCInstrScheduler::schedule() {
 			}
 			assert((sourceCEList.size() == 0 || sourceCEList.size() == 1) || "Multiple memory dependences shouldn't exist to a memory operation since it accesses only one memory location!");
 			if (sourceCEList.empty()) {
-				instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, ceIndex));
-				ceIndex = (ceIndex + 1) % ceCount;
+				if (SU->getInstr()->mayLoad() || SU->getInstr()->mayStore()) {
+					//first instruction to access the location in the basic block, check if the same location has been accessed before by another CE
+					//There can only be one memory operand in riscv instr set
+					list<unsigned> predecessorCEList;
+					for (MachineInstr::mmo_iterator mmoItr = SU->getInstr()->memoperands_begin(); mmoItr != SU->getInstr()->memoperands_end(); mmoItr++) {
+						MachineMemOperand * memOperand = *mmoItr;
+						unsigned previousDefOfMemOperand = -1;
+						for (unsigned i = 0; i < ceCount; i++) {
+							//TODO will it suffice to compare Value pointers? should I be using exact locations?
+							if (find(memoryLocationsAccessedInCE[i].begin(), memoryLocationsAccessedInCE[i].end(), memOperand->getValue()) != memoryLocationsAccessedInCE[i].end()) {
+								previousDefOfMemOperand = i;
+								break;
+							}
+						}
+
+						if (previousDefOfMemOperand == -1) {
+							//This memory location is accessed the first time
+							memoryLocationsAccessedInCE[ceIndex].push_back(memOperand->getValue());
+						} else {
+							predecessorCEList.push_back(previousDefOfMemOperand);
+						}
+					}
+
+					if (predecessorCEList.empty()) {
+						instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, ceIndex));
+						ceIndex = (ceIndex + 1) % ceCount;
+					}else{
+						assert(predecessorCEList.size()==1&&"There cannot be more than one memory operands to an instruction in REDEFINE ISA");
+						instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, predecessorCEList.front()));
+					}
+				} else {
+					instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, ceIndex));
+					ceIndex = (ceIndex + 1) % ceCount;
+				}
 			} else {
 				instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, (*sourceCEList.begin())));
 			}
@@ -377,7 +409,6 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 	unsigned ceContainingInstruction = ScheduledInstrItr->second;
 	SUnit* SU = ScheduledInstrItr->first;
 	MachineInstr* machineInstruction = SU->getInstr();
-
 	unsigned additionalFanin = 0;
 	for (SmallVector<SDep, 4>::iterator predecessorItr = SU->Preds.begin(); predecessorItr != SU->Preds.end(); predecessorItr++) {
 		for (list<pair<SUnit*, unsigned> >::iterator predecessorInstrItr = instructionAndPHyperOpMapForRegion.begin(); predecessorInstrItr != instructionAndPHyperOpMapForRegion.end(); predecessorInstrItr++) {
