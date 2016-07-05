@@ -887,7 +887,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 	for (unsigned i = 0; i < ceCount; i++) {
 		for (unsigned j = 0; j < 2; j++) {
 			MachineInstrBuilder nopInstruction = BuildMI(parentBasicBlock, successorOfTerminator, location, TII->get(REDEFINE::ADDI));
-			nopInstruction.addReg(REDEFINE::zero);
+			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
 			nopInstruction.addReg(REDEFINE::zero);
 			nopInstruction.addImm(0);
 			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
@@ -1337,7 +1337,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(endInstruction.operator llvm::MachineInstr *());
 		for (unsigned j = 0; j < 2; j++) {
 			MachineInstrBuilder nopInstruction = BuildMI(*BB, BB->end(), BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
-			nopInstruction.addReg(REDEFINE::zero);
+			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
 			nopInstruction.addReg(REDEFINE::zero);
 			nopInstruction.addImm(0);
 			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
@@ -1453,7 +1453,7 @@ if (!firstInstructionOfpHyperOp.empty()) {
 //			continue;
 			//pHyperOp is empty, add a nop
 			MachineInstrBuilder nopInstruction = BuildMI(*BB, BB->end(), BB->front().getDebugLoc(), TII->get(REDEFINE::ADDI));
-			nopInstruction.addReg(REDEFINE::zero);
+			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
 			nopInstruction.addReg(REDEFINE::zero);
 			nopInstruction.addImm(0);
 			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
