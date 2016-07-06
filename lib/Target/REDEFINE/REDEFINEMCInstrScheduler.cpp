@@ -201,8 +201,8 @@ void REDEFINEMCInstrScheduler::schedule() {
 					if (predecessorCEList.empty()) {
 						instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, ceIndex));
 						ceIndex = (ceIndex + 1) % ceCount;
-					}else{
-						assert(predecessorCEList.size()==1&&"There cannot be more than one memory operands to an instruction in REDEFINE ISA");
+					} else {
+						assert(predecessorCEList.size() == 1 && "There cannot be more than one memory operands to an instruction in REDEFINE ISA");
 						instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, predecessorCEList.front()));
 					}
 				} else {
@@ -339,7 +339,7 @@ if (BB->getParent()->begin()->getName().compare(BB->getName()) == 0) {
 	HyperOpInteractionGraph * graph = ((REDEFINETargetMachine&) TM).HIG;
 	const Module* parentModule = BB->getParent()->getFunction()->getParent();
 	unsigned maxGlobalSize = 0;
-	if (parentModule->getGlobalList().size() > 0) {
+	if (!parentModule->getGlobalList().empty()) {
 		for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
 			const GlobalVariable *globalVar = &*globalArgItr;
 			maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
@@ -373,16 +373,19 @@ if (BB->getParent()->begin()->getName().compare(BB->getName()) == 0) {
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(lui.operator ->());
 		allInstructionsOfRegion.push_back(make_pair(lui.operator->(), make_pair(i, insertPosition++)));
 
-		unsigned registerForBottomBits = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder addi = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(registerForBottomBits, RegState::Define).addReg(REDEFINE::zero);
+		unsigned registerForBottomBitsLui = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+		MachineInstrBuilder addiMacroLui = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(registerForBottomBitsLui, RegState::Define);
 		string lowGlobalAddrString = string("%lo(").append(globalAddressString).append(")");
 		MCSymbol* loSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(lowGlobalAddrString));
-		addi.addSym(loSymbol);
-		LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator ->());
-		allInstructionsOfRegion.push_back(make_pair(addi.operator->(), make_pair(i, insertPosition++)));
+		addiMacroLui.addSym(loSymbol);
+		allInstructionsOfRegion.push_back(make_pair(addiMacroLui.operator->(), make_pair(i, insertPosition++)));
+
+		unsigned registerForBottomBitsSrli = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+		MachineInstrBuilder addiMacroSrli = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(registerForBottomBitsSrli, RegState::Define).addReg(registerForBottomBitsLui).addImm(12);
+		allInstructionsOfRegion.push_back(make_pair(addiMacroSrli.operator->(), make_pair(i, insertPosition++)));
 
 		unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder add = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForGlobalAddr, RegState::Define).addReg(registerForTopBits).addReg(registerForBottomBits);
+		MachineInstrBuilder add = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForGlobalAddr, RegState::Define).addReg(registerForTopBits).addReg(registerForBottomBitsSrli);
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator ->());
 		allInstructionsOfRegion.push_back(make_pair(add.operator->(), make_pair(i, insertPosition++)));
 
@@ -455,7 +458,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 						allInstructionsOfRegion.push_back(make_pair(luiOfCurrentCE.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 
 						//Add readpm to first CE
-						MachineInstrBuilder readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::READPM));
+						MachineInstrBuilder readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::DREADPM));
 						unsigned readpmTarget = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 						readpm.addReg(readpmTarget, RegState::Define);
 						//Dummy data
@@ -495,7 +498,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 						allInstructionsOfRegion.push_back(make_pair(luiOfCurrentCE.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
 
 						//Add readpm to first CE
-						MachineInstrBuilder readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::READPM));
+						MachineInstrBuilder readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::DREADPM));
 						unsigned readpmTarget = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 						readpm.addReg(readpmTarget, RegState::Define);
 						//Dummy data
@@ -612,14 +615,14 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 					}
 					if (*regClass->vt_begin() == MVT::i32) {
 						writepm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::WRITEPM));
-						readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::READPM));
+						readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::DREADPM));
 					} else if (*regClass->vt_begin() == MVT::f32) {
 						writepm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::FWRITEPM));
-						readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::FREADPM));
+						readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::FDREADPM));
 					}
 				} else {
 					writepm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::WRITEPM));
-					readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::READPM));
+					readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::DREADPM));
 				}
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(writepm.operator llvm::MachineInstr *());
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
@@ -706,7 +709,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 					allInstructionsOfRegion.push_back(make_pair(luiOfCurrentCE.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 
 					//Add readpm to first CE
-					MachineInstrBuilder readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::READPM));
+					MachineInstrBuilder readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::DREADPM));
 					unsigned readpmTarget = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					readpm.addReg(readpmTarget, RegState::Define);
 					//Dummy data
@@ -748,7 +751,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 					allInstructionsOfRegion.push_back(make_pair(luiOfCurrentCE.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
 
 					//Add readpm to first CE
-					MachineInstrBuilder readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::READPM));
+					MachineInstrBuilder readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::DREADPM));
 					unsigned readpmTarget = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					readpm.addReg(readpmTarget, RegState::Define);
 					//Dummy data
@@ -862,10 +865,10 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 						const TargetRegisterClass* regClass = ((REDEFINETargetMachine&) TM).FuncInfo->RegInfo->getRegClass(operand.getReg());
 						if (*regClass->vt_begin() == MVT::i32) {
 							writepm = BuildMI(parentBasicBlock, RegionEnd, location, TII->get(REDEFINE::WRITEPM));
-							readpm = BuildMI(parentBasicBlock, RegionEnd, location, TII->get(REDEFINE::READPM));
+							readpm = BuildMI(parentBasicBlock, RegionEnd, location, TII->get(REDEFINE::DREADPM));
 						} else if (*regClass->vt_begin() == MVT::f32) {
 							writepm = BuildMI(parentBasicBlock, RegionEnd, location, TII->get(REDEFINE::FWRITEPM));
-							readpm = BuildMI(parentBasicBlock, RegionEnd, location, TII->get(REDEFINE::FREADPM));
+							readpm = BuildMI(parentBasicBlock, RegionEnd, location, TII->get(REDEFINE::FDREADPM));
 						}
 
 						writepm.addReg(registerContainingBaseAddress[ceContainingPredecessorInstruction][ceContainingInstruction]);
@@ -1670,7 +1673,7 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 //						LIS->getOrCreateInterval(targetSpAddressRegister);
 						registerContainingBaseAddress[pHyperOpIndex][pHyperOpIndex] = (int) targetSpAddressRegister;
 					}
-					MachineInstrBuilder readpm = BuildMI(*MBBI, MI, MI->getDebugLoc(), TII->get(REDEFINE::READPM));
+					MachineInstrBuilder readpm = BuildMI(*MBBI, MI, MI->getDebugLoc(), TII->get(REDEFINE::DREADPM));
 					readpm.addReg(MO.getReg(), RegState::Define);
 					readpm.addReg(registerContainingBaseAddress[pHyperOpIndex][pHyperOpIndex]);
 					readpm.addImm(-(physRegAndContextFrameSlot[physicalReg] + datawidth));
@@ -1711,12 +1714,13 @@ for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = parentMap.begin(); parent
 
 DEBUG(dbgs() << "Patching the instructions that are supposed to use the physical registers r30 and r31");
 for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
-	unsigned ceIndex = 0;
+	int ceIndex = -1;
 	for (MachineBasicBlock::instr_iterator instrItr = bbItr->instr_begin(); instrItr != bbItr->instr_end(); instrItr++) {
+		//TODO does a bundle start not bundle with succ?
+		if (!instrItr->isInsideBundle()) {
+			ceIndex++;
+		}
 		for (unsigned i = 0; i < instrItr->getNumOperands(); i++) {
-			if (!instrItr->isBundled()) {
-				ceIndex++;
-			}
 			if (instrItr->getOperand(i).isReg()) {
 				if (virtualRegistersForInstAddr[ceIndex].second == instrItr->getOperand(i).getReg()) {
 					instrItr->getOperand(i).setReg(REDEFINE::t5);
