@@ -421,11 +421,15 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 		}
 	}
 //If spm locations have all been exhausted or this is the last instruction in the region and is followed by a branch operation, add sync barrier in all CEs (implemented as a reduction tree of synchronization instructions)
-	if ((additionalFanin + faninOfHyperOp[currentCE] > SPLOCATIONS - datawidth * (3 + frameSize))) {
+	if ((additionalFanin + faninOfHyperOp[currentCE] > SPLOCATIONS - datawidth * (ceil(log2(ceCount))*ceCount+ frameSize))) {
 		//Add reduction tree
-		unsigned level = 2;
-		while (level <= ceCount + 1) {
-			unsigned increment = level / 2;
+		unsigned nextCe = 2;
+		unsigned depth = 0;
+		unsigned numNodesAtDepth = 0;
+		unsigned tempCECount = 1;
+		while (depth < ceil(log2(ceCount))) {
+			depth++;
+			unsigned increment = nextCe / 2;
 			for (unsigned i = 0; i < ceCount; i += increment) {
 				if (i % 2 == 0 && (i + increment) < ceCount) {
 					{
@@ -445,7 +449,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 						writepm.addReg(registerForTargetAddr);
 						//Dummy data
 						writepm.addReg(registerForTargetAddr);
-						int8_t immediateSPOffset = -((3 + frameSize) * datawidth);
+						int8_t immediateSPOffset = -((depth * i + numNodesAtDepth + frameSize) * datawidth);
 						writepm.addImm(SignExtend8BitNumberTo12Bits(immediateSPOffset));
 						allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(writepm.operator llvm::MachineInstr *());
@@ -463,7 +467,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 						readpm.addReg(readpmTarget, RegState::Define);
 						//Dummy data
 						readpm.addReg(registerForCurrentAddr);
-						immediateSPOffset = -((4 + frameSize) * datawidth);
+						immediateSPOffset = -((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth);
 						readpm.addImm(SignExtend8BitNumberTo12Bits(immediateSPOffset));
 						allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
@@ -485,7 +489,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 						writepm.addReg(registerForTargetAddr);
 						//Dummy data
 						writepm.addReg(registerForTargetAddr);
-						unsigned immediateSPOffset = -((4 + frameSize) * datawidth);
+						unsigned immediateSPOffset = -((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth);
 						writepm.addImm(SignExtend8BitNumberTo12Bits(immediateSPOffset));
 						allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(writepm.operator llvm::MachineInstr *());
@@ -503,7 +507,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 						readpm.addReg(readpmTarget, RegState::Define);
 						//Dummy data
 						readpm.addReg(registerForCurrentAddr);
-						immediateSPOffset = -((3 + frameSize) * datawidth);
+						immediateSPOffset = -((depth * i + numNodesAtDepth + frameSize) * datawidth);
 						readpm.addImm(SignExtend8BitNumberTo12Bits(immediateSPOffset));
 						allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
@@ -512,7 +516,8 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 					}
 				}
 			}
-			level = level * 2;
+			numNodesAtDepth = numNodesAtDepth + floor(ceCount / (nextCe / 2));
+			nextCe = nextCe * 2;
 		}
 		for (unsigned i = 0; i < ceCount; i++) {
 			faninOfHyperOp[i] = 0;
@@ -675,9 +680,12 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 
 //Check if the branch edge is a backedge
 //Add barrier reduction tree for synchronization
-	unsigned level = 2;
-	while (level <= ceCount + 1) {
-		unsigned increment = level / 2;
+	unsigned nextCe = 2;
+	unsigned depth = 0;
+	unsigned numNodesAtDepth = 0;
+	while (depth < ceil(log2(ceCount))) {
+		depth++;
+		unsigned increment = nextCe / 2;
 		for (unsigned i = 0; i < ceCount; i += increment) {
 			if (i % 2 == 0 && (i + increment) < ceCount) {
 				{
@@ -696,7 +704,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 					writepm.addReg(registerForTargetAddr);
 					//Dummy data
 					writepm.addReg(registerForTargetAddr);
-					int8_t immediateSPOffset = -((3 + frameSize) * datawidth);
+					int8_t immediateSPOffset = -((depth * i + numNodesAtDepth + frameSize) * datawidth);
 					writepm.addImm(SignExtend8BitNumberTo12Bits(immediateSPOffset));
 					allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(writepm.operator llvm::MachineInstr *());
@@ -714,7 +722,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 					readpm.addReg(readpmTarget, RegState::Define);
 					//Dummy data
 					readpm.addReg(registerForCurrentAddr);
-					immediateSPOffset = -((4 + frameSize) * datawidth);
+					immediateSPOffset = -((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth);
 					readpm.addImm(SignExtend8BitNumberTo12Bits(immediateSPOffset));
 					allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
@@ -738,7 +746,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 					writepm.addReg(registerForTargetAddr);
 					//Dummy data
 					writepm.addReg(registerForTargetAddr);
-					unsigned immediateSPOffset = -((4 + frameSize) * datawidth);
+					unsigned immediateSPOffset = -((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth);
 					writepm.addImm(SignExtend8BitNumberTo12Bits(immediateSPOffset));
 					allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(writepm.operator llvm::MachineInstr *());
@@ -756,7 +764,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 					readpm.addReg(readpmTarget, RegState::Define);
 					//Dummy data
 					readpm.addReg(registerForCurrentAddr);
-					immediateSPOffset = -((3 + frameSize) * datawidth);
+					immediateSPOffset = -((depth * i + numNodesAtDepth + frameSize) * datawidth);
 					readpm.addImm(SignExtend8BitNumberTo12Bits(immediateSPOffset));
 					allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
@@ -765,7 +773,8 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 				}
 			}
 		}
-		level = level * 2;
+		numNodesAtDepth = numNodesAtDepth + floor(ceCount / (nextCe / 2));
+		nextCe = nextCe * 2;
 	}
 	for (unsigned i = 0; i < ceCount; i++) {
 		faninOfHyperOp[i] = 0;
