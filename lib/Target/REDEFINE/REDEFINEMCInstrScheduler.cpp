@@ -1194,7 +1194,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			writeToContextFrame.addReg(registerContainingData);
 			writeToContextFrame.addImm(contextFrameOffset);
 
-			allInstructionsOfRegion.push_back(make_pair(writeToContextFrame.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
+			allInstructionsOfRegion.push_back(make_pair(writeToContextFrame.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 			//Add instruction to bundle
 			LIS->getSlotIndexes()->insertMachineInstrInMaps(writeToContextFrame.operator llvm::MachineInstr *());
 			currentCE = (currentCE + 1) % ceCount;
