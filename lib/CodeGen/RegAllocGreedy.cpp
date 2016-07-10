@@ -428,7 +428,7 @@ unsigned RAGreedy::tryAssign(LiveInterval &VirtReg, AllocationOrder &Order, Smal
 
 	//TODO I have no idea what the impact of this is going to be, adding Order.isHint(MRI->getSimpleHint(VirtReg.reg)) instead of the following conditional
 	//if (!PhysReg || Order.isHint()
-	if (!PhysReg || Order.isHint()||Order.isHint(MRI->getSimpleHint(VirtReg.reg))) {
+	if (!PhysReg || Order.isHint() || Order.isHint(MRI->getSimpleHint(VirtReg.reg))) {
 		//Get the shuffled register if the register is live-in in some CE
 		if (find(liveInVirtualRegs.begin(), liveInVirtualRegs.end(), VirtReg.reg) != liveInVirtualRegs.end()) {
 			DEBUG(dbgs() << "reg " << VirtReg.reg << " that was live-in gets phys reg:" << shuffledVirt2PhysRegMap.find(VirtReg.reg)->second << " instead of phys reg:" << PhysReg << "\n");
@@ -1734,7 +1734,7 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 	IntfCache.init(MF, Matrix->getLiveUnions(), Indexes, LIS, TRI);
 	GlobalCand.resize(32);  // This will grow as needed.
 
-	//TODO REDEFINE
+	//TODO REDEFINE register shuffling
 	liveInPhysicalRegs.clear();
 	liveInVirtualRegs.clear();
 	shuffledVirt2PhysRegMap.clear();
@@ -1793,7 +1793,11 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 		for (list<unsigned>::iterator inputToCEItr = inputsToCEInVirtReg.begin(); inputToCEItr != inputsToCEInVirtReg.end(); inputToCEItr++) {
 			unsigned inputPhysicalReg = *inputToCEItr;
 			//Find the physical register that must be allocated to it
-			unsigned physicalRegToBeAllocated = indexOfAllocatedPhysicalRegs.find(physRegIndex)->second;
+			unsigned physRegOfInterest = 0;
+//			for (unsigned j = 0; j < i; j++) {
+//				physRegOfInterest += ceAndLiveInArgList[i].size();
+//			}
+			unsigned physicalRegToBeAllocated = indexOfAllocatedPhysicalRegs.find(physRegIndex - physRegOfInterest)->second;
 			shuffledPhys2PhysRegMap.insert(make_pair(inputPhysicalReg, physicalRegToBeAllocated));
 			shuffledVirt2PhysRegMap.insert(make_pair(MRI->getLiveInVirtReg(inputPhysicalReg), physicalRegToBeAllocated));
 			physRegIndex++;

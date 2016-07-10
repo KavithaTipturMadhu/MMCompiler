@@ -738,7 +738,7 @@ struct HyperOpCreationPass: public ModulePass {
 		//Add metadata: This code is moved here to ensure that all the functions (corresponding to HyperOps) that need to be created have already been created
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
 			Function* newFunction = createdHyperOpItr->first;
-			DEBUG(dbgs() << "\n============\nDealing with function " << newFunction->getName() << "\n");
+			DEBUG(dbgs() << "Dealing with function " << newFunction->getName() << "\n");
 			list<BasicBlock*> accumulatedBasicBlocks = createdHyperOpItr->second.first;
 			HyperOpArgumentList hyperOpArguments = createdHyperOpItr->second.second;
 			list<const Function*> addedParentsToCurrentHyperOp;
@@ -895,7 +895,6 @@ struct HyperOpCreationPass: public ModulePass {
 				newFunction->getEntryBlock().getInstList().insert(newFunction->getEntryBlock().getFirstInsertionPt(), *instrToBeMoved);
 			}
 
-			DEBUG(dbgs() << "Dealing with conditional branches from other HyperOps\n");
 			//Compute conditional branch sources
 			map<Instruction*, unsigned> conditionalBranchSources;
 			list<Instruction*> unconditionalBranchSources;
@@ -954,10 +953,13 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 			}
 
+			DEBUG(dbgs() << "Dealing with conditional branches from other HyperOps\n");
 			//Find out if there exist any branch instructions leading to the HyperOp, add metadata to the instruction
 			for (map<Instruction*, unsigned>::iterator conditionalBranchSourceItr = conditionalBranchSources.begin(); conditionalBranchSourceItr != conditionalBranchSources.end(); conditionalBranchSourceItr++) {
 				//Find the branch instruction operand's clone
 				Instruction* clonedInstruction = (Instruction*) originalToClonedInstMap.find(conditionalBranchSourceItr->first)->second;
+				errs()<<"cloned instruction:";
+				clonedInstruction->dump();
 				//Branch instruction's first operand
 				Instruction* predicateOperand = (Instruction*) clonedInstruction->getOperand(0);
 				MDNode* predicateMetadata = predicateOperand->getMetadata(HYPEROP_CONTROLLED_BY);
@@ -988,7 +990,7 @@ struct HyperOpCreationPass: public ModulePass {
 					AllocaInst* ai = new AllocaInst(predicateOperand->getType());
 					ai->setAlignment(4);
 					ai->insertBefore(clonedInstruction->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
-					StoreInst* storeInst = new StoreInst(clonedInstruction, ai);
+					StoreInst* storeInst = new StoreInst(predicateOperand, ai);
 					storeInst->setAlignment(4);
 					storeInst->insertBefore(clonedInstruction);
 					allocaInstCreatedForIntermediateValues.insert(make_pair(clonedInstruction, ai));
