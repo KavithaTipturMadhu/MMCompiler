@@ -1794,9 +1794,9 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 			unsigned inputPhysicalReg = *inputToCEItr;
 			//Find the physical register that must be allocated to it
 			unsigned physRegOfInterest = 0;
-//			for (unsigned j = 0; j < i; j++) {
-//				physRegOfInterest += ceAndLiveInArgList[i].size();
-//			}
+			for (unsigned j = 0; j < i; j++) {
+				physRegOfInterest += ceAndLiveInArgList[i].size();
+			}
 			unsigned physicalRegToBeAllocated = indexOfAllocatedPhysicalRegs.find(physRegIndex - physRegOfInterest)->second;
 			shuffledPhys2PhysRegMap.insert(make_pair(inputPhysicalReg, physicalRegToBeAllocated));
 			shuffledVirt2PhysRegMap.insert(make_pair(MRI->getLiveInVirtReg(inputPhysicalReg), physicalRegToBeAllocated));
@@ -1823,6 +1823,6 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 	allocatePhysRegs();
 	releaseMemory();
 	mf.dump();
-
+//TODO please take care of the assert commented out in IntervalMap.h
 	return true;
 }
