@@ -43,27 +43,13 @@ def ADDI: InstI<"addi", 0b0010011, 0b000       , add, GR32, GR32, imm32sx12>{
 	//Hack to support > 12 bit immediates
 	let isPseudo = 1;
 }
-def SLTI : InstI<"slti", 0b0010011, 0b010, setlt, GR32, GR32, imm32sx12>;
-def SLTIU: InstI<"sltiu",0b0010011, 0b011, setult,GR32, GR32, imm32sx12>;
-
 //Integer arithmetic register-immediate
 def XORI: InstI<"xori", 0b0010011, 0b100       , xor, GR32, GR32, imm32sx12>;
 def ORI : InstI<"ori" , 0b0010011, 0b110       , or , GR32, GR32, imm32sx12>;
-//Integer arithmetic register-immediate
 def ANDI: InstI<"andi", 0b0010011, 0b111       , and, GR32, GR32, imm32sx12>;
-//TODO: enforce constraints here or up on level?
-def SLLI: InstI<"slli", 0b0010011, 0b001       , shl, GR32, GR32, imm32sx12>{
-  let IMM{11-6} = 0b000000; 
-  //trap if $imm{5}!=0 TODO:how to do this?
-}
-def SRLI: InstI<"srli", 0b0010011, 0b101       , srl, GR32, GR32, imm32sx12>{
-  let IMM{11-6} = 0b000000; 
-  //trap if $src{5}!=0 TODO:how to do this?
-}
-def SRAI: InstI<"srai", 0b0010011, 0b101       , sra, GR32, GR32, imm32sx12>{
-  let IMM{11-6} = 0b000001; 
-  //trap if $src{5}!=0 TODO:how to do this?
-}
+
+def SLTI : InstI<"slti", 0b0010011, 0b010, setlt, GR32, GR32, imm32sx12>;
+def SLTIU: InstI<"sltiu",0b0010011, 0b011, setult,GR32, GR32, imm32sx12>;
 
 def ADD : InstR<"add" , 0b0110011, 0b0000000000, add   , GR32, GR32>;
 def SUB : InstR<"sub" , 0b0110011, 0b1000000000, sub   , GR32, GR32>;
@@ -340,3 +326,54 @@ def FNMADD:InstREDEFINE<4, (outs FP32:$dst), (ins FP32:$src3, FP32:$src2, FP32:$
 
 def : Pat<(REDEFINEHi tglobaladdr:$in), (LUI tglobaladdr:$in)>;
 def : Pat<(REDEFINELo tglobaladdr:$in), (ADDI zero, tglobaladdr:$in)>;
+
+
+//Synthesized set operators
+//patterns to be used for 32 and 64bit
+multiclass SeteqPats<RegisterOperand RC, Instruction SLTiuOp, Instruction XOROp,
+                     Instruction SLTuOp, Register ZEROReg> {
+  def : Pat<(seteq RC:$lhs, RC:$rhs),
+            (SLTiuOp (XOROp RC:$lhs, RC:$rhs), 1)>;
+  def : Pat<(setne RC:$lhs, RC:$rhs),
+            (SLTuOp (XOROp RC:$lhs, RC:$rhs), ZEROReg)>;
+}
+
+multiclass SetlePats<RegisterOperand RC, Instruction SLTOp, Instruction SLTuOp> {
+  def : Pat<(setle RC:$lhs, RC:$rhs),
+            (XORI (SLTOp RC:$lhs, RC:$rhs), 1)>;
+  def : Pat<(setule RC:$lhs, RC:$rhs),
+            (XORI (SLTuOp RC:$lhs, RC:$rhs), 1)>;
+}
+
+multiclass SetgtPats<RegisterOperand RC, Instruction SLTOp, Instruction SLTuOp> {
+  def : Pat<(setgt RC:$lhs, RC:$rhs),
+            (SLTOp RC:$lhs, RC:$rhs)>;
+  def : Pat<(setugt RC:$lhs, RC:$rhs),
+            (SLTuOp RC:$lhs, RC:$rhs)>;
+}
+
+multiclass SetgePats<RegisterOperand RC, Instruction SLTOp, Instruction SLTuOp> {
+  def : Pat<(setge RC:$lhs, RC:$rhs),
+            (XORI (SLTOp RC:$rhs, RC:$lhs), 1)>;
+  def : Pat<(setuge RC:$lhs, RC:$rhs),
+            (XORI (SLTuOp RC:$rhs, RC:$lhs), 1)>;
+}
+
+defm : SeteqPats<GR32, SLTIU, XOR, SLTU, zero>;
+defm : SetlePats<GR32, SLT, SLTU>;
+defm : SetgtPats<GR32, SLT, SLTU>;
+defm : SetgePats<GR32, SLT, SLTU>;
+
+//TODO: enforce constraints here or up on level?
+def SLLI: InstI<"slli", 0b0010011, 0b001       , shl, GR32, GR32, imm32sx12>{
+  let IMM{11-6} = 0b000000; 
+  //trap if $imm{5}!=0 TODO:how to do this?
+}
+def SRLI: InstI<"srli", 0b0010011, 0b101       , srl, GR32, GR32, imm32sx12>{
+  let IMM{11-6} = 0b000000; 
+  //trap if $src{5}!=0 TODO:how to do this?
+}
+def SRAI: InstI<"srai", 0b0010011, 0b101       , sra, GR32, GR32, imm32sx12>{
+  let IMM{11-6} = 0b000001; 
+  //trap if $src{5}!=0 TODO:how to do this?
+}
