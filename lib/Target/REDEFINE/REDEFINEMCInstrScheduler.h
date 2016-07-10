@@ -40,6 +40,11 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	//Instruction and the pHyperOp it belongs to
 	list<pair<SUnit*, unsigned> > instructionAndPHyperOpMapForRegion;
 
+	/* Memory locations accessed in a ce are cached as alloca or getelementptr instructions(in Value* form) to ensure that memory accesses are chained across basic blocks.
+	This is required since l1 caches are coherent and hence, memory accesses need to be chained
+	*/
+	vector<const Value*> memoryLocationsAccessedInCE[4];
+
 	//Instruction in a region, the pHyperOp it belongs to and its position in the region
 	list<pair<MachineInstr*, pair<unsigned, unsigned> > > allInstructionsOfRegion;
 
