@@ -43,7 +43,6 @@ class HyperOpEdge {
 	bool isZeroedOut;
 	bool isIgnoredEdge;
 	int positionOfContextSlot;
-	int positionOfInput;
 
 protected:
 	Value* variable;
@@ -67,11 +66,11 @@ public:
 	void setIsEdgeIgnored(bool isIgnoredEdge);
 	int getPositionOfContextSlot() const;
 	void setPositionOfContextSlot(int positionOfInput);
-	void setValue(Value* );
+	void setValue(Value*);
 	Value* getValue();
-	EdgeType getType() ;
+	EdgeType getType();
 	void setType(EdgeType type);
-	HyperOp* getContextFrameAddress() ;
+	HyperOp* getContextFrameAddress();
 	void setContextFrameAddress(HyperOp* contextFrameAddress);
 };
 
@@ -159,7 +158,7 @@ public:
 	unsigned int getContextFrame() const;
 	bool isFbindRequired() const;
 	void setFbindRequired(bool fbindRequired);
-	bool isStaticHyperOp() const ;
+	bool isStaticHyperOp() const;
 	void setStaticHyperOp(bool staticHyperOp);
 };
 
@@ -168,6 +167,7 @@ class HyperOpInteractionGraph {
 	unsigned int rowCount;
 	unsigned int columnCount;
 	unsigned int maxMemFrameSize;
+	unsigned int maxContextFrameSize;
 	//list of clusters, each cluster is identified as a list of HyperOps
 	list<list<HyperOp*> > clusterList;
 	void computeImmediateDominatorInfo();
@@ -217,8 +217,13 @@ public:
 
 	void setNumContextFrames(unsigned int numContextFrames);
 
-	unsigned int getMaxMemFrameSize() const ;
+	unsigned int getMaxMemFrameSize() const;
 
 	void setMaxMemFrameSize(unsigned int maxFrameSize);
+
+	unsigned int getMaxContextFrameSize() const;
+
+	void setMaxContextFrameSize(unsigned int maxFrameSize);
+
 };
 #endif /* LIB_TARGET_RISCV_HYPEROPINTERACTIONGRAPH_H_ */
