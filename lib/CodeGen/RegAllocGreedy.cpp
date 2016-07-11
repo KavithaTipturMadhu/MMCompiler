@@ -1747,7 +1747,7 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 	for (MachineRegisterInfo::livein_iterator liveInItr = MF->getRegInfo().livein_begin(); liveInItr != MF->getRegInfo().livein_end(); liveInItr++) {
 		liveInPhysicalRegs.push_back(liveInItr->first);
 		liveInVirtualRegs.push_back(liveInItr->second);
-		indexOfAllocatedPhysicalRegs.insert(make_pair(index++, liveInItr->first));
+		indexOfAllocatedPhysicalRegs[index++] = liveInItr->first;
 	}
 
 	list<MachineInstr*> ignoreCopyInstrList;
@@ -1795,9 +1795,9 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 			//Find the physical register that must be allocated to it
 			unsigned physRegOfInterest = 0;
 			for (unsigned j = 0; j < i; j++) {
-				physRegOfInterest += ceAndLiveInArgList[i].size();
+				physRegOfInterest += ceAndLiveInArgList[j].size();
 			}
-			unsigned physicalRegToBeAllocated = indexOfAllocatedPhysicalRegs.find(physRegIndex - physRegOfInterest)->second;
+			unsigned physicalRegToBeAllocated = indexOfAllocatedPhysicalRegs[physRegIndex - physRegOfInterest];
 			shuffledPhys2PhysRegMap.insert(make_pair(inputPhysicalReg, physicalRegToBeAllocated));
 			shuffledVirt2PhysRegMap.insert(make_pair(MRI->getLiveInVirtReg(inputPhysicalReg), physicalRegToBeAllocated));
 			physRegIndex++;

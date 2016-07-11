@@ -1390,6 +1390,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	firstInstructionOfpHyperOp.push_back(endHyperOpInstructionRegion);
 }
 
+errs()<<"bb before shuffle:";
+BB->dump();
 //Shuffle instructions of region
 vector<MachineInstr*> firstRegionBoundaries = firstInstructionOfpHyperOp.front();
 if (firstInstructionOfpHyperOp.size() > 1) {
@@ -1403,6 +1405,17 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 					firstRegionBoundaries[i] = firstInstrOfNextRegion[i];
 					break;
 				}
+			}
+		}
+	}
+	errs()<<"regions and their boundaries:";
+	for(list<vector<MachineInstr*> >::iterator firstInstrItr = firstInstructionOfpHyperOp.begin();firstInstrItr!=firstInstructionOfpHyperOp.end();firstInstrItr++){
+		errs()<<"new region\n";
+		vector<MachineInstr*> itr = *firstInstrItr;
+		for(unsigned j=0;j<ceCount;j++){
+			if(itr[j]!=0){
+				errs()<<"\n"<<j<<":";
+				itr[j]->dump();
 			}
 		}
 	}
@@ -1435,19 +1448,28 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 			if (nextCeInstruction == 0) {
 				nextCeInstruction = BB->end();
 			}
+
+			if(startMerge==0||startMerge==BB->end()||nextCeInstruction == BB->end() || nextCeInstruction == 0 || instructionAppearsBefore(BB, startMerge, nextCeInstruction)){
+				continue;
+			}
+
 			if (endMerge == 0) {
 				if (currentRegion == firstInstructionOfpHyperOp.end()) {
 					endMerge = BB->end();
 				} else {
-					endMerge = (*(currentRegion++))[0];
+					currentRegion++;
+					endMerge = (*currentRegion)[0];
 				}
 			}
-
-			if (startMerge == BB->end() || nextCeInstruction == BB->end() || startMerge == 0 || nextCeInstruction == 0 || instructionAppearsBefore(BB, startMerge, nextCeInstruction) || startMerge == endMerge) {
+			if (startMerge == endMerge) {
 				continue;
 			}
 
+			errs()<<"everything goes before ";
+			nextCeInstruction->dump();
 			while (startMerge != endMerge) {
+				errs()<<"Merging ";
+				startMerge->dump();
 				MachineInstr* instructionToMerge = startMerge;
 				startMerge = startMerge->getNextNode();
 				BB->splice(nextCeInstruction, BB, instructionToMerge);
