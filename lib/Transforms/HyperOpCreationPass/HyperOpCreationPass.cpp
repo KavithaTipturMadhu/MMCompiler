@@ -79,7 +79,7 @@ struct HyperOpCreationPass: public ModulePass {
 		return false;
 	}
 
-	static bool isArgInList(Function* function, Value* operand) {
+	bool isArgInList(Function* function, Value* operand) {
 		for (Function::arg_iterator argItr = function->arg_begin(); argItr != function->arg_end(); argItr++) {
 			if (argItr == operand) {
 				return true;
@@ -176,7 +176,7 @@ struct HyperOpCreationPass: public ModulePass {
 		return 1 + depthOfSuccessor;
 	}
 
-	static void addInitializationInstructions(GlobalVariable* global, Constant* initializer, vector<Value*> idList, Instruction* insertBefore, Type* type) {
+	void addInitializationInstructions(GlobalVariable* global, Constant* initializer, vector<Value*> idList, Instruction* insertBefore, Type* type) {
 		//TODO Constant cannot be vector or blockaddress
 		LLVMContext & ctx = insertBefore->getParent()->getContext();
 		if (!type->isAggregateType()) {
@@ -224,6 +224,20 @@ struct HyperOpCreationPass: public ModulePass {
 				idList.pop_back();
 			}
 		}
+	}
+
+	list<pair<Function*, Instruction*> > getTopmostParentInJumpChain(Function* function, map<Function*, list < pair<Function*, Instruction*> > > functionAndJumpSources) {
+		list<pair<Function*, Instruction*> > topmostParents;
+		list<pair<Function*, Instruction*> > parents = functionAndJumpSources[function];
+		for (list<pair<Function*, Instruction*> >::iterator parentItr = parents.begin(); parentItr != parents.end(); parentItr++) {
+			if (functionAndJumpSources.find(parentItr->first) != functionAndJumpSources.end()) {
+				list<pair<Function*, Instruction*> > tempParents = getTopmostParentInJumpChain(parentItr->first, functionAndJumpSources);
+				std::copy(tempParents.begin(), tempParents.end(), std::back_inserter(topmostParents));
+			} else {
+				topmostParents.push_back(make_pair(parentItr->first, parentItr->second));
+			}
+		}
+		return topmostParents;
 	}
 
 	virtual bool runOnModule(Module &M) {
@@ -770,7 +784,7 @@ struct HyperOpCreationPass: public ModulePass {
 		}
 
 		//Map of functions and the unconditional jumps from other HyperOp functions
-		map<Function*, list<Function*> > createdFunctionAndUnconditionalJumpSources;
+		map<Function*, list < pair<Function*, Instruction*> > > createdFunctionAndUnconditionalJumpSources;
 
 		//Add metadata: This code is moved here to ensure that all the functions (corresponding to HyperOps) that need to be created have already been created
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
@@ -780,12 +794,12 @@ struct HyperOpCreationPass: public ModulePass {
 			newFunction->dump();
 			list<BasicBlock*> accumulatedBasicBlocks = createdHyperOpItr->second.first;
 			HyperOpArgumentList hyperOpArguments = createdHyperOpItr->second.second;
-			list<const Function*> addedParentsToCurrentHyperOp;
+			list<Function*> addedParentsToCurrentHyperOp;
 			MDNode* funcAnnotation = hyperOpAndAnnotationMap.find(newFunction)->second;
 			list<Instruction*> instructionsToBeMoved;
 
 			DEBUG(dbgs() << "Adding consumed by metadata\n");
-			//Add consumedby meta data from source HyperOp to the HyperOp being created
+//Add consumedby meta data from source HyperOp to the HyperOp being created
 			unsigned hyperOpArgumentIndex = 0;
 			for (HyperOpArgumentList::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
 				list<Value*> individualArguments = hyperOpArgumentItr->first;
@@ -996,11 +1010,9 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 
 			DEBUG(dbgs() << "Dealing with conditional branches from other HyperOps\n");
-			//Find out if there exist any branch instructions leading to the HyperOp, add metadata to the instruction
+//Find out if there exist any branch instructions leading to the HyperOp, add metadata to the instruction
 			for (map<Instruction*, vector<unsigned> >::iterator conditionalBranchSourceItr = conditionalBranchSources.begin(); conditionalBranchSourceItr != conditionalBranchSources.end(); conditionalBranchSourceItr++) {
 				//Find the branch instruction operand's clone
-				errs() << "conditional instruction:";
-				conditionalBranchSourceItr->first->dump();
 				Instruction* clonedInstruction = (Instruction*) originalToClonedInstMap.find(conditionalBranchSourceItr->first)->second;
 				//Branch instruction's first operand
 				Instruction* predicateOperand = (Instruction*) clonedInstruction->getOperand(0);
@@ -1070,12 +1082,12 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 
 			DEBUG(dbgs() << "Dealing with unconditional branches from other HyperOps\n");
-			list<Function*> clonedUnconditionalBranchSources;
+			list<pair<Function*, Instruction*> > clonedUnconditionalBranchSources;
 			//Remove unconditional branch instruction, add the annotation to the return instruction of the branch
 			for (list<Instruction*>::iterator unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
 				Instruction* unconditionalBranchInstr = *unconditionalBranchSourceItr;
 				Instruction* clonedInstr = (Instruction*) originalToClonedInstMap.find(unconditionalBranchInstr)->second;
-				const Function* sourceParentFunction = clonedInstr->getParent()->getParent();
+				Function* sourceParentFunction = clonedInstr->getParent()->getParent();
 				Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
 				//Update the branch instruction to jump to the return basic block
 				clonedInstr->setOperand(0, retInstOfProducer->getParent());
@@ -1109,7 +1121,7 @@ struct HyperOpCreationPass: public ModulePass {
 				storeInst->insertBefore(retInstOfProducer);
 				ai->setMetadata(HYPEROP_CONTROLLED_BY, predicatesRelation);
 				addedParentsToCurrentHyperOp.push_back(sourceParentFunction);
-				clonedUnconditionalBranchSources.push_back(clonedInstr->getParent()->getParent());
+				clonedUnconditionalBranchSources.push_back(make_pair(clonedInstr->getParent()->getParent(), clonedInstr));
 			}
 
 			if (!clonedUnconditionalBranchSources.empty()) {
@@ -1192,6 +1204,13 @@ struct HyperOpCreationPass: public ModulePass {
 									storeInst->insertBefore(retInstOfProducer);
 									ai->setMetadata(HYPEROP_CONTROLLED_BY, predicatesRelation);
 									addedParentsToCurrentHyperOp.push_back(cloneInstruction->getParent()->getParent());
+									list<pair<Function*, Instruction*> > addedJumpSources;
+									if (createdFunctionAndUnconditionalJumpSources.find(newFunction) != createdFunctionAndUnconditionalJumpSources.end()) {
+										addedJumpSources = createdFunctionAndUnconditionalJumpSources[newFunction];
+										createdFunctionAndUnconditionalJumpSources.erase(newFunction);
+									}
+									addedJumpSources.push_back(make_pair(cloneInstruction->getParent()->getParent(), cloneInstruction));
+									createdFunctionAndUnconditionalJumpSources[newFunction] = addedJumpSources;
 								}
 							}
 						}
@@ -1200,16 +1219,18 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 		}
 
-//		//TODO Compute unconditional jump chains across HyperOps and short-circuit them to jump straight to the target of the chain
-//		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
-//			Function* createdFunction = createdHyperOpItr->first;
-//			if (createdFunctionAndUnconditionalJumpSources.find(createdFunction) != createdFunctionAndUnconditionalJumpSources.end()) {
-//				list<Function*> unconditionalJumpSources = createdFunctionAndUnconditionalJumpSources[createdFunction];
-//				for (list<Function*>::iterator unconditionalJumpSourceItr = unconditionalJumpSources.begin(); unconditionalJumpSourceItr != unconditionalJumpSources.end(); unconditionalJumpSourceItr++) {
-//					Function* jumpSource = *unconditionalJumpSourceItr;
-//				}
-//			}
-//		}
+		//TODO Compute unconditional jump chains across HyperOps and short-circuit them to jump straight to the target of the chain
+		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
+			Function* createdFunction = createdHyperOpItr->first;
+			if (createdFunctionAndUnconditionalJumpSources.find(createdFunction) != createdFunctionAndUnconditionalJumpSources.end()) {
+				list<pair<Function*, Instruction*> > topmostParents = getTopmostParentInJumpChain(createdFunction, createdFunctionAndUnconditionalJumpSources);
+				//Re-route the unconditional jumps straight from topmostParents to createdFunction
+				for(list<pair<Function*, Instruction*> >::iterator parentItr = topmostParents.begin();parentItr!=topmostParents.end();parentItr++){
+					Function* parentFunction = parentItr->first;
+					Instruction* jumpInstruction = parentItr->second;
+				}
+			}
+		}
 
 		//TODO delete all basic blocks that are not reachable
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
