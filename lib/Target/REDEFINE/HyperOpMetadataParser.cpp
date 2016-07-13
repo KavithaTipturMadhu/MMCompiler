@@ -139,6 +139,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 							MDNode* predicatedMDNode = (MDNode*) controlledByMDNode->getOperand(predicatedMDNodeIndex);
 							//Create an edge between two HyperOps labeled by the instruction
 							HyperOp* predicatedHyperOp = hyperOpMetadataMap[(MDNode*) predicatedMDNode->getOperand(0)];
+							predicatedHyperOp->setPredicatedHyperOp();
 							HyperOpEdge* edge = new HyperOpEdge();
 							edge->Type = HyperOpEdge::PREDICATE;
 							edge->setValue((Value*) instr);
