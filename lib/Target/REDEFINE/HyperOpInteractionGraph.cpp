@@ -19,6 +19,7 @@
 using namespace std;
 
 #include "llvm/IR/Function.h"
+#include "llvm/Support/Debug.h"
 using namespace llvm;
 
 #include <boost/graph/adjacency_list.hpp>
@@ -1271,24 +1272,22 @@ void HyperOpInteractionGraph::clusterNodes() {
 				}
 			}
 
-			//Merge represents a serial schedule being generated between two clusters, edges need to be added such that there is a serial schedule between the
+			//Merge represents a serial schedule being generated between two clusters, edges need to be added such that there is a serial schedule between the merged clusters
 			if (sourceClusterNodeFirst != 0) {
 				HyperOpEdge *edge = new HyperOpEdge();
-				edge->setType(HyperOpEdge::PREDICATE);
+				edge->setType(HyperOpEdge::ORDERING);
 				edge->setIsEdgeIgnored(true);
 				additionalEdgesMap.push_back(std::make_pair((HyperOpEdge*) edge, make_pair(sourceClusterNodeFirst, targetNodeForMerge)));
 				sourceClusterNodeFirst->addChildEdge((HyperOpEdge*) edge, targetNodeForMerge);
 				targetNodeForMerge->addParentEdge((HyperOpEdge*) edge, sourceClusterNodeFirst);
-				targetNodeForMerge->setPredicatedHyperOp();
 			}
 			if (sourceClusterNodeSecond != 0) {
 				HyperOpEdge *edge = new HyperOpEdge();
-				edge->setType(HyperOpEdge::PREDICATE);
+				edge->setType(HyperOpEdge::ORDERING);
 				edge->setIsEdgeIgnored(true);
 				additionalEdgesMap.push_back(std::make_pair(edge, make_pair(targetNodeForMerge, sourceClusterNodeSecond)));
 				targetNodeForMerge->addChildEdge((HyperOpEdge*) edge, sourceClusterNodeSecond);
 				sourceClusterNodeSecond->addParentEdge((HyperOpEdge*) edge, targetNodeForMerge);
-				sourceClusterNodeSecond->setPredicatedHyperOp();
 			}
 		}
 
@@ -1372,6 +1371,7 @@ void HyperOpInteractionGraph::clusterNodes() {
 		clusterList.push_back(clusterItr->first);
 	}
 
+	this->print(errs());
 }
 
 int linearizeTime(list<unsigned int> time) {
@@ -1500,7 +1500,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 			colno[2] = addedVariableIndex;
 			row[2] = maxDimM + 1;
 			colno[3] = addedVariableIndex + 1;
-			row[3] = 1;
+			row[3] = -1;
 			add_constraintex(lp, 4, row, colno, GE, 0);
 
 			colno[0] = i;
@@ -1510,7 +1510,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 			colno[2] = addedVariableIndex;
 			row[2] = maxDimM + 1;
 			colno[3] = addedVariableIndex + 1;
-			row[3] = -1;
+			row[3] = 1;
 			add_constraintex(lp, 4, row, colno, LE, maxDimM + 1);
 			set_binary(lp, addedVariableIndex, 1);
 			set_lowbo(lp, addedVariableIndex + 1, 0);
@@ -1524,17 +1524,17 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 			colno[2] = addedVariableIndex;
 			row[2] = maxDimN + 1;
 			colno[3] = addedVariableIndex + 1;
-			row[3] = 1;
+			row[3] = -1;
 			add_constraintex(lp, 4, row, colno, GE, 0);
 
 			colno[0] = i + 1;
 			row[0] = 1;
 			colno[1] = j + 1;
-			row[1] = 1;
+			row[1] = -1;
 			colno[2] = addedVariableIndex;
 			row[2] = maxDimN + 1;
 			colno[3] = addedVariableIndex + 1;
-			row[3] = -1;
+			row[3] = 1;
 			add_constraintex(lp, 4, row, colno, LE, maxDimN + 1);
 			set_binary(lp, addedVariableIndex, 1);
 			set_lowbo(lp, addedVariableIndex + 1, 0);
@@ -1750,7 +1750,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 		list<HyperOp*> cluster = *clusterItr;
 		int x = solutionItr->first;
 		int y = solutionItr->second;
-		errs() << "Cluster " << i << "goes to " << x << ":" << y << "\n";
+		DEBUG(dbgs() << "Cluster " << i << "goes to " << x << ":" << y << "\n");
 		i++;
 		for (list<HyperOp*>::iterator nodeItr = cluster.begin(); nodeItr != cluster.end(); nodeItr++) {
 			(*nodeItr)->setTargetResource(x * maxDimM + y);
@@ -1962,7 +1962,7 @@ void HyperOpInteractionGraph::associateStaticContextFrames() {
 //The problem is to identify conflicting HyperOps and set the flag fbindinstrrequired for such HyperOps
 	map<unsigned, list<list<HyperOp*> > > crAndClusterMap;
 	for (list<list<HyperOp*> >::iterator clusterListItr = clusterList.begin(); clusterListItr != clusterList.end(); clusterListItr++) {
-		associateContextFramesToCluster(*clusterListItr, 1);
+		associateContextFramesToCluster(*clusterListItr, numContextFrames);
 		unsigned targetCR = (*clusterListItr->begin())->getTargetResource();
 		list<list<HyperOp*> > conflictList;
 		if (crAndClusterMap.find(targetCR) != crAndClusterMap.end()) {
@@ -2005,7 +2005,7 @@ void HyperOpInteractionGraph::associateStaticContextFrames() {
 			}
 			for (list<HyperOp*>::iterator conflictItr = conflictingContextFrameHyperOps.begin(); conflictItr != conflictingContextFrameHyperOps.end(); conflictItr++) {
 				HyperOp* conflictingHyperOp = *conflictItr;
-				if (conflictingHyperOp != topmostHyperOp&&!conflictingHyperOp->isStaticHyperOp()) {
+				if (conflictingHyperOp != topmostHyperOp && !conflictingHyperOp->isStaticHyperOp()) {
 					conflictingHyperOp->setFbindRequired(true);
 				}
 				if (conflictingHyperOp == bottommostHyperOp && !conflictingHyperOp->isStartHyperOp()) {
@@ -2013,6 +2013,44 @@ void HyperOpInteractionGraph::associateStaticContextFrames() {
 				}
 			}
 		}
+	}
+}
+void HyperOpInteractionGraph::minimizeControlEdges() {
+	//Remove multiple control edges between HyperOps first
+	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
+		HyperOp* vertex = *vertexItr;
+		list<HyperOp*> children = vertex->getChildList();
+		for (list<HyperOp*>::iterator childItr = children.begin(); childItr != children.end(); childItr++) {
+			HyperOp* childVertex = *childItr;
+			list<HyperOpEdge*> orderingEdges;
+			bool hasIncomingDataOrControlEdge = false;
+			//If there are multiple edges between the vertex and childVertex
+			for (map<HyperOpEdge*, HyperOp*>::iterator childEdgeItr = vertex->ChildMap.begin(); childEdgeItr != vertex->ChildMap.end(); childEdgeItr++) {
+				if (childEdgeItr->second == childVertex) {
+					HyperOpEdge* edge = childEdgeItr->first;
+					if (edge->getType() == HyperOpEdge::ORDERING) {
+						orderingEdges.push_back(edge);
+					} else {
+						hasIncomingDataOrControlEdge = true;
+					}
+				}
+			}
+
+			if (hasIncomingDataOrControlEdge) {
+				//Remove the ordering edges since they were only introduced for clustering and have no reason to be here
+				for (list<HyperOpEdge*>::iterator orderingEdgeItr = orderingEdges.begin(); orderingEdgeItr != orderingEdges.end(); orderingEdgeItr++) {
+					vertex->removeChildEdge(*orderingEdgeItr);
+					childVertex->removeParentEdge(*orderingEdgeItr);
+				}
+			} else if (orderingEdges.size() > 1) {
+				//Retain only one ordering edge between source and destination vertices
+				for (list<HyperOpEdge*>::iterator orderingEdgeItr = orderingEdges.begin(); orderingEdgeItr != orderingEdges.end(); orderingEdgeItr++) {
+					vertex->removeChildEdge(*orderingEdgeItr);
+					childVertex->removeParentEdge(*orderingEdgeItr);
+				}
+			}
+		}
+
 	}
 }
 
@@ -2043,15 +2081,15 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 				postdom = "NULL";
 			}
 
-			os << "Dom:" << dom << ", PostDom:" << postdom << ",";
-			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
-			os << "Domf:";
-			if (!vertex->getDominanceFrontier().empty()) {
-				list<HyperOp*> domf = vertex->getDominanceFrontier();
-				for (list<HyperOp*>::iterator domfItr = domf.begin(); domfItr != domf.end(); domfItr++) {
-					os << (*domfItr)->getFunction()->getName() << ";";
-				}
-			}
+//			os << "Dom:" << dom << ", PostDom:" << postdom << ",";
+//			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
+//			os << "Domf:";
+//			if (!vertex->getDominanceFrontier().empty()) {
+//				list<HyperOp*> domf = vertex->getDominanceFrontier();
+//				for (list<HyperOp*>::iterator domfItr = domf.begin(); domfItr != domf.end(); domfItr++) {
+//					os << (*domfItr)->getFunction()->getName() << ";";
+//				}
+//			}
 			os << "\"];\n";
 			map<HyperOpEdge*, HyperOp*> children = vertex->ChildMap;
 			for (map<HyperOpEdge*, HyperOp*>::iterator childItr = children.begin(); childItr != children.end(); childItr++) {
@@ -2059,19 +2097,21 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 				HyperOpEdge* edge = (*childItr).first;
 				if (edge->Type == HyperOpEdge::SCALAR) {
 					os << "scalar:";
-					edge->getValue()->print(os);
+//					edge->getValue()->print(os);
 				} else if (edge->Type == HyperOpEdge::LOCAL_REFERENCE) {
 					os << "localref:";
-					edge->getValue()->print(os);
+//					edge->getValue()->print(os);
 				} else if (edge->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
 					os << "context frame address";
-				} else {
+				} else if (edge->Type == HyperOpEdge::PREDICATE) {
 					os << "control:";
-					if (edge->getValue() != 0) {
-						edge->getValue()->print(os);
-					} else {
-						os << "order";
-					}
+//					if (edge->getValue() != 0) {
+//						edge->getValue()->print(os);
+//					} else {
+//						os << "order";
+//					}
+				} else if (edge->Type == HyperOpEdge::ORDERING) {
+					os << "order";
 				}
 				os << "];\n";
 			}

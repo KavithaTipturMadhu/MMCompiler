@@ -54,7 +54,9 @@ public:
 		//Data that cannot be passed as a scalar is passed as reference instead through memory
 		LOCAL_REFERENCE,
 		PREDICATE,
-		CONTEXT_FRAME_ADDRESS
+		CONTEXT_FRAME_ADDRESS,
+		//Edge used for ordering HyperOps such that
+		ORDERING
 	} Type;
 	HyperOpEdge();
 	virtual ~HyperOpEdge();
@@ -193,6 +195,11 @@ public:
 	 * This needs creating a conflict graph from the liveness information of frames and coloring the graph.
 	 */
 	void associateStaticContextFrames();
+
+	/**
+	 *Minimize the edges introduced due to clustering since we don't need (nor can we support) so many control edges flowing around
+	 */
+	void minimizeControlEdges();
 
 	/**
 	 * Prints in dot format

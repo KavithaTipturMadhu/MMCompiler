@@ -241,6 +241,7 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 		((REDEFINETargetMachine&) TM).HIG->clusterNodes();
 		((REDEFINETargetMachine&) TM).HIG->mapClustersToComputeResources();
 		((REDEFINETargetMachine&) TM).HIG->associateStaticContextFrames();
+		((REDEFINETargetMachine&) TM).HIG->minimizeControlEdges();
 		((REDEFINETargetMachine&) TM).HIG->print(dbgs());
 		firstFunction = 1;
 	}
