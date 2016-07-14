@@ -160,7 +160,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		bool nextInstAdded = false;
 		for(map<HyperOpEdge*,HyperOp*>::iterator childItr = hyperOp->ChildMap.begin();childItr!=hyperOp->ChildMap.end();childItr++){
 			HyperOpEdge* edge = childItr->first;
-			if(edge==HyperOpEdge::ORDERING){
+			if(edge->getType()==HyperOpEdge::ORDERING){
 				isNextHyperOpInstValid.append("1");
 				nextHyperOpInst.append(itostr(childItr->second->getContextFrame()<<6));
 				nextInstAdded = true;
