@@ -1953,7 +1953,10 @@ void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrame
 	int index = 0;
 	boost::tie(boostVertexIt, boostVertexEnd) = vertices(g);
 	for (; boostVertexIt != boostVertexEnd; ++boostVertexIt) {
-		vertexDescriptorAndHyperOpMap[*boostVertexIt]->setContextFrame(color_vec[index++]);
+		HyperOp* hyperOp = vertexDescriptorAndHyperOpMap[*boostVertexIt];
+		if (hyperOp->isStaticHyperOp()) {
+			hyperOp->setContextFrame(color_vec[index++]);
+		}
 	}
 }
 
@@ -2038,12 +2041,14 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 
 			if (hasIncomingDataOrControlEdge) {
 				//Remove the ordering edges since they were only introduced for clustering and have no reason to be here
+				//This isn't necessary since ordering edges will not be used to generate writecmp instructions anyway, but retaining this for readability of the graph
 				for (list<HyperOpEdge*>::iterator orderingEdgeItr = orderingEdges.begin(); orderingEdgeItr != orderingEdges.end(); orderingEdgeItr++) {
 					vertex->removeChildEdge(*orderingEdgeItr);
 					childVertex->removeParentEdge(*orderingEdgeItr);
 				}
 			} else if (orderingEdges.size() > 1) {
 				//Retain only one ordering edge between source and destination vertices
+				orderingEdges.pop_front();
 				for (list<HyperOpEdge*>::iterator orderingEdgeItr = orderingEdges.begin(); orderingEdgeItr != orderingEdges.end(); orderingEdgeItr++) {
 					vertex->removeChildEdge(*orderingEdgeItr);
 					childVertex->removeParentEdge(*orderingEdgeItr);
