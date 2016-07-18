@@ -100,7 +100,7 @@ struct HyperOpCreationPass: public ModulePass {
 				Instruction* instr = instrItr;
 				//Check the uses in BasicBlocks that are predecessors and use allocInstr
 				list<BasicBlock*> visitedBasicBlocks;
-				if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == useInstr && pathExistsInCFG(originalBB, useInstr->getParent(), visitedBasicBlocks)) {
+				if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(0) == useInstr && pathExistsInCFG(originalBB, useInstr->getParent(), visitedBasicBlocks)) {
 					//A previous store to the same memory location exists, we need to consider the latest definition
 					if (basicBlocksWithDefinitions.find(originalBB) != basicBlocksWithDefinitions.end()) {
 						basicBlocksWithDefinitions.erase(originalBB);
@@ -276,6 +276,9 @@ struct HyperOpCreationPass: public ModulePass {
 		Function* mainFunction = 0;
 		for (Module::iterator funcItr = M.begin(); funcItr != M.end(); funcItr++) {
 			Function* function = funcItr;
+			if (!function->isIntrinsic()) {
+				orderOfFunctionProcessing.push_back(function);
+			}
 			if (function->getName().compare(REDEFINE_START_FUNCTION) == 0) {
 				mainFunction = function;
 				break;
@@ -285,24 +288,6 @@ struct HyperOpCreationPass: public ModulePass {
 		if (mainFunction == 0) {
 			DEBUG(errs() << "REDEFINE kernel's entry point i.e., redefine_start function missing, aborting\n");
 			return false;
-		}
-		list<Function*> stack;
-		stack.push_front(mainFunction);
-		while (!stack.empty()) {
-			Function* currentFunction = stack.front();
-			stack.pop_front();
-			orderOfFunctionProcessing.push_front(currentFunction);
-			for (Function::iterator bbItr = currentFunction->begin(); bbItr != currentFunction->end(); bbItr++) {
-				for (BasicBlock::reverse_iterator instrItr = bbItr->rbegin(); instrItr != bbItr->rend(); instrItr++) {
-					if (isa<CallInst>(&*instrItr)) {
-						Function* calledFunction = ((CallInst*) &*instrItr)->getCalledFunction();
-						if (!calledFunction->isIntrinsic() && find(orderOfFunctionProcessing.begin(), orderOfFunctionProcessing.end(), calledFunction) == orderOfFunctionProcessing.end()) {
-							stack.push_front(calledFunction);
-						}
-					}
-
-				}
-			}
 		}
 
 		while (!orderOfFunctionProcessing.empty()) {
@@ -443,7 +428,7 @@ struct HyperOpCreationPass: public ModulePass {
 							list<Value*> newHyperOpArguments;
 							for (unsigned int i = 0; i < instItr->getNumOperands(); i++) {
 								Value * argument = instItr->getOperand(i);
-								if (!isa<Constant>(argument) && !argument->getType()->isLabelTy()) {
+								if (!isa < Constant > (argument) &&!argument->getType()->isLabelTy()) {
 									//Find the reaching definition of the argument; alloca instruction maybe followed by store instructions to the memory location, we need to identify the set of store instructions to the memory location that reach the current use of the memory location
 									if (isa<Instruction>(argument)) {
 										if (isa<AllocaInst>(argument)) {
@@ -604,47 +589,6 @@ struct HyperOpCreationPass: public ModulePass {
 						callSiteAndReplacementFunctionMap[newFunction] = callInst->getCalledFunction();
 					}
 
-					bool isEntry = false;
-					bool isExit = false;
-					if (accumulatedBasicBlocks.front()->getParent()->getName() == REDEFINE_START_FUNCTION) {
-						if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &function->getEntryBlock()) != accumulatedBasicBlocks.end()) {
-							isEntry = true;
-						}
-						if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &function->back()) != accumulatedBasicBlocks.end()) {
-							isExit = true;
-						}
-					}
-					//Add metadata to label the function as a HyperOp
-					Value * values[2];
-					values[0] = MDString::get(ctxt, HYPEROP);
-					values[1] = newFunction;
-					MDNode *funcAnnotation = MDNode::get(ctxt, values);
-					hyperOpAndAnnotationMap.insert(make_pair(newFunction, funcAnnotation));
-					redefineAnnotationsNode->addOperand(funcAnnotation);
-
-					//Is the function an entry node/exit node/intermediate ?
-					if (isEntry) {
-						Value* values[2];
-						values[0] = MDString::get(ctxt, HYPEROP_ENTRY);
-						values[1] = funcAnnotation;
-						MDNode* entryNode = MDNode::get(ctxt, values);
-						redefineAnnotationsNode->addOperand(entryNode);
-					}
-					if (isExit) {
-						Value* values[2];
-						values[0] = MDString::get(ctxt, HYPEROP_EXIT);
-						values[1] = funcAnnotation;
-						MDNode* exitNode = MDNode::get(ctxt, values);
-						redefineAnnotationsNode->addOperand(exitNode);
-					}
-					if (!isEntry && !isExit) {
-						Value* values[2];
-						values[0] = MDString::get(ctxt, HYPEROP_INTERMEDIATE);
-						values[1] = funcAnnotation;
-						MDNode* intermediateNode = MDNode::get(ctxt, values);
-						redefineAnnotationsNode->addOperand(intermediateNode);
-					}
-
 					//Mark HyperOp function arguments which are not global references or local references as inReg to ease register allocation
 					int functionArgumentIndex = 1;
 					for (HyperOpArgumentList::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
@@ -793,23 +737,131 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 		}
 
+		DEBUG(dbgs() << "Replacing function calls with instances of called functions\n");
+
+//		{
+//			list<Function*> stack;
+//			stack.push_back(mainFunction);
+//			while (!stack.empty()) {
+//				Function* currentFunction = stack.front();
+//				stack.pop_front();
+//				orderOfFunctionProcessing.push_back(currentFunction);
+//				for (Function::iterator bbItr = currentFunction->begin(); bbItr != currentFunction->end(); bbItr++) {
+//					for (BasicBlock::reverse_iterator instrItr = bbItr->rbegin(); instrItr != bbItr->rend(); instrItr++) {
+//						if (isa<CallInst>(&*instrItr)) {
+//							Function* calledFunction = ((CallInst*) &*instrItr)->getCalledFunction();
+//							if (!calledFunction->isIntrinsic() && find(orderOfFunctionProcessing.begin(), orderOfFunctionProcessing.end(), calledFunction) == orderOfFunctionProcessing.end()) {
+//								stack.push_back(calledFunction);
+//							}
+//						}
+//
+//					}
+//				}
+//			}
+//		}
+//
+//
+//		//TODO
+//		{
+//			//Add metadata to label the function as a HyperOp
+//			Value * values[2];
+//			values[0] = MDString::get(ctxt, HYPEROP);
+//			values[1] = newFunction;
+//			MDNode *funcAnnotation = MDNode::get(ctxt, values);
+//			hyperOpAndAnnotationMap.insert(make_pair(newFunction, funcAnnotation));
+//			redefineAnnotationsNode->addOperand(funcAnnotation);
+//
+//			if (accumulatedBasicBlocks.front()->getParent() == mainFunction) {
+//				bool isEntry = false;
+//				bool isExit = false;
+//				if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &function->getEntryBlock()) != accumulatedBasicBlocks.end()) {
+//					isEntry = true;
+//				}
+//				if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &function->back()) != accumulatedBasicBlocks.end()) {
+//					isExit = true;
+//				}
+//
+//				//Is the function an entry node/exit node/intermediate ?
+//				Value* hyperOpDescrMDValues[2];
+//				if (isEntry) {
+//					hyperOpDescrMDValues[0] = MDString::get(ctxt, HYPEROP_ENTRY);
+//					hyperOpDescrMDValues[1] = funcAnnotation;
+//
+//				}
+//				if (isExit) {
+//					hyperOpDescrMDValues[0] = MDString::get(ctxt, HYPEROP_EXIT);
+//					hyperOpDescrMDValues[1] = funcAnnotation;
+//				}
+//				if (!isEntry && !isExit) {
+//					hyperOpDescrMDValues[0] = MDString::get(ctxt, HYPEROP_INTERMEDIATE);
+//					hyperOpDescrMDValues[1] = funcAnnotation;
+//				}
+//
+//				MDNode* hyperOpDescMDNode = MDNode::get(ctxt, hyperOpDescrMDValues);
+//				redefineAnnotationsNode->addOperand(hyperOpDescMDNode);
+//			}
+//
+//		}
+
 		//Replace call site functions with actual functions and change their arguments to map to the appropriate function call arguments
 		for (map<Function*, Function*>::iterator functionCallItr = callSiteAndReplacementFunctionMap.begin(); functionCallItr != callSiteAndReplacementFunctionMap.end(); functionCallItr++) {
 			Function* callSite = functionCallItr->first;
+			errs() << "Call site:" << callSite->getName() << "\n";
 			Function* calledOriginalFunction = functionCallItr->second;
+			errs() << "Called function:" << calledOriginalFunction->getName() << "\n";
 			list<Function*> replacementFunctions = originalFunctionToCreatedHyperOpsMap[calledOriginalFunction];
 			//Find the argument in the original function corresponding to the arguments of each replacement function
-			for(list<Function*>::iterator replacementFuncItr = replacementFunctions.begin();replacementFuncItr!=replacementFunctions.end();replacementFuncItr++){
+			for (list<Function*>::iterator replacementFuncItr = replacementFunctions.begin(); replacementFuncItr != replacementFunctions.end(); replacementFuncItr++) {
 				Function* replacementFunction = *replacementFuncItr;
-				//Find original args of replacementFunction
-				HyperOpArgumentList argList = createdHyperOpAndOriginalBasicBlockAndArgMap[replacementFunction].second;
-				for(list<pair<list<Value*>, HyperOpArgumentType> >::iterator argItr = argList.begin();argItr!=argList.end();argItr++){
-					//If the argument is not a global reference and is not an argument from another HyperOp created from the same source function
-					if(argItr->second!=GLOBAL_REFERENCE&&!isa<Instruction>(argItr->first.front())){
-						//TODO
+				errs() << "replacement function:" << replacementFunction->getName() << "\n";
+				Function* replicatedFunction = Function::Create(replacementFunction->getFunctionType(), replacementFunction->getLinkage());
+				errs() << "replicated function creation complete\n";
+				for (Function::iterator bbItr = replacementFunction->begin(); bbItr != replacementFunction->end(); bbItr++) {
+					BasicBlock *replicatedBB = BasicBlock::Create(getGlobalContext(), bbItr->getName(), replicatedFunction);
+					for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
+						Instruction* replicatedInst = instItr->clone();
+						replicatedBB->getInstList().insert(replicatedBB->end(), replicatedInst);
 					}
 				}
+
+				errs() << "replacement func's contents:";
+				replacementFunction->dump();
+				//Find original args of replacementFunction
+				HyperOpArgumentList argList = createdHyperOpAndOriginalBasicBlockAndArgMap[replacementFunction].second;
+				unsigned positionOfArgInCreatedFunc = 0;
+
+				HyperOpArgumentList argumentsToReplacementHyperOp;
+				map<unsigned, unsigned> argPositionInCreatedFuncAndOriginalFunc;
+				//Replace arguments of the replicated function with call arguments, this is equivalent to inlining the function
+				for (list<pair<list<Value*>, HyperOpArgumentType> >::iterator argItr = argList.begin(); argItr != argList.end(); argItr++, positionOfArgInCreatedFunc++) {
+					list<Value*> argList;
+					if (argItr->second != GLOBAL_REFERENCE && !isa<Instruction>(argItr->first.front())) {
+						//If the argument is not a global reference and is not an argument from another HyperOp created from the same source function
+						unsigned positionOfFormalArg = 0;
+						for (Function::arg_iterator originalArgItr = calledOriginalFunction->arg_begin(); originalArgItr != calledOriginalFunction->arg_end(); originalArgItr++, positionOfFormalArg++) {
+							if (originalArgItr == argItr->first.front()) {
+								break;
+							}
+						}
+
+						//Find the call instruction's argument in the appropriate position and replace the incoming HyperOp argument of the replicated function with the call's argument
+						Value* replacementArg = ((CallInst*) &callSite->front().front())->getArgOperand(positionOfFormalArg);
+						argList.push_back(replacementArg);
+						argumentsToReplacementHyperOp.push_back(make_pair(argList, argItr->second));
+					} else {
+						argumentsToReplacementHyperOp.push_back(make_pair(argItr->first, argItr->second));
+					}
+
+				}
+
+				//Replace all uses of the return values of the callsite
+//				((CallInst*)&callSite->begin()->begin())->ha
+				createdHyperOpAndOriginalBasicBlockAndArgMap[replacementFunction] = make_pair(createdHyperOpAndOriginalBasicBlockAndArgMap[callSite].first, argumentsToReplacementHyperOp);
 			}
+
+			createdHyperOpAndOriginalBasicBlockAndArgMap.erase(callSite);
+			callSite->eraseFromParent();
+//			remove callsite metadata
 		}
 
 		//Map of functions and the unconditional jumps from other HyperOp functions
@@ -897,7 +949,7 @@ struct HyperOpCreationPass: public ModulePass {
 										//local argument is passed on to another HyperOp, find the first load instruction from the memory location and add metadata to it
 										for (Function::iterator bbItr = clonedReachingDefInst->getParent()->getParent()->begin(); bbItr != clonedReachingDefInst->getParent()->getParent()->end(); bbItr++) {
 											for (BasicBlock::iterator instrItr = bbItr->begin(); instrItr != bbItr->end(); instrItr++) {
-												if (isa<LoadInst>(instrItr) && ((LoadInst*) &instrItr)->getOperand(0) == clonedReachingDefInst->getOperand(0)) {
+												if (isa < LoadInst > (instrItr) &&((LoadInst*) &instrItr)->getOperand(0) == clonedReachingDefInst->getOperand(0)) {
 													metadataHost = clonedReachingDefInst;
 													break;
 												}
@@ -923,7 +975,7 @@ struct HyperOpCreationPass: public ModulePass {
 									ArrayRef<Value*> mdNodeArrayRef(newMDNodeValues);
 									MDNode* newMDNode = MDNode::get(ctxt, mdNodeArrayRef);
 
-									if (!isa<AllocaInst>(metadataHost) && !isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(0))) {
+									if (!isa < AllocaInst > (metadataHost) &&!isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(0))) {
 										//Temporary data, add an alloca and a store instruction after the argument and label the alloca instruction with metadata
 										AllocaInst* ai = new AllocaInst(argument->getType());
 										ai->setAlignment(4);
@@ -1178,7 +1230,7 @@ struct HyperOpCreationPass: public ModulePass {
 						BasicBlock* originalBB = &*originalBBItr;
 						for (BasicBlock::iterator instrItr = originalBB->begin(); instrItr != originalBB->end(); instrItr++) {
 							Instruction* instr = instrItr;
-							if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == argValue && find(basicBlocksWithDefinitions.begin(), basicBlocksWithDefinitions.end(), originalBB) == basicBlocksWithDefinitions.end()) {
+							if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(0) == argValue && find(basicBlocksWithDefinitions.begin(), basicBlocksWithDefinitions.end(), originalBB) == basicBlocksWithDefinitions.end()) {
 								//Check if the store instruction is reachable to any of the uses of the argument in the accumulated bb list
 								bool originalBBHasDefinition = false;
 								for (list<Value*>::iterator phiItr = hyperOpArgItr->first.begin(); phiItr != hyperOpArgItr->first.end(); phiItr++) {
@@ -1326,7 +1378,8 @@ struct HyperOpCreationPass: public ModulePass {
 				(*deleteItr)->eraseFromParent();
 			}
 		}
-
+		DEBUG(dbgs() << "Initial module contents:");
+		M.dump();
 		for (map<Function*, list<Function*> >::iterator originalFunctionItr = originalFunctionToCreatedHyperOpsMap.begin(); originalFunctionItr != originalFunctionToCreatedHyperOpsMap.end(); originalFunctionItr++) {
 			//Remove old functions from module
 			originalFunctionItr->first->eraseFromParent();
