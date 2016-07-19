@@ -153,26 +153,8 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 
 		string isNextHyperOpInstValid(ISNEXT_HOP_INST_VALID_ANNOTATION);
 		string nextHyperOpInst(NEXT_HYPEROP_INST_ANNOTATION);
-		isNextHyperOpInstValid.append("\t");
-		nextHyperOpInst.append("\t");
-
-
-		bool nextInstAdded = false;
-		for(map<HyperOpEdge*,HyperOp*>::iterator childItr = hyperOp->ChildMap.begin();childItr!=hyperOp->ChildMap.end();childItr++){
-			HyperOpEdge* edge = childItr->first;
-			if(edge->getType()==HyperOpEdge::ORDERING){
-				isNextHyperOpInstValid.append("1");
-				nextHyperOpInst.append(itostr(childItr->second->getContextFrame()<<6));
-				nextInstAdded = true;
-				break;
-			}
-		}
-		if(!nextInstAdded){
-			isNextHyperOpInstValid.append("0");
-			nextHyperOpInst.append("0");
-		}
-		isNextHyperOpInstValid.append("\n");
-		nextHyperOpInst.append("\n");
+		isNextHyperOpInstValid.append("\t").append("0").append("\n");
+		nextHyperOpInst.append("\t").append("0").append("\n");
 
 		OutStreamer.EmitRawText(StringRef(isNextHyperOpInstValid));
 		OutStreamer.EmitRawText(StringRef(nextHyperOpInst));

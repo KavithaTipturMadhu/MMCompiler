@@ -1191,7 +1191,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			//Check if there exists a predicate edge between producer and consumer HyperOp, add one otherwise to ensure serial accesses to memory
 			bool predicateEdgeExists = false;
 			for (map<HyperOpEdge*, HyperOp*>::iterator childItr = hyperOp->ChildMap.begin(); childItr != hyperOp->ChildMap.end(); childItr++) {
-				if (childItr->second == consumer && childItr->first->getType() == HyperOpEdge::PREDICATE) {
+				if (childItr->second == consumer && (childItr->first->getType() == HyperOpEdge::PREDICATE|| childItr->first->getType() == HyperOpEdge::ORDERING)) {
 					predicateEdgeExists = true;
 					break;
 				}
@@ -1324,7 +1324,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	for (map<HyperOpEdge*, HyperOp*>::iterator childItr = hyperOp->ChildMap.begin(); childItr != hyperOp->ChildMap.end(); childItr++) {
 		HyperOpEdge* edge = childItr->first;
 		HyperOp* consumer = childItr->second;
-		if (edge->getType() == HyperOpEdge::PREDICATE) {
+		if (edge->getType() == HyperOpEdge::PREDICATE || edge->getType()==HyperOpEdge::ORDERING) {
 			unsigned registerContainingConsumerBase = -1;
 			//Check if the consumer's context frame address has already been loaded to memory; If not, add an instruction to load the context frame address to a register
 			for (list<pair<HyperOp*, unsigned> >::iterator consumerItr = consumerHyperOps[currentCE].begin(); consumerItr != consumerHyperOps[currentCE].end(); consumerItr++) {
