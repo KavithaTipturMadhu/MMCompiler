@@ -795,7 +795,6 @@ struct HyperOpCreationPass: public ModulePass {
 					//TODO Replace all uses of the return values of the callsite
 					//((CallInst*)&callSite->begin()->begin())->ha
 					createdHyperOpAndOriginalBasicBlockAndArgMap[replicatedFunction] = make_pair(createdHyperOpAndOriginalBasicBlockAndArgMap[replacementFunction].first, argumentsToReplacementHyperOp);
-					replacementFuncMap[callSite] = replicatedFunctionsList;
 					orderOfFunctionProcessing.push_back(replicatedFunction);
 				}
 //				createdHyperOpAndOriginalBasicBlockAndArgMap.erase(callSite);
