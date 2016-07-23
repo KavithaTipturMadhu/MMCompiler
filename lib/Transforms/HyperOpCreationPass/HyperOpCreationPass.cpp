@@ -907,7 +907,7 @@ struct HyperOpCreationPass: public ModulePass {
 					//Cloning instructions in the reverse order so that the user instructions are cloned before the definition instructions
 					for (BasicBlock::iterator instItr = (*accumulatedBBItr)->begin(); instItr != (*accumulatedBBItr)->end(); instItr++) {
 						Instruction* clonedInst;
-						if (isa<ReturnInst>(&*instItr) && ((ReturnInst*) &*instItr)->getReturnValue()->getType()->getTypeID() != Type::VoidTyID) {
+						if (isa<ReturnInst>(&*instItr) && ((ReturnInst*) &*instItr)->getReturnValue()!=0&&((ReturnInst*) &*instItr)->getReturnValue()->getType()->getTypeID() != Type::VoidTyID) {
 							Value* returnValue = ((ReturnInst*) &*instItr)->getReturnValue();
 							createdHyperOpAndReturnValue.insert(make_pair(newFunction, returnValue));
 							clonedInst = ReturnInst::Create(ctxt);
