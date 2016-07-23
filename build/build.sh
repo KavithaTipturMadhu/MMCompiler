@@ -6,5 +6,5 @@
 #	make -j4 CXXFLAGS="-I $PWD/../ -L $PWD/../lpsolve"
 #else
 	../configure --prefix=$PWD/../
-	make -j4 CXXFLAGS="-I $PWD/../ -L $PWD/../lpsolve"
+	make -j4 CXXFLAGS="-I $PWD/../ -L $PWD/../lpsolve -frtti"
 #fi
