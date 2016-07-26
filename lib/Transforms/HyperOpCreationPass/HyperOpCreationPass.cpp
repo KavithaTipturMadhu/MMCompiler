@@ -125,7 +125,7 @@ struct HyperOpCreationPass: public ModulePass {
 				//Reverse iterator so that the last store is encountered first
 				for (BasicBlock::reverse_iterator instrItr = originalBB->rbegin(); instrItr != originalBB->rend(); instrItr++) {
 					Instruction* instr = &*instrItr;
-					if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(0) == globalVariable && reachingDefinitions.find(originalBB) == reachingDefinitions.end()) {
+					if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == globalVariable && reachingDefinitions.find(originalBB) == reachingDefinitions.end()) {
 						//Check if the store instruction is reachable to any of the uses of the argument in the accumulated bb list
 						for (Value::use_iterator useItr = globalVariable->use_begin(); useItr != globalVariable->use_end(); useItr++) {
 							User* user = *useItr;
@@ -182,7 +182,7 @@ struct HyperOpCreationPass: public ModulePass {
 				Instruction* instr = instrItr;
 				//Check the uses in BasicBlocks that are predecessors and use allocInstr
 				list<BasicBlock*> visitedBasicBlocks;
-				if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(0) == useInstr && pathExistsInCFG(originalBB, useInstr->getParent(), visitedBasicBlocks)) {
+				if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == useInstr && pathExistsInCFG(originalBB, useInstr->getParent(), visitedBasicBlocks)) {
 					//A previous store to the same memory location exists, we need to consider the latest definition
 					if (basicBlocksWithDefinitions.find(originalBB) != basicBlocksWithDefinitions.end()) {
 						basicBlocksWithDefinitions.erase(originalBB);
@@ -514,6 +514,8 @@ struct HyperOpCreationPass: public ModulePass {
 					accumulatedBasicBlocks.push_back(bbItr);
 					unsigned bbIndex = 0;
 					for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
+						errs() << "dealing with instruction:";
+						instItr->dump();
 						if (!(isa<AllocaInst>(instItr) || isa<ReturnInst>(instItr))) {
 							//Function calls that couldn't be inlined when generating the IR
 							if (isa<CallInst>(instItr) || isa<InvokeInst>(instItr)) {
@@ -563,7 +565,7 @@ struct HyperOpCreationPass: public ModulePass {
 							list<Value*> newHyperOpArguments;
 							for (unsigned int i = 0; i < instItr->getNumOperands(); i++) {
 								Value * argument = instItr->getOperand(i);
-								if (!isa < Constant > (argument) &&!argument->getType()->isLabelTy()) {
+								if (!isa<Constant>(argument) && !argument->getType()->isLabelTy()) {
 									//Find the reaching definition of the argument; alloca instruction maybe followed by store instructions to the memory location, we need to identify the set of store instructions to the memory location that reach the current use of the memory location
 									if (isa<Instruction>(argument)) {
 										if (isa<AllocaInst>(argument)) {
@@ -706,15 +708,9 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 							for (list<Value*>::iterator individualArgItr = individualArguments.begin(); individualArgItr != individualArguments.end(); individualArgItr++) {
 								Value* argument = *individualArgItr;
-								if (isa<Instruction>(argument)) {
+								if (isa<AllocaInst>(argument)) {
 									//Get Reaching definitions of the argument to the accumulated basic block list
-									map<BasicBlock*, Instruction*> reachingDefBasicBlocks;
-									if (isa<AllocaInst>(argument)) {
-										//Reaching definitions are only for memory instructions
-										reachingDefBasicBlocks = reachingStoreOperations((Instruction*) argument, function, accumulatedBasicBlocks);
-									} else {
-										reachingDefBasicBlocks.insert(make_pair(((Instruction*) argument)->getParent(), (Instruction*) argument));
-									}
+									map<BasicBlock*, Instruction*> reachingDefBasicBlocks = reachingStoreOperations((Instruction*) argument, function, accumulatedBasicBlocks);
 									//Get the producer HyperOp
 									bool atleastOneUseInOtherHyperOp = false;
 									for (map<BasicBlock*, Instruction*>::iterator reachingDefItr = reachingDefBasicBlocks.begin(); reachingDefItr != reachingDefBasicBlocks.end(); reachingDefItr++) {
@@ -1093,7 +1089,7 @@ struct HyperOpCreationPass: public ModulePass {
 			unsigned hyperOpArgumentIndex = 0;
 			//Replace arguments of called functions with the right call arguments or return values
 			for (HyperOpArgumentList::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
-				errs() << "hyperop arg:";
+				errs() << "Patching argument ";
 				hyperOpArgItr->first.front()->dump();
 				list<Instruction*> replacementArg;
 				HyperOpArgumentType replacementArgType = hyperOpArgItr->second;
@@ -1111,7 +1107,10 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 					CallInst* callInst = callSite.back();
 					callSite.pop_back();
-					Instruction* clonedInst =getClonedArgument(callInst->getArgOperand(positionOfFormalArg), callSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+					Instruction* clonedInst = getClonedArgument(callInst->getArgOperand(positionOfFormalArg), callSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+					if (isa<LoadInst>(clonedInst) && isa<AllocaInst>(clonedInst->getOperand(0))) {
+						clonedInst = (AllocaInst*) clonedInst->getOperand(0);
+					}
 					replacementArg.push_back(clonedInst);
 					callSite.push_back(callInst);
 				} else if (isa<CallInst>(hyperOpArgItr->first.front())) {
@@ -1169,67 +1168,65 @@ struct HyperOpCreationPass: public ModulePass {
 				if (hyperOpArgItr->second != GLOBAL_REFERENCE) {
 					for (list<Instruction*>::iterator clonedReachingDefItr = replacementArg.begin(); clonedReachingDefItr != replacementArg.end(); clonedReachingDefItr++) {
 						Instruction* clonedReachingDefInst = *clonedReachingDefItr;
-						if (isa<AllocaInst>(clonedReachingDefInst) || isa<StoreInst>(clonedReachingDefInst) || isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(0))) {
-							//Add "consumedby" metadata to the function locals that need to be passed to other HyperOps
-							Value * values[3];
-							values[0] = funcAnnotation;
-							if (replacementArgType == SCALAR) {
-								values[1] = MDString::get(ctxt, SCALAR_ARGUMENT);
-							} else if (replacementArgType == LOCAL_REFERENCE) {
-								values[1] = MDString::get(ctxt, LOCAL_REFERENCE_ARGUMENT);
-							}
-							values[2] = ConstantInt::get(ctxt, APInt(32, hyperOpArgumentIndex));
-							MDNode * consumedByMetadata = MDNode::get(ctxt, values);
-							Instruction* metadataHost = 0;
-							//If the argument has a memory location associated with it beforehand or does not have an alloca instruction inserted explicitly for it (is a temporary instruction)
-							if (isa<AllocaInst>(clonedReachingDefInst) || allocaInstCreatedForIntermediateValues.find(clonedReachingDefInst) == allocaInstCreatedForIntermediateValues.end()) {
-								metadataHost = clonedReachingDefInst;
-							} else if (isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(1))) {
-								//local argument is passed on to another HyperOp, find the first load instruction from the memory location and add metadata to it
-								for (Function::iterator bbItr = clonedReachingDefInst->getParent()->getParent()->begin(); bbItr != clonedReachingDefInst->getParent()->getParent()->end(); bbItr++) {
-									for (BasicBlock::iterator instrItr = bbItr->begin(); instrItr != bbItr->end(); instrItr++) {
-										if (isa < LoadInst > (instrItr) &&((LoadInst*) &instrItr)->getOperand(0) == clonedReachingDefInst->getOperand(0)) {
-											metadataHost = clonedReachingDefInst;
-											break;
-										}
-									}
-									if (metadataHost != 0) {
+						//Add "consumedby" metadata to the function locals that need to be passed to other HyperOps
+						Value * values[3];
+						values[0] = funcAnnotation;
+						if (replacementArgType == SCALAR) {
+							values[1] = MDString::get(ctxt, SCALAR_ARGUMENT);
+						} else if (replacementArgType == LOCAL_REFERENCE) {
+							values[1] = MDString::get(ctxt, LOCAL_REFERENCE_ARGUMENT);
+						}
+						values[2] = ConstantInt::get(ctxt, APInt(32, hyperOpArgumentIndex));
+						MDNode * consumedByMetadata = MDNode::get(ctxt, values);
+						Instruction* metadataHost = 0;
+						//If the argument has a memory location associated with it beforehand or does not have an alloca instruction inserted explicitly for it (is a temporary instruction)
+						if (isa<AllocaInst>(clonedReachingDefInst) || allocaInstCreatedForIntermediateValues.find(clonedReachingDefInst) == allocaInstCreatedForIntermediateValues.end()) {
+							metadataHost = clonedReachingDefInst;
+						} else if (isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(1))) {
+							//local argument is passed on to another HyperOp, find the first load instruction from the memory location and add metadata to it
+							for (Function::iterator bbItr = clonedReachingDefInst->getParent()->getParent()->begin(); bbItr != clonedReachingDefInst->getParent()->getParent()->end(); bbItr++) {
+								for (BasicBlock::iterator instrItr = bbItr->begin(); instrItr != bbItr->end(); instrItr++) {
+									if (isa<LoadInst>(instrItr) && ((LoadInst*) &instrItr)->getOperand(0) == clonedReachingDefInst->getOperand(0)) {
+										metadataHost = clonedReachingDefInst;
 										break;
 									}
 								}
-							} else {
-								//Get the equivalent alloca inserted before
-								metadataHost = allocaInstCreatedForIntermediateValues.find(clonedReachingDefInst)->second;
-							}
-
-							MDNode* currentMetadataOfInstruction = metadataHost->getMetadata(HYPEROP_CONSUMED_BY);
-							vector<Value*> newMDNodeValues;
-							//Same data maybe required by multiple HyperOps
-							if (currentMetadataOfInstruction != 0) {
-								for (unsigned i = 0; i < currentMetadataOfInstruction->getNumOperands(); i++) {
-									newMDNodeValues.push_back(currentMetadataOfInstruction->getOperand(i));
+								if (metadataHost != 0) {
+									break;
 								}
 							}
-							newMDNodeValues.push_back(consumedByMetadata);
-							ArrayRef<Value*> mdNodeArrayRef(newMDNodeValues);
-							MDNode* newMDNode = MDNode::get(ctxt, mdNodeArrayRef);
-							if (!isa < AllocaInst > (metadataHost) &&!isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(0))) {
-								//Temporary data, add an alloca and a store instruction after the argument and label the alloca instruction with metadata
-								AllocaInst* ai = new AllocaInst(clonedReachingDefInst->getType());
-								ai->setAlignment(4);
-								//Alloc instructions need to be inserted in the entry basic block of the function because other allocs are treated as dynamic stack allocs
-								ai->insertBefore(clonedReachingDefInst->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
-								StoreInst* storeInst = new StoreInst(clonedReachingDefInst, ai);
-								storeInst->setAlignment(4);
-								storeInst->insertBefore(clonedReachingDefInst);
-								allocaInstCreatedForIntermediateValues.insert(make_pair(clonedReachingDefInst, ai));
-								metadataHost = ai;
+						} else {
+							//Get the equivalent alloca inserted before
+							metadataHost = allocaInstCreatedForIntermediateValues.find(clonedReachingDefInst)->second;
+						}
+
+						MDNode* currentMetadataOfInstruction = metadataHost->getMetadata(HYPEROP_CONSUMED_BY);
+						vector<Value*> newMDNodeValues;
+						//Same data maybe required by multiple HyperOps
+						if (currentMetadataOfInstruction != 0) {
+							for (unsigned i = 0; i < currentMetadataOfInstruction->getNumOperands(); i++) {
+								newMDNodeValues.push_back(currentMetadataOfInstruction->getOperand(i));
 							}
-							metadataHost->setMetadata(HYPEROP_CONSUMED_BY, newMDNode);
-							//Parent function buffered to ensure that unnecessary control dependences need not exist
-							if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), metadataHost->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
-								addedParentsToCurrentHyperOp.push_back(metadataHost->getParent()->getParent());
-							}
+						}
+						newMDNodeValues.push_back(consumedByMetadata);
+						ArrayRef<Value*> mdNodeArrayRef(newMDNodeValues);
+						MDNode* newMDNode = MDNode::get(ctxt, mdNodeArrayRef);
+						if (!isa<AllocaInst>(metadataHost) && !isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(0))) {
+							//Temporary data, add an alloca and a store instruction after the argument and label the alloca instruction with metadata
+							AllocaInst* ai = new AllocaInst(clonedReachingDefInst->getType());
+							ai->setAlignment(4);
+							//Alloc instructions need to be inserted in the entry basic block of the function because other allocs are treated as dynamic stack allocs
+							ai->insertBefore(clonedReachingDefInst->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
+							StoreInst* storeInst = new StoreInst(clonedReachingDefInst, ai);
+							storeInst->setAlignment(4);
+							storeInst->insertBefore(clonedReachingDefInst);
+							allocaInstCreatedForIntermediateValues.insert(make_pair(clonedReachingDefInst, ai));
+							metadataHost = ai;
+						}
+						metadataHost->setMetadata(HYPEROP_CONSUMED_BY, newMDNode);
+						//Parent function buffered to ensure that unnecessary control dependences need not exist
+						if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), metadataHost->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
+							addedParentsToCurrentHyperOp.push_back(metadataHost->getParent()->getParent());
 						}
 					}
 					hyperOpArgumentIndex++;
@@ -1535,9 +1532,9 @@ private:
 	const char* HYPEROP_ENTRY = "Entry";
 	const char* HYPEROP_EXIT = "Exit";
 	const char* HYPEROP_INTERMEDIATE = "Intermediate";
-	const char* REDEFINE_INPUT_PREFIX = "redefine_in_";
-	const char* REDEFINE_OUTPUT_PREFIX = "redefine_out_";
-	const char* REDEFINE_INOUT_PREFIX = "redefine_inout_";
+	const char* REDEFINE_INPUT_PREFIX = "redefine_in";
+	const char* REDEFINE_OUTPUT_PREFIX = "redefine_out";
+	const char* REDEFINE_INOUT_PREFIX = "redefine_inout";
 }
 ;
 char HyperOpCreationPass::ID = 2;
