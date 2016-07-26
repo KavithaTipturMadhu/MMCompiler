@@ -182,7 +182,7 @@ struct HyperOpCreationPass: public ModulePass {
 				Instruction* instr = instrItr;
 				//Check the uses in BasicBlocks that are predecessors and use allocInstr
 				list<BasicBlock*> visitedBasicBlocks;
-				if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == useInstr && pathExistsInCFG(originalBB, useInstr->getParent(), visitedBasicBlocks)) {
+				if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(1) == useInstr && pathExistsInCFG(originalBB, useInstr->getParent(), visitedBasicBlocks)) {
 					//A previous store to the same memory location exists, we need to consider the latest definition
 					if (basicBlocksWithDefinitions.find(originalBB) != basicBlocksWithDefinitions.end()) {
 						basicBlocksWithDefinitions.erase(originalBB);
@@ -710,25 +710,14 @@ struct HyperOpCreationPass: public ModulePass {
 								Value* argument = *individualArgItr;
 								if (isa<AllocaInst>(argument)) {
 									//Get Reaching definitions of the argument to the accumulated basic block list
-									map<BasicBlock*, Instruction*> reachingDefBasicBlocks = reachingStoreOperations((Instruction*) argument, function, accumulatedBasicBlocks);
 									//Get the producer HyperOp
 									bool atleastOneUseInOtherHyperOp = false;
-									for (map<BasicBlock*, Instruction*>::iterator reachingDefItr = reachingDefBasicBlocks.begin(); reachingDefItr != reachingDefBasicBlocks.end(); reachingDefItr++) {
-										BasicBlock* parentBBOfDefinition = reachingDefItr->first;
-										for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHopItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHopItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHopItr++) {
-											list<BasicBlock*> createdHyperOpBBList = createdHopItr->second.first;
-											//Find the HyperOp containing the argument's definition
-											if (find(createdHyperOpBBList.begin(), createdHyperOpBBList.end(), parentBBOfDefinition) != createdHyperOpBBList.end()) {
-												//Check if the source of dependence has any uses in the function it belongs to or in basic blocks not corresponding to the HyperOp being created
-												for (Value::use_iterator argItr = argument->use_begin(); argItr != argument->use_end(); argItr++) {
-													Instruction* useInstruction = (Instruction*) *argItr;
-													if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), useInstruction->getParent()) == accumulatedBasicBlocks.end()) {
-														atleastOneUseInOtherHyperOp = true;
-														break;
-													}
-												}
-											} else {
+									for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHopItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHopItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHopItr++) {
+										list<BasicBlock*> createdHyperOpBBList = createdHopItr->second.first;
+										for (Function::iterator useBBItr = function->begin(); useBBItr != function->end(); useBBItr++) {
+											if (argument->isUsedInBasicBlock(useBBItr) && find(createdHyperOpBBList.begin(), createdHyperOpBBList.end(), useBBItr) != createdHyperOpBBList.end()) {
 												atleastOneUseInOtherHyperOp = true;
+												break;
 											}
 										}
 										if (atleastOneUseInOtherHyperOp) {
@@ -751,6 +740,8 @@ struct HyperOpCreationPass: public ModulePass {
 
 										if (argNeedsRemoval) {
 											hyperOpArguments.erase(argToBeRemoved);
+											errs() << "moving arg ";
+											argument->dump();
 											//move the argument to the first basic block of accumulated bb list
 											((Instruction*) argument)->moveBefore(accumulatedBasicBlocks.front()->getFirstInsertionPt());
 										}
@@ -954,6 +945,10 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
+				if (!callSite.empty()) {
+					CallInst* callInst = callSite.back();
+					accumulatedBasicBlocks.push_back(callInst->getParent());
+				}
 				//Update the branch instruction targets to point to the basic blocks in the cloned set
 				for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 					for (list<BasicBlock*>::iterator bbItr = accumulatedBasicBlocks.begin(); bbItr != accumulatedBasicBlocks.end(); bbItr++) {
@@ -970,7 +965,7 @@ struct HyperOpCreationPass: public ModulePass {
 					if (originalBB != &(*accumulatedBBItr)->getParent()->getEntryBlock()) {
 						for (pred_iterator predecessorItr = pred_begin(originalBB); predecessorItr != pred_end(originalBB); predecessorItr++) {
 							BasicBlock* predecessor = *predecessorItr;
-							//Control flow edge exists from a predecessor basic block that does not belong to the same HyperOp
+							//Control flow edge exists from a predecessor basic block that does not belong to the same HyperOp within the same function
 							if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), predecessor) == accumulatedBasicBlocks.end()) {
 								for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHopItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHopItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHopItr++) {
 									Function* createdHyperOp = createdHopItr->first;
@@ -1008,6 +1003,10 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 						}
 					}
+				}
+
+				if (!callSite.empty()) {
+					accumulatedBasicBlocks.pop_back();
 				}
 
 				//Add a basic block with a dummy return instruction as the single point of exit for a HyperOp
@@ -1219,7 +1218,7 @@ struct HyperOpCreationPass: public ModulePass {
 							ai->insertBefore(clonedReachingDefInst->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
 							StoreInst* storeInst = new StoreInst(clonedReachingDefInst, ai);
 							storeInst->setAlignment(4);
-							storeInst->insertBefore(clonedReachingDefInst);
+							storeInst->insertBefore(retInstMap[clonedReachingDefInst->getParent()->getParent()]);
 							allocaInstCreatedForIntermediateValues.insert(make_pair(clonedReachingDefInst, ai));
 							metadataHost = ai;
 						}
