@@ -1472,8 +1472,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	firstInstructionOfpHyperOp.push_back(endHyperOpInstructionRegion);
 }
 
-errs() << "bb before shuffle:";
-BB->dump();
 //Shuffle instructions of region
 vector<MachineInstr*> firstRegionBoundaries = firstInstructionOfpHyperOp.front();
 if (firstInstructionOfpHyperOp.size() > 1) {
@@ -1490,18 +1488,6 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 			}
 		}
 	}
-	errs() << "regions and their boundaries:";
-	for (list<vector<MachineInstr*> >::iterator firstInstrItr = firstInstructionOfpHyperOp.begin(); firstInstrItr != firstInstructionOfpHyperOp.end(); firstInstrItr++) {
-		errs() << "new region\n";
-		vector<MachineInstr*> itr = *firstInstrItr;
-		for (unsigned j = 0; j < ceCount; j++) {
-			if (itr[j] != 0) {
-				errs() << "\n" << j << ":";
-				itr[j]->dump();
-			}
-		}
-	}
-
 //Compute successive regions for merge after first regions
 	for (unsigned j = 1; j < firstInstructionOfpHyperOp.size(); j++) {
 		unsigned index = 0;
@@ -1565,8 +1551,6 @@ BB->print(dbgs());
 
 //ACtually we don't need to use inst_itr here cos bundles are created after this, but leaving this for now
 for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != BB->instr_end(); instItr++) {
-	errs() << "instruction to be fixed:";
-	instItr->dump();
 	for (unsigned i = 0; i < instItr->getNumOperands(); i++) {
 		MachineOperand& operand = instItr->getOperand(i);
 		if (operand.isReg() && find(registersUsedInBB.begin(), registersUsedInBB.end(), operand.getReg()) == registersUsedInBB.end()) {
@@ -1579,7 +1563,6 @@ for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != B
 				}
 			}
 			if (!ignore) {
-				errs() << "fixing register " << PrintReg(operand.getReg()) << "\n";
 				registersUsedInBB.push_back(operand.getReg());
 			}
 //			errs()<<"register "<<operand.getReg()<<" is "<<PrintReg(operand.getReg(), TRI, operand.getSubReg())<<"\n";
@@ -1592,21 +1575,8 @@ LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), registersUsedInBB);
 if (!firstInstructionOfpHyperOp.empty()) {
 	DEBUG(dbgs() << "Creating pHyperOp bundles for CEs\n");
 	for (unsigned i = 0; i < ceCount; i++) {
-		//TODO some changes required here if somehow an empty region is the first one to be processed
 		MachineInstr* firstInstructionInCE = firstRegionBoundaries[i];
 		MachineInstr* firstInstructionInNextCE = 0;
-
-		if (firstInstructionInCE == BB->end() || firstInstructionInCE == 0) {
-//			continue;
-			//pHyperOp is empty, add a nop
-			MachineInstrBuilder nopInstruction = BuildMI(*BB, BB->end(), BB->front().getDebugLoc(), TII->get(REDEFINE::ADDI));
-			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-			nopInstruction.addReg(REDEFINE::zero);
-			nopInstruction.addImm(0);
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-			firstInstructionInCE = nopInstruction.operator ->();
-		}
-
 		int index = i + 1;
 		while (index < ceCount) {
 			firstInstructionInNextCE = firstRegionBoundaries[index];
@@ -1619,6 +1589,18 @@ if (!firstInstructionOfpHyperOp.empty()) {
 		if (firstInstructionInNextCE == 0) {
 			firstInstructionInNextCE = BB->end();
 		}
+
+		if (firstInstructionInCE == BB->end() || firstInstructionInCE == 0) {
+//			continue;
+			//pHyperOp is empty, add a nop
+			MachineInstrBuilder nopInstruction = BuildMI(*BB, firstInstructionInNextCE, BB->front().getDebugLoc(), TII->get(REDEFINE::ADDI));
+			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
+			nopInstruction.addReg(REDEFINE::zero);
+			nopInstruction.addImm(0);
+			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
+			firstInstructionInCE = nopInstruction.operator ->();
+		}
+
 		MIBundleBuilder* bundleBuilder = new MIBundleBuilder(*BB, firstInstructionInCE, firstInstructionInNextCE);
 	}
 }
