@@ -22,10 +22,10 @@ using namespace std;
 #include "llvm/Support/Debug.h"
 using namespace llvm;
 
-//#include <boost/graph/adjacency_list.hpp>
-//#include <boost/graph/graphviz.hpp>
-//#include <boost/graph/sequential_vertex_coloring.hpp>
-//using namespace boost;
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/graphviz.hpp>
+#include <boost/graph/sequential_vertex_coloring.hpp>
+using namespace boost;
 
 HyperOp::HyperOp(Function* function) {
 	this->function = function;
@@ -1371,7 +1371,6 @@ void HyperOpInteractionGraph::clusterNodes() {
 		clusterList.push_back(clusterItr->first);
 	}
 
-	this->print(errs());
 }
 
 int linearizeTime(list<unsigned int> time) {
@@ -1759,206 +1758,206 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 	}
 }
 
-void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrames) {
-	unsigned int numExtraVariables = 0, numExtraVariablesForOptimization = 0;
-	if (cluster.size() == 1) {
-		(*cluster.begin())->setContextFrame(0);
-	} else {
-		list<HyperOp*> temporaryCluster;
-		std::copy(cluster.begin(), cluster.end(), back_inserter(temporaryCluster));
-		int column[4];
-		REAL row[4];
-		map<int, pair<list<int>, list<int> > > conflictGraph;
-		int vertexIteratorIndex = 1;
-		for (list<HyperOp*>::iterator vertexIterator = cluster.begin(); vertexIterator != cluster.end(); vertexIterator++) {
-			HyperOp* vertex = *vertexIterator;
-			HyperOp* liveStartOfVertex = vertex->getImmediateDominator();
-			HyperOp* liveEndOfVertex;
-			if (liveStartOfVertex != 0) {
-				liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
-			} else {
-				liveEndOfVertex = vertex;
-			}
-			int secondIteratorIndex = vertexIteratorIndex + 1;
-			list<int> conflictEntries, nonConflictEntries;
-			list<HyperOp*>::iterator secondVertexIterator = vertexIterator;
-			advance(secondVertexIterator, 1);
-			if (secondVertexIterator != cluster.end()) {
-				for (; secondVertexIterator != cluster.end(); secondVertexIterator++) {
-					HyperOp* secondVertex = *secondVertexIterator;
-					HyperOp* liveStartOfSecondVertex = secondVertex->getImmediateDominator();
-					HyperOp* liveEndOfSecondVertex;
-					if (liveStartOfSecondVertex != 0) {
-						liveEndOfSecondVertex = liveStartOfSecondVertex->getImmediatePostDominator();
-					} else {
-						liveEndOfSecondVertex = secondVertex;
-					}
-					if (liveEndOfVertex->isPredecessor(liveStartOfSecondVertex) || liveEndOfSecondVertex->isPredecessor(liveStartOfVertex)) {
-						nonConflictEntries.push_back(secondIteratorIndex);
-						//One binary variable and one diff value is added here
-						numExtraVariables += 2;
-						numExtraVariablesForOptimization += 1;
-					} else {
-						//Conflict in the graph, add a new row of condition
-						conflictEntries.push_back(secondIteratorIndex);
-						//Only one binary variable is added
-						numExtraVariables++;
-					}
-					secondIteratorIndex++;
-				}
-				conflictGraph.insert(std::make_pair(vertexIteratorIndex, std::make_pair(conflictEntries, nonConflictEntries)));
-				vertexIteratorIndex++;
-			}
-		}
-
-//Compute liveness of HyperOp's frame and construct conflict graph
-		lprec *lp = make_lp(0, cluster.size() + numExtraVariables);
-		set_add_rowmode(lp, TRUE); /* makes building the model faster if it is done rows by row */
-
-		//Add the vertex bounds and binary variables for conflicting nodes
-		int columnCount = cluster.size() + 1;
-
-		int * maxColumn = (int*) malloc(numExtraVariablesForOptimization * sizeof(maxColumn));
-		REAL* maxRow = (REAL*) malloc(numExtraVariablesForOptimization * sizeof(maxRow));
-		int optIterator = 0;
-		for (map<int, pair<list<int>, list<int> > >::iterator conflictGraphIterator = conflictGraph.begin(); conflictGraphIterator != conflictGraph.end(); conflictGraphIterator++) {
-			int sourceVertex = conflictGraphIterator->first;
-			set_int(lp, sourceVertex, 1);
-			pair<list<int>, list<int> > conflictingVertices = conflictGraphIterator->second;
-			for (list<int>::iterator conflictVertexIterator = conflictingVertices.first.begin(); conflictVertexIterator != conflictingVertices.first.end(); conflictVertexIterator++) {
-				int targetVertex = *conflictVertexIterator;
-				set_binary(lp, columnCount, 1);
-				column[0] = sourceVertex;
-				row[0] = 1;
-				column[1] = targetVertex;
-				row[1] = -1;
-				column[2] = columnCount;
-				row[2] = numContextFrames;
-				add_constraintex(lp, 3, row, column, GE, 1);
-				add_constraintex(lp, 3, row, column, LE, numContextFrames - 1);
-				columnCount++;
-			}
-
-			//Add optimization criterion for non-conflicting nodes
-			for (list<int>::iterator nonConflictVertexIterator = conflictingVertices.second.begin(); nonConflictVertexIterator != conflictingVertices.second.end(); nonConflictVertexIterator++) {
-				int targetVertex = *nonConflictVertexIterator;
-				//Introduce a slack variable (with lower bound zero) corresponding to the difference in color between non-conflicting nodes and minimize the sum of these variables
-				set_int(lp, columnCount, 1);
-				set_lowbo(lp, columnCount, 0);
-
-				columnCount++;
-				set_binary(lp, columnCount, 1);
-				column[0] = sourceVertex;
-				row[0] = 1;
-				column[1] = targetVertex;
-				row[1] = -1;
-				column[2] = columnCount - 1;
-				row[2] = -1;
-				column[3] = columnCount;
-				row[3] = numContextFrames;
-				add_constraintex(lp, 4, row, column, GE, 0);
-
-				column[0] = sourceVertex;
-				row[0] = 1;
-				column[1] = targetVertex;
-				row[1] = -1;
-				column[2] = columnCount - 1;
-				row[2] = 1;
-				column[3] = columnCount;
-				row[3] = numContextFrames;
-				add_constraintex(lp, 4, row, column, LE, numContextFrames);
-
-				maxColumn[optIterator] = columnCount - 1;
-				maxRow[optIterator++] = 1;
-				columnCount++;
-			}
-		}
-
-		int ret = 0;
-		set_add_rowmode(lp, FALSE); /* rowmode should be turned off again when done building the model */
-
-		set_obj_fnex(lp, numExtraVariablesForOptimization, maxRow, maxColumn);
-		set_maxim(lp);
-		set_verbose(lp, IMPORTANT);
-		ret = solve(lp);
-		free(maxColumn);
-		free(maxRow);
-//			if (ret == 2) {
-//				TODO:Infeasible solution, break the graph into smaller chunks and repeat coloring
-//			}
-		if (ret == 0) {
-			REAL resultRow[cluster.size()];
-			/* variable values */
-			get_variables(lp, resultRow);
-			int i = 0;
-			for (list<HyperOp*>::iterator vertexIterator = temporaryCluster.begin(); vertexIterator != temporaryCluster.end(); vertexIterator++) {
-				(*vertexIterator)->setContextFrame((unsigned) resultRow[i++]);
-			}
-		}
-		if (lp != NULL) {
-			delete_lp(lp);
-		}
-	}
-}
-
 //void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrames) {
-//	typedef adjacency_list<listS, vecS, undirectedS, no_property, no_property, no_property, listS> MyGraph;
-//	typedef graph_traits<MyGraph>::vertices_size_type vertices_size_type;
-//	typedef property_map<MyGraph, vertex_index_t>::const_type vertex_index_map;
-//	typedef graph_traits<MyGraph>::vertex_descriptor vertex_descriptor;
-//	MyGraph g;
-//	map<HyperOp*, vertex_descriptor> hyperOpAndVertexDescriptorMap;
-//	map<vertex_descriptor, HyperOp*> vertexDescriptorAndHyperOpMap;
-//
-//	for (list<HyperOp*>::iterator vertexIterator = cluster.begin(); vertexIterator != cluster.end(); vertexIterator++) {
-//		vertex_descriptor newVertex = add_vertex(g);
-//		hyperOpAndVertexDescriptorMap[*vertexIterator] = newVertex;
-//		vertexDescriptorAndHyperOpMap[newVertex] = *vertexIterator;
-//	}
-//	for (list<HyperOp*>::iterator vertexIterator = cluster.begin(); vertexIterator != cluster.end(); vertexIterator++) {
-//		HyperOp* vertex = *vertexIterator;
-//		HyperOp* liveStartOfVertex = vertex->getImmediateDominator();
-//		HyperOp* liveEndOfVertex;
-//		if (liveStartOfVertex != 0) {
-//			liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
-//		} else {
-//			liveEndOfVertex = vertex;
-//		}
-//		list<HyperOp*>::iterator secondVertexIterator = vertexIterator;
-//		advance(secondVertexIterator, 1);
-//		if (secondVertexIterator != cluster.end()) {
-//			for (; secondVertexIterator != cluster.end(); secondVertexIterator++) {
-//				HyperOp* secondVertex = *secondVertexIterator;
-//				HyperOp* liveStartOfSecondVertex = secondVertex->getImmediateDominator();
-//				HyperOp* liveEndOfSecondVertex;
-//				if (liveStartOfSecondVertex != 0) {
-//					liveEndOfSecondVertex = liveStartOfSecondVertex->getImmediatePostDominator();
-//				} else {
-//					liveEndOfSecondVertex = secondVertex;
+//	unsigned int numExtraVariables = 0, numExtraVariablesForOptimization = 0;
+//	if (cluster.size() == 1) {
+//		(*cluster.begin())->setContextFrame(0);
+//	} else {
+//		list<HyperOp*> temporaryCluster;
+//		std::copy(cluster.begin(), cluster.end(), back_inserter(temporaryCluster));
+//		int column[4];
+//		REAL row[4];
+//		map<int, pair<list<int>, list<int> > > conflictGraph;
+//		int vertexIteratorIndex = 1;
+//		for (list<HyperOp*>::iterator vertexIterator = cluster.begin(); vertexIterator != cluster.end(); vertexIterator++) {
+//			HyperOp* vertex = *vertexIterator;
+//			HyperOp* liveStartOfVertex = vertex->getImmediateDominator();
+//			HyperOp* liveEndOfVertex;
+//			if (liveStartOfVertex != 0) {
+//				liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
+//			} else {
+//				liveEndOfVertex = vertex;
+//			}
+//			int secondIteratorIndex = vertexIteratorIndex + 1;
+//			list<int> conflictEntries, nonConflictEntries;
+//			list<HyperOp*>::iterator secondVertexIterator = vertexIterator;
+//			advance(secondVertexIterator, 1);
+//			if (secondVertexIterator != cluster.end()) {
+//				for (; secondVertexIterator != cluster.end(); secondVertexIterator++) {
+//					HyperOp* secondVertex = *secondVertexIterator;
+//					HyperOp* liveStartOfSecondVertex = secondVertex->getImmediateDominator();
+//					HyperOp* liveEndOfSecondVertex;
+//					if (liveStartOfSecondVertex != 0) {
+//						liveEndOfSecondVertex = liveStartOfSecondVertex->getImmediatePostDominator();
+//					} else {
+//						liveEndOfSecondVertex = secondVertex;
+//					}
+//					if (liveEndOfVertex->isPredecessor(liveStartOfSecondVertex) || liveEndOfSecondVertex->isPredecessor(liveStartOfVertex)) {
+//						nonConflictEntries.push_back(secondIteratorIndex);
+//						//One binary variable and one diff value is added here
+//						numExtraVariables += 2;
+//						numExtraVariablesForOptimization += 1;
+//					} else {
+//						//Conflict in the graph, add a new row of condition
+//						conflictEntries.push_back(secondIteratorIndex);
+//						//Only one binary variable is added
+//						numExtraVariables++;
+//					}
+//					secondIteratorIndex++;
 //				}
-//				if (liveEndOfVertex->isPredecessor(liveStartOfSecondVertex) || liveEndOfSecondVertex->isPredecessor(liveStartOfVertex)) {
-//					continue;
-//				} else {
-//					//Conflict in the graph, add an edge in the graph
-//					add_edge(hyperOpAndVertexDescriptorMap[vertex], hyperOpAndVertexDescriptorMap[secondVertex], g);
-//				}
+//				conflictGraph.insert(std::make_pair(vertexIteratorIndex, std::make_pair(conflictEntries, nonConflictEntries)));
+//				vertexIteratorIndex++;
 //			}
 //		}
-//	}
-//	//Color the conflict graph
-//	MyGraph::vertex_iterator boostVertexIt, boostVertexEnd;
-//	vector<vertices_size_type> color_vec(numContextFrames);
-//	iterator_property_map<vertices_size_type*, vertex_index_map> color(&color_vec.front(), get(vertex_index, g));
-//	vertices_size_type num_colors = sequential_vertex_coloring(g, color);
-//	int index = 0;
-//	boost::tie(boostVertexIt, boostVertexEnd) = vertices(g);
-//	for (; boostVertexIt != boostVertexEnd; ++boostVertexIt) {
-//		HyperOp* hyperOp = vertexDescriptorAndHyperOpMap[*boostVertexIt];
-//		if (hyperOp->isStaticHyperOp()) {
-//			hyperOp->setContextFrame(color_vec[index++]);
+//
+////Compute liveness of HyperOp's frame and construct conflict graph
+//		lprec *lp = make_lp(0, cluster.size() + numExtraVariables);
+//		set_add_rowmode(lp, TRUE); /* makes building the model faster if it is done rows by row */
+//
+//		//Add the vertex bounds and binary variables for conflicting nodes
+//		int columnCount = cluster.size() + 1;
+//
+//		int * maxColumn = (int*) malloc(numExtraVariablesForOptimization * sizeof(maxColumn));
+//		REAL* maxRow = (REAL*) malloc(numExtraVariablesForOptimization * sizeof(maxRow));
+//		int optIterator = 0;
+//		for (map<int, pair<list<int>, list<int> > >::iterator conflictGraphIterator = conflictGraph.begin(); conflictGraphIterator != conflictGraph.end(); conflictGraphIterator++) {
+//			int sourceVertex = conflictGraphIterator->first;
+//			set_int(lp, sourceVertex, 1);
+//			pair<list<int>, list<int> > conflictingVertices = conflictGraphIterator->second;
+//			for (list<int>::iterator conflictVertexIterator = conflictingVertices.first.begin(); conflictVertexIterator != conflictingVertices.first.end(); conflictVertexIterator++) {
+//				int targetVertex = *conflictVertexIterator;
+//				set_binary(lp, columnCount, 1);
+//				column[0] = sourceVertex;
+//				row[0] = 1;
+//				column[1] = targetVertex;
+//				row[1] = -1;
+//				column[2] = columnCount;
+//				row[2] = numContextFrames;
+//				add_constraintex(lp, 3, row, column, GE, 1);
+//				add_constraintex(lp, 3, row, column, LE, numContextFrames - 1);
+//				columnCount++;
+//			}
+//
+//			//Add optimization criterion for non-conflicting nodes
+//			for (list<int>::iterator nonConflictVertexIterator = conflictingVertices.second.begin(); nonConflictVertexIterator != conflictingVertices.second.end(); nonConflictVertexIterator++) {
+//				int targetVertex = *nonConflictVertexIterator;
+//				//Introduce a slack variable (with lower bound zero) corresponding to the difference in color between non-conflicting nodes and minimize the sum of these variables
+//				set_int(lp, columnCount, 1);
+//				set_lowbo(lp, columnCount, 0);
+//
+//				columnCount++;
+//				set_binary(lp, columnCount, 1);
+//				column[0] = sourceVertex;
+//				row[0] = 1;
+//				column[1] = targetVertex;
+//				row[1] = -1;
+//				column[2] = columnCount - 1;
+//				row[2] = -1;
+//				column[3] = columnCount;
+//				row[3] = numContextFrames;
+//				add_constraintex(lp, 4, row, column, GE, 0);
+//
+//				column[0] = sourceVertex;
+//				row[0] = 1;
+//				column[1] = targetVertex;
+//				row[1] = -1;
+//				column[2] = columnCount - 1;
+//				row[2] = 1;
+//				column[3] = columnCount;
+//				row[3] = numContextFrames;
+//				add_constraintex(lp, 4, row, column, LE, numContextFrames);
+//
+//				maxColumn[optIterator] = columnCount - 1;
+//				maxRow[optIterator++] = 1;
+//				columnCount++;
+//			}
+//		}
+//
+//		int ret = 0;
+//		set_add_rowmode(lp, FALSE); /* rowmode should be turned off again when done building the model */
+//
+//		set_obj_fnex(lp, numExtraVariablesForOptimization, maxRow, maxColumn);
+//		set_maxim(lp);
+//		set_verbose(lp, IMPORTANT);
+//		ret = solve(lp);
+//		free(maxColumn);
+//		free(maxRow);
+////			if (ret == 2) {
+////				TODO:Infeasible solution, break the graph into smaller chunks and repeat coloring
+////			}
+//		if (ret == 0) {
+//			REAL resultRow[cluster.size()];
+//			/* variable values */
+//			get_variables(lp, resultRow);
+//			int i = 0;
+//			for (list<HyperOp*>::iterator vertexIterator = temporaryCluster.begin(); vertexIterator != temporaryCluster.end(); vertexIterator++) {
+//				(*vertexIterator)->setContextFrame((unsigned) resultRow[i++]);
+//			}
+//		}
+//		if (lp != NULL) {
+//			delete_lp(lp);
 //		}
 //	}
 //}
+
+void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrames) {
+	typedef adjacency_list<listS, vecS, undirectedS, no_property, no_property, no_property, listS> MyGraph;
+	typedef graph_traits<MyGraph>::vertices_size_type vertices_size_type;
+	typedef property_map<MyGraph, vertex_index_t>::const_type vertex_index_map;
+	typedef graph_traits<MyGraph>::vertex_descriptor vertex_descriptor;
+	MyGraph g;
+	map<HyperOp*, vertex_descriptor> hyperOpAndVertexDescriptorMap;
+	map<vertex_descriptor, HyperOp*> vertexDescriptorAndHyperOpMap;
+
+	for (list<HyperOp*>::iterator vertexIterator = cluster.begin(); vertexIterator != cluster.end(); vertexIterator++) {
+		vertex_descriptor newVertex = add_vertex(g);
+		hyperOpAndVertexDescriptorMap[*vertexIterator] = newVertex;
+		vertexDescriptorAndHyperOpMap[newVertex] = *vertexIterator;
+	}
+	for (list<HyperOp*>::iterator vertexIterator = cluster.begin(); vertexIterator != cluster.end(); vertexIterator++) {
+		HyperOp* vertex = *vertexIterator;
+		HyperOp* liveStartOfVertex = vertex->getImmediateDominator();
+		HyperOp* liveEndOfVertex;
+		if (liveStartOfVertex != 0) {
+			liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
+		} else {
+			liveEndOfVertex = vertex;
+		}
+		list<HyperOp*>::iterator secondVertexIterator = vertexIterator;
+		advance(secondVertexIterator, 1);
+		if (secondVertexIterator != cluster.end()) {
+			for (; secondVertexIterator != cluster.end(); secondVertexIterator++) {
+				HyperOp* secondVertex = *secondVertexIterator;
+				HyperOp* liveStartOfSecondVertex = secondVertex->getImmediateDominator();
+				HyperOp* liveEndOfSecondVertex;
+				if (liveStartOfSecondVertex != 0) {
+					liveEndOfSecondVertex = liveStartOfSecondVertex->getImmediatePostDominator();
+				} else {
+					liveEndOfSecondVertex = secondVertex;
+				}
+				if (liveEndOfVertex->isPredecessor(liveStartOfSecondVertex) || liveEndOfSecondVertex->isPredecessor(liveStartOfVertex)) {
+					continue;
+				} else {
+					//Conflict in the graph, add an edge in the graph
+					add_edge(hyperOpAndVertexDescriptorMap[vertex], hyperOpAndVertexDescriptorMap[secondVertex], g);
+				}
+			}
+		}
+	}
+	//Color the conflict graph
+	MyGraph::vertex_iterator boostVertexIt, boostVertexEnd;
+	vector<vertices_size_type> color_vec(numContextFrames);
+	iterator_property_map<vertices_size_type*, vertex_index_map> color(&color_vec.front(), get(vertex_index, g));
+	vertices_size_type num_colors = sequential_vertex_coloring(g, color);
+	int index = 0;
+	boost::tie(boostVertexIt, boostVertexEnd) = vertices(g);
+	for (; boostVertexIt != boostVertexEnd; ++boostVertexIt) {
+		HyperOp* hyperOp = vertexDescriptorAndHyperOpMap[*boostVertexIt];
+		if (hyperOp->isStaticHyperOp()) {
+			hyperOp->setContextFrame(color_vec[index++]);
+		}
+	}
+}
 
 void HyperOpInteractionGraph::associateStaticContextFrames() {
 //Clusters might be mapped to the same compute resource, undesirably of course; Further, HyperOps maybe mapped to the same context frame within a cluster
@@ -2087,7 +2086,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 			}
 
 //			os << "Dom:" << dom << ", PostDom:" << postdom << ",";
-//			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
+			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
 //			os << "Domf:";
 //			if (!vertex->getDominanceFrontier().empty()) {
 //				list<HyperOp*> domf = vertex->getDominanceFrontier();
