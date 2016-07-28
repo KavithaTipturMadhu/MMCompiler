@@ -546,12 +546,17 @@ struct HyperOpCreationPass: public ModulePass {
 								if (!calledFunction->isIntrinsic()) {
 									//Size here must be >2 because if there is another instruction in the bb other than call, it is a jump anyway
 									if (bbItr->getInstList().size() > 2) {
+										errs()<<"state of func before:";
+										function->dump();
+										errs()<<"i entered here\n";
+										errs()<<"institr:";
+										instItr->dump();
 										//Call is the not only instruction here, a separate HyperOp must be created for the call statement
 										string firstBBName(NEW_NAME);
 										firstBBName.append(itostr(bbIndex));
 										bbIndex++;
-										BasicBlock* newFunctionCallBlock = bbItr->splitBasicBlock(instItr, firstBBName);
-										Instruction* nonTerminalInstruction = instItr;
+										BasicBlock* newFunctionCallBlock = bbItr->splitBasicBlock(instItr->getNextNode(), firstBBName);
+										Instruction* nonTerminalInstruction = instItr->getNextNode();
 										if (nonTerminalInstruction != (Instruction*) bbItr->getTerminator()) {
 											Instruction* instructionAfterCall = newFunctionCallBlock->begin()->getNextNode();
 											string secondBBName(NEW_NAME);
@@ -559,6 +564,8 @@ struct HyperOpCreationPass: public ModulePass {
 											bbIndex++;
 											newFunctionCallBlock->splitBasicBlock(instructionAfterCall, secondBBName);
 										}
+										errs()<<"State of func now?:";
+										function->dump();
 									} else {
 										CallInst* callInst = (CallInst*) (&*instItr);
 										for (unsigned int i = 0; i < callInst->getNumArgOperands(); i++) {
@@ -696,6 +703,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 				//Create a new HyperOp
 				if (endOfHyperOp) {
+					errs()<<"creating a hyperop\n";
 					//Shuffle the arguments to the HyperOp such that scalar arguments are positioned first and the rest of the arguments are positioned after
 					HyperOpArgumentList tempHyperOpArguments;
 					for (HyperOpArgumentList::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
