@@ -261,7 +261,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 	Instruction* getClonedArgument(Value* argument, list<CallInst*> callSite, map<Function*, list<CallInst*> > createdHyperOpAndCallSite, map<Function*, map<Instruction*, Instruction*> > originalToClonedInstructionMap) {
 		if (isa<Instruction>(argument)) {
-			errs()<<"getting clone of arg:";
+			errs() << "getting clone of arg:";
 			argument->dump();
 			for (map<Function*, list<CallInst*> >::iterator createdHopItr = createdHyperOpAndCallSite.begin(); createdHopItr != createdHyperOpAndCallSite.end(); createdHopItr++) {
 				list<CallInst*> createdHopCallSite = createdHopItr->second;
@@ -544,29 +544,22 @@ struct HyperOpCreationPass: public ModulePass {
 								//An intrinsic function translates to an instruction in the backend, don't treat it like a function call
 								//Otherwise, create a function boundary as follows
 								if (!calledFunction->isIntrinsic()) {
-									//Size here must be >2 because if there is another instruction in the bb other than call, it is a jump anyway
-									if (bbItr->getInstList().size() > 2) {
-										errs()<<"state of func before:";
-										function->dump();
-										errs()<<"i entered here\n";
-										errs()<<"institr:";
-										instItr->dump();
+									//call is not the first instruction in the basic block
+									if (&*instItr != &bbItr->front()) {
 										//Call is the not only instruction here, a separate HyperOp must be created for the call statement
 										string firstBBName(NEW_NAME);
 										firstBBName.append(itostr(bbIndex));
 										bbIndex++;
-										BasicBlock* newFunctionCallBlock = bbItr->splitBasicBlock(instItr->getNextNode(), firstBBName);
-										Instruction* nonTerminalInstruction = instItr->getNextNode();
-										if (nonTerminalInstruction != (Instruction*) bbItr->getTerminator()) {
-											Instruction* instructionAfterCall = newFunctionCallBlock->begin()->getNextNode();
-											string secondBBName(NEW_NAME);
-											secondBBName.append(itostr(bbIndex));
-											bbIndex++;
-											newFunctionCallBlock->splitBasicBlock(instructionAfterCall, secondBBName);
-										}
-										errs()<<"State of func now?:";
-										function->dump();
-									} else {
+										bbItr->splitBasicBlock(instItr, firstBBName);
+									}
+									//If call is not the last instruction
+									if (&*instItr == &bbItr->front() && (&*instItr != (Instruction*) bbItr->getTerminator())&&instItr->getNextNode()!=(Instruction*) bbItr->getTerminator()) {
+										string secondBBName(NEW_NAME);
+										secondBBName.append(itostr(bbIndex));
+										bbIndex++;
+										bbItr->splitBasicBlock(instItr->getNextNode(), secondBBName);
+									}
+									if (&*instItr == &bbItr->front()) {
 										CallInst* callInst = (CallInst*) (&*instItr);
 										for (unsigned int i = 0; i < callInst->getNumArgOperands(); i++) {
 											Value * argument = callInst->getArgOperand(i);
@@ -703,7 +696,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 				//Create a new HyperOp
 				if (endOfHyperOp) {
-					errs()<<"creating a hyperop\n";
+					errs() << "creating a hyperop\n";
 					//Shuffle the arguments to the HyperOp such that scalar arguments are positioned first and the rest of the arguments are positioned after
 					HyperOpArgumentList tempHyperOpArguments;
 					for (HyperOpArgumentList::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
@@ -903,10 +896,14 @@ struct HyperOpCreationPass: public ModulePass {
 					//Cloning instructions in the reverse order so that the user instructions are cloned before the definition instructions
 					for (BasicBlock::iterator instItr = (*accumulatedBBItr)->begin(); instItr != (*accumulatedBBItr)->end(); instItr++) {
 						Instruction* clonedInst;
-						if (isa<ReturnInst>(&*instItr) && ((ReturnInst*) &*instItr)->getReturnValue() != 0 && ((ReturnInst*) &*instItr)->getReturnValue()->getType()->getTypeID() != Type::VoidTyID) {
+						if (isa<ReturnInst>(&*instItr)) {
 							clonedInst = BranchInst::Create(retBB, newBB);
-							createdHyperOpAndReturnValue.insert(make_pair(newFunction, instItr->getOperand(0)));
 							originalToClonedInstMap.insert(std::make_pair(instItr, clonedInst));
+							if(((ReturnInst*) &*instItr)->getReturnValue() != 0 && ((ReturnInst*) &*instItr)->getReturnValue()->getType()->getTypeID() != Type::VoidTyID){
+								createdHyperOpAndReturnValue.insert(make_pair(newFunction, instItr->getOperand(0)));
+							}else{
+								createdHyperOpAndReturnValue.insert(make_pair(newFunction, instItr));
+							}
 						} else {
 							clonedInst = instItr->clone();
 							Instruction * originalInstruction = instItr;
@@ -1406,6 +1403,8 @@ struct HyperOpCreationPass: public ModulePass {
 			//Remove unconditional branch instruction, add the annotation to the alloca instruction of the branch
 			for (list<Instruction*>::iterator unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
 				Value* unconditionalBranchInstr = *unconditionalBranchSourceItr;
+				errs()<<"unconditional branch from ";
+				unconditionalBranchInstr->dump();
 				BasicBlock* targetBB = ((BranchInst*) unconditionalBranchInstr)->getSuccessor(0);
 				list<pair<Function*, Instruction*> > addedJumpSources;
 				Instruction* clonedInstr;
@@ -1444,6 +1443,8 @@ struct HyperOpCreationPass: public ModulePass {
 					callSiteUpdated = true;
 				}
 
+				errs()<<"unconditional branch computed as ";
+				unconditionalBranchInstr->dump();
 				if (isa<Constant>(unconditionalBranchInstr)) {
 					//Immediate value
 					clonedInstr = new AllocaInst(unconditionalBranchInstr->getType());
@@ -1455,7 +1456,7 @@ struct HyperOpCreationPass: public ModulePass {
 					storeInst->insertBefore(retInstMap[replicatedCalledFunction]);
 				} else {
 					clonedInstr = getClonedArgument(unconditionalBranchInstr, callSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
-					if(callSiteUpdated){
+					if (callSiteUpdated) {
 						callSite.pop_back();
 					}
 				}
@@ -1591,7 +1592,6 @@ struct HyperOpCreationPass: public ModulePass {
 		for (Module::iterator functionItr = M.begin(); functionItr != M.end(); functionItr++) {
 			//Remove old functions from module
 			if (createdHyperOpAndOriginalBasicBlockAndArgMap.find(functionItr) == createdHyperOpAndOriginalBasicBlockAndArgMap.end()) {
-				errs() << "deleting function:" << functionItr->getName() << "\n";
 				functionItr->deleteBody();
 				functionsForDeletion.push_back(functionItr);
 			}
