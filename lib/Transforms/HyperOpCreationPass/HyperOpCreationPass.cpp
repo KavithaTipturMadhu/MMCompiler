@@ -344,12 +344,16 @@ struct HyperOpCreationPass: public ModulePass {
 		}
 	}
 
-	list<pair<Function*, Instruction*> > getTopmostParentInJumpChain(Function* function, map<Function*, list<pair<Function*, Instruction*> > > functionAndJumpSources) {
+	//Jump chain is the chain of instructions leading to the target function, with the instruction in front of the list chaining to the next one and so on till the last function is reached
+	list<pair<Function*, list<Instruction*> > > getTopmostParentAndJumpChain(Function* function, map<Function*, list<pair<Function*, Instruction*> > > functionAndJumpSources) {
 		list<pair<Function*, Instruction*> > topmostParents;
 		list<pair<Function*, Instruction*> > parents = functionAndJumpSources[function];
 		for (list<pair<Function*, Instruction*> >::iterator parentItr = parents.begin(); parentItr != parents.end(); parentItr++) {
 			if (functionAndJumpSources.find(parentItr->first) != functionAndJumpSources.end()) {
-				list<pair<Function*, Instruction*> > tempParents = getTopmostParentInJumpChain(parentItr->first, functionAndJumpSources);
+				list<pair<Function*, list<Instruction*> > > tempParents = getTopmostParentAndJumpChain(parentItr->first, functionAndJumpSources);
+				for (list<pair<Function*, list<Instruction*> > >::iterator tempParentItr = tempParents.begin(); tempParentItr != tempParents.end(); tempParentItr++) {
+					tempParentItr->second.push_back(parentItr->second);
+				}
 				std::copy(tempParents.begin(), tempParents.end(), std::back_inserter(topmostParents));
 			} else {
 				topmostParents.push_back(make_pair(parentItr->first, parentItr->second));
@@ -553,7 +557,7 @@ struct HyperOpCreationPass: public ModulePass {
 										bbItr->splitBasicBlock(instItr, firstBBName);
 									}
 									//If call is not the last instruction
-									if (&*instItr == &bbItr->front() && (&*instItr != (Instruction*) bbItr->getTerminator())&&instItr->getNextNode()!=(Instruction*) bbItr->getTerminator()) {
+									if (&*instItr == &bbItr->front() && (&*instItr != (Instruction*) bbItr->getTerminator()) && instItr->getNextNode() != (Instruction*) bbItr->getTerminator()) {
 										string secondBBName(NEW_NAME);
 										secondBBName.append(itostr(bbIndex));
 										bbIndex++;
@@ -899,9 +903,9 @@ struct HyperOpCreationPass: public ModulePass {
 						if (isa<ReturnInst>(&*instItr)) {
 							clonedInst = BranchInst::Create(retBB, newBB);
 							originalToClonedInstMap.insert(std::make_pair(instItr, clonedInst));
-							if(((ReturnInst*) &*instItr)->getReturnValue() != 0 && ((ReturnInst*) &*instItr)->getReturnValue()->getType()->getTypeID() != Type::VoidTyID){
+							if (((ReturnInst*) &*instItr)->getReturnValue() != 0 && ((ReturnInst*) &*instItr)->getReturnValue()->getType()->getTypeID() != Type::VoidTyID) {
 								createdHyperOpAndReturnValue.insert(make_pair(newFunction, instItr->getOperand(0)));
-							}else{
+							} else {
 								createdHyperOpAndReturnValue.insert(make_pair(newFunction, instItr));
 							}
 						} else {
@@ -1509,27 +1513,77 @@ struct HyperOpCreationPass: public ModulePass {
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
 			Function* createdFunction = createdHyperOpItr->first;
 			if (createdFunctionAndUnconditionalJumpSources.find(createdFunction) != createdFunctionAndUnconditionalJumpSources.end()) {
-				errs()<<"finding top most parents of "<<createdFunction->getName()<<"\n";
-				list<pair<Function*, Instruction*> > topmostParents = getTopmostParentInJumpChain(createdFunction, createdFunctionAndUnconditionalJumpSources);
+				errs() << "finding top most parents of " << createdFunction->getName() << "\n";
+				list<pair<Function*, Instruction*> > parentFunctionMap = createdFunctionAndUnconditionalJumpSources[createdFunction];
+				list<pair<Function*, list<Instruction*> > > topmostParents = getTopmostParentAndJumpChain(createdFunction, createdFunctionAndUnconditionalJumpSources);
 				//Re-route the unconditional jumps straight from topmostParents to createdFunction
-				for (list<pair<Function*, Instruction*> >::iterator parentItr = topmostParents.begin(); parentItr != topmostParents.end(); parentItr++) {
+				for (list<pair<Function*, list<Instruction*> > >::iterator parentItr = topmostParents.begin(); parentItr != topmostParents.end(); parentItr++) {
 					Function* parentFunction = parentItr->first;
-					Instruction* jumpInstruction = parentItr->second;
+					list<Instruction*> jumpChain = parentItr->second;
+					Instruction* jumpInstruction = jumpChain.front();
+					jumpChain.pop_front();
+
+					//Update the jump instruction to point to the created function directly
 					MDNode* controlledByMDNode = jumpInstruction->getMetadata(HYPEROP_CONTROLLED_BY);
 					for (unsigned i = 0; i < controlledByMDNode->getNumOperands(); i++) {
 						MDNode* consumerMDNode = (MDNode*) controlledByMDNode->getOperand(i);
 						MDNode* consumerFunctionMDNode = (MDNode*) consumerMDNode->getOperand(0);
 						Function* consumerFunction = (Function *) consumerFunctionMDNode->getOperand(1);
-
-						list<pair<Function*, Instruction*> > parentFunctionMap = createdFunctionAndUnconditionalJumpSources[createdFunction];
-						for (list<pair<Function*, Instruction*> >::iterator parentItr = parentFunctionMap.begin(); parentItr != parentFunctionMap.end(); parentItr++) {
-							if (parentItr->first == consumerFunction) {
-								//Replace the operand with the current function's MDNode
-								consumerFunctionMDNode->replaceOperandWith(1, hyperOpAndAnnotationMap[createdFunction]);
-								break;
-							}
+						Function* nextHop = &jumpChain.front()->getParent()->getParent();
+						if (consumerFunction == nextHop) {
+							controlledByMDNode->replaceOperandWith(i, hyperOpAndAnnotationMap[createdFunction]);
 						}
 					}
+					//Find out if a suffix of the jump chain is shared by some other path
+
+//					while (jumpChain.size() > 1) {
+//						//Remove the rest of controlled-by metadata
+//						Instruction* jumpInstruction = jumpChain.front();
+//						jumpChain.pop_front();
+//						Instruction* nextJumpInstruction = jumpChain.front();
+//						Function* hopForUpdate = jumpInstruction->getParent()->getParent();
+//						Function* nextHop = nextJumpInstruction->getParent()->getParent();
+//
+//						MDNode* controlledByMDNode = jumpInstruction->getMetadata(HYPEROP_CONTROLLED_BY);
+//						for (unsigned i = 0; i < controlledByMDNode->getNumOperands(); i++) {
+//							MDNode* consumerMDNode = (MDNode*) controlledByMDNode->getOperand(i);
+//							MDNode* consumerFunctionMDNode = (MDNode*) consumerMDNode->getOperand(0);
+//							Function* consumerFunction = (Function *) consumerFunctionMDNode->getOperand(1);
+//							Function* nextHop = &jumpChain.front()->getParent()->getParent();
+//							if (consumerFunction == nextHop) {
+//								controlledByMDNode->replaceOperandWith(i, hyperOpAndAnnotationMap[createdFunction]);
+//							}
+//						}
+//					for (list<pair<Function*, Instruction*> >::iterator immediateParentItr = parentFunctionMap.begin(); immediateParentItr != parentFunctionMap.end(); immediateParentItr++) {
+//									if (immediateParentItr->first == consumerFunction) {
+//										//Replace the operand with the current function's MDNode
+//										consumerFunctionMDNode->replaceOperandWith(1, hyperOpAndAnnotationMap[createdFunction]);
+//										//Remove the metadata from parent
+//										Instruction* immediateParentJumpInstr = immediateParentItr->second;
+//										MDNode* immediateParentMDNode = immediateParentJumpInstr->getMetadata(HYPEROP_CONTROLLED_BY);
+//										vector<Value*> updatedOperands;
+//										for (unsigned i = 0; i < immediateParentMDNode->getNumOperands(); i++) {
+//											MDNode* currentConsumerMDNode = (MDNode*) immediateParentMDNode->getOperand(i);
+//											MDNode* currentConsumerFunctionMDNode = (MDNode*) currentConsumerMDNode->getOperand(0);
+//											Function* currentConsumerFunction = (Function *) currentConsumerFunctionMDNode->getOperand(1);
+//											if (currentConsumerFunction != createdFunction) {
+//												updatedOperands.push_back(currentConsumerMDNode);
+//											}
+//										}
+//										//Remove immediate parent node
+//										if (updatedOperands.empty()) {
+//											//Check if there exists a path from the parent to the exit node
+//
+//
+//										} else {
+//											MDNode* updatedNode = MDNode::get(ctxt, updatedOperands);
+//											immediateParentJumpInstr->setMetadata(HYPEROP_CONTROLLED_BY, updatedNode);
+//										}
+//										break;
+//									}
+//								}
+//
+//					}
 				}
 			}
 
