@@ -122,6 +122,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 			string operands(".operands");
 			operands.append("\n").append("1").append("\n");
 			OutStreamer.EmitRawText(StringRef(operands));
+			argCount++;
 		}
 
 		string isValid(VALID_ANNOTATION);
