@@ -186,11 +186,12 @@ def FDELETE: InstREDEFINE<4, (outs), (ins GR32:$id, imm32sx12:$imm),
 }
 
 def WRITEPM : InstSREDEFINE<"writepm" , 0b0100000, 0b010, add , GR32, GR32, imm32sx12>;
-
+/*
 def DIV   : InstR<"div"  , 0b0110011, 0b0000001100, sdiv  , GR32, GR32>;
 def DIVU  : InstR<"divu" , 0b0110011, 0b0000001101, udiv  , GR32, GR32>;
 def REM   : InstR<"rem"  , 0b0110011, 0b0000001110, srem  , GR32, GR32>;
 def REMU  : InstR<"remu" , 0b0110011, 0b0000001111, urem  , GR32, GR32>;
+*/
 def MUL   : InstR<"mul"  , 0b0110011, 0b0000001000, mul   , GR32, GR32>;
 def MULH  : InstR<"mulh" , 0b0110011, 0b0000001001, mulhs , GR32, GR32>;
 //TODO: no corresponding llvm ir instruction
