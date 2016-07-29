@@ -1075,8 +1075,6 @@ struct HyperOpCreationPass: public ModulePass {
 		}
 		//End of creation of hyperops
 
-		errs() << "before everything, module:";
-		M.dump();
 		DEBUG(dbgs() << "Adding dependences across created HyperOps\n");
 		map<Function*, list<pair<Function*, Instruction*> > > createdFunctionAndUnconditionalJumpSources;
 		//Add metadata: This code is moved here to ensure that all the functions (corresponding to HyperOps) that need to be created have already been created
@@ -1403,8 +1401,6 @@ struct HyperOpCreationPass: public ModulePass {
 			//Remove unconditional branch instruction, add the annotation to the alloca instruction of the branch
 			for (list<Instruction*>::iterator unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
 				Value* unconditionalBranchInstr = *unconditionalBranchSourceItr;
-				errs()<<"unconditional branch from ";
-				unconditionalBranchInstr->dump();
 				BasicBlock* targetBB = ((BranchInst*) unconditionalBranchInstr)->getSuccessor(0);
 				list<pair<Function*, Instruction*> > addedJumpSources;
 				Instruction* clonedInstr;
@@ -1414,8 +1410,6 @@ struct HyperOpCreationPass: public ModulePass {
 					//Current function is a call
 					callSite.pop_back();
 				}
-				((Instruction*) unconditionalBranchInstr)->getParent()->dump();
-				((Instruction*) unconditionalBranchInstr)->dump();
 				bool callSiteUpdated = false;
 				if (isa<CallInst>(&(*unconditionalBranchSourceItr)->getParent()->front())) {
 					callSite.push_back((CallInst*) &((*unconditionalBranchSourceItr)->getParent()->front()));
@@ -1443,8 +1437,6 @@ struct HyperOpCreationPass: public ModulePass {
 					callSiteUpdated = true;
 				}
 
-				errs()<<"unconditional branch computed as ";
-				unconditionalBranchInstr->dump();
 				if (isa<Constant>(unconditionalBranchInstr)) {
 					//Immediate value
 					clonedInstr = new AllocaInst(unconditionalBranchInstr->getType());
@@ -1490,7 +1482,6 @@ struct HyperOpCreationPass: public ModulePass {
 					storeInst->insertBefore(retInstOfProducer);
 					allocaInstCreatedForIntermediateValues.insert(make_pair(clonedInstr, ai));
 					metadataHost = ai;
-					addedJumpSources.push_back(make_pair(ai->getParent()->getParent(), ai));
 				}
 				MDNode* predicateMetadata = metadataHost->getMetadata(HYPEROP_CONTROLLED_BY);
 				if (predicateMetadata != 0) {
@@ -1506,15 +1497,19 @@ struct HyperOpCreationPass: public ModulePass {
 				ArrayRef<Value*> metadataRef(metadataList);
 				MDNode * predicatesRelation = MDNode::get(ctxt, metadataRef);
 				metadataHost->setMetadata(HYPEROP_CONTROLLED_BY, predicatesRelation);
+				addedJumpSources.push_back(make_pair(metadataHost->getParent()->getParent(), metadataHost));
 				addedParentsToCurrentHyperOp.push_back(sourceParentFunction);
 				createdFunctionAndUnconditionalJumpSources[createdFunction] = addedJumpSources;
 			}
 
 		}
+
+		DEBUG(dbgs() << "Short-circuiting unconditional branch chains\n");
 		//Compute unconditional jump chains across HyperOps and short-circuit them to jump straight to the target of the chain
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
 			Function* createdFunction = createdHyperOpItr->first;
 			if (createdFunctionAndUnconditionalJumpSources.find(createdFunction) != createdFunctionAndUnconditionalJumpSources.end()) {
+				errs()<<"finding top most parents of "<<createdFunction->getName()<<"\n";
 				list<pair<Function*, Instruction*> > topmostParents = getTopmostParentInJumpChain(createdFunction, createdFunctionAndUnconditionalJumpSources);
 				//Re-route the unconditional jumps straight from topmostParents to createdFunction
 				for (list<pair<Function*, Instruction*> >::iterator parentItr = topmostParents.begin(); parentItr != topmostParents.end(); parentItr++) {
@@ -1583,9 +1578,9 @@ struct HyperOpCreationPass: public ModulePass {
 				(*deleteItr)->eraseFromParent();
 			}
 		}
-		DEBUG(dbgs() << "\n---------------Deleting unused functions---------------\n");
-		errs() << "what's in the module?";
-		M.dump();
+//		DEBUG(dbgs() << "\n---------------Deleting unused functions---------------\n");
+//		errs() << "what's in the module?";
+//		M.dump();
 
 		//Workaround for deleting unused functions, deletion doesn't work unless in topological order but what about recursion?
 		list<Function*> functionsForDeletion;
@@ -1602,8 +1597,8 @@ struct HyperOpCreationPass: public ModulePass {
 			functionsForDeletion.pop_front();
 			function->eraseFromParent();
 		}
-		DEBUG(dbgs() << "Final module contents:");
-		M.dump();
+//		DEBUG(dbgs() << "Final module contents:");
+//		M.dump();
 		return true;
 	}
 
