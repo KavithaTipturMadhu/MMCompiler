@@ -29,7 +29,8 @@ using namespace std;
 static string REDEFINE_ANNOTATIONS = "redefine.annotations";
 static string HYPEROP = "HyperOp";
 static string HYPEROP_CONSUMED_BY = "ConsumedBy";
-static string HYPEROP_CONTROLLED_BY = "ControlledBy";
+static string HYPEROP_CONTROLS = "Controls";
+const string HYPEROP_SYNC = "Sync";
 static string HYPEROP_AFFINITY = "Affinity";
 static string HYPEROP_ENTRY = "Entry";
 static string HYPEROP_EXIT = "Exit";
@@ -56,7 +57,9 @@ public:
 		PREDICATE,
 		CONTEXT_FRAME_ADDRESS,
 		//Edge used for ordering HyperOps such that
-		ORDERING
+		ORDERING,
+		//Edge to ensure completion of the hyperOp by inserting equivalent delay instruction in the end HyperOp
+		SYNC
 	} Type;
 	HyperOpEdge();
 	virtual ~HyperOpEdge();

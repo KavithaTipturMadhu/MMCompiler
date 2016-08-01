@@ -437,6 +437,7 @@ void HyperOp::setFrameNeedsGC(bool gcRequired) {
 list<unsigned int> HyperOp::getTopLevel() {
 	return this->topLevel;
 }
+
 HyperOpEdge::HyperOpEdge() {
 	this->Type = SCALAR;
 	this->isZeroedOut = false;
