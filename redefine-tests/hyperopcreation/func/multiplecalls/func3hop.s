@@ -14,7 +14,7 @@ sum1.return:                                      ; preds = %sum1.entry
 
 define void @sum2() {
 sum2.entry:
-  %0 = alloca i32, align 4, !Sync !9
+  %0 = alloca i32, align 4, !Sync !10
   br label %sum2.return
 
 sum2.return:                                      ; preds = %sum2.entry
@@ -24,7 +24,7 @@ sum2.return:                                      ; preds = %sum2.entry
 
 define void @sum3() {
 sum3.entry:
-  %0 = alloca i32, align 4, !Controls !9
+  %0 = alloca i32, align 4, !Controls !10
   br label %sum3.return
 
 sum3.return:                                      ; preds = %sum3.entry
@@ -50,6 +50,7 @@ sum4.return:                                      ; preds = %sum4.entry
 !5 = metadata !{metadata !"Intermediate", metadata !4}
 !6 = metadata !{metadata !"HyperOp", void ()* @sum4}
 !7 = metadata !{metadata !"Exit", metadata !6}
-!8 = metadata !{metadata !4}
-!9 = metadata !{metadata !10}
-!10 = metadata !{metadata !6}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !4}
+!10 = metadata !{metadata !11}
+!11 = metadata !{metadata !6}

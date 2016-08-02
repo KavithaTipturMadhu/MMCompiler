@@ -1,10 +1,13 @@
-int sum(int a, int b){
-	return a+b;
+int sum(int x){
+	return x*2;
 }
 
 void redefine_start(){
-	int a=10, b=20,c, d;
-	c=sum(a,b);
-	d=sum(a,b);
+	int a, b;
+	int c=a+b;
+	sum(20);
+	sum(a);
+	c=a-b;
+	c--;
 	return;
 }
