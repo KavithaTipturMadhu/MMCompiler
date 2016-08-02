@@ -1518,13 +1518,7 @@ struct HyperOpCreationPass: public ModulePass {
 				for (list<pair<Function*, list<Instruction*> > >::iterator parentItr = topmostParents.begin(); parentItr != topmostParents.end(); parentItr++) {
 					Function* parentFunction = parentItr->first;
 					list<Instruction*> jumpChain = parentItr->second;
-					errs() << "computed jump chain starting from topmost parent:" << parentFunction->getName() << "\n";
-					for (list<Instruction*>::iterator jumpItr = parentItr->second.begin(); jumpItr != parentItr->second.end(); jumpItr++) {
-						errs() << (*jumpItr)->getParent()->getParent()->getName() << ":";
-						(*jumpItr)->dump();
-					}
 
-					errs() << "Breaking jump chain\n";
 					Instruction* firstJumpInstruction = jumpChain.front();
 					while (jumpChain.size() > 0) {
 						//Remove the rest of controlled-by metadata
@@ -1544,7 +1538,6 @@ struct HyperOpCreationPass: public ModulePass {
 						} else {
 							nextHop = createdFunction;
 						}
-						errs() << "breaking edge between " << hopForUpdate->getName() << " and " << nextHop->getName() << "\n";
 
 						MDNode* controlledByMDNode = jumpInstruction->getMetadata(HYPEROP_CONTROLS);
 						if (controlledByMDNode == 0) {
@@ -1568,8 +1561,18 @@ struct HyperOpCreationPass: public ModulePass {
 								}
 								createdFunctionAndUnconditionalJumpSources[consumerFunction].erase(itrForRemoval);
 								if (jumpInstruction == firstJumpInstruction) {
-									updatedOperands.push_back(MDNode::get(ctxt, hyperOpAndAnnotationMap[createdFunction]));
-									createdFunctionAndUnconditionalJumpSources[createdFunction].push_back(make_pair(hopForUpdate, jumpInstruction));
+									//Check if there is already a predicate being delivered from hopForUpdate and createdFunction
+									bool predicateAddedPreviously = false;
+									for (list<pair<Function*, Instruction*> >::iterator jumpItr = createdFunctionAndUnconditionalJumpSources[createdFunction].begin(); jumpItr != createdFunctionAndUnconditionalJumpSources[createdFunction].end(); jumpItr++) {
+										if (jumpItr->first == hopForUpdate) {
+											predicateAddedPreviously = true;
+											break;
+										}
+									}
+									if (!predicateAddedPreviously) {
+										updatedOperands.push_back(MDNode::get(ctxt, hyperOpAndAnnotationMap[createdFunction]));
+										createdFunctionAndUnconditionalJumpSources[createdFunction].push_back(make_pair(hopForUpdate, jumpInstruction));
+									}
 								}
 							}
 						}
