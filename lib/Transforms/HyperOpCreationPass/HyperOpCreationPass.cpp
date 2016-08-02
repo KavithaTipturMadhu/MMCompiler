@@ -344,9 +344,9 @@ struct HyperOpCreationPass: public ModulePass {
 	list<pair<Function*, list<Instruction*> > > getTopmostParentAndJumpChain(Function* function, map<Function*, list<pair<Function*, Instruction*> > > functionAndJumpSources) {
 		list<pair<Function*, list<Instruction*> > > topmostParents;
 		list<pair<Function*, Instruction*> > parents = functionAndJumpSources[function];
-		errs()<<"for node "<<function->getName()<<"\n";
+		errs() << "parent for node " << function->getName() << "\n";
 		for (list<pair<Function*, Instruction*> >::iterator parentItr = parents.begin(); parentItr != parents.end(); parentItr++) {
-			errs()<<"parent node:"<<parentItr->first->getName()<<"\n";
+			errs() << "happens to be " << parentItr->first->getName() << "\n";
 			if (functionAndJumpSources.find(parentItr->first) != functionAndJumpSources.end()) {
 				list<pair<Function*, list<Instruction*> > > tempParents = getTopmostParentAndJumpChain(parentItr->first, functionAndJumpSources);
 				for (list<pair<Function*, list<Instruction*> > >::iterator tempParentItr = tempParents.begin(); tempParentItr != tempParents.end(); tempParentItr++) {
@@ -418,7 +418,7 @@ struct HyperOpCreationPass: public ModulePass {
 								//Place alloc, store and load instructions before call
 								AllocaInst* ai = new AllocaInst(callInst->getArgOperand(i)->getType());
 								ai->setAlignment(4);
-								ai->insertBefore(callInst);
+								ai->insertBefore(callInst->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
 								StoreInst* storeInst = new StoreInst(callInst->getArgOperand(i), ai);
 								storeInst->insertBefore(callInst);
 								LoadInst* loadInst = new LoadInst(ai);
@@ -1082,6 +1082,8 @@ struct HyperOpCreationPass: public ModulePass {
 		}
 		//End of creation of hyperops
 
+		errs()<<"Before patching ";
+		M.dump();
 		DEBUG(dbgs() << "Adding dependences across created HyperOps\n");
 		map<Function*, list<pair<Function*, Instruction*> > > createdFunctionAndUnconditionalJumpSources;
 		//Add metadata: This code is moved here to ensure that all the functions (corresponding to HyperOps) that need to be created have already been created
@@ -1216,7 +1218,7 @@ struct HyperOpCreationPass: public ModulePass {
 						Instruction* metadataHost = 0;
 						if (isa<AllocaInst>(clonedReachingDefInst)) {
 							metadataHost = clonedReachingDefInst;
-						} else if (isa<LoadInst>(clonedReachingDefInst) && isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(1))) {
+						} else if (isa<LoadInst>(clonedReachingDefInst) && isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(0))) {
 							//function argument is passed on to another HyperOp, find the first load instruction from the memory location and add metadata to it
 							for (Function::iterator bbItr = clonedReachingDefInst->getParent()->getParent()->begin(); bbItr != clonedReachingDefInst->getParent()->getParent()->end(); bbItr++) {
 								for (BasicBlock::iterator instrItr = bbItr->begin(); instrItr != bbItr->end(); instrItr++) {
@@ -1513,16 +1515,16 @@ struct HyperOpCreationPass: public ModulePass {
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
 			Function* createdFunction = createdHyperOpItr->first;
 			if (createdFunctionAndUnconditionalJumpSources.find(createdFunction) != createdFunctionAndUnconditionalJumpSources.end()) {
-				errs() << "\n--------\nfinding topmost parents of " << createdFunction->getName() << "\n";
 				list<pair<Function*, Instruction*> > parentFunctionMap = createdFunctionAndUnconditionalJumpSources[createdFunction];
+				errs() << "\n----------\ntopmost parent for node " << createdFunction->getName() << "\n";
 				list<pair<Function*, list<Instruction*> > > topmostParents = getTopmostParentAndJumpChain(createdFunction, createdFunctionAndUnconditionalJumpSources);
 				//Re-route the unconditional jumps straight from topmostParents to createdFunction
 				for (list<pair<Function*, list<Instruction*> > >::iterator parentItr = topmostParents.begin(); parentItr != topmostParents.end(); parentItr++) {
+					errs() << "starting jump chain re-routes\n";
 					Function* parentFunction = parentItr->first;
 					list<Instruction*> jumpChain = parentItr->second;
-					errs() << "topmost parent:" << parentItr->first->getName() << "\n";
 					for (list<Instruction*>::iterator jumpItr = jumpChain.begin(); jumpItr != jumpChain.end(); jumpItr++) {
-						errs()<<(*jumpItr)->getParent()->getParent()->getName()<<":";
+						errs() << (*jumpItr)->getParent()->getParent()->getName() << ":";
 						(*jumpItr)->dump();
 					}
 
@@ -1543,11 +1545,8 @@ struct HyperOpCreationPass: public ModulePass {
 							//Add the edge as an unconditional branch source to createdFunction
 							createdFunctionAndUnconditionalJumpSources[createdFunction].push_back(make_pair(jumpInstruction->getParent()->getParent(), jumpInstruction));
 						}
-						errs()<<"updated node:"<<jumpInstruction->getParent()->getParent()->getName()<<"\n";
-
 						for (list<pair<Function*, Instruction*> >::iterator jumpSourceItr = createdFunctionAndUnconditionalJumpSources[nextHop].begin(); jumpSourceItr != createdFunctionAndUnconditionalJumpSources[nextHop].end(); jumpSourceItr++) {
 							if (jumpSourceItr->second == jumpInstruction) {
-								errs()<<"removed jump from "<<nextHop->getName()<<"\n";
 								createdFunctionAndUnconditionalJumpSources[nextHop].erase(jumpSourceItr);
 								break;
 							}
@@ -1571,12 +1570,10 @@ struct HyperOpCreationPass: public ModulePass {
 							storeInst->insertBefore(retInstMap[startHyperOp]);
 							ai->setMetadata(HYPEROP_CONTROLS, node);
 							createdFunctionAndUnconditionalJumpSources[nextHop].push_back(make_pair(ai->getParent()->getParent(), ai));
-							errs()<<"edge added to next hop from start hyperop\n";
 						}
 					}
 					//Find out if a suffix of the jump chain is shared by some other path
 					while (jumpChain.size() > 0) {
-						errs()<<"breaking the jump chain\n";
 						//Remove the rest of controlled-by metadata
 						Instruction* jumpInstruction = jumpChain.front();
 						Function* hopForUpdate = jumpInstruction->getParent()->getParent();
@@ -1587,12 +1584,15 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 
 						Function* nextHop;
-						if(jumpChain.size()>0){
+						if (!jumpChain.empty()) {
 							nextHop = jumpChain.front()->getParent()->getParent();
-						}else{
+						} else {
 							nextHop = createdFunction;
 						}
 						MDNode* controlledByMDNode = jumpInstruction->getMetadata(HYPEROP_CONTROLS);
+						if (controlledByMDNode == 0) {
+							controlledByMDNode = jumpInstruction->getMetadata(HYPEROP_SYNC);
+						}
 						vector<Value*> updatedOperands;
 						for (unsigned i = 0; i < controlledByMDNode->getNumOperands(); i++) {
 							MDNode* consumerMDNode = (MDNode*) controlledByMDNode->getOperand(i);
@@ -1600,20 +1600,28 @@ struct HyperOpCreationPass: public ModulePass {
 							Function* consumerFunction = annotationAndHyperOpMap[consumerFunctionMDNode];
 							if (consumerFunction != nextHop) {
 								updatedOperands.push_back(consumerMDNode);
+							} else {
+								//Removing the edge
+								list<pair<Function*, Instruction*> >::iterator itrForRemoval;
+								for (list<pair<Function*, Instruction*> >::iterator hopItr = createdFunctionAndUnconditionalJumpSources[consumerFunction].begin(); hopItr != createdFunctionAndUnconditionalJumpSources[consumerFunction].end(); hopItr++) {
+									if (hopItr->first == hopForUpdate) {
+										itrForRemoval = hopItr;
+										break;
+									}
+								}
+								createdFunctionAndUnconditionalJumpSources[consumerFunction].erase(itrForRemoval);
 							}
 						}
 
 						if (updatedOperands.empty()) {
 							//Remove controlled by metadata
 							jumpInstruction->setMetadata(HYPEROP_CONTROLS, NULL);
-							errs()<<"updated jump instruction from "<<jumpInstruction->getParent()->getParent()->getName()<<":";
-							jumpInstruction->dump();
 							//Check if there exists a conditional path from hopForUpdate to the exit hyperop indirectly by checking if there is an outgoing edge at all
 							bool hasOutgoingEdges = false;
 							for (Function::iterator bbItr = hopForUpdate->begin(); bbItr != hopForUpdate->end(); bbItr++) {
 								for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
 									//check if any of the instructions have any metadata associated
-									if (instItr->getMetadata(HYPEROP_CONSUMED_BY) != 0 || instItr->getMetadata(HYPEROP_CONTROLS) != 0||instItr->getMetadata(HYPEROP_SYNC) != 0) {
+									if (instItr->getMetadata(HYPEROP_CONSUMED_BY) != 0 || instItr->getMetadata(HYPEROP_CONTROLS) != 0 || instItr->getMetadata(HYPEROP_SYNC) != 0) {
 										hasOutgoingEdges = true;
 										break;
 									}
@@ -1621,7 +1629,6 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 
 							if (!hasOutgoingEdges) {
-								errs()<<"adding a sync edge to end hyperop\n";
 								//Add a sync edge to end HyperOp
 								vector<Value*> nodeList;
 								Value* values[1];
@@ -1659,7 +1666,7 @@ struct HyperOpCreationPass: public ModulePass {
 							ai->setMetadata(HYPEROP_CONTROLS, node);
 							list<Instruction*> incomingEdgesToHop;
 							incomingEdgesToHop.push_back(ai);
-							createdFunctionAndUnconditionalJumpSources[nextHop].push_back(make_pair(ai->getParent()->getParent(),ai));
+							createdFunctionAndUnconditionalJumpSources[nextHop].push_back(make_pair(ai->getParent()->getParent(), ai));
 						}
 					}
 				}
