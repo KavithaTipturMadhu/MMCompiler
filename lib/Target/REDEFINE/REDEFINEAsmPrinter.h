@@ -53,7 +53,6 @@ public:
 	virtual bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo, unsigned AsmVariant, const char *ExtraCode, raw_ostream &OS) LLVM_OVERRIDE;
 	virtual bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo, unsigned AsmVariant, const char *ExtraCode, raw_ostream &OS) LLVM_OVERRIDE;
 	void printMemOperand(const MachineInstr *MI, int opNum, raw_ostream &OS);
-//  virtual void EmitEndOfAsmFile(Module &M) LLVM_OVERRIDE;
 	virtual void EmitFunctionBody();
 	virtual void EmitFunctionBodyEnd();
 	virtual void EmitFunctionEntryLabel();
@@ -61,6 +60,7 @@ public:
 	virtual bool doFinalization(Module &M);
 	virtual void EmitLinkage(unsigned Linkage, MCSymbol *GVSym) const;
     virtual void EmitEndOfAsmFile(Module &);
+    virtual void EmitFunctionHeader();
 };
 } // end namespace llvm
 

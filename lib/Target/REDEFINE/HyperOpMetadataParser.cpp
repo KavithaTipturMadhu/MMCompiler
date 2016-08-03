@@ -132,7 +132,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 							consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 						}
 					}
-					MDNode* controlledByMDNode = instr->getMetadata(HYPEROP_CONTROLLED_BY);
+					MDNode* controlledByMDNode = instr->getMetadata(HYPEROP_CONTROLS);
 					if (controlledByMDNode != 0) {
 						for (unsigned predicatedMDNodeIndex = 0; predicatedMDNodeIndex != controlledByMDNode->getNumOperands(); predicatedMDNodeIndex++) {
 							MDNode* predicatedMDNode = (MDNode*) controlledByMDNode->getOperand(predicatedMDNodeIndex);
@@ -144,6 +144,19 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 							edge->setValue((Value*) instr);
 							sourceHyperOp->addChildEdge(edge, predicatedHyperOp);
 							predicatedHyperOp->addParentEdge(edge, sourceHyperOp);
+						}
+					}
+
+					MDNode* syncMDNode = instr->getMetadata(HYPEROP_SYNC);
+					if (syncMDNode != 0) {
+						for (unsigned syncMDNodeIndex = 0; syncMDNodeIndex != syncMDNode->getNumOperands(); syncMDNodeIndex++) {
+							MDNode* syncedMDNode = (MDNode*) syncMDNode->getOperand(syncMDNodeIndex);
+							//Create an edge between two HyperOps labeled by the instruction
+							HyperOp* syncBarrierHyperOp = hyperOpMetadataMap[(MDNode*) syncedMDNode->getOperand(0)];
+							HyperOpEdge* edge = new HyperOpEdge();
+							edge->Type = HyperOpEdge::SYNC;
+							sourceHyperOp->addChildEdge(edge, syncBarrierHyperOp);
+							syncBarrierHyperOp->addParentEdge(edge, sourceHyperOp);
 						}
 					}
 				}

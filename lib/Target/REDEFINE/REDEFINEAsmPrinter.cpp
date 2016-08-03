@@ -105,14 +105,24 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 
 	if (hyperOp->isStaticHyperOp()) {
 		string instanceId(HYPEROP_INSTANCE_PREFIX);
-		instanceId.append("\t").append(itostr(hyperOp->getContextFrame()<<6)).append("\t");
+		instanceId.append("\t").append(itostr(hyperOp->getContextFrame() << 6)).append("\t");
 		OutStreamer.EmitRawText(StringRef(instanceId));
 
-		if(hyperOp->isStartHyperOp()){
+		AttributeSet attributes = MF->getFunction()->getAttributes();
+		unsigned i = 1;
+		unsigned argCount = 0;
+		for (Function::const_arg_iterator argItr = MF->getFunction()->arg_begin(); argItr != MF->getFunction()->arg_end(); argItr++, i++) {
+			if (attributes.hasAttribute(1, Attribute::InReg) && !argItr->getType()->isPointerTy()) {
+				argCount++;
+			}
+		}
+
+		if (hyperOp->isStartHyperOp() || argCount == 0) {
 			//Add a mandatory dummy input to the start HyperOp
 			string operands(".operands");
 			operands.append("\n").append("1").append("\n");
 			OutStreamer.EmitRawText(StringRef(operands));
+			argCount++;
 		}
 
 		string isValid(VALID_ANNOTATION);
@@ -133,13 +143,6 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		OutStreamer.EmitRawText(StringRef(depthHEG));
 
 		string launchCount(LAUNCH_CNT_ANNOTATION);
-		AttributeSet attributes = MF->getFunction()->getAttributes();
-		unsigned argCount = 0;
-		for (unsigned i = 0; i < MF->getFunction()->getNumOperands(); i++) {
-			if (attributes.hasAttribute(i, Attribute::InReg)) {
-				argCount++;
-			}
-		}
 		launchCount.append("\t").append(itostr(argCount)).append("\n");
 		OutStreamer.EmitRawText(StringRef(launchCount));
 
@@ -405,3 +408,27 @@ extern "C" void LLVMInitializeREDEFINEAsmPrinter() {
 	RegisterAsmPrinter<REDEFINEAsmPrinter> X(TheREDEFINETarget);
 }
 
+void REDEFINEAsmPrinter::EmitFunctionHeader() {
+	// Print out constants referenced by the function
+	EmitConstantPool();
+
+	// Print the 'header' of function.
+	const Function *F = MF->getFunction();
+
+	OutStreamer.SwitchSection(getObjFileLowering().SectionForGlobal(F, Mang, TM));
+
+	// Emit the CurrentFnSym.  This is a virtual function to allow targets to
+	// do their wild and crazy things as required.
+	EmitFunctionEntryLabel();
+
+	// If the function had address-taken blocks that got deleted, then we have
+	// references to the dangling symbols.  Emit them at the start of the function
+	// so that we don't get references to undefined symbols.
+	std::vector<MCSymbol*> DeadBlockSyms;
+	MMI->takeDeletedSymbolsForFunction(F, DeadBlockSyms);
+	for (unsigned i = 0, e = DeadBlockSyms.size(); i != e; ++i) {
+		OutStreamer.AddComment("Address taken block that was later removed");
+		OutStreamer.EmitLabel(DeadBlockSyms[i]);
+	}
+
+}

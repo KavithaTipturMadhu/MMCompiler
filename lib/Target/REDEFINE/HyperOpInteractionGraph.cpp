@@ -437,6 +437,7 @@ void HyperOp::setFrameNeedsGC(bool gcRequired) {
 list<unsigned int> HyperOp::getTopLevel() {
 	return this->topLevel;
 }
+
 HyperOpEdge::HyperOpEdge() {
 	this->Type = SCALAR;
 	this->isZeroedOut = false;
@@ -1371,7 +1372,6 @@ void HyperOpInteractionGraph::clusterNodes() {
 		clusterList.push_back(clusterItr->first);
 	}
 
-	this->print(errs());
 }
 
 int linearizeTime(list<unsigned int> time) {
@@ -2087,7 +2087,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 			}
 
 //			os << "Dom:" << dom << ", PostDom:" << postdom << ",";
-//			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
+			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
 //			os << "Domf:";
 //			if (!vertex->getDominanceFrontier().empty()) {
 //				list<HyperOp*> domf = vertex->getDominanceFrontier();
