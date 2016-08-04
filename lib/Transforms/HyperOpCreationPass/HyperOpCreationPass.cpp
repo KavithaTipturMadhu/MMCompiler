@@ -410,18 +410,20 @@ struct HyperOpCreationPass: public ModulePass {
 					if (isa<CallInst>(inst)) {
 						CallInst* callInst = (CallInst*) inst;
 						calledFunctions.push_back(callInst->getCalledFunction());
-						//Replace immediate operands to a call with a memory location
-						for (unsigned i = 0; i < callInst->getNumArgOperands(); i++) {
-							if (isa<Constant>(callInst->getArgOperand(i))) {
-								//Place alloc, store and load instructions before call
-								AllocaInst* ai = new AllocaInst(callInst->getArgOperand(i)->getType());
-								ai->setAlignment(4);
-								ai->insertBefore(callInst->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
-								StoreInst* storeInst = new StoreInst(callInst->getArgOperand(i), ai);
-								storeInst->insertBefore(callInst);
-								LoadInst* loadInst = new LoadInst(ai);
-								loadInst->insertBefore(callInst);
-								callInst->setArgOperand(i, loadInst);
+						if (!callInst->getCalledFunction()->isIntrinsic()) {
+							//Replace immediate operands to a call with a memory location
+							for (unsigned i = 0; i < callInst->getNumArgOperands(); i++) {
+								if (isa<Constant>(callInst->getArgOperand(i))) {
+									//Place alloc, store and load instructions before call
+									AllocaInst* ai = new AllocaInst(callInst->getArgOperand(i)->getType());
+									ai->setAlignment(4);
+									ai->insertBefore(callInst->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
+									StoreInst* storeInst = new StoreInst(callInst->getArgOperand(i), ai);
+									storeInst->insertBefore(callInst);
+									LoadInst* loadInst = new LoadInst(ai);
+									loadInst->insertBefore(callInst);
+									callInst->setArgOperand(i, loadInst);
+								}
 							}
 						}
 					}
@@ -671,9 +673,9 @@ struct HyperOpCreationPass: public ModulePass {
 				if (!endOfHyperOp && bbTraverser.empty()) {
 					list<BasicBlock*> coveredBBList;
 					for (list<pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator funcForCreationItr = hyperOpBBAndArgs.begin(); funcForCreationItr != hyperOpBBAndArgs.end(); funcForCreationItr++) {
-							std::copy(funcForCreationItr->first.begin(), funcForCreationItr->first.end(), back_inserter(coveredBBList));
+						std::copy(funcForCreationItr->first.begin(), funcForCreationItr->first.end(), back_inserter(coveredBBList));
 					}
-					std::copy(accumulatedBasicBlocks.begin(),accumulatedBasicBlocks.end(), back_inserter(coveredBBList));
+					std::copy(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), back_inserter(coveredBBList));
 					bool allCovered = true;
 					for (Function::iterator bbItr = function->begin(); bbItr != function->end(); bbItr++) {
 						if (find(coveredBBList.begin(), coveredBBList.end(), bbItr) == coveredBBList.end()) {
@@ -886,6 +888,8 @@ struct HyperOpCreationPass: public ModulePass {
 					originalToClonedBasicBlockMap.insert(make_pair(*accumulatedBBItr, newBB));
 					//Cloning instructions in the reverse order so that the user instructions are cloned before the definition instructions
 					for (BasicBlock::iterator instItr = (*accumulatedBBItr)->begin(); instItr != (*accumulatedBBItr)->end(); instItr++) {
+						errs() << "Cloning ";
+						instItr->dump();
 						Instruction* clonedInst;
 						if (isa<ReturnInst>(&*instItr)) {
 							clonedInst = BranchInst::Create(retBB, newBB);
@@ -1741,7 +1745,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 		}
 
-		DEBUG(dbgs() << "Remove unreachable basic blocks from created functions\n");
+		DEBUG(dbgs() << "\n-----------Removing unreachable basic blocks from created functions-----------\n");
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
 			Function* newFunction = createdHyperOpItr->first;
 			list<BasicBlock*> bbForDelete;
@@ -1769,7 +1773,6 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 
 			for (list<BasicBlock*>::iterator deleteItr = bbForDelete.begin(); deleteItr != bbForDelete.end(); deleteItr++) {
-				errs() << "deleting:" << (*deleteItr)->getName() << "\n";
 				(*deleteItr)->eraseFromParent();
 			}
 		}
@@ -1779,7 +1782,7 @@ struct HyperOpCreationPass: public ModulePass {
 		list<Function*> functionsForDeletion;
 		for (Module::iterator functionItr = M.begin(); functionItr != M.end(); functionItr++) {
 			//Remove old functions from module
-			if (createdHyperOpAndOriginalBasicBlockAndArgMap.find(functionItr) == createdHyperOpAndOriginalBasicBlockAndArgMap.end()) {
+			if (createdHyperOpAndOriginalBasicBlockAndArgMap.find(functionItr) == createdHyperOpAndOriginalBasicBlockAndArgMap.end() && !functionItr->isIntrinsic()) {
 				functionItr->deleteBody();
 				functionsForDeletion.push_back(functionItr);
 			}
