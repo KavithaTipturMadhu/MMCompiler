@@ -476,7 +476,7 @@ struct HyperOpCreationPass: public ModulePass {
 				BasicBlock* bbItr = bbTraverser.front();
 				bbTraverser.pop_front();
 				bool canAcquireBBItr = true;
-				//If basic block does not have a unique predecessor and basic block is not the entry block
+				//If basic block is not the entry block
 				if (bbItr != &(function->getEntryBlock())) {
 					//Check if all the parent nodes of the basic block are in the same HyperOp
 					//While this should in principle be done to all producers of data as well, since we are choosing one basic-block after another from a CFG to form a HyperOp, immediate predecessors should suffice
@@ -533,6 +533,7 @@ struct HyperOpCreationPass: public ModulePass {
 					//Place the bbItr back in its place
 					bbTraverser.push_front(bbItr);
 				} else {
+					errs()<<"adding bb:"<<bbItr->getName()<<"\n";
 					accumulatedBasicBlocks.push_back(bbItr);
 					unsigned bbIndex = 0;
 					for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
@@ -666,40 +667,30 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
+				//Last basic block
 				if (!endOfHyperOp && bbTraverser.empty()) {
-					bool allBBCovered = true;
-					for (Function::iterator functionBBItr = function->begin(); functionBBItr != function->end(); functionBBItr++) {
-						BasicBlock* originalBB = &*functionBBItr;
-						bool isBBCovered = false;
-						if (originalFunctionToHyperOpBBListMap.find(function) != originalFunctionToHyperOpBBListMap.end()) {
-							//Check if the bb has been covered in a function created previously
-							for (list<pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator funcForCreationItr = originalFunctionToHyperOpBBListMap[function].begin(); funcForCreationItr != originalFunctionToHyperOpBBListMap[function].end(); funcForCreationItr++) {
-								list<BasicBlock*> secondSet = funcForCreationItr->first;
-								if (find(secondSet.begin(), secondSet.end(), originalBB) != secondSet.end()) {
-									isBBCovered = true;
-									break;
-								}
-							}
-
-							if (!isBBCovered && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), originalBB) != accumulatedBasicBlocks.end()) {
-								isBBCovered = true;
-							}
-
-							if (!isBBCovered) {
-								//Atleast one basic block yet to be traversed
-								allBBCovered = false;
-								break;
-							}
+					list<BasicBlock*> coveredBBList;
+					if (originalFunctionToHyperOpBBListMap.find(function) != originalFunctionToHyperOpBBListMap.end()) {
+						for (list<pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator funcForCreationItr = originalFunctionToHyperOpBBListMap[function].begin(); funcForCreationItr != originalFunctionToHyperOpBBListMap[function].end(); funcForCreationItr++) {
+							std::copy(funcForCreationItr->first.begin(), funcForCreationItr->first.end(), std::back_inserter(coveredBBList));
 						}
-
-						if (allBBCovered) {
-							endOfHyperOp = true;
+					}
+					std::copy(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), std::back_inserter(coveredBBList));
+					bool allCovered = true;
+					for(Function::iterator bbItr = function->begin(); bbItr!=function->end(); bbItr++){
+						if(find(coveredBBList.begin(), coveredBBList.end(),bbItr)==coveredBBList.end()){
+							allCovered= false;
+							break;
 						}
+					}
+					if(!allCovered){
+						endOfHyperOp = true;
 					}
 				}
 
 				//Create a new HyperOp
 				if (endOfHyperOp) {
+					errs() << "end of hop\n";
 					//Shuffle the arguments to the HyperOp such that scalar arguments are positioned first and the rest of the arguments are positioned after
 					HyperOpArgumentList tempHyperOpArguments;
 					for (HyperOpArgumentList::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
@@ -995,7 +986,7 @@ struct HyperOpCreationPass: public ModulePass {
 									for (int i = 0; i < terminator->getNumSuccessors(); i++) {
 										if (terminator->getSuccessor(i) == originalBB) {
 											//Add only those successors that correspond to a basic block in the current HyperOp
-											successorBBList.push_back(i + 1);
+											successorBBList.push_back(i);
 										}
 									}
 									if (successorBBList.size() == terminator->getNumSuccessors()) {
@@ -1078,6 +1069,8 @@ struct HyperOpCreationPass: public ModulePass {
 				functionOriginalToClonedInstructionMap[newFunction] = originalToClonedInstMap;
 			}
 		}
+		errs() << "module state before:";
+		M.dump();
 		//End of creation of hyperops
 		DEBUG(dbgs() << "Adding dependences across created HyperOps\n");
 		map<Function*, list<pair<Function*, Instruction*> > > createdFunctionAndUnconditionalJumpSources;
@@ -1344,7 +1337,10 @@ struct HyperOpCreationPass: public ModulePass {
 //Find out if there exist any branch instructions leading to the HyperOp, add metadata to the instruction
 			for (map<Instruction*, vector<unsigned> >::iterator conditionalBranchSourceItr = conditionalBranchSources.begin(); conditionalBranchSourceItr != conditionalBranchSources.end(); conditionalBranchSourceItr++) {
 				Instruction* conditionalBranchInst = conditionalBranchSourceItr->first;
+				errs() << "conditional branch:";
+				conditionalBranchInst->dump();
 				vector<unsigned> branchOperands = conditionalBranchSourceItr->second;
+				errs() << "finding successor:" << branchOperands[0] << "\n";
 				BasicBlock* conditionalTargetBB = ((BranchInst*) conditionalBranchInst)->getSuccessor(branchOperands[0]);
 				Value* predicateOperand = conditionalBranchInst->getOperand(0);
 				Instruction* clonedInstr;
@@ -1409,11 +1405,8 @@ struct HyperOpCreationPass: public ModulePass {
 					storeInst->setAlignment(4);
 					storeInst->insertBefore(retInstMap[replicatedCalledFunction]);
 				} else {
-					clonedInstr = getClonedArgument(predicateOperand, callSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
-				}
-				//No need to add unconditional jump if there is data being produced already
-				if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), clonedInstr->getParent()->getParent()) != addedParentsToCurrentHyperOp.end()) {
-					continue;
+					predicateOperand = getClonedArgument(predicateOperand, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+					clonedInstr = getClonedArgument(conditionalBranchInst, callSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
 				}
 
 				//Branch instruction's first operand
@@ -1454,7 +1447,7 @@ struct HyperOpCreationPass: public ModulePass {
 					//Update the cloned conditional branch instruction with the right target
 					unsigned positionToBeUpdated = ConstantInt::get(ctxt, APInt(32, conditionalBranchSourceItr->second[branchOperandIndex]))->getZExtValue();
 					Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
-					clonedInstr->setOperand(positionToBeUpdated, retInstOfProducer->getParent());
+					((BranchInst*) clonedInstr)->setSuccessor(positionToBeUpdated, retInstOfProducer->getParent());
 				}
 
 				list<BasicBlock*> branchTargets;
@@ -1516,7 +1509,7 @@ struct HyperOpCreationPass: public ModulePass {
 								BasicBlock* lastBB = &accumulatedBlocks.front()->getParent()->back();
 								if (find(accumulatedBlocks.begin(), accumulatedBlocks.end(), lastBB) != accumulatedBlocks.end() || (isa<CallInst>(lastBB->front()) && isa<ReturnInst>(lastBB->front().getNextNode()))) {
 									replicatedCalledFunction = createdHopItr->first;
-									appendCall = (CallInst*)&lastBB->front();
+									appendCall = (CallInst*) &lastBB->front();
 									break;
 								}
 							}
@@ -1598,14 +1591,16 @@ struct HyperOpCreationPass: public ModulePass {
 
 		}
 
+		errs() << "whats m now:";
+		M.dump();
 		//TODO first remove edges and add the new necessary edges, then check if the source of the chain and the target still require a jump straight and THEN introduce the shortcut edge
-		DEBUG(dbgs() << "Short-circuiting unconditional branch chains\n");
+		DEBUG(dbgs() << "\n----------Short-circuiting unconditional branch chains----------\n");
 		//Compute unconditional jump chains across HyperOps and short-circuit them to jump straight to the target of the chain
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
 			Function* createdFunction = createdHyperOpItr->first;
 			if (createdFunctionAndUnconditionalJumpSources.find(createdFunction) != createdFunctionAndUnconditionalJumpSources.end()) {
 				list<pair<Function*, Instruction*> > parentFunctionMap = createdFunctionAndUnconditionalJumpSources[createdFunction];
-				errs() << "\n----------\ntopmost parent for node " << createdFunction->getName() << "\n";
+				errs() << "topmost parent for node " << createdFunction->getName() << "\n";
 				list<pair<Function*, list<Instruction*> > > topmostParents = getTopmostParentAndJumpChain(createdFunction, createdFunctionAndUnconditionalJumpSources);
 				//Re-route the unconditional jumps straight from topmostParents to createdFunction
 				for (list<pair<Function*, list<Instruction*> > >::iterator parentItr = topmostParents.begin(); parentItr != topmostParents.end(); parentItr++) {
