@@ -220,7 +220,7 @@ struct HyperOpCreationPass: public ModulePass {
 	}
 
 	HyperOpArgumentType supportedArgType(Value* argument, Module &m) {
-		if (argument->getType()->getTypeID() == Type::FloatTyID) {
+		if (argument->getType()->getTypeID() == Type::FloatTyID||argument->getType()->getTypeID()==Type::PointerTyID) {
 			return LOCAL_REFERENCE;
 		}
 
@@ -650,7 +650,10 @@ struct HyperOpCreationPass: public ModulePass {
 									for (list<Value*>::iterator newArgItr = newHyperOpArguments.begin(); newArgItr != newHyperOpArguments.end(); newArgItr++) {
 										list<Value*> newArg;
 										newArg.push_back(*newArgItr);
+										errs()<<"type of arg:";
+										(*newArgItr)->dump();
 										HyperOpArgumentType type = supportedArgType(*newArgItr, M);
+										errs()<<type<<"\n";
 										if (type != GLOBAL_REFERENCE) {
 											hyperOpArgCount++;
 										}
