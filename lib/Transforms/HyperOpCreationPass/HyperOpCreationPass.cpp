@@ -360,6 +360,32 @@ struct HyperOpCreationPass: public ModulePass {
 		return topmostParents;
 	}
 
+	list<list<Function*> > getCyclesInCallGraph(list<Function*> functionTraversalList, map<Function*, list<Function*> > calledFunctionMap) {
+		list<list<Function*> > cyclesInCallGraph;
+		Function* function = functionTraversalList.front();
+		list<Function*> calledFunctions = calledFunctionMap[function];
+		for (list<Function*>::iterator calledFuncItr = calledFunctions.begin(); calledFuncItr != calledFunctions.end(); calledFuncItr++) {
+			bool cycleExit = false;
+			for (list<Function*>::iterator traversedItr = functionTraversalList.begin(); traversedItr != functionTraversalList.end(); traversedItr++) {
+				if ((*traversedItr) == (*calledFuncItr)) {
+					list<Function*> newCycle;
+					std::copy(functionTraversalList.begin(), traversedItr, std::front_inserter(newCycle));
+					newCycle.push_back(*calledFuncItr);
+					cyclesInCallGraph.push_back(newCycle);
+					cycleExit = true;
+					break;
+				}
+			}
+
+			if (!cycleExit) {
+				functionTraversalList.push_front(*calledFuncItr);
+				list<list<Function*> > tempCyclesInGraph = getCyclesInCallGraph(functionTraversalList, calledFunctionMap);
+				std::copy(tempCyclesInGraph.begin(), tempCyclesInGraph.end(), back_inserter(cyclesInCallGraph));
+			}
+		}
+		return cyclesInCallGraph;
+	}
+
 	virtual bool runOnModule(Module &M) {
 		LLVMContext & ctxt = M.getContext();
 		//Top level annotation corresponding to all annotations REDEFINE
@@ -447,6 +473,17 @@ struct HyperOpCreationPass: public ModulePass {
 			return false;
 		}
 
+//		list<Function*> traversedFunctions;
+//		traversedFunctions.push_back(mainFunction);
+//		list<list<Function*> > cyclesInCallGraph = getCyclesInCallGraph(traversedFunctions, calledFunctionMap);
+//		errs()<<"found cycles?"<<cyclesInCallGraph.size()<<"\n";
+//		for(list<list<Function*> >::iterator cycleItr = cyclesInCallGraph.begin();cycleItr!=cyclesInCallGraph.end();cycleItr++){
+//			errs()<<"cycle:";
+//			for(list<Function*>::iterator funcItr = cycleItr->begin();funcItr!=cycleItr->end();funcItr++){
+//				errs()<<(*funcItr)->getName()<<"->";
+//			}
+//			errs()<<"\n";
+//		}
 		while (!functionList.empty()) {
 			Function* function = functionList.front();
 			functionList.pop_front();
@@ -1831,8 +1868,8 @@ struct HyperOpCreationPass: public ModulePass {
 			functionsForDeletion.pop_front();
 			function->eraseFromParent();
 		}
-//		DEBUG(dbgs() << "Final module contents:");
-//		M.dump();
+		DEBUG(dbgs() << "Final module contents:");
+		M.dump();
 		return true;
 	}
 
