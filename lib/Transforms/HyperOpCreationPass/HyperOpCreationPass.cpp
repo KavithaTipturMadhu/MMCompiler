@@ -124,7 +124,7 @@ struct HyperOpCreationPass: public ModulePass {
 				//Reverse iterator so that the last store is encountered first
 				for (BasicBlock::reverse_iterator instrItr = originalBB->rbegin(); instrItr != originalBB->rend(); instrItr++) {
 					Instruction* instr = &*instrItr;
-					if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(0) == globalVariable && reachingDefinitions.find(originalBB) == reachingDefinitions.end()) {
+					if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == globalVariable && reachingDefinitions.find(originalBB) == reachingDefinitions.end()) {
 						//Check if the store instruction is reachable to any of the uses of the argument in the accumulated bb list
 						for (Value::use_iterator useItr = globalVariable->use_begin(); useItr != globalVariable->use_end(); useItr++) {
 							User* user = *useItr;
@@ -181,7 +181,7 @@ struct HyperOpCreationPass: public ModulePass {
 				Instruction* instr = instrItr;
 				//Check the uses in BasicBlocks that are predecessors and use allocInstr
 				list<BasicBlock*> visitedBasicBlocks;
-				if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(1) == useInstr && pathExistsInCFG(originalBB, useInstr->getParent(), visitedBasicBlocks)) {
+				if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(1) == useInstr && pathExistsInCFG(originalBB, useInstr->getParent(), visitedBasicBlocks)) {
 					//A previous store to the same memory location exists, we need to consider the latest definition
 					if (basicBlocksWithDefinitions.find(originalBB) != basicBlocksWithDefinitions.end()) {
 						basicBlocksWithDefinitions.erase(originalBB);
@@ -220,7 +220,7 @@ struct HyperOpCreationPass: public ModulePass {
 	}
 
 	HyperOpArgumentType supportedArgType(Value* argument, Module &m) {
-		if (argument->getType()->getTypeID() == Type::FloatTyID||argument->getType()->getTypeID()==Type::PointerTyID) {
+		if (argument->getType()->getTypeID() == Type::FloatTyID || argument->getType()->getTypeID() == Type::PointerTyID) {
 			return LOCAL_REFERENCE;
 		}
 
@@ -588,7 +588,7 @@ struct HyperOpCreationPass: public ModulePass {
 							list<Value*> newHyperOpArguments;
 							for (unsigned int i = 0; i < instItr->getNumOperands(); i++) {
 								Value * argument = instItr->getOperand(i);
-								if (!isa < Constant > (argument) &&!argument->getType()->isLabelTy()) {
+								if (!isa<Constant>(argument) && !argument->getType()->isLabelTy()) {
 									//Find the reaching definition of the argument; alloca instruction maybe followed by store instructions to the memory location, we need to identify the set of store instructions to the memory location that reach the current use of the memory location
 									if (isa<Instruction>(argument)) {
 										if (isa<AllocaInst>(argument)) {
@@ -650,10 +650,10 @@ struct HyperOpCreationPass: public ModulePass {
 									for (list<Value*>::iterator newArgItr = newHyperOpArguments.begin(); newArgItr != newHyperOpArguments.end(); newArgItr++) {
 										list<Value*> newArg;
 										newArg.push_back(*newArgItr);
-										errs()<<"type of arg:";
+										errs() << "type of arg:";
 										(*newArgItr)->dump();
 										HyperOpArgumentType type = supportedArgType(*newArgItr, M);
-										errs()<<type<<"\n";
+										errs() << type << "\n";
 										if (type != GLOBAL_REFERENCE) {
 											hyperOpArgCount++;
 										}
@@ -1125,7 +1125,7 @@ struct HyperOpCreationPass: public ModulePass {
 					} else {
 						clonedInst = getClonedArgument(argOperand, callSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
 					}
-					if (isa < LoadInst > (clonedInst) &&isa<AllocaInst>(clonedInst->getOperand(0))) {
+					if (isa<LoadInst>(clonedInst) && isa<AllocaInst>(clonedInst->getOperand(0))) {
 						clonedInst = (AllocaInst*) clonedInst->getOperand(0);
 					}
 					replacementArg.push_back(clonedInst);
@@ -1230,11 +1230,11 @@ struct HyperOpCreationPass: public ModulePass {
 						Instruction* metadataHost = 0;
 						if (isa<AllocaInst>(clonedReachingDefInst)) {
 							metadataHost = clonedReachingDefInst;
-						} else if (isa < LoadInst > (clonedReachingDefInst) &&isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(0))) {
+						} else if (isa<LoadInst>(clonedReachingDefInst) && isArgInList(clonedReachingDefInst->getParent()->getParent(), clonedReachingDefInst->getOperand(0))) {
 							//function argument is passed on to another HyperOp, find the first load instruction from the memory location and add metadata to it
 							for (Function::iterator bbItr = clonedReachingDefInst->getParent()->getParent()->begin(); bbItr != clonedReachingDefInst->getParent()->getParent()->end(); bbItr++) {
 								for (BasicBlock::iterator instrItr = bbItr->begin(); instrItr != bbItr->end(); instrItr++) {
-									if (isa < LoadInst > (instrItr) &&((LoadInst*) &instrItr)->getOperand(0) == clonedReachingDefInst->getOperand(0)) {
+									if (isa<LoadInst>(instrItr) && ((LoadInst*) &instrItr)->getOperand(0) == clonedReachingDefInst->getOperand(0)) {
 										metadataHost = instrItr;
 										break;
 									}
@@ -1477,8 +1477,6 @@ struct HyperOpCreationPass: public ModulePass {
 			//Remove unconditional branch instruction, add the annotation to the alloca instruction of the branch
 			for (list<Instruction*>::iterator unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
 				Value* unconditionalBranchInstr = *unconditionalBranchSourceItr;
-				errs() << "unconditional branch from " << ((Instruction*) unconditionalBranchInstr)->getParent()->getName() << "\n";
-				unconditionalBranchInstr->dump();
 				BasicBlock* targetBB = ((BranchInst*) unconditionalBranchInstr)->getSuccessor(0);
 				list<pair<Function*, Instruction*> > addedJumpSources;
 				Instruction* clonedInstr;
@@ -1594,9 +1592,9 @@ struct HyperOpCreationPass: public ModulePass {
 				addedParentsToCurrentHyperOp.push_back(sourceParentFunction);
 				createdFunctionAndUnconditionalJumpSources[createdFunction] = addedJumpSources;
 			}
-
 		}
 
+		list<MDNode*> syncMDNodeList;
 		//TODO first remove edges and add the new necessary edges, then check if the source of the chain and the target still require a jump straight and THEN introduce the shortcut edge
 		DEBUG(dbgs() << "\n----------Short-circuiting unconditional branch chains----------\n");
 		//Compute unconditional jump chains across HyperOps and short-circuit them to jump straight to the target of the chain
@@ -1604,7 +1602,6 @@ struct HyperOpCreationPass: public ModulePass {
 			Function* createdFunction = createdHyperOpItr->first;
 			if (createdFunctionAndUnconditionalJumpSources.find(createdFunction) != createdFunctionAndUnconditionalJumpSources.end()) {
 				list<pair<Function*, Instruction*> > parentFunctionMap = createdFunctionAndUnconditionalJumpSources[createdFunction];
-				errs() << "topmost parent for node " << createdFunction->getName() << "\n";
 				list<pair<Function*, list<Instruction*> > > topmostParents = getTopmostParentAndJumpChain(createdFunction, createdFunctionAndUnconditionalJumpSources);
 				//Re-route the unconditional jumps straight from topmostParents to createdFunction
 				for (list<pair<Function*, list<Instruction*> > >::iterator parentItr = topmostParents.begin(); parentItr != topmostParents.end(); parentItr++) {
@@ -1695,6 +1692,7 @@ struct HyperOpCreationPass: public ModulePass {
 								//Create a sync edge between the current HyperOp and the last HyperOp
 								//We use sync edge here because adding a predicate to the
 								hopForUpdate->begin()->front().setMetadata(HYPEROP_SYNC, mdNode);
+								syncMDNodeList.push_back(newPredicateMetadata);
 								createdFunctionAndUnconditionalJumpSources[endHyperOp].push_back(make_pair(hopForUpdate, &hopForUpdate->begin()->front()));
 							}
 						} else {
@@ -1745,7 +1743,44 @@ struct HyperOpCreationPass: public ModulePass {
 					bbItr->getTerminator()->setSuccessor(0, originOfJumpChain);
 				}
 			}
+		}
 
+		DEBUG(dbgs() << "\n-----------Re-routing sync edges from end hyperop to  -----------\n");
+		//If the end hyperop has 16 arguments, create another end hyperop so that sync (if any) can go to the last HyperOp
+		if (endHyperOp->getNumOperands() == FRAME_SIZE && !syncMDNodeList.empty()) {
+			//Add a new dummy HyperOp
+			FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()), false);
+			Function *newFunction = Function::Create(FT, Function::ExternalLinkage, "redefine_end");
+			//Add a dummy return block
+			BasicBlock* retBB = BasicBlock::Create(ctxt, newFunction->getName().str().append(".return"), newFunction);
+			Instruction* retInst = ReturnInst::Create(ctxt);
+			retBB->getInstList().insert(retBB->getFirstInsertionPt(), retInst);
+
+			Value * values[2];
+			values[0] = MDString::get(ctxt, HYPEROP);
+			values[1] = newFunction;
+			MDNode *funcAnnotation = MDNode::get(ctxt, values);
+
+			Instruction* endHopRetInst = retInstMap[endHyperOp];
+			AllocaInst* ai = new AllocaInst(Type::getInt1Ty(ctxt));
+			ai->setAlignment(4);
+			ai->insertBefore(endHopRetInst->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
+			StoreInst* storeInst = new StoreInst(ConstantInt::get(ctxt, APInt(1, 1)), ai);
+			storeInst->setAlignment(4);
+			storeInst->insertBefore(endHopRetInst);
+
+			Value * annotationValues[1];
+			annotationValues[0] = hyperOpAndAnnotationMap[endHyperOp];
+			MDNode* newPredicateMetadata = MDNode::get(ctxt, annotationValues);
+			vector<Value*> metadataList;
+			metadataList.push_back(newPredicateMetadata);
+			MDNode * predicatesRelation = MDNode::get(ctxt, metadataList);
+			ai->setMetadata(HYPEROP_SYNC, predicatesRelation);
+
+			for (list<MDNode*>::iterator syncSourceItr = syncMDNodeList.begin(); syncSourceItr != syncMDNodeList.end(); syncSourceItr++) {
+				MDNode* source = *syncSourceItr;
+				source->replaceOperandWith(0, funcAnnotation);
+			}
 		}
 
 		DEBUG(dbgs() << "\n-----------Removing unreachable basic blocks from created functions-----------\n");
