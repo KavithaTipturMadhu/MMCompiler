@@ -124,7 +124,7 @@ struct HyperOpCreationPass: public ModulePass {
 				//Reverse iterator so that the last store is encountered first
 				for (BasicBlock::reverse_iterator instrItr = originalBB->rbegin(); instrItr != originalBB->rend(); instrItr++) {
 					Instruction* instr = &*instrItr;
-					if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == globalVariable && reachingDefinitions.find(originalBB) == reachingDefinitions.end()) {
+					if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(0) == globalVariable && reachingDefinitions.find(originalBB) == reachingDefinitions.end()) {
 						//Check if the store instruction is reachable to any of the uses of the argument in the accumulated bb list
 						for (Value::use_iterator useItr = globalVariable->use_begin(); useItr != globalVariable->use_end(); useItr++) {
 							User* user = *useItr;
@@ -181,7 +181,7 @@ struct HyperOpCreationPass: public ModulePass {
 				Instruction* instr = instrItr;
 				//Check the uses in BasicBlocks that are predecessors and use allocInstr
 				list<BasicBlock*> visitedBasicBlocks;
-				if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(1) == useInstr && pathExistsInCFG(originalBB, useInstr->getParent(), visitedBasicBlocks)) {
+				if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(1) == useInstr && pathExistsInCFG(originalBB, useInstr->getParent(), visitedBasicBlocks)) {
 					//A previous store to the same memory location exists, we need to consider the latest definition
 					if (basicBlocksWithDefinitions.find(originalBB) != basicBlocksWithDefinitions.end()) {
 						basicBlocksWithDefinitions.erase(originalBB);
@@ -360,17 +360,17 @@ struct HyperOpCreationPass: public ModulePass {
 		return topmostParents;
 	}
 
-	list<list<Function*> > getCyclesInCallGraph(list<Function*> functionTraversalList, map<Function*, list<Function*> > calledFunctionMap) {
-		list<list<Function*> > cyclesInCallGraph;
-		Function* function = functionTraversalList.front();
-		list<Function*> calledFunctions = calledFunctionMap[function];
-		for (list<Function*>::iterator calledFuncItr = calledFunctions.begin(); calledFuncItr != calledFunctions.end(); calledFuncItr++) {
+	list<list<pair<Function*, Instruction*> > > getCyclesInCallGraph(list<pair<Function*, Instruction*> > functionTraversalList, map<Function*, list<pair<Function*, Instruction*> > > calledFunctionMap) {
+		list<list<pair<Function*, Instruction*> > > cyclesInCallGraph;
+		Function* function = functionTraversalList.front().first;
+		list<pair<Function*, Instruction*> > calledFunctions = calledFunctionMap[function];
+		for (list<pair<Function*, Instruction*> >::iterator calledFuncItr = calledFunctions.begin(); calledFuncItr != calledFunctions.end(); calledFuncItr++) {
 			bool cycleExit = false;
-			for (list<Function*>::iterator traversedItr = functionTraversalList.begin(); traversedItr != functionTraversalList.end(); traversedItr++) {
-				if ((*traversedItr) == (*calledFuncItr)) {
-					list<Function*> newCycle;
+			for (list<pair<Function*, Instruction*> >::iterator traversedItr = functionTraversalList.begin(); traversedItr != functionTraversalList.end(); traversedItr++) {
+				if (traversedItr->first == calledFuncItr->first) {
+					list<pair<Function*, Instruction*> > newCycle;
 					std::copy(functionTraversalList.begin(), traversedItr, std::front_inserter(newCycle));
-					newCycle.push_back(*calledFuncItr);
+					newCycle.push_front(*calledFuncItr);
 					cyclesInCallGraph.push_back(newCycle);
 					cycleExit = true;
 					break;
@@ -379,13 +379,26 @@ struct HyperOpCreationPass: public ModulePass {
 
 			if (!cycleExit) {
 				functionTraversalList.push_front(*calledFuncItr);
-				list<list<Function*> > tempCyclesInGraph = getCyclesInCallGraph(functionTraversalList, calledFunctionMap);
+				list<list<pair<Function*, Instruction*> > > tempCyclesInGraph = getCyclesInCallGraph(functionTraversalList, calledFunctionMap);
 				std::copy(tempCyclesInGraph.begin(), tempCyclesInGraph.end(), back_inserter(cyclesInCallGraph));
 			}
 		}
 		return cyclesInCallGraph;
 	}
 
+	list<list<pair<Function*, Instruction*> > > getCyclesUsingCallInst(CallInst* callInst, list<list<pair<Function*, Instruction*> > >cyclesInCallGraph){
+		list<list<pair<Function*, Instruction*> > > cyclesWithCallInst;
+		for(list<list<pair<Function*, Instruction*> > >::iterator cycleItr = cyclesInCallGraph.begin();cycleItr!=cyclesInCallGraph.end();cycleItr++){
+			list<pair<Function*, Instruction*> > cycle = *cycleItr;
+			for(list<pair<Function*, Instruction*> >::iterator funcCallItr = cycle.begin();funcCallItr!=cycle.end();funcCallItr++){
+				if(funcCallItr->second == callInst){
+					cyclesWithCallInst.push_back(cycle);
+					break;
+				}
+			}
+		}
+		return cyclesWithCallInst;
+	}
 	virtual bool runOnModule(Module &M) {
 		LLVMContext & ctxt = M.getContext();
 		//Top level annotation corresponding to all annotations REDEFINE
@@ -419,7 +432,7 @@ struct HyperOpCreationPass: public ModulePass {
 		//Add all the functions to be traversed in a list
 		list<Function*> functionList;
 		Function* mainFunction = 0;
-		map<Function*, list<Function*> > calledFunctionMap;
+		map<Function*, list<pair< Function*, Instruction*> > > calledFunctionMap;
 		for (Module::iterator funcItr = M.begin(); funcItr != M.end(); funcItr++) {
 			Function* function = funcItr;
 			if (!function->isIntrinsic()) {
@@ -429,13 +442,13 @@ struct HyperOpCreationPass: public ModulePass {
 				mainFunction = function;
 			}
 
-			list<Function*> calledFunctions;
+			list<pair<Function*, Instruction*> > calledFunctions;
 			for (Function::iterator bbItr = function->begin(); bbItr != function->end(); bbItr++) {
 				for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
 					Instruction* inst = &*instItr;
 					if (isa<CallInst>(inst)) {
 						CallInst* callInst = (CallInst*) inst;
-						calledFunctions.push_back(callInst->getCalledFunction());
+						calledFunctions.push_back(make_pair(callInst->getCalledFunction(),callInst));
 						if (!callInst->getCalledFunction()->isIntrinsic()) {
 							//Replace immediate operands to a call with a memory location
 							for (unsigned i = 0; i < callInst->getNumArgOperands(); i++) {
@@ -473,16 +486,19 @@ struct HyperOpCreationPass: public ModulePass {
 			return false;
 		}
 
-//		list<Function*> traversedFunctions;
-//		traversedFunctions.push_back(mainFunction);
-//		list<list<Function*> > cyclesInCallGraph = getCyclesInCallGraph(traversedFunctions, calledFunctionMap);
-//		errs()<<"found cycles?"<<cyclesInCallGraph.size()<<"\n";
-//		for(list<list<Function*> >::iterator cycleItr = cyclesInCallGraph.begin();cycleItr!=cyclesInCallGraph.end();cycleItr++){
-//			errs()<<"cycle:";
-//			for(list<Function*>::iterator funcItr = cycleItr->begin();funcItr!=cycleItr->end();funcItr++){
-//				errs()<<(*funcItr)->getName()<<"->";
+		list<pair<Function*,Instruction*> > traversedFunctions;
+		Instruction* callInstToMain = 0;
+		traversedFunctions.push_back(make_pair(mainFunction,callInstToMain));
+		list<list<pair< Function*,Instruction*> > > cyclesInCallGraph = getCyclesInCallGraph(traversedFunctions, calledFunctionMap);
+//		errs() << "found cycles?" << cyclesInCallGraph.size() << "\n";
+//		for (list<list<pair<Function*,Instruction*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
+//			errs() << "cycle:";
+//			for (list<pair<Function*,Instruction*> >::iterator funcItr = cycleItr->begin(); funcItr != cycleItr->end(); funcItr++) {
+//				errs() << funcItr->first->getName() << "(";
+//				funcItr->second->dump();
+//				errs()<<")\n";
 //			}
-//			errs()<<"\n";
+//			errs() << "\n";
 //		}
 		while (!functionList.empty()) {
 			Function* function = functionList.front();
@@ -869,6 +885,8 @@ struct HyperOpCreationPass: public ModulePass {
 
 			//Create a function using the accumulated basic blocks
 			if (isa<CallInst>(accumulatedBasicBlocks.front()->front())) {
+				//Check if the call inst is a part of a cycle
+				getCyclesUsingCallInst((CallInst*)&accumulatedBasicBlocks.front()->front(), cyclesInCallGraph);
 				list<CallInst*> newCallSite;
 				std::copy(callSite.begin(), callSite.end(), std::back_inserter(newCallSite));
 				CallInst* callInst = (CallInst*) &accumulatedBasicBlocks.front()->front();
@@ -1870,7 +1888,7 @@ struct HyperOpCreationPass: public ModulePass {
 		}
 		DEBUG(dbgs() << "Final module contents:");
 		M.dump();
-		return true;
+		return false;
 	}
 
 private:
