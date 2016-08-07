@@ -1191,7 +1191,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			//Check if there exists a predicate edge between producer and consumer HyperOp, add one otherwise to ensure serial accesses to memory
 			bool predicateEdgeExists = false;
 			for (map<HyperOpEdge*, HyperOp*>::iterator childItr = hyperOp->ChildMap.begin(); childItr != hyperOp->ChildMap.end(); childItr++) {
-				if (childItr->second == consumer && (childItr->first->getType() == HyperOpEdge::PREDICATE|| childItr->first->getType() == HyperOpEdge::ORDERING)) {
+				if (childItr->second == consumer && (childItr->first->getType() == HyperOpEdge::PREDICATE || childItr->first->getType() == HyperOpEdge::ORDERING)) {
 					predicateEdgeExists = true;
 					break;
 				}
@@ -1319,12 +1319,12 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		}
 	}
 
-	DEBUG(dbgs() << "Adding writecmp instructions\n");
+	DEBUG(dbgs() << "Adding writecmp and sync instructions\n");
 	//Writecmp instructions are added after writecm and local reference writes to ensure that local reference writes do go through before a consumer is predicated for execution
 	for (map<HyperOpEdge*, HyperOp*>::iterator childItr = hyperOp->ChildMap.begin(); childItr != hyperOp->ChildMap.end(); childItr++) {
 		HyperOpEdge* edge = childItr->first;
 		HyperOp* consumer = childItr->second;
-		if (edge->getType() == HyperOpEdge::PREDICATE || edge->getType()==HyperOpEdge::ORDERING) {
+		if (edge->getType() == HyperOpEdge::PREDICATE || edge->getType() == HyperOpEdge::ORDERING) {
 			unsigned registerContainingConsumerBase = -1;
 			//Check if the consumer's context frame address has already been loaded to memory; If not, add an instruction to load the context frame address to a register
 			for (list<pair<HyperOp*, unsigned> >::iterator consumerItr = consumerHyperOps[currentCE].begin(); consumerItr != consumerHyperOps[currentCE].end(); consumerItr++) {
@@ -1406,10 +1406,66 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 			writeInstructionsToConsumer.push_back(writeToContextFrame.operator ->());
 			writeInstrToContextFrame.insert(make_pair(consumerFunction, writeInstructionsToConsumer));
+		} else if (edge->getType() == HyperOpEdge::SYNC) {
+			unsigned registerContainingConsumerBase = -1;
+			//Check if the consumer's context frame address has already been loaded to memory; If not, add an instruction to load the context frame address to a register
+			for (list<pair<HyperOp*, unsigned> >::iterator consumerItr = consumerHyperOps[currentCE].begin(); consumerItr != consumerHyperOps[currentCE].end(); consumerItr++) {
+				if (consumerItr->first == consumer) {
+					registerContainingConsumerBase = consumerItr->second;
+					break;
+				}
+			}
+			if (registerContainingConsumerBase == -1) {
+				registerContainingConsumerBase = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+				MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
+				addi.addReg(registerContainingConsumerBase, RegState::Define);
+				addi.addReg(REDEFINE::zero);
+				addi.addImm(consumer->getContextFrame() << 6);
+				consumerHyperOps[currentCE].push_back(make_pair(consumer, registerContainingConsumerBase));
+				if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
+					firstInstructionOfpHyperOpInRegion[currentCE] = addi.operator llvm::MachineInstr *();
+				}
+				allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+				LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
+			}
+
+			//sync always goes to the 15th slot
+			unsigned contextFrameOffset = 15;
+
+			//decrement the barrier by 1
+			unsigned registerContainingData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+			MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
+			addi.addReg(registerContainingData, RegState::Define);
+			addi.addReg(REDEFINE::zero);
+			addi.addImm(1);
+			if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
+				firstInstructionOfpHyperOpInRegion[currentCE] = addi.operator llvm::MachineInstr *();
+			}
+			allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+			LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
+			MachineInstrBuilder syncInstruction = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SYNC));
+			syncInstruction.addReg(registerContainingConsumerBase);
+			syncInstruction.addReg(registerContainingData);
+			syncInstruction.addImm(contextFrameOffset);
+
+			allInstructionsOfRegion.push_back(make_pair(syncInstruction.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+			//Add instruction to bundle
+			LIS->getSlotIndexes()->insertMachineInstrInMaps(syncInstruction.operator llvm::MachineInstr *());
+			currentCE = (currentCE + 1) % ceCount;
 		}
 	}
 
-//Does the HyperOp require fdelete?
+	DEBUG(dbgs() << "Setting hyperop as a barrier\n");
+	for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
+		HyperOpEdge* edge = parentItr->first;
+		HyperOp* producer = parentItr->second;
+		if(edge->getType()==HyperOpEdge::SYNC){
+			producer->setBarrierHyperOp();
+			break;
+		}
+	}
+
+	DEBUG(dbgs() << "Adding fdelete instruction\n");
 	if (hyperOp->frameNeedsGC()) {
 		//Add fdelete instruction
 		MachineInstrBuilder fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(virtualRegistersForInstAddr[0].first).addImm(0);
