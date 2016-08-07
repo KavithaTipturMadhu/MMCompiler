@@ -32,7 +32,7 @@ unsigned REDEFINEUtils::getSizeOfType(Type * type) {
 unsigned REDEFINEUtils::getAlignedSizeOfType(Type * type) {
 	unsigned returnSize = getSizeOfType(type);
 	if (returnSize % ALIGNMENT_SIZE > 0) {
-		returnSize += returnSize % ALIGNMENT_SIZE;
+		returnSize += (ALIGNMENT_SIZE-returnSize % ALIGNMENT_SIZE);
 	}
 	return returnSize;
 }
