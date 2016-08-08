@@ -1917,6 +1917,10 @@ void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrame
 	}
 	for (list<HyperOp*>::iterator vertexIterator = cluster.begin(); vertexIterator != cluster.end(); vertexIterator++) {
 		HyperOp* vertex = *vertexIterator;
+		//There is no need to associate context frames with dynamic hyperops
+		if(!vertex->isStaticHyperOp()){
+			continue;
+		}
 		HyperOp* liveStartOfVertex = vertex->getImmediateDominator();
 		HyperOp* liveEndOfVertex;
 		if (liveStartOfVertex != 0) {

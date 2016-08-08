@@ -67,6 +67,12 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 				Function* function = (Function *) hyperOpMDNode->getOperand(1);
 				HyperOp *hyperOp = new HyperOp(function);
 				hyperOp->setHyperOpId(hyperOpId++);
+				StringRef hyperOpType = ((MDString*) hyperOpMDNode->getOperand(2))->getName();
+				if (hyperOpType.equals("Static")) {
+					hyperOp->setStaticHyperOp(true);
+				} else if (hyperOpType.equals("Dynamic")) {
+					hyperOp->setStaticHyperOp(false);
+				}
 				graph->addHyperOp(hyperOp);
 				hyperOpMetadataMap.insert(std::make_pair(hyperOpMDNode, hyperOp));
 				functionMetadataMap.insert(std::make_pair(function, hyperOpMDNode));
