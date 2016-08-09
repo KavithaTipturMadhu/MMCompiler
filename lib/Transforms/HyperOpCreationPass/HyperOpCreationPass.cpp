@@ -220,10 +220,22 @@ struct HyperOpCreationPass: public ModulePass {
 	}
 
 	HyperOpArgumentType supportedArgType(Value* argument, Module &m) {
-		if (argument->getType()->getTypeID() == Type::FloatTyID || argument->getType()->getTypeID() == Type::PointerTyID) {
+		errs()<<"\n----\narg type for argument ";
+		argument->dump();
+		errs()<<":";
+		argument->getType()->dump();
+		if (argument->getType()->getTypeID() == Type::FloatTyID) {
 			return LOCAL_REFERENCE;
 		}
-
+		if(argument->getType()->getTypeID()==Type::PointerTyID){
+			//TODO
+			for (Module::global_iterator globalVarItr = m.global_begin(); globalVarItr != m.global_end(); globalVarItr++) {
+				if (argument == globalVarItr) {
+					return GLOBAL_REFERENCE;
+				}
+			}
+			return LOCAL_REFERENCE;
+		}
 		if (isa<AllocaInst>(argument)) {
 			if (((AllocaInst*) argument)->getType()->getPointerElementType()->getTypeID() == Type::IntegerTyID) {
 				return SCALAR;
@@ -714,10 +726,7 @@ struct HyperOpCreationPass: public ModulePass {
 									for (list<Value*>::iterator newArgItr = newHyperOpArguments.begin(); newArgItr != newHyperOpArguments.end(); newArgItr++) {
 										list<Value*> newArg;
 										newArg.push_back(*newArgItr);
-										errs() << "type of arg:";
-										(*newArgItr)->dump();
 										HyperOpArgumentType type = supportedArgType(*newArgItr, M);
-										errs() << type << "\n";
 										if (type != GLOBAL_REFERENCE) {
 											hyperOpArgCount++;
 										}
@@ -1045,18 +1054,49 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 				}
+
 				//Find out if any basic block is predicated
 				BasicBlock* originalBB = *accumulatedBBItr;
-				//Predicates are only for non-entry basic blocks
+				//Predicates are only for non-entry basic blocks of the original function
 				if (originalBB != &(*accumulatedBBItr)->getParent()->getEntryBlock()) {
+					Function* functionContainingBasicBlocks = originalBB->getParent();
 					for (pred_iterator predecessorItr = pred_begin(originalBB); predecessorItr != pred_end(originalBB); predecessorItr++) {
 						BasicBlock* predecessor = *predecessorItr;
+						errs() << "finding predecessor :" << predecessor->getName() << "\n";
 						//Control flow edge originates from a predecessor basic block that does not belong to the same HyperOp
 						if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), predecessor) == accumulatedBasicBlocks.end() && originalFunctionToHyperOpBBListMap.find(predecessor->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
 							TerminatorInst* terminator = predecessor->getTerminator();
-							//If the terminator instruction has only one successor
+							//If the terminator instruction has only one successor, its an unconditional jump
+							//TODO Second half of the conditional is not required here
 							if (terminator->getNumSuccessors() == 1 && terminator->getSuccessor(0) == originalBB) {
-								//Terminator has no operands, its an unconditional jump
+								//Find the list of basic blocks that contains the terminator instruction
+								list<BasicBlock*> parentBBList;
+								for (list<pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator bbItr = originalFunctionToHyperOpBBListMap[functionContainingBasicBlocks].begin(); bbItr != originalFunctionToHyperOpBBListMap[functionContainingBasicBlocks].end(); bbItr++) {
+									if (find(bbItr->first.begin(), bbItr->first.end(), predecessor) != bbItr->first.end()) {
+										parentBBList = bbItr->first;
+										break;
+									}
+								}
+								list<TerminatorInst*> terminatorInst;
+								terminatorInst.push_back(terminator);
+								while (terminatorInst.size() > 0) {
+									TerminatorInst* tempTerminator = terminatorInst.front();
+									terminatorInst.pop_front();
+									//Check if the terminator itself is conditionally executed
+									for (pred_iterator terminatorPredItr = pred_begin(tempTerminator->getParent()); terminatorPredItr != pred_end(tempTerminator->getParent()); terminatorPredItr++) {
+										BasicBlock* terminatorPredecessor = *terminatorPredItr;
+										errs() << "pred to " << terminator->getName() << ":" << terminatorPredecessor->getName() << "\n";
+										//Check if terminatorPredecessor and predecessor are both in the same function to be created
+										if (find(parentBBList.begin(), parentBBList.end(), terminatorPredecessor) != parentBBList.end()) {
+											if (terminatorPredecessor->getTerminator()->getNumSuccessors() > 1) {
+												terminator = terminatorPredecessor->getTerminator();
+												errs() << "found the conditional pred:";
+												terminator->dump();
+												break;
+											}
+										}
+									}
+								}
 								//Add the instruction before the unconditional jump to contain the metadata
 								unconditionalBranchSources.push_back(terminator);
 							} else {
@@ -1856,6 +1896,9 @@ struct HyperOpCreationPass: public ModulePass {
 				source->replaceOperandWith(0, funcAnnotation);
 			}
 		}
+
+		errs() << "before deleting, M:";
+		M.dump();
 
 		DEBUG(dbgs() << "\n-----------Removing unreachable basic blocks from created functions-----------\n");
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
