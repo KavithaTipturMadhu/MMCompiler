@@ -476,7 +476,7 @@ struct HyperOpCreationPass: public ModulePass {
 						if (!callInst->getCalledFunction()->isIntrinsic()) {
 							//Replace immediate operands to a call with a memory location
 							for (unsigned i = 0; i < callInst->getNumArgOperands(); i++) {
-								if (isa<Constant>(callInst->getArgOperand(i))) {
+								if (isa<Constant>(callInst->getArgOperand(i))&&!isa<GlobalVariable>(callInst->getArgOperand(i))) {
 									//Place alloc, store and load instructions before call
 									AllocaInst* ai = new AllocaInst(callInst->getArgOperand(i)->getType());
 									ai->setAlignment(4);

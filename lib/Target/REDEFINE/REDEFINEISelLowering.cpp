@@ -36,7 +36,11 @@ REDEFINETargetLowering::REDEFINETargetLowering(REDEFINETargetMachine &tm) :
 	MVT PtrVT = getPointerTy();
 
 	// Set up the register classes.
+	addRegisterClass(MVT::i1, &REDEFINE::GR32BitRegClass);
+	addRegisterClass(MVT::i8, &REDEFINE::GR32BitRegClass);
+	addRegisterClass(MVT::i16, &REDEFINE::GR32BitRegClass);
 	addRegisterClass(MVT::i32, &REDEFINE::GR32BitRegClass);
+	addRegisterClass(MVT::f16,  &REDEFINE::FP32BitRegClass);
     addRegisterClass(MVT::f32,  &REDEFINE::FP32BitRegClass);
 
 
