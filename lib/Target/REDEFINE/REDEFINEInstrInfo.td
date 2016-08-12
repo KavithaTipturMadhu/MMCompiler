@@ -29,6 +29,11 @@ let mayLoad = 1 in {
   def FLW: InstLoad <"flw", 0b0000011, 0b100, loadf32, FP32, mem>; 
 }
 
+//extended loads
+def : Pat<(i32 (extloadi1  addr:$addr)), (LBU addr:$addr)>;
+def : Pat<(i32 (extloadi8  addr:$addr)), (LBU addr:$addr)>;
+def : Pat<(i32 (extloadi16 addr:$addr)), (LHU addr:$addr)>;
+
 let mayStore = 1 in {
 // SW is of the format <sw rs1, rs2, imm> translating to imm(rs1)<-rs1
   def SW : InstStore<"sw" , 0b0100011, 0b010, store, GR32>;

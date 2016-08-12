@@ -36,11 +36,7 @@ REDEFINETargetLowering::REDEFINETargetLowering(REDEFINETargetMachine &tm) :
 	MVT PtrVT = getPointerTy();
 
 	// Set up the register classes.
-	addRegisterClass(MVT::i1, &REDEFINE::GR32BitRegClass);
-	addRegisterClass(MVT::i8, &REDEFINE::GR32BitRegClass);
-	addRegisterClass(MVT::i16, &REDEFINE::GR32BitRegClass);
 	addRegisterClass(MVT::i32, &REDEFINE::GR32BitRegClass);
-	addRegisterClass(MVT::f16,  &REDEFINE::FP32BitRegClass);
     addRegisterClass(MVT::f32,  &REDEFINE::FP32BitRegClass);
 
 
@@ -164,9 +160,9 @@ REDEFINETargetLowering::REDEFINETargetLowering(REDEFINETargetMachine &tm) :
 	setOperationAction(ISD::UMUL_LOHI, MVT::i64, Expand);
 
 	// No sign extend instructions
-	setLoadExtAction(ISD::SEXTLOAD, MVT::i1, Expand);
-	setLoadExtAction(ISD::ZEXTLOAD, MVT::i1, Expand);
-	setLoadExtAction(ISD::EXTLOAD, MVT::i1, Expand);
+	setLoadExtAction(ISD::SEXTLOAD, MVT::i1, Promote);
+	setLoadExtAction(ISD::ZEXTLOAD, MVT::i1, Promote);
+	setLoadExtAction(ISD::EXTLOAD, MVT::i1, Promote);
 	setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i1, Expand);
 	setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i8, Expand);
 	setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i16, Expand);
