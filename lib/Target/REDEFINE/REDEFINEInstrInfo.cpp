@@ -22,7 +22,6 @@
 #include "llvm/ADT/StringExtras.h"
 #include "REDEFINEUtils.h"
 
-
 #define GET_INSTRINFO_CTOR
 #define GET_INSTRMAP_INFO
 #include "REDEFINEGenInstrInfo.inc"
@@ -291,7 +290,7 @@ void REDEFINEInstrInfo::copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::i
 bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const {
 	//TODO Hack for immediates that don't fit in 12 bit addi operand field
 	if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(1).getReg() == REDEFINE::zero) {
-		if (MI->getOperand(2).isImm() && ceil(log2(MI->getOperand(2).getImm())) > 11) {
+		if (MI->getOperand(2).isImm() && MI->getOperand(2).getImm() != 0 && Log2_32_Ceil((uint32_t) MI->getOperand(2).getImm()) > 11) {
 			//Since immediate value cannot spill 11 bits, we need to expand it to lui and add instructions
 			MachineBasicBlock::instr_iterator Pred, Succ;
 			//TODO We know that an immediate value cannot exceed 32 bit value anyway, so casting to 32 bit is expected to be safe
@@ -309,22 +308,9 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 
 			unsigned addiRegister = MI->getOperand(0).getReg();
 
-			MachineInstrBuilder lui = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::LUI));
-			lui.addReg(addiRegister, RegState::Define);
-			lui.addImm((immediateValue & 0x7ffff800) >> 11);
-
-			int32_t topBit = immediateValue & 0x80000000;
-			MachineInstrBuilder shiftInstr;
-			if (topBit == 0) {
-				shiftInstr = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::SRLI)).addReg(addiRegister).addReg(addiRegister).addImm(1);
-			} else {
-				shiftInstr = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::SLLI)).addReg(addiRegister).addReg(addiRegister).addImm(1);
-			}
-
-			MachineInstrBuilder addi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADDI));
-			addi.addReg(addiRegister, RegState::Kill);
-			addi.addReg(addiRegister, RegState::InternalRead);
-			addi.addImm(immediateValue & 0x7ff);
+			MachineInstrBuilder lui = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::LUI)).addReg(addiRegister, RegState::Define).addImm((immediateValue & 0xfffff000) >> 12);
+			MachineInstrBuilder addi = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADDI)).addReg(REDEFINE::t0).addReg(REDEFINE::zero).addImm(immediateValue&0xfff);
+			MachineInstrBuilder add = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADD)).addReg(addiRegister, RegState::Kill).addReg(addiRegister, RegState::InternalRead).addReg(REDEFINE::t0);
 
 			if (MI->isBundled()) {
 				MI->eraseFromBundle();
@@ -332,7 +318,7 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 				MI->eraseFromParent();
 			}
 			lui->bundleWithSucc();
-			shiftInstr->bundleWithSucc();
+			addi->bundleWithSucc();
 
 			if (isMIBundledWithPred) {
 				//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
@@ -341,7 +327,7 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 			}
 			if (isMIBundledWithSucc) {
 				Succ->clearFlag(MachineInstr::BundledPred);
-				addi->bundleWithSucc();
+				add->bundleWithSucc();
 			}
 			return true;
 		} else if (MI->getOperand(2).isGlobal()) {
@@ -352,7 +338,7 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 			if (!parentModule->getGlobalList().empty()) {
 				for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
 					const GlobalVariable *globalVar = &*globalArgItr;
-					if(globalVar->getName().compare(gv->getName())==0){
+					if (globalVar->getName().compare(gv->getName()) == 0) {
 						break;
 					}
 					maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
