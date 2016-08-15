@@ -20,10 +20,10 @@
 using namespace llvm;
 using namespace std;
 
-//TODO Used only 8 bit number here because I need this to address the sync locations and frame locations for replication only which sums upto 20 4 byte locations only
-static int32_t SignExtend8BitNumberTo12Bits(int8_t x) {
-	return int32_t(x << 4) >> 4;
-}
+////TODO Used only 8 bit number here because I need this to address the sync locations and frame locations for replication only which sums upto 20 4 byte locations only
+//static int32_t SignExtend8BitNumberTo12Bits(int8_t x) {
+//	return int32_t(x << 4) >> 4;
+//}
 
 static bool isRegDependence(SDep dependence) {
 	SDep::Kind dependenceKind = dependence.getKind();
@@ -470,7 +470,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 						readpm.addReg(registerForCurrentAddr);
 						//TODO
 						immediateSPOffset = SPLOCATIONS - ((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth);
-						readpm.addImm(SignExtend8BitNumberTo12Bits(immediateSPOffset));
+						readpm.addImm(immediateSPOffset);
 						allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 					}
