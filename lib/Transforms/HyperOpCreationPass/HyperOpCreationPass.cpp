@@ -220,21 +220,13 @@ struct HyperOpCreationPass: public ModulePass {
 	}
 
 	HyperOpArgumentType supportedArgType(Value* argument, Module &m) {
-		errs()<<"\n----\narg type for argument ";
-		argument->dump();
-		errs()<<":";
-		argument->getType()->dump();
 		if (argument->getType()->getTypeID() == Type::FloatTyID) {
 			return LOCAL_REFERENCE;
 		}
+
 		if(argument->getType()->getTypeID()==Type::PointerTyID){
-			//TODO
-			for (Module::global_iterator globalVarItr = m.global_begin(); globalVarItr != m.global_end(); globalVarItr++) {
-				if (argument == globalVarItr) {
-					return GLOBAL_REFERENCE;
-				}
-			}
-			return LOCAL_REFERENCE;
+			//Cannot determine what the pointer is pointing to, must pass the address
+			return SCALAR;
 		}
 		if (isa<AllocaInst>(argument)) {
 			if (((AllocaInst*) argument)->getType()->getPointerElementType()->getTypeID() == Type::IntegerTyID) {
@@ -245,7 +237,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 		if (isa<GetElementPtrInst>(argument)) {
 			for (Module::global_iterator globalVarItr = m.global_begin(); globalVarItr != m.global_end(); globalVarItr++) {
-				if (((GetElementPtrInst*) argument)->getPointerOperand()->getName().equals(globalVarItr->getName())) {
+				if (((GetElementPtrInst*) argument)->getPointerOperand()==globalVarItr) {
 					return GLOBAL_REFERENCE;
 				}
 			}
@@ -476,7 +468,8 @@ struct HyperOpCreationPass: public ModulePass {
 						if (!callInst->getCalledFunction()->isIntrinsic()) {
 							//Replace immediate operands to a call with a memory location
 							for (unsigned i = 0; i < callInst->getNumArgOperands(); i++) {
-								if (isa<Constant>(callInst->getArgOperand(i))&&!isa<GlobalVariable>(callInst->getArgOperand(i))) {
+								if (isa<Constant>(callInst->getArgOperand(i))){
+//										&&!isa<GlobalVariable>(callInst->getArgOperand(i))) {
 									//Place alloc, store and load instructions before call
 									AllocaInst* ai = new AllocaInst(callInst->getArgOperand(i)->getType());
 									ai->setAlignment(4);
@@ -537,7 +530,7 @@ struct HyperOpCreationPass: public ModulePass {
 						Constant * initializer = globalVarItr->getInitializer();
 						vector<Value*> idList;
 						idList.push_back(ConstantInt::get(ctxt, APInt(32, 0)));
-						addInitializationInstructions(globalVarItr, initializer, idList, startOfBB, initializer->getType());
+//						addInitializationInstructions(globalVarItr, initializer, idList, startOfBB, initializer->getType());
 					}
 				}
 			}
