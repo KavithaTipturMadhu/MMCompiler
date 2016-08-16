@@ -4262,9 +4262,13 @@ ABIArgInfo REDEFINEABIInfo::classifyReturnType(QualType RetTy) const {
     return ABIArgInfo::getIgnore();
 
   //All types that fit in two words are passed directly
-  if (Size <= 64)
+  if (Size <= 64){
+	  if (isCompoundType(RetTy))
+	    return ABIArgInfo::getIndirect(0);
+
     return (RetTy->isPromotableIntegerType() ?
             ABIArgInfo::getExtend() : ABIArgInfo::getDirect());
+  }
 
   return ABIArgInfo::getIndirect(0);
 }
@@ -4280,28 +4284,28 @@ ABIArgInfo REDEFINEABIInfo::classifyArgumentType(QualType Ty) const {
     return ABIArgInfo::getIndirect(0);
 
   // Handle small structures.
-  if (const RecordType *RT = Ty->getAs<RecordType>()) {
-    // Structures with flexible arrays have variable length, so really
-    // fail the size test above.
-    const RecordDecl *RD = RT->getDecl();
-    if (RD->hasFlexibleArrayMember())
-      return ABIArgInfo::getIndirect(0);
-
-    // The structure is passed as an unextended integer, a float, or a double.
-    llvm::Type *PassTy;
-    if (isFPArgumentType(Ty)) {
-      assert(Size == 32 || Size == 64);
-      if (Size == 32)
-        PassTy = llvm::Type::getFloatTy(getVMContext());
-      else
-        PassTy = llvm::Type::getDoubleTy(getVMContext());
-    } else{
-      if(Size == 0)
-        return ABIArgInfo::getIgnore();//ignore empty args
-      PassTy = llvm::IntegerType::get(getVMContext(), Size);
-    }
-    return ABIArgInfo::getDirect(PassTy);
-  }
+//  if (const RecordType *RT = Ty->getAs<RecordType>()) {
+//    // Structures with flexible arrays have variable length, so really
+//    // fail the size test above.
+//    const RecordDecl *RD = RT->getDecl();
+//    if (RD->hasFlexibleArrayMember())
+//      return ABIArgInfo::getIndirect(0);
+//
+//    // The structure is passed as an unextended integer, a float, or a double.
+//    llvm::Type *PassTy;
+//    if (isFPArgumentType(Ty)) {
+//      assert(Size == 32 || Size == 64);
+//      if (Size == 32)
+//        PassTy = llvm::Type::getFloatTy(getVMContext());
+//      else
+//        PassTy = llvm::Type::getDoubleTy(getVMContext());
+//    } else{
+//      if(Size == 0)
+//        return ABIArgInfo::getIgnore();//ignore empty args
+//      PassTy = llvm::IntegerType::get(getVMContext(), Size);
+//    }
+//    return ABIArgInfo::getDirect(PassTy);
+//  }
 
   // Non-structure compounds are passed indirectly.
   if (isCompoundType(Ty))
