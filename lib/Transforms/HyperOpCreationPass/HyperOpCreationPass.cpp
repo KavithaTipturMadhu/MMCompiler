@@ -892,6 +892,8 @@ struct HyperOpCreationPass: public ModulePass {
 			Function* function = accumulatedBasicBlocks.front()->getParent();
 			HyperOpArgumentList hyperOpArguments = functionToBeCreated.second;
 			list<Function*> functionsToBeCreated;
+			errs()<<"whats accumulated?:"<<accumulatedBasicBlocks.front()->getName()<<"\n";
+			bool isStaticHyperOp = true;
 			//Create a function using the accumulated basic blocks
 			if (isa<CallInst>(accumulatedBasicBlocks.front()->front())) {
 				//Check if the call inst is a part of a cycle
@@ -910,10 +912,11 @@ struct HyperOpCreationPass: public ModulePass {
 						traversalList.push_front(make_pair(make_pair(replacementFuncItr->first, replacementFuncItr->second), newCallSite));
 					}
 					continue;
+				}else{
+					isStaticHyperOp = false;
 				}
 			}
 
-			bool isStaticHyperOp = true;
 			DEBUG(dbgs() << "\n-----------Creating a new HyperOp for function:" << function->getName() << "-----------\n");
 			map<Instruction*, Instruction*> originalToClonedInstMap;
 			map<BasicBlock*, BasicBlock*> originalToClonedBasicBlockMap;
@@ -962,10 +965,6 @@ struct HyperOpCreationPass: public ModulePass {
 				originalToClonedBasicBlockMap.insert(make_pair(*accumulatedBBItr, newBB));
 				//Cloning instructions in the reverse order so that the user instructions are cloned before the definition instructions
 				for (BasicBlock::iterator instItr = (*accumulatedBBItr)->begin(); instItr != (*accumulatedBBItr)->end(); instItr++) {
-					if (isa<CallInst>(instItr)) {
-						//Mark the HyperOp as dynamic
-						isStaticHyperOp = false;
-					}
 					Instruction* clonedInst;
 					if (isa<ReturnInst>(&*instItr)) {
 						clonedInst = BranchInst::Create(retBB, newBB);
@@ -1055,10 +1054,44 @@ struct HyperOpCreationPass: public ModulePass {
 						if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), predecessor) == accumulatedBasicBlocks.end() && originalFunctionToHyperOpBBListMap.find(predecessor->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
 							TerminatorInst* terminator = predecessor->getTerminator();
 							//If the terminator instruction has only one successor, its an unconditional jump
-							//TODO Second half of the conditional is not required here
+//							//TODO Second half of the conditional is not required here
 							if (terminator->getNumSuccessors() == 1 && terminator->getSuccessor(0) == originalBB) {
-								//Add the instruction before the unconditional jump to contain the metadata
+								errs()<<"Adding unconditional branch:";
+								terminator->dump();
 								unconditionalBranchSources.push_back(terminator);
+//								//Find the list of basic blocks that contains the terminator instruction
+//								list<BasicBlock*> parentBBList;
+//								for (list<pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator bbItr = originalFunctionToHyperOpBBListMap[functionContainingBasicBlocks].begin(); bbItr != originalFunctionToHyperOpBBListMap[functionContainingBasicBlocks].end(); bbItr++) {
+//									if (find(bbItr->first.begin(), bbItr->first.end(), predecessor) != bbItr->first.end()) {
+//										parentBBList = bbItr->first;
+//										break;
+//									}
+//								}
+//								list<TerminatorInst*> terminatorInst;
+//								terminatorInst.push_back(terminator);
+//								errs()<<"finding predecessor recursively from ";
+//								terminator->dump();
+//								while (terminatorInst.size() > 0) {
+//									TerminatorInst* tempTerminator = terminatorInst.front();
+//									terminatorInst.pop_front();
+//									//Check if the terminator itself is conditionally executed
+//									for (pred_iterator terminatorPredItr = pred_begin(tempTerminator->getParent()); terminatorPredItr != pred_end(tempTerminator->getParent()); terminatorPredItr++) {
+//										BasicBlock* terminatorPredecessor = *terminatorPredItr;
+//										errs() << "pred to " << terminator->getName() << ":" << terminatorPredecessor->getName() << "\n";
+//										//Check if terminatorPredecessor and predecessor are both in the same function to be created
+//										if (find(parentBBList.begin(), parentBBList.end(), terminatorPredecessor) != parentBBList.end()) {
+//											if (terminatorPredecessor->getTerminator()->getNumSuccessors() > 1) {
+//												terminator = terminatorPredecessor->getTerminator();
+//												errs() << "found the conditional pred:";
+//												terminator->dump();
+//												break;
+//											}else{
+//												terminatorInst.push_front(terminatorPredecessor->getTerminator());
+//											}
+//										}
+//									}
+//								}
+								//Add the instruction before the unconditional jump to contain the metadata
 							} else {
 								//Get the first operand of terminator instruction corresponding to a branch
 								vector<unsigned> successorBBList;
