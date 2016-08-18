@@ -56,7 +56,8 @@ public:
 		PREDICATE,
 		CONTEXT_FRAME_ADDRESS,
 		//Edge used for ordering HyperOps such that
-		ORDERING
+		ORDERING,
+		SYNC
 	} Type;
 	HyperOpEdge();
 	virtual ~HyperOpEdge();
