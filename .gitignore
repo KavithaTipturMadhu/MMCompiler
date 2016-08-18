@@ -3,9 +3,15 @@
 *.status
 *.pyc
 *.swp
+*.swo
 *.o
 *.d
+*.as
+*.s
 include/llvm/Config/config.h
 build/*
 build/*.*
 !build/build.sh
+*hop.ll
+*.ll
+out*
