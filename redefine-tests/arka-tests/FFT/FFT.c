@@ -43,9 +43,16 @@ void redefine_start() {
 //  return returnData; 
 //}
 //
+//Complex redefine_in[2];
+//Complex redefine_out[2];
+//
 //void fft2(Complex *x0, Complex *x1){
 //  Complex tmp0 = *x0;  
 //  Complex tmp1 = *x1;
 //  *x0 = Complex_add(tmp0, tmp1);
 //  *x1 = Complex_sub(tmp0, tmp1);
+//}
+//
+//void redefine_start() {
+//	fft2(redefine_in, redefine_out);
 //}
