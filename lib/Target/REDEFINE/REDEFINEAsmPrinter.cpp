@@ -117,13 +117,10 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 			}
 		}
 
-		if (hyperOp->isStartHyperOp() || argCount == 0) {
-			//Add a mandatory dummy input to the start HyperOp
-			string operands(".operands");
-			operands.append("\n").append("1").append("\n");
-			OutStreamer.EmitRawText(StringRef(operands));
-			argCount++;
-		}
+		// Added By Arka
+		string crId(CRID);
+		crId.append("\t").append(itostr(hyperOp->getTargetResource())).append("\n");
+		OutStreamer.EmitRawText(StringRef(crId));
 
 		string isValid(VALID_ANNOTATION);
 		isValid.append("\t").append("1").append("\n");
@@ -221,6 +218,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		numHopsInCR.append(itostr(numResourcesInTarget)).append("\n");
 		OutStreamer.EmitRawText(StringRef(numHopsInCR));
 		crWithNumHopsPrinted.push_back(targetResource);
+
 	}
 
 	string hyperOpLabel = "HyperOp#";
@@ -233,7 +231,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 	staticMetadata.append(hyperOp->isPredicatedHyperOp() ? "1" : "0").append("\n");
 	OutStreamer.EmitRawText(StringRef(staticMetadata));
 
-//Adding distribution count of operands
+	//Adding distribution count of operands
 	string distCount = ".distcnt\t";
 	for (unsigned i = 0; i < ceCount; i++) {
 		distCount.append(itostr(hyperOp->getNumInputsPerCE(i))).append("\t");

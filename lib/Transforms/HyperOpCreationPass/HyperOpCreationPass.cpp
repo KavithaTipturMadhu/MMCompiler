@@ -959,6 +959,7 @@ struct HyperOpCreationPass: public ModulePass {
 				functionArgumentIndex++;
 			}
 
+//<<<<<<< HEAD
 			//Compute branch sources
 			map<Instruction*, vector<unsigned> > conditionalBranchSources;
 			list<Instruction*> unconditionalBranchSources;
@@ -985,6 +986,21 @@ struct HyperOpCreationPass: public ModulePass {
 						originalToClonedInstMap.insert(std::make_pair(instItr, clonedInst));
 						if (((ReturnInst*) &*instItr)->getReturnValue() != 0 && ((ReturnInst*) &*instItr)->getReturnValue()->getType()->getTypeID() != Type::VoidTyID) {
 							createdHyperOpAndReturnValue.insert(make_pair(newFunction, instItr->getOperand(0)));
+//=======
+				for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
+					string bbName = "";
+					bbName.append(newFunction->getName()).append(".");
+					bbName.append((*accumulatedBBItr)->getName());
+					BasicBlock *newBB = BasicBlock::Create(getGlobalContext(), bbName, newFunction);
+					originalToClonedBasicBlockMap.insert(make_pair(*accumulatedBBItr, newBB));
+					//Cloning instructions in the reverse order so that the user instructions are cloned before the definition instructions
+					for (BasicBlock::iterator instItr = (*accumulatedBBItr)->begin(); instItr != (*accumulatedBBItr)->end(); instItr++) {
+						Instruction* clonedInst;
+						if (isa<ReturnInst>(&*instItr) && ((ReturnInst*) &*instItr)->getReturnValue()!=0&&((ReturnInst*) &*instItr)->getReturnValue()->getType()->getTypeID() != Type::VoidTyID) {
+							Value* returnValue = ((ReturnInst*) &*instItr)->getReturnValue();
+							createdHyperOpAndReturnValue.insert(make_pair(newFunction, returnValue));
+							clonedInst = ReturnInst::Create(ctxt);
+//>>>>>>> origin/devWorking
 						} else {
 							createdHyperOpAndReturnValue.insert(make_pair(newFunction, instItr));
 						}
@@ -1024,12 +1040,14 @@ struct HyperOpCreationPass: public ModulePass {
 							//Find the definitions added previously which reach the use
 							if (!argUpdated) {
 								//If the original operand is an instruction that was cloned previously which belongs to the list of accumulated HyperOps
-								for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
-									for (BasicBlock::iterator accumulatedInstItr = (*accumulatedBBItr)->begin(); accumulatedInstItr != (*accumulatedBBItr)->end(); accumulatedInstItr++) {
-										for (Value::use_iterator useItr = accumulatedInstItr->use_begin(); useItr != accumulatedInstItr->use_end(); useItr++) {
-											if (*useItr == instItr && ((Instruction*) instItr->getOperand(operandIndex)) == accumulatedInstItr) {
-												Instruction* clonedSourceInstr = (Instruction*) originalToClonedInstMap.find(accumulatedInstItr)->second;
-												clonedInst->setOperand(operandIndex, clonedSourceInstr);
+								for (list<BasicBlock*>::iterator bbItr = accumulatedBasicBlocks.begin(); bbItr != accumulatedBasicBlocks.end(); bbItr++) {
+									for (BasicBlock::iterator accumulatedInstItr = (*bbItr)->begin(); accumulatedInstItr != (*bbItr)->end(); accumulatedInstItr++) {
+										if(accumulatedInstItr->getNumUses()>0){
+											for (Value::use_iterator useItr = accumulatedInstItr->use_begin(); useItr != accumulatedInstItr->use_end(); useItr++) {
+												if (*useItr == instItr && ((Instruction*) instItr->getOperand(operandIndex)) == accumulatedInstItr) {
+													Instruction* clonedSourceInstr = (Instruction*) originalToClonedInstMap.find(accumulatedInstItr)->second;
+													clonedInst->setOperand(operandIndex, clonedSourceInstr);
+												}
 											}
 										}
 									}
@@ -1057,6 +1075,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
+//<<<<<<< HEAD
 				//Find out if any basic block is predicated
 				BasicBlock* originalBB = *accumulatedBBItr;
 				//Predicates are only for non-entry basic blocks of the original function
@@ -1092,6 +1111,29 @@ struct HyperOpCreationPass: public ModulePass {
 								}
 							}
 						}
+//=======
+				//Add a basic block with a dummy return instruction as the single point of exit for a HyperOp
+				BasicBlock* retBB = BasicBlock::Create(ctxt, newFunction->getName().str().append(".return"), newFunction);
+				Instruction* retInst = ReturnInst::Create(ctxt);
+				retInstMap.insert(make_pair(newFunction, retInst));
+				retBB->getInstList().insert(retBB->getFirstInsertionPt(), retInst);
+
+				Value * values[2];
+				values[0] = MDString::get(ctxt, HYPEROP);
+				values[1] = newFunction;
+				MDNode *funcAnnotation = MDNode::get(ctxt, values);
+				hyperOpAndAnnotationMap.insert(make_pair(newFunction, funcAnnotation));
+				redefineAnnotationsNode->addOperand(funcAnnotation);
+
+				bool isEntry = false;
+				bool isExit = false;
+				if (accumulatedBasicBlocks.front()->getParent() == mainFunction) {
+					if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &mainFunction->getEntryBlock()) != accumulatedBasicBlocks.end()) {
+						isEntry = true;
+					}
+					if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &mainFunction->back()) != accumulatedBasicBlocks.end()) {
+						isExit = true;
+//>>>>>>> origin/devWorking
 					}
 				}
 			}
