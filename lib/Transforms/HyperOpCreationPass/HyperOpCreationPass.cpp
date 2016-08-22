@@ -1221,8 +1221,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 					replacementArg.push_back(clonedInst);
 					callSite.push_back(callInst);
-				} else if (isa<CallInst>(hyperOpArgItr->first.front())) {
-//						&& createdHyperOpAndType[((Instruction*) hyperOpArgItr->first.front())->getParent()->getParent()]) {
+				} else if (isa<CallInst>(hyperOpArgItr->first.front()) && createdHyperOpAndType[((Instruction*) hyperOpArgItr->first.front())->getParent()->getParent()]) {
 					CallInst* callInst = (CallInst*) hyperOpArgItr->first.front();
 					Function* calledFunction = callInst->getCalledFunction();
 					list<CallInst*> callSiteCopy;
@@ -1715,9 +1714,7 @@ struct HyperOpCreationPass: public ModulePass {
 						//Current function is a call
 						newCallSite.pop_back();
 					}
-					if (isa<CallInst>(&(*unconditionalBranchSourceItr)->getParent()->front())) {
-//						&& createdHyperOpAndType.find((*unconditionalBranchSourceItr)->getParent()->getParent())!=createdHyperOpAndType.end()&& createdHyperOpAndType[(*unconditionalBranchSourceItr)->getParent()->getParent()]) {
-//					}
+					if (isa<CallInst>(&(*unconditionalBranchSourceItr)->getParent()->front()) && createdHyperOpAndType.find((*unconditionalBranchSourceItr)->getParent()->getParent()) != createdHyperOpAndType.end() && createdHyperOpAndType[(*unconditionalBranchSourceItr)->getParent()->getParent()]) {
 						newCallSite.push_back((CallInst*) &(*unconditionalBranchSourceItr)->getParent()->front());
 						while (true) {
 							CallInst* appendCall;
@@ -1751,8 +1748,7 @@ struct HyperOpCreationPass: public ModulePass {
 							if (unconditionalBranchInstr == 0) {
 								newCallSite.push_back(appendCall);
 							} else {
-								if (isa<CallInst>(unconditionalBranchInstr)) {
-//										&& createdHyperOpAndType[(*unconditionalBranchSourceItr)->getParent()->getParent()]) {
+								if (isa<CallInst>(unconditionalBranchInstr) && createdHyperOpAndType[(*unconditionalBranchSourceItr)->getParent()->getParent()]) {
 									newCallSite.push_back((CallInst*) unconditionalBranchInstr);
 								} else {
 									break;
