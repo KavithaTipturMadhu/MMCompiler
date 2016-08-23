@@ -178,10 +178,10 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 			int mappedToX = hyperOp->getTargetResource() / fabricRowCount;
 			int mappedToY = hyperOp->getTargetResource() % fabricColumnCount;
 			if (mappedToX > maxXInTopology) {
-				mappedToX = maxXInTopology;
+				maxXInTopology = mappedToX;
 			}
 			if (mappedToY > maxYInTopology) {
-				mappedToY = maxYInTopology;
+				maxYInTopology = mappedToY;
 			}
 		}
 
