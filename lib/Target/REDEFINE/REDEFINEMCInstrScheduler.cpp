@@ -24,7 +24,6 @@ using namespace std;
 //static int32_t SignExtend8BitNumberTo12Bits(int8_t x) {
 //	return int32_t(x << 4) >> 4;
 //}
-
 static bool isRegDependence(SDep dependence) {
 	SDep::Kind dependenceKind = dependence.getKind();
 	if (dependenceKind == SDep::Data || dependenceKind == SDep::Anti || dependenceKind == SDep::Output) {
@@ -1471,7 +1470,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			break;
 		}
 	}
-
+	
 	DEBUG(dbgs() << "Adding fdelete instruction\n");
 	if (hyperOp->frameNeedsGC()) {
 		//Add fdelete instruction
