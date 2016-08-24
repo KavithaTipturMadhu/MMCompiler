@@ -34,7 +34,7 @@ private:
 	const char* OP_WAIT_CNT_ANNOTATION = ".OpWaitCnt";
 	const char* ISNEXT_HOP_INST_VALID_ANNOTATION = ".isnextHyOpInstValid";
 	const char* NEXT_HYPEROP_INST_ANNOTATION = ".nextHypOpInst";
-	const char* HYPEROP_INSTANCE_PREFIX ="HyOpInst#";
+	const char* HYPEROP_INSTANCE_PREFIX =".HyOpInst#";
 	list<MCSymbol*> hyperOpLabelsHoistedAsConstants;
 
 public:

@@ -146,7 +146,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		OutStreamer.EmitRawText(StringRef(opWaitCount));
 
 		OutStreamer.EmitRawText(StringRef(".IMD_END\n"));
-		OutStreamer.EmitRawText(StringRef(".HYPOP_END\n"));
+		OutStreamer.EmitRawText(StringRef(".HYOP_END\n"));
 		//string isNextHyperOpInstValid(ISNEXT_HOP_INST_VALID_ANNOTATION);
 		//string nextHyperOpInst(NEXT_HYPEROP_INST_ANNOTATION);
 		//isNextHyperOpInstValid.append("\t").append("0").append("\n");
@@ -224,7 +224,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 	//}
 
 	// Added By Arka, HyperOp Static Metadeta
-	string hyperOpLabel = "HyOp#";
+	string hyperOpLabel = ".HyOp#";
 	hyperOpLabel.append(itostr(hyperOp->getHyperOpId())).append(":\n");
 	OutStreamer.EmitRawText(StringRef(hyperOpLabel));
 
