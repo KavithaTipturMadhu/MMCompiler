@@ -432,6 +432,10 @@ struct HyperOpCreationPass: public ModulePass {
 
 		map<Function*, list<pair<list<BasicBlock*>, HyperOpArgumentList> > > originalFunctionToHyperOpBBListMap;
 
+		//Original function may translate to multiple entry functions in case the number of inputs to a function is larger than context frame size
+		map<Function*, list<Function*> > originalFunctionAndEntryFunctionsMap;
+		map<Function*, Function*> originalFunctionAndExitFunctionMap;
+
 		//Contains all created HyperOp functions and the basic blocks they contain in the original module and HyperOp arguments
 		map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> > createdHyperOpAndOriginalBasicBlockAndArgMap;
 		map<Function*, list<CallInst*> > createdHyperOpAndCallSite;
@@ -439,7 +443,8 @@ struct HyperOpCreationPass: public ModulePass {
 		map<Function*, map<Instruction*, vector<unsigned> > > createdHyperOpAndConditionalBranchSources;
 		map<Function*, list<Instruction*> > createdHyperOpAndUnconditionalBranchSources;
 		map<Function*, list<Instruction*> > createdHyperOpAndReachingDefSources;
-		map<Function*, HYPEROP_TYPE> createdHyperOpAndType;
+
+//		map<Function*, HYPEROP_TYPE> createdHyperOpAndType;
 
 		//Cloned instructions mapped to their original instruction for each created function
 		map<Function*, map<Instruction*, Instruction*> > functionOriginalToClonedInstructionMap;
@@ -731,7 +736,8 @@ struct HyperOpCreationPass: public ModulePass {
 										list<Value*> newArg;
 										newArg.push_back(*newArgItr);
 										HyperOpArgumentType type = supportedArgType(*newArgItr, M);
-										if (type != GLOBAL_REFERENCE) {
+										//local references needn't be accounted for when counting context frame args since they are passed through memory directly and not through context frame
+										if (type != GLOBAL_REFERENCE && type != LOCAL_REFERENCE) {
 											hyperOpArgCount++;
 										}
 										hyperOpArguments.push_back(make_pair(newArg, type));
@@ -906,12 +912,10 @@ struct HyperOpCreationPass: public ModulePass {
 			list<BasicBlock*> accumulatedBasicBlocks = functionToBeCreated.first;
 			Function* function = accumulatedBasicBlocks.front()->getParent();
 			HyperOpArgumentList hyperOpArguments = functionToBeCreated.second;
-//			map<CallInst*, Function*> functionsToBeCreated;
 			bool isStaticHyperOp = true;
 			//Create a function using the accumulated basic blocks
 			if (isa<CallInst>(accumulatedBasicBlocks.front()->front())) {
 				//Check if the call inst is a part of a cycle
-//				functionsToBeCreated = isHyperOpInstanceInCycle((CallInst*) &accumulatedBasicBlocks.front()->front(), cyclesInCallGraph);
 				if (!isHyperOpInstanceInCycle((CallInst*) &accumulatedBasicBlocks.front()->front(), cyclesInCallGraph)) {
 					//Create a copy of the called function as a new HyperOp
 					list<CallInst*> newCallSite;
@@ -1100,35 +1104,44 @@ struct HyperOpCreationPass: public ModulePass {
 				accumulatedBasicBlocks.pop_back();
 			}
 
-			Value * values[3];
+			Value * values[2];
 			values[0] = MDString::get(ctxt, HYPEROP);
 			values[1] = newFunction;
-			values[2] = isStaticHyperOp ? MDString::get(ctxt, "Static") : MDString::get(ctxt, "Dynamic");
 			MDNode *funcAnnotation = MDNode::get(ctxt, values);
 			hyperOpAndAnnotationMap.insert(make_pair(newFunction, funcAnnotation));
 			annotationAndHyperOpMap.insert(make_pair(funcAnnotation, newFunction));
 			redefineAnnotationsNode->addOperand(funcAnnotation);
 
-			bool isEntry = false;
-			bool isExit = false;
+			bool isKernelEntry = false;
+			bool isKernelExit = false;
+			bool isFunctionEntry = false;
+			bool isFunctionExit = false;
+
 			if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &mainFunction->getEntryBlock()) != accumulatedBasicBlocks.end()) {
-				isEntry = true;
+				isKernelEntry = true;
 			}
 			//First instruction in redefine_start is a call
 			else if (!callSite.empty() && (&mainFunction->getEntryBlock().front()) == callSite.back() && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &function->getEntryBlock()) != accumulatedBasicBlocks.end()) {
-				isEntry = true;
+				isKernelEntry = true;
 			}
-
 			if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &mainFunction->back()) != accumulatedBasicBlocks.end()) {
-				isExit = true;
+				isKernelExit = true;
 			}
 			//last instruction in redefine_start is a call
 			else if (!callSite.empty() && mainFunction->back().size() > 1 && (mainFunction->back().getTerminator()->getPrevNode()) == callSite.back() && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &function->back()) != accumulatedBasicBlocks.end()) {
-				isExit = true;
+				isKernelExit = true;
+			}
+
+			if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &accumulatedBasicBlocks.front()->getParent()->getEntryBlock()) != accumulatedBasicBlocks.end()) {
+				isFunctionEntry = true;
+			}
+
+			if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &accumulatedBasicBlocks.front()->getParent()->back()) != accumulatedBasicBlocks.end()) {
+				isFunctionExit = true;
 			}
 
 			//Is the function an entry node/exit node/intermediate ?
-			if (isEntry) {
+			if (isKernelEntry) {
 				Value* hyperOpDescrMDValues[2];
 				hyperOpDescrMDValues[0] = MDString::get(ctxt, HYPEROP_ENTRY);
 				hyperOpDescrMDValues[1] = funcAnnotation;
@@ -1136,7 +1149,7 @@ struct HyperOpCreationPass: public ModulePass {
 				redefineAnnotationsNode->addOperand(hyperOpDescMDNode);
 				startHyperOp = newFunction;
 			}
-			if (isExit) {
+			if (isKernelExit) {
 				Value* hyperOpDescrMDValues[2];
 				hyperOpDescrMDValues[0] = MDString::get(ctxt, HYPEROP_EXIT);
 				hyperOpDescrMDValues[1] = funcAnnotation;
@@ -1144,7 +1157,7 @@ struct HyperOpCreationPass: public ModulePass {
 				redefineAnnotationsNode->addOperand(hyperOpDescMDNode);
 				endHyperOp = newFunction;
 			}
-			if (!isEntry && !isExit) {
+			if (!isKernelEntry && !isKernelExit) {
 				Value* hyperOpDescrMDValues[2];
 				hyperOpDescrMDValues[0] = MDString::get(ctxt, HYPEROP_INTERMEDIATE);
 				hyperOpDescrMDValues[1] = funcAnnotation;
@@ -1155,18 +1168,15 @@ struct HyperOpCreationPass: public ModulePass {
 			/**
 			 * (╯°□°)╯︵ ┻━┻
 			 */
-			errs() << "created a new hyperop " << newFunction->getName() << " with callsite size:" << callSite.size() << "\n";
 			createdHyperOpAndOriginalBasicBlockAndArgMap[newFunction] = make_pair(accumulatedBasicBlocks, hyperOpArguments);
 			createdHyperOpAndCallSite[newFunction] = callSite;
 			createdHyperOpAndConditionalBranchSources[newFunction] = conditionalBranchSources;
 			createdHyperOpAndUnconditionalBranchSources[newFunction] = unconditionalBranchSources;
 			createdHyperOpAndReachingDefSources[newFunction] = reachingGlobalDefinitionSources;
 			functionOriginalToClonedInstructionMap[newFunction] = originalToClonedInstMap;
-			createdHyperOpAndType[newFunction] = isStaticHyperOp ? STATIC : DYNAMIC;
+//			createdHyperOpAndType[newFunction] = isStaticHyperOp ? STATIC : DYNAMIC;
 		}
 
-		errs() << "state of module:";
-		M.dump();
 		//End of creation of hyperops
 		DEBUG(dbgs() << "Adding dependences across created HyperOps\n");
 		//Add metadata: This code is moved here to ensure that all the functions (corresponding to HyperOps) that need to be created have already been created
@@ -1178,7 +1188,7 @@ struct HyperOpCreationPass: public ModulePass {
 			map<Instruction*, vector<unsigned> > conditionalBranchSources = createdHyperOpAndConditionalBranchSources[createdFunction];
 			list<Instruction*> unconditionalBranchSources = createdHyperOpAndUnconditionalBranchSources[createdFunction];
 			list<Instruction*> reachingDefSources = createdHyperOpAndReachingDefSources[createdFunction];
-			bool isStaticHyperOp = createdHyperOpAndType[createdFunction];
+//			bool isStaticHyperOp = createdHyperOpAndType[createdFunction];
 			list<Function*> addedParentsToCurrentHyperOp;
 			MDNode* funcAnnotation = hyperOpAndAnnotationMap.find(createdFunction)->second;
 			list<CallInst*> callSite = createdHyperOpAndCallSite[createdFunction];
@@ -1221,7 +1231,9 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 					replacementArg.push_back(clonedInst);
 					callSite.push_back(callInst);
-				} else if (isa<CallInst>(hyperOpArgItr->first.front()) && createdHyperOpAndType[((Instruction*) hyperOpArgItr->first.front())->getParent()->getParent()]) {
+				} else if (isa<CallInst>(hyperOpArgItr->first.front())) {
+//					&& createdHyperOpAndType[((Instruction*) hyperOpArgItr->first.front())->getParent()->getParent()]) {
+//				}
 					CallInst* callInst = (CallInst*) hyperOpArgItr->first.front();
 					Function* calledFunction = callInst->getCalledFunction();
 					list<CallInst*> callSiteCopy;
@@ -1316,6 +1328,7 @@ struct HyperOpCreationPass: public ModulePass {
 						} else if (replacementArgType == LOCAL_REFERENCE) {
 							values[1] = MDString::get(ctxt, LOCAL_REFERENCE_ARGUMENT);
 						}
+						//Local reference args don't need a context slot but we are adding them here anyway since they tail the arguments of a function and are required during metadata parsing
 						values[2] = ConstantInt::get(ctxt, APInt(32, hyperOpArgumentIndex));
 						MDNode * consumedByMetadata = MDNode::get(ctxt, values);
 						Instruction* metadataHost = 0;
@@ -1439,7 +1452,8 @@ struct HyperOpCreationPass: public ModulePass {
 				list<CallInst*> newCallSite;
 				std::copy(callSite.begin(), callSite.end(), std::back_inserter(newCallSite));
 
-				if (isa<CallInst>(&conditionalTargetBB->front()) && isStaticHyperOp) {
+				if (isa<CallInst>(&conditionalTargetBB->front())) {
+//					&& isStaticHyperOp) {
 					//Current function is a call
 					newCallSite.pop_back();
 				}
@@ -1605,7 +1619,8 @@ struct HyperOpCreationPass: public ModulePass {
 				if (unconditionalBranchInstr != originalUnconditionalBranchInstr) {
 					Value* predicateOperand = ((Instruction*) unconditionalBranchInstr)->getOperand(0);
 					Instruction* clonedInstr;
-					if (isa<CallInst>(&targetBB->front()) && isStaticHyperOp) {
+					if (isa<CallInst>(&targetBB->front())) {
+//						&& isStaticHyperOp) {
 						//Current function is a call
 						newCallSite.pop_back();
 					}
@@ -1710,11 +1725,13 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				} else {
 					//Unconditional branch's target is a call instruction
-					if (isa<CallInst>(&targetBB->front()) && isStaticHyperOp) {
+					if (isa<CallInst>(&targetBB->front())) {
+//						&& isStaticHyperOp) {
 						//Current function is a call
 						newCallSite.pop_back();
 					}
-					if (isa<CallInst>(&(*unconditionalBranchSourceItr)->getParent()->front()) && createdHyperOpAndType.find((*unconditionalBranchSourceItr)->getParent()->getParent()) != createdHyperOpAndType.end() && createdHyperOpAndType[(*unconditionalBranchSourceItr)->getParent()->getParent()]) {
+					if (isa<CallInst>(&(*unconditionalBranchSourceItr)->getParent()->front())) {
+//						&& createdHyperOpAndType.find((*unconditionalBranchSourceItr)->getParent()->getParent()) != createdHyperOpAndType.end() && createdHyperOpAndType[(*unconditionalBranchSourceItr)->getParent()->getParent()]) {
 						newCallSite.push_back((CallInst*) &(*unconditionalBranchSourceItr)->getParent()->front());
 						while (true) {
 							CallInst* appendCall;
@@ -1748,7 +1765,8 @@ struct HyperOpCreationPass: public ModulePass {
 							if (unconditionalBranchInstr == 0) {
 								newCallSite.push_back(appendCall);
 							} else {
-								if (isa<CallInst>(unconditionalBranchInstr) && createdHyperOpAndType[(*unconditionalBranchSourceItr)->getParent()->getParent()]) {
+								if (isa<CallInst>(unconditionalBranchInstr)) {
+//									&& createdHyperOpAndType[(*unconditionalBranchSourceItr)->getParent()->getParent()]) {
 									newCallSite.push_back((CallInst*) unconditionalBranchInstr);
 								} else {
 									break;
@@ -1841,12 +1859,9 @@ struct HyperOpCreationPass: public ModulePass {
 		}
 
 		list<MDNode*> syncMDNodeList;
-		//TODO first remove edges and add the new necessary edges, then check if the source of the chain and the target still require a jump straight and THEN introduce the shortcut edge
 //		DEBUG(dbgs() << "\n----------Short-circuiting unconditional branch chains----------\n");
 		//Compute unconditional jump chains across HyperOps and short-circuit them to jump straight to the target of the chain
 
-		errs() << "before adding sync edges:";
-		M.dump();
 		DEBUG(dbgs() << "\n----------Adding sync edges to dangling HyperOps----------\n");
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
 			Function* createdFunction = createdHyperOpItr->first;
@@ -2089,8 +2104,6 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 		}
 
-		errs() << "module state at the end of all this:";
-		M.dump();
 		DEBUG(dbgs() << "\n-----------Deleting unused functions-----------\n");
 		//Workaround for deleting unused functions, deletion doesn't work unless in topological order but what about recursion?
 		list<Function*> functionsForDeletion;

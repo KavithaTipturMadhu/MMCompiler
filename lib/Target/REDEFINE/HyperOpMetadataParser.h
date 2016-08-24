@@ -23,18 +23,6 @@ using namespace std;
 #include "REDEFINEUtils.h"
 #include "HyperOpInteractionGraph.h"
 
-/**
- * TODO
- * Metadata format is as follows:
- * 0. NamedMDNode "redefine.annotations" containing the following NamedMDNode list:
- * 		0. NamedMDNode "redefine.hyperops" containing the list of HyperOps which further contains MDNode with first argument "redefine.hyperop" for each HyperOp
- * 		1. NamedMDNode "redefine.prescribesEdges" containing the list of HyperOp prescription conditions
- * 		2. NamedMDNode "redefine.producesEdges" containing the list of HyperOp data production edges
- * 		3. NamedMDNode "redefine.consumesEdges" containing the list of HyperOp data consumption edges
- */
-
-
-
 //const string TASKS_LIST = "redefine.tasks";
 /**
  * TODO
