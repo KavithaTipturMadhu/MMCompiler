@@ -15,7 +15,7 @@ HyperOpMetadataParser::~HyperOpMetadataParser() {
 	// TODO Auto-generated destructor stub
 }
 
-AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Value* sourceValue, map<Function*, MDNode*> functionMetadataMap, NamedMDNode* RedefineAnnotations) {
+AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Value* sourceValue, map<MDNode*, HyperOp*> hyperOpMetadataMap, NamedMDNode* RedefineAnnotations) {
 	if (isa<AllocaInst>(sourceValue)) {
 		return (AllocaInst*) sourceValue;
 	}
@@ -24,7 +24,7 @@ AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Value* sourceValue, ma
 		Value* operand = ((Instruction*) sourceValue)->getOperand(0);
 		Function* parentFunction = ((Instruction*) sourceValue)->getParent()->getParent();
 		for (Function::arg_iterator argItr = parentFunction->arg_begin(); argItr != parentFunction->arg_end(); argItr++, argIndex++) {
-			if (argItr == operand && parentFunction->getAttributes().getAttribute(argIndex, Attribute::InReg) == 0) {
+			if (argItr == operand && !parentFunction->getAttributes().hasAttribute(argIndex, Attribute::InReg)) {
 				//Find the function thats passing the argument recursively
 				for (unsigned i = 0; i < RedefineAnnotations->getNumOperands(); i++) {
 					MDNode* hyperOpMDNode = RedefineAnnotations->getOperand(i);
@@ -33,8 +33,8 @@ AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Value* sourceValue, ma
 						MDNode* consumerHyperOpMDNode = (MDNode*) hyperOpMDNode->getOperand(2);
 						Value* dataAtProducer = (Value*) (MDNode*) hyperOpMDNode->getOperand(3);
 						unsigned positionOfContextSlot = ((ConstantInt*) hyperOpMDNode->getOperand(5))->getZExtValue();
-						if (parentFunction == functionMetadataMap[consumerHyperOpMDNode] && argIndex == positionOfContextSlot) {
-							return getAllocInstrForLocalReferenceData(M, dataAtProducer, functionMetadataMap, RedefineAnnotations);
+						if (parentFunction == hyperOpMetadataMap[consumerHyperOpMDNode]->getFunction() && argIndex == positionOfContextSlot) {
+							return getAllocInstrForLocalReferenceData(M, dataAtProducer, hyperOpMetadataMap, RedefineAnnotations);
 						}
 					}
 				}
@@ -98,8 +98,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 				} else if (dataType.compare(LOCAL_REFERENCE) == 0) {
 					edge->Type = HyperOpEdge::LOCAL_REFERENCE;
 					list<unsigned> volumeOfCommunication;
-					Function* consumerFunction = consumerHyperOpMDNode->getFunction();
-					AllocaInst* allocInst = getAllocInstrForLocalReferenceData(*M, data, functionMetadataMap, RedefineAnnotations);
+					AllocaInst* allocInst = getAllocInstrForLocalReferenceData(*M, data, hyperOpMetadataMap, RedefineAnnotations);
 					unsigned volume = REDEFINEUtils::getSizeOfType(allocInst->getType()) / 4;
 					volumeOfCommunication.push_back(volume);
 					edge->setVolume(volumeOfCommunication);
@@ -140,7 +139,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 				if (isa<AllocaInst>(instr)) {
 					frameSizeOfHyperOp += REDEFINEUtils::getSizeOfType(((AllocaInst*) instr)->getType());
 				} else if (isa<LoadInst>(instr)) {
-					frameSizeOfHyperOp += getAllocInstrForLocalReferenceData(*M, instr, functionMetadataMap, RedefineAnnotations);
+					frameSizeOfHyperOp += getAllocInstrForLocalReferenceData(*M, instr, hyperOpMetadataMap, RedefineAnnotations);
 				}
 			}
 		}
