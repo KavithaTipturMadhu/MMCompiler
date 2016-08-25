@@ -1300,7 +1300,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(lw.operator llvm::MachineInstr *());
 
 						MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::FSW));
-						store.addReg(virtualRegistersForInstAddr[currentCE].second).addReg(floatingPointRegister).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame());
+						store.addReg(floatingPointRegister).addReg(virtualRegistersForInstAddr[currentCE].second).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame());
 
 						allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(store.operator llvm::MachineInstr *());
@@ -1312,7 +1312,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(lw.operator llvm::MachineInstr *());
 
 						MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SW));
-						store.addReg(virtualRegistersForInstAddr[currentCE].second).addReg(integerRegister).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame());
+						store.addReg(integerRegister).addReg(virtualRegistersForInstAddr[currentCE].second).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame());
 
 						allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(store.operator llvm::MachineInstr *());
