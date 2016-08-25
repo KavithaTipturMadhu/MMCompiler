@@ -15,36 +15,38 @@ HyperOpMetadataParser::~HyperOpMetadataParser() {
 	// TODO Auto-generated destructor stub
 }
 
-AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Value* sourceValue, map<MDNode*, HyperOp*> hyperOpMetadataMap, NamedMDNode* RedefineAnnotations) {
-	if (isa<AllocaInst>(sourceValue)) {
-		return (AllocaInst*) sourceValue;
+AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Instruction* sourceInstr, MDNode* sourceMDNode, map<Function*, MDNode*> functionMetadataMap) {
+	if (isa<AllocaInst>(sourceInstr)) {
+		return (AllocaInst*) sourceInstr;
 	}
-	else if (isa<LoadInst>(sourceValue)) {
+	if (isa<LoadInst>(sourceInstr)) {
 		unsigned argIndex = 0;
-		Value* operand = ((Instruction*) sourceValue)->getOperand(0);
-		Function* parentFunction = ((Instruction*) sourceValue)->getParent()->getParent();
+		Function* parentFunction = sourceInstr->getParent()->getParent();
 		for (Function::arg_iterator argItr = parentFunction->arg_begin(); argItr != parentFunction->arg_end(); argItr++, argIndex++) {
-			if (argItr == operand && !parentFunction->getAttributes().hasAttribute(argIndex, Attribute::InReg)) {
-				//Find the function thats passing the argument recursively
-				for (unsigned i = 0; i < RedefineAnnotations->getNumOperands(); i++) {
-					MDNode* hyperOpMDNode = RedefineAnnotations->getOperand(i);
-					StringRef annotationName = ((MDString*) hyperOpMDNode->getOperand(0))->getString();
-					if (annotationName.compare(HYPEROP_PRODUCES)) {
-						MDNode* consumerHyperOpMDNode = (MDNode*) hyperOpMDNode->getOperand(2);
-						Value* dataAtProducer = (Value*) (MDNode*) hyperOpMDNode->getOperand(3);
-						unsigned positionOfContextSlot = ((ConstantInt*) hyperOpMDNode->getOperand(5))->getZExtValue();
-						if (parentFunction == hyperOpMetadataMap[consumerHyperOpMDNode]->getFunction() && argIndex == positionOfContextSlot) {
-							return getAllocInstrForLocalReferenceData(M, dataAtProducer, hyperOpMetadataMap, RedefineAnnotations);
+			if (argItr == sourceInstr->getOperand(0)) {
+				//Find the function that contains the consumed by annotation
+				for (Module::iterator funcItr = M.begin(); funcItr != M.end(); funcItr) {
+					if (&*funcItr != parentFunction) {
+						for (Function::iterator bbItr = funcItr->begin(); bbItr != funcItr->end(); bbItr++) {
+							for (BasicBlock::iterator instrItr = bbItr->begin(); instrItr != bbItr->end(); instrItr++) {
+								if (instrItr->hasMetadata()) {
+									MDNode* consumedByMDNode = instrItr->getMetadata(HYPEROP_CONSUMED_BY);
+									if (consumedByMDNode != 0) {
+										for (unsigned i = 0; i < consumedByMDNode->getNumOperands(); i++) {
+											MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(i);
+											if (((MDNode*) consumerMDNode->getOperand(0)) == sourceMDNode && ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue() == argIndex) {
+												return getAllocInstrForLocalReferenceData(M, instrItr, functionMetadataMap[funcItr], functionMetadataMap);
+											}
+										}
+									}
+								}
+							}
 						}
 					}
 				}
 			}
 		}
 	}
-	//TODO isn't the else part required for pointers?
-//	else {
-//		return getAllocInstrForLocalReferenceData(M, sourceValue, functionMetadataMap, RedefineAnnotations);
-//	}
 	return 0;
 }
 
@@ -66,7 +68,11 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 				HyperOp *hyperOp = new HyperOp(function);
 				hyperOp->setHyperOpId(hyperOpId++);
 				StringRef hyperOpType = ((MDString*) hyperOpMDNode->getOperand(2))->getName();
-				hyperOp->setStaticHyperOp(true);
+				if (hyperOpType.equals("Static")) {
+					hyperOp->setStaticHyperOp(true);
+				} else if (hyperOpType.equals("Dynamic")) {
+					hyperOp->setStaticHyperOp(false);
+				}
 				graph->addHyperOp(hyperOp);
 				hyperOpMetadataMap.insert(std::make_pair(hyperOpMDNode, hyperOp));
 				functionMetadataMap.insert(std::make_pair(function, hyperOpMDNode));
@@ -85,45 +91,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 			} else if (type.compare(HYPEROP_INTERMEDIATE) == 0) {
 				HyperOp* intermediateHyperOp = hyperOpMetadataMap[(MDNode*) hyperOpMDNode->getOperand(1)];
 				intermediateHyperOp->setIntermediateHyperOp();
-			} else if (type.compare(HYPEROP_PRODUCES) == 0) {
-				MDNode* producerHyperOpMDNode = (MDNode*) hyperOpMDNode->getOperand(1);
-				MDNode* consumerHyperOpMDNode = (MDNode*) hyperOpMDNode->getOperand(2);
-				HyperOp* sourceHyperOp = hyperOpMetadataMap[producerHyperOpMDNode];
-				HyperOp* targetHyperOp = hyperOpMetadataMap[consumerHyperOpMDNode];
-				Value* data = (Value*) hyperOpMDNode->getOperand(3);
-				StringRef dataType = ((MDString*) hyperOpMDNode->getOperand(4))->getName();
-				HyperOpEdge* edge = new HyperOpEdge();
-				if (dataType.compare(SCALAR) == 0) {
-					edge->Type = HyperOpEdge::SCALAR;
-				} else if (dataType.compare(LOCAL_REFERENCE) == 0) {
-					edge->Type = HyperOpEdge::LOCAL_REFERENCE;
-					list<unsigned> volumeOfCommunication;
-					AllocaInst* allocInst = getAllocInstrForLocalReferenceData(*M, data, hyperOpMetadataMap, RedefineAnnotations);
-					unsigned volume = REDEFINEUtils::getSizeOfType(allocInst->getType()) / 4;
-					volumeOfCommunication.push_back(volume);
-					edge->setVolume(volumeOfCommunication);
-				}
-				edge->setValue(data);
-				unsigned positionOfContextSlot = ((ConstantInt*) hyperOpMDNode->getOperand(5))->getZExtValue();
-				edge->setPositionOfContextSlot(positionOfContextSlot);
-				sourceHyperOp->addChildEdge(edge, targetHyperOp);
-				targetHyperOp->addParentEdge(edge, sourceHyperOp);
-			} else if (type.compare(HYPEROP_CONTROLS) == 0 || type.compare(HYPEROP_SYNC) == 0) {
-				MDNode* producerHyperOpMDNode = (MDNode*) hyperOpMDNode->getOperand(1);
-				MDNode* consumerHyperOpMDNode = (MDNode*) hyperOpMDNode->getOperand(2);
-				HyperOp* sourceHyperOp = hyperOpMetadataMap[producerHyperOpMDNode];
-				HyperOp* targetHyperOp = hyperOpMetadataMap[consumerHyperOpMDNode];
-				Value* data = (Value*) hyperOpMDNode->getOperand(3);
-				targetHyperOp->setPredicatedHyperOp();
-				HyperOpEdge* edge = new HyperOpEdge();
-				if (type.compare(HYPEROP_SYNC) == 0) {
-					edge->Type = HyperOpEdge::SYNC;
-				} else {
-					edge->Type = HyperOpEdge::PREDICATE;
-				}
-				edge->setValue(data);
-				sourceHyperOp->addChildEdge(edge, targetHyperOp);
-				targetHyperOp->addParentEdge(edge, sourceHyperOp);
 			}
 		}
 	}
@@ -138,8 +105,65 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 				Instruction* instr = bbItr;
 				if (isa<AllocaInst>(instr)) {
 					frameSizeOfHyperOp += REDEFINEUtils::getSizeOfType(((AllocaInst*) instr)->getType());
-				} else if (isa<LoadInst>(instr)) {
-					frameSizeOfHyperOp += getAllocInstrForLocalReferenceData(*M, instr, hyperOpMetadataMap, RedefineAnnotations);
+				}
+				if (instr->hasMetadata()) {
+					MDNode* consumedByMDNode = instr->getMetadata(HYPEROP_CONSUMED_BY);
+					if (consumedByMDNode != 0) {
+						for (unsigned consumerMDNodeIndex = 0; consumerMDNodeIndex != consumedByMDNode->getNumOperands(); consumerMDNodeIndex++) {
+							//Create an edge between two HyperOps labeled by the instruction
+							MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(consumerMDNodeIndex);
+							HyperOp* consumerHyperOp = hyperOpMetadataMap[(MDNode*) consumerMDNode->getOperand(0)];
+							StringRef dataType = ((MDString*) consumerMDNode->getOperand(1))->getName();
+							HyperOpEdge* edge = new HyperOpEdge();
+							if (dataType.compare(SCALAR) == 0) {
+								edge->Type = HyperOpEdge::SCALAR;
+							} else if (dataType.compare(LOCAL_REFERENCE) == 0) {
+								edge->Type = HyperOpEdge::LOCAL_REFERENCE;
+								list<unsigned> volumeOfCommunication;
+								Function* consumerFunction = consumerHyperOp->getFunction();
+								AllocaInst* allocInst = getAllocInstrForLocalReferenceData(*M, instr, consumedByMDNode, functionMetadataMap);
+								if (!isa<AllocaInst>(instr)) {
+									//TODO TERRIBLE CODE, CHECK IF THIS CAN BE CLEANED
+									consumerHyperOp->loadInstrAndAllocaMap[instr] = allocInst;
+								}
+								unsigned volume = REDEFINEUtils::getSizeOfType(allocInst->getType()) / 4;
+								volumeOfCommunication.push_back(volume);
+								edge->setVolume(volumeOfCommunication);
+							}
+							unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue();
+							edge->setPositionOfContextSlot(positionOfContextSlot);
+							edge->setValue((Value*) instr);
+							sourceHyperOp->addChildEdge(edge, consumerHyperOp);
+							consumerHyperOp->addParentEdge(edge, sourceHyperOp);
+						}
+					}
+					MDNode* controlledByMDNode = instr->getMetadata(HYPEROP_CONTROLS);
+					if (controlledByMDNode != 0) {
+						for (unsigned predicatedMDNodeIndex = 0; predicatedMDNodeIndex != controlledByMDNode->getNumOperands(); predicatedMDNodeIndex++) {
+							MDNode* predicatedMDNode = (MDNode*) controlledByMDNode->getOperand(predicatedMDNodeIndex);
+							//Create an edge between two HyperOps labeled by the instruction
+							HyperOp* predicatedHyperOp = hyperOpMetadataMap[(MDNode*) predicatedMDNode->getOperand(0)];
+							predicatedHyperOp->setPredicatedHyperOp();
+							HyperOpEdge* edge = new HyperOpEdge();
+							edge->Type = HyperOpEdge::PREDICATE;
+							edge->setValue((Value*) instr);
+							sourceHyperOp->addChildEdge(edge, predicatedHyperOp);
+							predicatedHyperOp->addParentEdge(edge, sourceHyperOp);
+						}
+					}
+
+					MDNode* syncMDNode = instr->getMetadata(HYPEROP_SYNC);
+					if (syncMDNode != 0) {
+						for (unsigned syncMDNodeIndex = 0; syncMDNodeIndex != syncMDNode->getNumOperands(); syncMDNodeIndex++) {
+							MDNode* syncedMDNode = (MDNode*) syncMDNode->getOperand(syncMDNodeIndex);
+							//Create an edge between two HyperOps labeled by the instruction
+							HyperOp* syncBarrierHyperOp = hyperOpMetadataMap[(MDNode*) syncedMDNode->getOperand(0)];
+							HyperOpEdge* edge = new HyperOpEdge();
+							edge->Type = HyperOpEdge::SYNC;
+							sourceHyperOp->addChildEdge(edge, syncBarrierHyperOp);
+							syncBarrierHyperOp->addParentEdge(edge, sourceHyperOp);
+						}
+					}
 				}
 			}
 		}
@@ -149,6 +173,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 	}
 
 	graph->setMaxMemFrameSize(maxFrameSizeOfHyperOp);
+	graph->print(errs());
 	return graph;
 }
 

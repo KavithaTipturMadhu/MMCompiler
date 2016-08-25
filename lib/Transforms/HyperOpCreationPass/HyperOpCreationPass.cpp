@@ -1104,9 +1104,10 @@ struct HyperOpCreationPass: public ModulePass {
 				accumulatedBasicBlocks.pop_back();
 			}
 
-			Value * values[2];
+			Value * values[3];
 			values[0] = MDString::get(ctxt, HYPEROP);
 			values[1] = newFunction;
+			values[2] = MDString::get(ctxt, isStaticHyperOp ? STATIC_HYPEROP : DYNAMIC_HYPEROP);
 			MDNode *funcAnnotation = MDNode::get(ctxt, values);
 			hyperOpAndAnnotationMap.insert(make_pair(newFunction, funcAnnotation));
 			annotationAndHyperOpMap.insert(make_pair(funcAnnotation, newFunction));
@@ -2133,6 +2134,8 @@ private:
 	const char* REDEFINE_INPUT_PREFIX = "redefine_in";
 	const char* REDEFINE_OUTPUT_PREFIX = "redefine_out";
 	const char* REDEFINE_INOUT_PREFIX = "redefine_inout";
+	const char* STATIC_HYPEROP = "Static";
+	const char* DYNAMIC_HYPEROP = "Dynamic";
 }
 ;
 char HyperOpCreationPass::ID = 2;

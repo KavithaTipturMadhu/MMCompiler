@@ -567,9 +567,9 @@ MDNode *NamedMDNode::getOperand(unsigned i) const {
 
 /// addOperand - Add metadata Operand.
 void NamedMDNode::addOperand(MDNode *M) {
-//	assert(
-//			!M->isFunctionLocal()
-//					&& "NamedMDNode operands must not be function-local!");
+	assert(
+			!M->isFunctionLocal()
+					&& "NamedMDNode operands must not be function-local!");
 	getNMDOps(Operands).push_back(TrackingVH<MDNode>(M));
 }
 

@@ -28,7 +28,7 @@ using namespace std;
 
 static string REDEFINE_ANNOTATIONS = "redefine.annotations";
 static string HYPEROP = "HyperOp";
-static string HYPEROP_PRODUCES = "Produces";
+static string HYPEROP_CONSUMED_BY = "ConsumedBy";
 static string HYPEROP_CONTROLS = "Controls";
 const string HYPEROP_SYNC = "Sync";
 static string HYPEROP_AFFINITY = "Affinity";
