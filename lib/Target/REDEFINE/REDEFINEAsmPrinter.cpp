@@ -151,7 +151,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		OutStreamer.EmitRawText(StringRef(opWaitCount));
 
 		OutStreamer.EmitRawText(StringRef(".IMD_END\n"));
-		OutStreamer.EmitRawText(StringRef(".HYOP_END\n"));
+		OutStreamer.EmitRawText(StringRef(".HYOP_END\n\n"));
 		//string isNextHyperOpInstValid(ISNEXT_HOP_INST_VALID_ANNOTATION);
 		//string nextHyperOpInst(NEXT_HYPEROP_INST_ANNOTATION);
 		//isNextHyperOpInstValid.append("\t").append("0").append("\n");
@@ -204,12 +204,12 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		OutStreamer.EmitRawText(StringRef(topology));
 		firstFunctionBeingProcessed = false;
 
+		// Added By Arka
+		string startAddr(".startaddr"); // Start Address of the Code Data Segment
+		startAddr.append("\t").append(itostr(0)).append("\n");
+		OutStreamer.EmitRawText(StringRef(startAddr));
 	}
-	// Added By Arka
-	string startAddr(".startaddr"); // Start Address of the Code Data Segment
-	startAddr.append("\t").append(itostr(0)).append("\n");
-	OutStreamer.EmitRawText(StringRef(startAddr));
-
+	
 
 	//if (find(crWithNumHopsPrinted.begin(), crWithNumHopsPrinted.end(), hyperOp->getTargetResource()) == crWithNumHopsPrinted.end()) 
 	//{
@@ -364,7 +364,7 @@ bool REDEFINEAsmPrinter::doInitialization(Module &M) {
 }
 
 void REDEFINEAsmPrinter::EmitEndOfAsmFile(Module &M) {
-	string dataLabel = ".IO_BEGIN\n.data\t";
+	string dataLabel = ".IO_BEGIN\n.data_start\t";
 	long int maxGlobalSize = 0;
 	string inputs = "";
 	unsigned numInputsAndOutputs = 0;
