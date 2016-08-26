@@ -98,6 +98,7 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 }
 
 void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
+	int ceCount = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
 	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
 	HyperOp* hyperOp = HIG->getHyperOp(const_cast<Function*>(MF->getFunction()));
 	//Add instance metadata
@@ -110,7 +111,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		OutStreamer.EmitRawText(StringRef(".IMD_BEGIN\n"));
 
 		string instanceId(HYPEROP_INSTANCE_PREFIX);
-		instanceId.append("\t").append(itostr(hyperOp->getContextFrame() << 6)).append("\t");
+		instanceId.append(itostr(hyperOp->getContextFrame() << 6)).append("\t");
 		OutStreamer.EmitRawText(StringRef(instanceId));
 
 		AttributeSet attributes = MF->getFunction()->getAttributes();
@@ -133,12 +134,16 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		depthHEG.append("\t").append(itostr(hyperOp->computeDepthInGraph())).append("\n");
 		OutStreamer.EmitRawText(StringRef(depthHEG));
 
+		string numphy = ".numphy\t";
+		numphy.append(itostr(ceCount)).append("\n");
+		OutStreamer.EmitRawText(StringRef(numphy));
+
 		string launchCount(LAUNCH_CNT_ANNOTATION);
 		launchCount.append("\t").append(itostr(argCount)).append("\n");
 		OutStreamer.EmitRawText(StringRef(launchCount));
 
 		string operandValidity(OPERAND_VALIDITY_ANNOTATION);
-		operandValidity.append("\t").append(bitset<36>(argCount).to_string()).append("\n");
+		operandValidity.append("\t").append(bitset<16>(argCount).to_string()).append("\n");
 		OutStreamer.EmitRawText(StringRef(operandValidity));
 
 		string opWaitCount(OP_WAIT_CNT_ANNOTATION);
@@ -234,6 +239,10 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 	staticMetadata.append(hyperOp->isBarrierHyperOp() ? "B" : "").append("\t");
 	staticMetadata.append(hyperOp->isPredicatedHyperOp() ? "P" : "").append("\n");
 	OutStreamer.EmitRawText(StringRef(staticMetadata));
+
+	string numphy = ".numphy\t";
+	numphy.append(itostr(ceCount)).append("\n");
+	OutStreamer.EmitRawText(StringRef(numphy));
 
 	//Adding distribution count of operands
 	string distCount = ".opdist\t";
@@ -355,7 +364,7 @@ bool REDEFINEAsmPrinter::doInitialization(Module &M) {
 }
 
 void REDEFINEAsmPrinter::EmitEndOfAsmFile(Module &M) {
-	string dataLabel = ".ioinfo\t";
+	string dataLabel = ".IO_BEGIN\n.data\t";
 	long int maxGlobalSize = 0;
 	string inputs = "";
 	unsigned numInputsAndOutputs = 0;
@@ -387,7 +396,8 @@ void REDEFINEAsmPrinter::EmitEndOfAsmFile(Module &M) {
 	if (!inputs.empty()) {
 		OutStreamer.EmitRawText(StringRef(inputs));
 	}
-
+	string ioEndLabel = ".IO_END";
+	OutStreamer.EmitRawText(StringRef(ioEndLabel));
 }
 
 bool REDEFINEAsmPrinter::doFinalization(Module &M) {
