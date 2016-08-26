@@ -163,6 +163,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 							edge->Type = HyperOpEdge::SYNC;
 							sourceHyperOp->addChildEdge(edge, syncBarrierHyperOp);
 							syncBarrierHyperOp->addParentEdge(edge, sourceHyperOp);
+							syncBarrierHyperOp->setBarrierHyperOp();
 						}
 					}
 				}
