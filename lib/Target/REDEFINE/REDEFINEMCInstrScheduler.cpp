@@ -1436,7 +1436,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			}
 
 			//sync always goes to the 15th slot
-			unsigned contextFrameOffset = 15;
+			unsigned contextFrameOffset = 60;
 
 			//decrement the barrier by 1
 			unsigned registerContainingData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
