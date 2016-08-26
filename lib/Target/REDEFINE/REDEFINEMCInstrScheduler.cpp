@@ -1197,7 +1197,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			//Check if there exists a predicate edge between producer and consumer HyperOp, add one otherwise to ensure serial accesses to memory
 			bool predicateEdgeExists = false;
 			for (map<HyperOpEdge*, HyperOp*>::iterator childItr = hyperOp->ChildMap.begin(); childItr != hyperOp->ChildMap.end(); childItr++) {
-				if (childItr->second == consumer && (childItr->first->getType() == HyperOpEdge::PREDICATE || childItr->first->getType() == HyperOpEdge::ORDERING)) {
+				if (childItr->second == consumer && (childItr->first->getType() == HyperOpEdge::PREDICATE || childItr->first->getType() == HyperOpEdge::ORDERING || childItr->first->getType() == HyperOpEdge::SYNC)) {
 					predicateEdgeExists = true;
 					break;
 				}
