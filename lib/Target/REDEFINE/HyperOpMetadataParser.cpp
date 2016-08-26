@@ -155,6 +155,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 
 					MDNode* syncMDNode = instr->getMetadata(HYPEROP_SYNC);
 					if (syncMDNode != 0) {
+						errs()<<"where is the sync node?\n";
+						syncMDNode->dump();
 						for (unsigned syncMDNodeIndex = 0; syncMDNodeIndex != syncMDNode->getNumOperands(); syncMDNodeIndex++) {
 							MDNode* syncedMDNode = (MDNode*) syncMDNode->getOperand(syncMDNodeIndex);
 							//Create an edge between two HyperOps labeled by the instruction
@@ -172,6 +174,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 	}
 
 	graph->setMaxMemFrameSize(maxFrameSizeOfHyperOp);
+	graph->print(errs());
 	return graph;
 }
 

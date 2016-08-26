@@ -1204,10 +1204,10 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			}
 			if (!predicateEdgeExists) {
 				HyperOpEdge* predicateEdge = new HyperOpEdge();
-				predicateEdge->setType(HyperOpEdge::PREDICATE);
+				predicateEdge->setType(HyperOpEdge::SYNC);
 				hyperOp->addChildEdge(predicateEdge, consumer);
 				consumer->addChildEdge(predicateEdge, hyperOp);
-				consumer->setPredicatedHyperOp();
+				consumer->setBarrierHyperOp();
 			}
 
 			unsigned frameLocationOfSourceData = 0;

@@ -2105,15 +2105,15 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 				os << vertex->getFunction()->getName() << "->" << childItr->second->getFunction()->getName() << "[label=";
 				HyperOpEdge* edge = (*childItr).first;
 				if (edge->Type == HyperOpEdge::SCALAR) {
-					os << "scalar:";
+					os << "scalar";
 //					edge->getValue()->print(os);
 				} else if (edge->Type == HyperOpEdge::LOCAL_REFERENCE) {
-					os << "localref:";
+					os << "localref";
 //					edge->getValue()->print(os);
 				} else if (edge->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
 					os << "context frame address";
 				} else if (edge->Type == HyperOpEdge::PREDICATE) {
-					os << "control:";
+					os << "control";
 //					if (edge->getValue() != 0) {
 //						edge->getValue()->print(os);
 //					} else {
@@ -2121,6 +2121,8 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 //					}
 				} else if (edge->Type == HyperOpEdge::ORDERING) {
 					os << "order";
+				}else if(edge->Type==HyperOpEdge::SYNC){
+					os<<"sync";
 				}
 				os << "];\n";
 			}

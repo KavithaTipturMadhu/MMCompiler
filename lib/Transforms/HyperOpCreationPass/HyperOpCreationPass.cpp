@@ -1854,28 +1854,30 @@ struct HyperOpCreationPass: public ModulePass {
 		DEBUG(dbgs() << "\n----------Adding sync edges to dangling HyperOps----------\n");
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
 			Function* createdFunction = createdHyperOpItr->first;
-			bool hasOutgoingEdges = false;
-			for (Function::iterator bbItr = createdFunction->begin(); bbItr != createdFunction->end(); bbItr++) {
-				for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
-					//check if any of the instructions have any metadata associated
-					if (instItr->getMetadata(HYPEROP_CONSUMED_BY) != 0 || instItr->getMetadata(HYPEROP_CONTROLS) != 0 || instItr->getMetadata(HYPEROP_SYNC) != 0) {
-						hasOutgoingEdges = true;
-						break;
+			if (createdFunction != endHyperOp) {
+				bool hasOutgoingEdges = false;
+				for (Function::iterator bbItr = createdFunction->begin(); bbItr != createdFunction->end(); bbItr++) {
+					for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
+						//check if any of the instructions have any metadata associated
+						if (instItr->getMetadata(HYPEROP_CONSUMED_BY) != 0 || instItr->getMetadata(HYPEROP_CONTROLS) != 0 || instItr->getMetadata(HYPEROP_SYNC) != 0) {
+							hasOutgoingEdges = true;
+							break;
+						}
 					}
 				}
-			}
-			if (!hasOutgoingEdges && createdFunction != endHyperOp) {
-				//Add a sync edge to end HyperOp
-				vector<Value*> nodeList;
-				Value* values[1];
-				values[0] = hyperOpAndAnnotationMap[endHyperOp];
-				MDNode* newPredicateMetadata = MDNode::get(ctxt, values);
-				nodeList.push_back(newPredicateMetadata);
-				MDNode* mdNode = MDNode::get(ctxt, nodeList);
-				//Create a sync edge between the current HyperOp and the last HyperOp
-				//We use sync edge here because adding a predicate to the end hyperop
-				createdFunction->begin()->front().setMetadata(HYPEROP_SYNC, mdNode);
-				syncMDNodeList.push_back(newPredicateMetadata);
+				if (!hasOutgoingEdges) {
+					//Add a sync edge to end HyperOp
+					vector<Value*> nodeList;
+					Value* values[1];
+					values[0] = hyperOpAndAnnotationMap[endHyperOp];
+					MDNode* newPredicateMetadata = MDNode::get(ctxt, values);
+					nodeList.push_back(newPredicateMetadata);
+					MDNode* mdNode = MDNode::get(ctxt, nodeList);
+					//Create a sync edge between the current HyperOp and the last HyperOp
+					//We use sync edge here because adding a predicate to the end hyperop
+					createdFunction->begin()->front().setMetadata(HYPEROP_SYNC, mdNode);
+					syncMDNodeList.push_back(newPredicateMetadata);
+				}
 			}
 
 //			if (createdFunctionAndUnconditionalJumpSources.find(createdFunction) != createdFunctionAndUnconditionalJumpSources.end()) {
