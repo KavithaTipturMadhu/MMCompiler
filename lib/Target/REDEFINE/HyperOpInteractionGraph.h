@@ -103,6 +103,7 @@ class HyperOp {
 	bool gcRequired;
 	unsigned hyperOpId;
 	vector<unsigned> numInputsPerCE;
+	unsigned int numIncomingSyncEdges;
 
 public:
 	//Map to cache local reference objects that have an alloc instruction in a different HyperOp
@@ -165,6 +166,8 @@ public:
 	void setFbindRequired(bool fbindRequired);
 	bool isStaticHyperOp() const;
 	void setStaticHyperOp(bool staticHyperOp);
+	void incrementIncomingSyncCount();
+	unsigned getSyncCount();
 };
 
 class HyperOpInteractionGraph {
