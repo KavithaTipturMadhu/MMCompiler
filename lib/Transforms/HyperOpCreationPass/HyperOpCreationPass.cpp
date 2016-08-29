@@ -1370,6 +1370,7 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 
 						if (replacementArgType == LOCAL_REFERENCE && find(localReferenceArgProducers.begin(), localReferenceArgProducers.end(), metadataHost->getParent()->getParent()) == localReferenceArgProducers.end()) {
+							errs()<<"added local ref parent\n";
 							localReferenceArgProducers.push_back(metadataHost->getParent()->getParent());
 						}
 					}
@@ -1820,18 +1821,28 @@ struct HyperOpCreationPass: public ModulePass {
 			DEBUG(dbgs() << "Adding sync edges to HyperOps that only take local reference inputs");
 			for (list<Function*>::iterator localRefItr = localReferenceArgProducers.begin(); localRefItr != localReferenceArgProducers.end(); localRefItr++) {
 				Function* localRefProducer = *localRefItr;
-				if (find(predicateProducers.begin(), predicateProducers.end(), localRefProducer) == predicateProducers.end()) {
+				errs()<<"there are local ref parents\n";
+				if (predicateProducers.empty()||find(predicateProducers.begin(), predicateProducers.end(), localRefProducer) == predicateProducers.end()) {
 					//Add a sync edge from local ref producer and the consumer HyperOp
 					Value* values[1];
 					values[0] = hyperOpAndAnnotationMap[createdFunction];
 					MDNode* newPredicateMetadata = MDNode::get(ctxt, values);
-					vector<Value*> nodeList;
-					nodeList.push_back(newPredicateMetadata);
-					MDNode* mdNode = MDNode::get(ctxt, nodeList);
+					Instruction* metadataHost = &(localRefProducer->begin()->front());
+					MDNode* currentMetadataOfInstruction = metadataHost->getMetadata(HYPEROP_SYNC);
+					vector<Value*> newMDNodeValues;
+					//Same data maybe required by multiple HyperOps
+					if (currentMetadataOfInstruction != 0) {
+						for (unsigned i = 0; i < currentMetadataOfInstruction->getNumOperands(); i++) {
+							newMDNodeValues.push_back(currentMetadataOfInstruction->getOperand(i));
+						}
+					}
+					newMDNodeValues.push_back(newPredicateMetadata);
+					MDNode* mdNode = MDNode::get(ctxt, newMDNodeValues);
 					//Create a sync edge between the current HyperOp and the last HyperOp
 					//We use sync edge here because adding a predicate to the end hyperop will increase the number of predicates
-					localRefProducer->begin()->front().setMetadata(HYPEROP_SYNC, mdNode);
+					metadataHost->setMetadata(HYPEROP_SYNC, mdNode);
 					syncMDNodeList.push_back(newPredicateMetadata);
+					errs()<<"added a sync edge between "<<localRefProducer->getName()<<" and  "<<createdFunction->getName()<<"\n";
 				}
 			}
 		}

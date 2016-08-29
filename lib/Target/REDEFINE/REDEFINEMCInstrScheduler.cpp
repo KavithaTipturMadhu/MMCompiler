@@ -1117,7 +1117,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
 					addi.addReg(registerContainingConsumerFrameAddr, RegState::Define);
 					addi.addReg(REDEFINE::zero);
-					addi.addImm(hyperOpFrame);
+					addi.addImm(hyperOpFrame<<6);
 					allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 					registerContainingHyperOpFrameAddress.insert(make_pair(*childHyperOpItr, registerContainingConsumerFrameAddr));
 				} else {
@@ -1135,8 +1135,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				}
 
 				MachineInstrBuilder writecm = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::WRITECM));
-				writecm.addReg(registerWithSyncCount);
 				writecm.addReg(registerContainingConsumerFrameAddr);
+				writecm.addReg(registerWithSyncCount);
 				writecm.addImm(60);
 
 				allInstructionsOfRegion.push_back(make_pair(writecm.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
