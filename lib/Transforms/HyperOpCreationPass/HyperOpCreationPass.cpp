@@ -1822,21 +1822,18 @@ struct HyperOpCreationPass: public ModulePass {
 				Function* localRefProducer = *localRefItr;
 				if (find(predicateProducers.begin(), predicateProducers.end(), localRefProducer) == predicateProducers.end()) {
 					//Add a sync edge from local ref producer and the consumer HyperOp
-					//Add a sync edge to end HyperOp
-					vector<Value*> nodeList;
 					Value* values[1];
-					values[0] = createdFunction;
+					values[0] = hyperOpAndAnnotationMap[createdFunction];
 					MDNode* newPredicateMetadata = MDNode::get(ctxt, values);
+					vector<Value*> nodeList;
 					nodeList.push_back(newPredicateMetadata);
 					MDNode* mdNode = MDNode::get(ctxt, nodeList);
 					//Create a sync edge between the current HyperOp and the last HyperOp
-					//We use sync edge here because adding a predicate to the end hyperop
-					createdFunction->begin()->front().setMetadata(HYPEROP_SYNC, mdNode);
+					//We use sync edge here because adding a predicate to the end hyperop will increase the number of predicates
+					localRefProducer->begin()->front().setMetadata(HYPEROP_SYNC, mdNode);
 					syncMDNodeList.push_back(newPredicateMetadata);
 				}
-
 			}
-
 		}
 
 		DEBUG(dbgs() << "\n----------Adding sync edges to dangling HyperOps----------\n");
