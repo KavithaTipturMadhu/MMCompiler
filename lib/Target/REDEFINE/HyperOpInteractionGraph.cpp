@@ -41,6 +41,7 @@ HyperOp::HyperOp(Function* function) {
 	this->fbindRequired = false;
 	this->gcRequired = false;
 	this->staticHyperOp = true;
+	this->numIncomingSyncEdges = 0;
 }
 
 HyperOp::~HyperOp() {
@@ -100,6 +101,14 @@ bool HyperOp::isStaticHyperOp() const {
 
 void HyperOp::setStaticHyperOp(bool staticHyperOp) {
 	this->staticHyperOp = staticHyperOp;
+}
+
+void HyperOp::incrementIncomingSyncCount() {
+	this->numIncomingSyncEdges++;
+}
+
+unsigned HyperOp::getSyncCount() {
+	return this->numIncomingSyncEdges;
 }
 
 unsigned HyperOp::getHyperOpId() const {
@@ -1918,7 +1927,7 @@ void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrame
 	for (list<HyperOp*>::iterator vertexIterator = cluster.begin(); vertexIterator != cluster.end(); vertexIterator++) {
 		HyperOp* vertex = *vertexIterator;
 		//There is no need to associate context frames with dynamic hyperops
-		if(!vertex->isStaticHyperOp()){
+		if (!vertex->isStaticHyperOp()) {
 			continue;
 		}
 		HyperOp* liveStartOfVertex = vertex->getImmediateDominator();
@@ -2105,15 +2114,15 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 				os << vertex->getFunction()->getName() << "->" << childItr->second->getFunction()->getName() << "[label=";
 				HyperOpEdge* edge = (*childItr).first;
 				if (edge->Type == HyperOpEdge::SCALAR) {
-					os << "scalar:";
+					os << "scalar";
 //					edge->getValue()->print(os);
 				} else if (edge->Type == HyperOpEdge::LOCAL_REFERENCE) {
-					os << "localref:";
+					os << "localref";
 //					edge->getValue()->print(os);
 				} else if (edge->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
 					os << "context frame address";
 				} else if (edge->Type == HyperOpEdge::PREDICATE) {
-					os << "control:";
+					os << "control";
 //					if (edge->getValue() != 0) {
 //						edge->getValue()->print(os);
 //					} else {
@@ -2121,6 +2130,8 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 //					}
 				} else if (edge->Type == HyperOpEdge::ORDERING) {
 					os << "order";
+				} else if (edge->Type == HyperOpEdge::SYNC) {
+					os << "sync";
 				}
 				os << "];\n";
 			}

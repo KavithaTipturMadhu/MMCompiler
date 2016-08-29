@@ -24,18 +24,17 @@ class raw_ostream;
 class LLVM_LIBRARY_VISIBILITY REDEFINEAsmPrinter: public AsmPrinter {
 private:
 	const REDEFINESubtarget *Subtarget;
-	const char* STATIC_HYPEROP_ANNOTATION = ".isStaticHyperOp";
+	const char* STATIC_HYPEROP_ANNOTATION = ".STATICINST";
 	const char* VALID_ANNOTATION = ".isValid";
 	const char* ACTIVE_ANNOTATION = ".isActive";
 	const char* INTRINSIC_ANNOTATION = ".isIntrinsic";
 	const char* DEPTH_HEG_ANNOTATION = ".depthHEG";
 	const char* LAUNCH_CNT_ANNOTATION = ".launchCnt";
-	const char* OPERAND_VALIDITY_ANNOTATION = ".OperandValidity";
+	const char* OPERAND_VALIDITY_ANNOTATION = ".OpValidity";
 	const char* OP_WAIT_CNT_ANNOTATION = ".OpWaitCnt";
 	const char* ISNEXT_HOP_INST_VALID_ANNOTATION = ".isnextHyOpInstValid";
-	const char* NEXT_HYPEROP_INST_ANNOTATION = ".nextHyperOpInst";
-	const char* CRID = ".CrId";
-	const char* HYPEROP_INSTANCE_PREFIX ="HyOpInst#";
+	const char* NEXT_HYPEROP_INST_ANNOTATION = ".nextHypOpInst";
+	const char* HYPEROP_INSTANCE_PREFIX =".HyOpInst#";
 	list<MCSymbol*> hyperOpLabelsHoistedAsConstants;
 
 public:
