@@ -21,9 +21,11 @@ using namespace llvm;
 using namespace std;
 
 ////TODO Used only 8 bit number here because I need this to address the sync locations and frame locations for replication only which sums upto 20 4 byte locations only
-//static int32_t SignExtend8BitNumberTo12Bits(int8_t x) {
-//	return int32_t(x << 4) >> 4;
-//}
+
+static int32_t SignExtend8BitNumberTo12Bits(int8_t x) {
+	return int32_t(x << 4) >> 4;
+}
+
 static bool isRegDependence(SDep dependence) {
 	SDep::Kind dependenceKind = dependence.getKind();
 	if (dependenceKind == SDep::Data || dependenceKind == SDep::Anti || dependenceKind == SDep::Output) {
@@ -1463,7 +1465,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
 			addi.addReg(registerContainingData, RegState::Define);
 			addi.addReg(REDEFINE::zero);
-			addi.addImm(1);
+			int8_t imm = -1;
+			addi.addImm(SignExtend8BitNumberTo12Bits(imm));
 			if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
 				firstInstructionOfpHyperOpInRegion[currentCE] = addi.operator llvm::MachineInstr *();
 			}
