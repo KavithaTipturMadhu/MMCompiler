@@ -147,6 +147,9 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		OutStreamer.EmitRawText(StringRef(operandValidity));
 
 		string opWaitCount(OP_WAIT_CNT_ANNOTATION);
+		if(hyperOp->isBarrierHyperOp()) {
+			opWaitCount.append("\t").append(itostr(argCount+1)).append("\n");
+		}
 		opWaitCount.append("\t").append(itostr(argCount)).append("\n");
 		OutStreamer.EmitRawText(StringRef(opWaitCount));
 
@@ -169,7 +172,8 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 	int dgmSize = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getDgm();
 	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
 	HyperOp* hyperOp = HIG->getHyperOp(const_cast<Function*>(MF->getFunction()));
-//TODO couldn't find any method that gets invoked that could insert topology details
+
+	//TODO couldn't find any method that gets invoked that could insert topology details
 	if (firstFunctionBeingProcessed) {
 		int maxXInTopology = 0, maxYInTopology = 0;
 		int fabricRowCount = (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getM();
@@ -210,24 +214,6 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		OutStreamer.EmitRawText(StringRef(startAddr));
 	}
 	
-
-	//if (find(crWithNumHopsPrinted.begin(), crWithNumHopsPrinted.end(), hyperOp->getTargetResource()) == crWithNumHopsPrinted.end()) 
-	//{
-	//	unsigned targetResource = hyperOp->getTargetResource();
-	//	unsigned numResourcesInTarget = 0;
-	//	//First time dealing with the target resource
-	//	for (list<HyperOp*>::iterator hyperOpItr = HIG->Vertices.begin(); hyperOpItr != HIG->Vertices.end(); hyperOpItr++) {
-	//		if ((*hyperOpItr)->getTargetResource() == targetResource) {
-	//			numResourcesInTarget++;
-	//		}
-	//	}
-	//	string numHopsInCR(".numHyop_in_this_CR\t");
-	//	numHopsInCR.append(itostr(numResourcesInTarget)).append("\n");
-	//	OutStreamer.EmitRawText(StringRef(numHopsInCR));
-	//	crWithNumHopsPrinted.push_back(targetResource);
-
-	//}
-
 	// Added By Arka, HyperOp Static Metadeta
 	string hyperOpLabel = ".HyOp#";
 	hyperOpLabel.append(itostr(hyperOp->getHyperOpId())).append(":\n");
