@@ -143,15 +143,14 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		OutStreamer.EmitRawText(StringRef(launchCount));
 
 		string operandValidity(OPERAND_VALIDITY_ANNOTATION);
-		int operandValidityCount = argCount;
-		if (hyperOp->isBarrierHyperOp()) {
-			operandValidityCount++;
-		}
-		operandValidity.append("\t").append(bitset<16>(operandValidityCount).to_string()).append("\n");
+		operandValidity.append("\t").append(bitset<16>(argCount).to_string()).append("\n");
 		OutStreamer.EmitRawText(StringRef(operandValidity));
 
 		string opWaitCount(OP_WAIT_CNT_ANNOTATION);
-		opWaitCount.append("\t").append(itostr(0)).append("\n");
+		if(hyperOp->isBarrierHyperOp()) {
+			opWaitCount.append("\t").append(itostr(argCount+1)).append("\n");
+		}
+		opWaitCount.append("\t").append(itostr(argCount)).append("\n");
 		OutStreamer.EmitRawText(StringRef(opWaitCount));
 
 		OutStreamer.EmitRawText(StringRef(".IMD_END\n"));
@@ -214,7 +213,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		startAddr.append("\t").append(itostr(0)).append("\n");
 		OutStreamer.EmitRawText(StringRef(startAddr));
 	}
-
+	
 	// Added By Arka, HyperOp Static Metadeta
 	string hyperOpLabel = ".HyOp#";
 	hyperOpLabel.append(itostr(hyperOp->getHyperOpId())).append(":\n");
