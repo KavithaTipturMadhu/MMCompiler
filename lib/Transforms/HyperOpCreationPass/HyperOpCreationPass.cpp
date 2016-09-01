@@ -1161,8 +1161,8 @@ struct HyperOpCreationPass: public ModulePass {
 				std::copy(callSite.begin(), callSite.end(), std::back_inserter(callSiteCopy));
 				//Recursively find out if the call instruction is the first in the whole call chain
 				while (!callSiteCopy.empty()) {
-					Function* callerFunction = callSiteCopy.front()->getCalledFunction();
-					if (&callerFunction->getEntryBlock().front() == (Instruction*)callSiteCopy.front() && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &function->getEntryBlock()) != accumulatedBasicBlocks.end()) {
+					Function* callerFunction = callSiteCopy.front()->getParent()->getParent();
+					if (&callerFunction->getEntryBlock().front() == (Instruction*) callSiteCopy.front() && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &function->getEntryBlock()) != accumulatedBasicBlocks.end()) {
 						isKernelEntry = true;
 						break;
 					}
@@ -1176,13 +1176,10 @@ struct HyperOpCreationPass: public ModulePass {
 			else if (!callSite.empty()) {
 				list<CallInst*> callSiteCopy;
 				std::copy(callSite.begin(), callSite.end(), std::back_inserter(callSiteCopy));
-				errs()<<"finding out if the hyperop is the last one in the hig\n";
 				//Recursively find out if the call instruction is the first in the whole call chain
 				while (!callSiteCopy.empty()) {
-					Function* callerFunction = callSiteCopy.front()->getParent();
-					errs()<<"call site:";
-					callSiteCopy.front()->dump();
-					if (callerFunction->back().getTerminator()->getPrevNode() == callSiteCopy.back() && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &function->back()) != accumulatedBasicBlocks.end()) {
+					Function* callerFunction = callSiteCopy.front()->getParent()->getParent();
+					if (callerFunction->back().getTerminator()->getPrevNode() == callSiteCopy.front() && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &function->back()) != accumulatedBasicBlocks.end()) {
 						isKernelExit = true;
 						break;
 					}
@@ -1230,6 +1227,18 @@ struct HyperOpCreationPass: public ModulePass {
 			createdHyperOpAndReachingDefSources[newFunction] = reachingGlobalDefinitionSources;
 			functionOriginalToClonedInstructionMap[newFunction] = originalToClonedInstMap;
 			createdHyperOpAndType[newFunction] = isStaticHyperOp ? STATIC : DYNAMIC;
+		}
+
+		//if there is no end HyperOp because the last instruction is a recursion chain
+		if (endHyperOp == 0) {
+			//Add a new dummy HyperOp
+			FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()), false);
+			Function *newFunction = Function::Create(FT, Function::ExternalLinkage, "redefine_end");
+			//Add a dummy return block
+			BasicBlock* retBB = BasicBlock::Create(ctxt, newFunction->getName().str().append(".return"), newFunction);
+			Instruction* retInst = ReturnInst::Create(ctxt);
+			retBB->getInstList().insert(retBB->getFirstInsertionPt(), retInst);
+			endHyperOp = newFunction;
 		}
 
 		errs() << "\n-----------before patching other instructions:";
