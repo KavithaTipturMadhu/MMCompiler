@@ -35,7 +35,7 @@ def : Pat<(i32 (extloadi8  addr:$addr)), (LBU addr:$addr)>;
 def : Pat<(i32 (extloadi16 addr:$addr)), (LHU addr:$addr)>;
 
 let mayStore = 1 in {
-// SW is of the format <sw rs1, rs2, imm> translating to imm(rs1)<-rs1
+// SW is of the format <sw rs1, rs2, imm> translating to imm(rs1)<-rs2
   def SW : InstStore<"sw" , 0b0100011, 0b010, store, GR32>;
   def SH : InstStore<"sw" , 0b0100011, 0b010, truncstorei16, GR32>; 
   def SB : InstStore<"sw" , 0b0100011, 0b010, truncstorei8 , GR32>; 

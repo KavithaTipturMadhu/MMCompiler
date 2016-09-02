@@ -1139,11 +1139,23 @@ struct HyperOpCreationPass: public ModulePass {
 				accumulatedBasicBlocks.pop_back();
 			}
 
-			Value * values[3];
-			values[0] = MDString::get(ctxt, HYPEROP);
-			values[1] = newFunction;
-			values[2] = MDString::get(ctxt, isStaticHyperOp ? STATIC_HYPEROP : DYNAMIC_HYPEROP);
-			MDNode *funcAnnotation = MDNode::get(ctxt, values);
+			MDNode *funcAnnotation;
+			//Keep the following branch structure
+			if (!isStaticHyperOp) {
+				Value * values[4];
+				values[0] = MDString::get(ctxt, HYPEROP);
+				values[1] = newFunction;
+				values[2] = MDString::get(ctxt, DYNAMIC_HYPEROP);
+				values[3] = MDString::get(ctxt, "<0>");
+				funcAnnotation = MDNode::get(ctxt, values);
+			} else {
+				Value * values[3];
+				values[0] = MDString::get(ctxt, HYPEROP);
+				values[1] = newFunction;
+				values[2] = MDString::get(ctxt, STATIC_HYPEROP);
+				funcAnnotation = MDNode::get(ctxt, values);
+			}
+
 			hyperOpAndAnnotationMap.insert(make_pair(newFunction, funcAnnotation));
 			annotationAndHyperOpMap.insert(make_pair(funcAnnotation, newFunction));
 			redefineAnnotationsNode->addOperand(funcAnnotation);
@@ -1238,14 +1250,20 @@ struct HyperOpCreationPass: public ModulePass {
 			BasicBlock* retBB = BasicBlock::Create(ctxt, newFunction->getName().str().append(".return"), newFunction);
 			Instruction* retInst = ReturnInst::Create(ctxt);
 			retBB->getInstList().insert(retBB->getFirstInsertionPt(), retInst);
+			Value * values[3];
+			values[0] = MDString::get(ctxt, HYPEROP);
+			values[1] = newFunction;
+			values[2] = MDString::get(ctxt, STATIC_HYPEROP);
+			MDNode *funcAnnotation = MDNode::get(ctxt, values);
+			redefineAnnotationsNode->addOperand(funcAnnotation);
 			endHyperOp = newFunction;
 		}
-
-		errs() << "\n-----------before patching other instructions:";
-		M.dump();
 		//End of creation of hyperops
+
+		errs() << "module state:";
+		M.dump();
 		list<MDNode*> syncMDNodeList;
-		DEBUG(dbgs() << "Adding dependences across created HyperOps\n");
+		DEBUG(dbgs() << "\n----------Adding dependences across created HyperOps----------\n");
 		//Add metadata: This code is moved here to ensure that all the functions (corresponding to HyperOps) that need to be created have already been created
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
 			Function* createdFunction = createdHyperOpItr->first;
@@ -1262,7 +1280,7 @@ struct HyperOpCreationPass: public ModulePass {
 			list<Function*> localReferenceArgProducers;
 			list<Function*> predicateProducers;
 
-			DEBUG(dbgs() << "Adding consumed by metadata\n");
+			DEBUG(dbgs() << "\n----------Adding consumed by metadata----------\n");
 			unsigned hyperOpArgumentIndex = 0;
 			//Replace arguments of called functions with the right call arguments or return values
 			for (HyperOpArgumentList::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
@@ -1451,7 +1469,6 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 
 						if (replacementArgType == LOCAL_REFERENCE && find(localReferenceArgProducers.begin(), localReferenceArgProducers.end(), metadataHost->getParent()->getParent()) == localReferenceArgProducers.end()) {
-							errs() << "added local ref parent\n";
 							localReferenceArgProducers.push_back(metadataHost->getParent()->getParent());
 						}
 					}
@@ -1518,7 +1535,7 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 			}
 
-			DEBUG(dbgs() << "Dealing with conditional branches from other HyperOps\n");
+			DEBUG(dbgs() << "\n----------Dealing with conditional branches from other HyperOps----------\n");
 //Find out if there exist any branch instructions leading to the HyperOp, add metadata to the instruction
 			for (map<Instruction*, vector<unsigned> >::iterator conditionalBranchSourceItr = conditionalBranchSources.begin(); conditionalBranchSourceItr != conditionalBranchSources.end(); conditionalBranchSourceItr++) {
 				Instruction* conditionalBranchInst = conditionalBranchSourceItr->first;
@@ -1655,7 +1672,7 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 			}
 
-			DEBUG(dbgs() << "Dealing with unconditional branches from other HyperOps\n");
+			DEBUG(dbgs() << "\n----------Dealing with unconditional branches from other HyperOps----------\n");
 			//Remove unconditional branch instruction, add the annotation to the alloca instruction of the branch
 			for (list<Instruction*>::iterator unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
 				Value* unconditionalBranchInstr = *unconditionalBranchSourceItr;
@@ -1877,7 +1894,7 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 			}
 
-			DEBUG(dbgs() << "Adding a predicate from entry hyperop if there are no incoming edges to the hyperop");
+			DEBUG(dbgs() << "\n----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------\n");
 			//Check if the nextHop node has a path from entry hyperop, add one otherwise
 			if (addedParentsToCurrentHyperOp.empty() && startHyperOp != createdFunction) {
 				//There are no incoming edge to the hyperop, add a predicate edge from the entry HyperOp
@@ -1901,7 +1918,7 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 			}
 
-			DEBUG(dbgs() << "Adding sync edges to HyperOps that only take local reference inputs");
+			DEBUG(dbgs() << "\n----------Adding sync edges to HyperOps that only take local reference inputs----------\n");
 			for (list<Function*>::iterator localRefItr = localReferenceArgProducers.begin(); localRefItr != localReferenceArgProducers.end(); localRefItr++) {
 				Function* localRefProducer = *localRefItr;
 				if (predicateProducers.empty() || find(predicateProducers.begin(), predicateProducers.end(), localRefProducer) == predicateProducers.end()) {
@@ -1993,10 +2010,12 @@ struct HyperOpCreationPass: public ModulePass {
 			Instruction* retInst = ReturnInst::Create(ctxt);
 			retBB->getInstList().insert(retBB->getFirstInsertionPt(), retInst);
 
-			Value * values[2];
+			Value * values[3];
 			values[0] = MDString::get(ctxt, HYPEROP);
 			values[1] = newFunction;
+			values[2] = MDString::get(ctxt, STATIC_HYPEROP);
 			MDNode *funcAnnotation = MDNode::get(ctxt, values);
+			redefineAnnotationsNode->addOperand(funcAnnotation);
 
 			Instruction* endHopRetInst = retInstMap[endHyperOp];
 			AllocaInst* ai = new AllocaInst(Type::getInt1Ty(ctxt));

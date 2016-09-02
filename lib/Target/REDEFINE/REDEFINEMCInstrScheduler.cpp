@@ -1237,6 +1237,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		}
 		//if local reference, add writes to the local memory of consumer HyperOp and remove the consumer HyperOp's argument
 		else if (edge->getType() == HyperOpEdge::LOCAL_REFERENCE) {
+			errs()<<"loading from local reference:";
+			edge->getValue()->dump();
 			unsigned frameLocationOfSourceData = 0;
 			Type* dataType;
 			AllocaInst* allocInstr;
@@ -1270,19 +1272,19 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					}
 					frameLocationOfSourceData += MF.getFrameInfo()->getObjectSize(i);
 				}
-
 			}
 			//Compute frame objects' size
 			Function* consumerFunction = consumer->getFunction();
 			unsigned frameLocationOfTargetData = 0;
-			for (Function::iterator funcItr = consumerFunction->begin(); funcItr != consumerFunction->end(); funcItr++) {
-				for (BasicBlock::iterator bbItr = funcItr->begin(); bbItr != funcItr->end(); bbItr++) {
-					if (isa<AllocaInst>(bbItr)) {
-						AllocaInst* targetAllocaInst = cast<AllocaInst>(bbItr);
-						frameLocationOfTargetData += REDEFINEUtils::getAlignedSizeOfType(targetAllocaInst->getAllocatedType());
-					}
-				}
-			}
+//			errs()<<"actual frame structure of consumerFunction:"<<consumerFunction->getName()<<":";
+//			for (Function::iterator funcItr = consumerFunction->begin(); funcItr != consumerFunction->end(); funcItr++) {
+//				for (BasicBlock::iterator bbItr = funcItr->begin(); bbItr != funcItr->end(); bbItr++) {
+//					if (isa<AllocaInst>(bbItr)) {
+//						AllocaInst* targetAllocaInst = cast<AllocaInst>(bbItr);
+//						frameLocationOfTargetData += REDEFINEUtils::getAlignedSizeOfType(targetAllocaInst->getAllocatedType());
+//					}
+//				}
+//			}
 
 			int beginArgIndex = 0;
 			for (Function::arg_iterator funcArgItr = consumerFunction->arg_begin(); funcArgItr != consumerFunction->arg_end(); funcArgItr++, beginArgIndex++) {
@@ -1294,6 +1296,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					frameLocationOfTargetData += REDEFINEUtils::getAlignedSizeOfType(funcArgItr->getType());
 				}
 			}
+
+			errs()<<"source data "
 
 			//Find the primitive types of allocatedDataType
 
@@ -1331,7 +1335,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						}
 
 						MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::FSW));
-						store.addReg(floatingPointRegister).addReg(virtualRegistersForInstAddr[currentCE].second).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame() * graph->getMaxMemFrameSize());
+						store.addReg(floatingPointRegister).addReg(REDEFINE::zero).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame() * graph->getMaxMemFrameSize());
 
 						allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(store.operator llvm::MachineInstr *());
@@ -1347,7 +1351,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						}
 
 						MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SW));
-						store.addReg(integerRegister).addReg(virtualRegistersForInstAddr[currentCE].second).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame() * graph->getMaxMemFrameSize());
+						store.addReg(integerRegister).addReg(REDEFINE::zero).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame() * graph->getMaxMemFrameSize());
 
 						allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(store.operator llvm::MachineInstr *());
