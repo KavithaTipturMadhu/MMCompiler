@@ -4264,13 +4264,13 @@ ABIArgInfo REDEFINEABIInfo::classifyReturnType(QualType RetTy) const {
   //All types that fit in two words are passed directly
   if (Size <= 64){
 	  if (isCompoundType(RetTy))
-	    return ABIArgInfo::getIndirect(0);
+	    return ABIArgInfo::getDirect(0);
 
     return (RetTy->isPromotableIntegerType() ?
             ABIArgInfo::getExtend() : ABIArgInfo::getDirect());
   }
 
-  return ABIArgInfo::getIndirect(0);
+  return ABIArgInfo::getDirect(0);
 }
 
 ABIArgInfo REDEFINEABIInfo::classifyArgumentType(QualType Ty) const {
@@ -4309,7 +4309,8 @@ ABIArgInfo REDEFINEABIInfo::classifyArgumentType(QualType Ty) const {
 
   // Non-structure compounds are passed indirectly.
   if (isCompoundType(Ty))
-    return ABIArgInfo::getIndirect(0);
+	//TODO
+    return ABIArgInfo::getDirect(0);
 
   return ABIArgInfo::getDirect(0);
 }
