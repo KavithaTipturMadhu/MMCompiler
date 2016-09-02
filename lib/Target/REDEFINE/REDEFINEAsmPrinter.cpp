@@ -143,7 +143,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		OutStreamer.EmitRawText(StringRef(launchCount));
 
 		string operandValidity(OPERAND_VALIDITY_ANNOTATION);
-		operandValidity.append("\t").append(bitset<16>(argCount).to_string()).append("\n");
+		operandValidity.append("\t").append(bitset<16>(0).to_string()).append("\n");
 		OutStreamer.EmitRawText(StringRef(operandValidity));
 
 		string opWaitCount(OP_WAIT_CNT_ANNOTATION);

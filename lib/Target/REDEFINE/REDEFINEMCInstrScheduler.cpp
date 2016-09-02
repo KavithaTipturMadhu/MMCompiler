@@ -1275,14 +1275,14 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			//Compute frame objects' size
 			Function* consumerFunction = consumer->getFunction();
 			unsigned frameLocationOfTargetData = 0;
-			for (Function::iterator funcItr = consumerFunction->begin(); funcItr != consumerFunction->end(); funcItr++) {
+			/*for (Function::iterator funcItr = consumerFunction->begin(); funcItr != consumerFunction->end(); funcItr++) {
 				for (BasicBlock::iterator bbItr = funcItr->begin(); bbItr != funcItr->end(); bbItr++) {
 					if (isa<AllocaInst>(bbItr)) {
 						AllocaInst* targetAllocaInst = cast<AllocaInst>(bbItr);
 						frameLocationOfTargetData += REDEFINEUtils::getAlignedSizeOfType(targetAllocaInst->getAllocatedType());
 					}
 				}
-			}
+			}*/
 
 			int beginArgIndex = 0;
 			for (Function::arg_iterator funcArgItr = consumerFunction->arg_begin(); funcArgItr != consumerFunction->arg_end(); funcArgItr++, beginArgIndex++) {
@@ -1331,7 +1331,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						}
 
 						MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::FSW));
-						store.addReg(floatingPointRegister).addReg(virtualRegistersForInstAddr[currentCE].second).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame() * graph->getMaxMemFrameSize());
+						store.addReg(floatingPointRegister).addReg(REDEFINE::zero).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame() * graph->getMaxMemFrameSize());
 
 						allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(store.operator llvm::MachineInstr *());
@@ -1347,7 +1347,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						}
 
 						MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SW));
-						store.addReg(integerRegister).addReg(virtualRegistersForInstAddr[currentCE].second).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame() * graph->getMaxMemFrameSize());
+						store.addReg(integerRegister).addReg(REDEFINE::zero).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData + consumer->getContextFrame() * graph->getMaxMemFrameSize());
 
 						allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(store.operator llvm::MachineInstr *());
