@@ -150,7 +150,6 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		if(hyperOp->isBarrierHyperOp()) {
 			opWaitCount.append("\t").append(itostr(argCount+1)).append("\n");
 		}
-		opWaitCount.append("\t").append(itostr(argCount)).append("\n");
 		OutStreamer.EmitRawText(StringRef(opWaitCount));
 
 		OutStreamer.EmitRawText(StringRef(".IMD_END\n"));
