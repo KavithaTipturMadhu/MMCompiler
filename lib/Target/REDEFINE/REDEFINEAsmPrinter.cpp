@@ -149,6 +149,8 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		string opWaitCount(OP_WAIT_CNT_ANNOTATION);
 		if(hyperOp->isBarrierHyperOp()) {
 			opWaitCount.append("\t").append(itostr(argCount+1)).append("\n");
+		}else{
+			opWaitCount.append("\t").append(itostr(argCount)).append("\n");
 		}
 		OutStreamer.EmitRawText(StringRef(opWaitCount));
 
