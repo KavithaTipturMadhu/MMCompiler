@@ -47,7 +47,7 @@ AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Instruction* sourceIns
 			}
 		}
 	}
-	return 0;
+	return NULL;
 }
 
 HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
@@ -100,16 +100,18 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 		//Traverse through instructions of the module
 		HyperOp* sourceHyperOp = graph->getHyperOp(moduleItr);
 		unsigned frameSizeOfHyperOp = 0;
+		unsigned argIndex = 1;
+		for (Function::arg_iterator funcArgItr = moduleItr->arg_begin(); funcArgItr != moduleItr->arg_end(); funcArgItr++, argIndex++) {
+			Argument* argument = &*funcArgItr;
+			if (!moduleItr->getAttributes().hasAttribute(argIndex, Attribute::InReg)) {
+				frameSizeOfHyperOp += REDEFINEUtils::getSizeOfType(funcArgItr->getType());
+			}
+		}
 		for (Function::iterator funcItr = (*moduleItr).begin(); funcItr != (*moduleItr).end(); funcItr++) {
 			for (BasicBlock::iterator bbItr = (*funcItr).begin(); bbItr != (*funcItr).end(); bbItr++) {
 				Instruction* instr = bbItr;
 				if (isa<AllocaInst>(instr)) {
 					frameSizeOfHyperOp += REDEFINEUtils::getSizeOfType(((AllocaInst*) instr)->getType());
-				}else if(isa<LoadInst>(instr)){
-					AllocaInst* allocaForLoad = getAllocInstrForLocalReferenceData(*M, instr, functionMetadataMap[sourceHyperOp->getFunction()], functionMetadataMap);		
-					if(allocaForLoad->getParent()->getParent()!=sourceHyperOp->getFunction()){
-						frameSizeOfHyperOp += REDEFINEUtils::getSizeOfType(((AllocaInst*) allocaForLoad)->getType());
-					}
 				}
 				if (instr->hasMetadata()) {
 					MDNode* consumedByMDNode = instr->getMetadata(HYPEROP_CONSUMED_BY);

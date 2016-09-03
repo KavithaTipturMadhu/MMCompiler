@@ -397,8 +397,13 @@ if (BB->getParent()->begin()->getName().compare(BB->getName()) == 0) {
 		allInstructionsOfRegion.push_back(make_pair(addiForMul.operator->(), make_pair(i, insertPosition++)));
 
 
+		unsigned correctHyperOpInstanceId = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+		MachineInstrBuilder shiftForInstance = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(correctHyperOpInstanceId, RegState::Define).addReg(REDEFINE::t5).addImm(6);
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftForInstance.operator ->());
+		allInstructionsOfRegion.push_back(make_pair(shiftForInstance.operator->(), make_pair(i, insertPosition++)));
+
 		unsigned registerForMul = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder mulForFrameSize = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MUL)).addReg(registerForMul, RegState::Define).addReg(REDEFINE::t5).addReg(registerForMulOperand);
+		MachineInstrBuilder mulForFrameSize = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MUL)).addReg(registerForMul, RegState::Define).addReg(correctHyperOpInstanceId).addReg(registerForMulOperand);
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(mulForFrameSize.operator ->());
 		allInstructionsOfRegion.push_back(make_pair(mulForFrameSize.operator->(), make_pair(i, insertPosition++)));
 
@@ -1276,19 +1281,15 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			}
 			//Compute frame objects' size
 			Function* consumerFunction = consumer->getFunction();
-			errs()<<"consumer function:"<<consumerFunction->getName()<<"\n";
 			unsigned frameLocationOfTargetData = 0;
 			for (Function::iterator funcItr = consumerFunction->begin(); funcItr != consumerFunction->end(); funcItr++) {
 				for (BasicBlock::iterator bbItr = funcItr->begin(); bbItr != funcItr->end(); bbItr++) {
 					if (isa<AllocaInst>(bbItr)) {
 						AllocaInst* targetAllocaInst = cast<AllocaInst>(bbItr);
-						errs()<<"alloca:";
-						targetAllocaInst->dump();
 						frameLocationOfTargetData += REDEFINEUtils::getSizeOfType(targetAllocaInst->getAllocatedType());
 					}
 				}
 			}
-			errs()<<"frame location of target data first time:"<<frameLocationOfTargetData<<"\n";
 
 			int beginArgIndex = 0;
 			for (Function::arg_iterator funcArgItr = consumerFunction->arg_begin(); funcArgItr != consumerFunction->arg_end(); funcArgItr++, beginArgIndex++) {
@@ -1300,8 +1301,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					frameLocationOfTargetData += REDEFINEUtils::getSizeOfType(funcArgItr->getType());
 				}
 			}
-			errs()<<"frame location of target data:"<<frameLocationOfTargetData<<"\n";
-			errs()<<"allocated data index:"<<((ConstantInt*) allocInstr->getArraySize())->getZExtValue()<<"\n";
 			//Find the primitive types of allocatedDataType
 
 			//Map of primitive data types and their memory locations
