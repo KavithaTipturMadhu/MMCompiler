@@ -105,6 +105,11 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 				Instruction* instr = bbItr;
 				if (isa<AllocaInst>(instr)) {
 					frameSizeOfHyperOp += REDEFINEUtils::getSizeOfType(((AllocaInst*) instr)->getType());
+				}else if(isa<LoadInst>(instr)){
+					AllocaInst* allocaForLoad = getAllocInstrForLocalReferenceData(*M, instr, functionMetadataMap[sourceHyperOp->getFunction()], functionMetadataMap);		
+					if(allocaForLoad->getParent()->getParent()!=sourceHyperOp->getFunction()){
+						frameSizeOfHyperOp += REDEFINEUtils::getSizeOfType(((AllocaInst*) allocaForLoad)->getType());
+					}
 				}
 				if (instr->hasMetadata()) {
 					MDNode* consumedByMDNode = instr->getMetadata(HYPEROP_CONSUMED_BY);
@@ -174,6 +179,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 		}
 	}
 
+	errs()<<"MAX FRAME SIZE:"<<maxFrameSizeOfHyperOp<<"\n";
 	graph->setMaxMemFrameSize(maxFrameSizeOfHyperOp);
 	graph->print(errs());
 	return graph;
