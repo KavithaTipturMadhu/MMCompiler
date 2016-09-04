@@ -70,6 +70,9 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	//First index corresponds to the CE and the value corresponds to the register containing the base address of the scratch pad location of the consumer CE to which the producer CE is writing to
 	int registerContainingBaseAddress[4][4];
 
+	//Register containing code segment+global data segment address
+	int memoryFrameBaseAddress[4];
+
 	//Tracks the writecm instructions that have already been added in a different machine function; this is required to patch the writecm instructions once the registers corresponding to HyperOp inputs are shuffled
 	map<Function*, list<MachineInstr*> > writeInstrToContextFrame;
 
