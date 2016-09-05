@@ -50,7 +50,30 @@ AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Instruction* sourceIns
 	return NULL;
 }
 
-HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
+list<InstanceSlot> parseInstanceIdString(StringRef instanceTag) {
+	list<InstanceSlot> instanceId;
+//Parse string to get a list of identifiers
+	instanceTag.trim("<");
+	instanceTag.rtrim(">");
+	StringRef tempString = instanceTag;
+	while (!tempString.empty()) {
+		InstanceSlot slot;
+		pair<StringRef, StringRef> tokens = tempString.split(',');
+		StringRef idPart = tokens.first;
+		tempString = tokens.second;
+		APInt id;
+		bool isInteger = idPart.getAsInteger(0, id);
+		if(isInteger){
+			slot.instance = id.getZExtValue();
+		}else{
+			slot.identifier = idPart.data();
+		}
+		instanceId.push_back(slot);
+	}
+	return instanceId;
+}
+
+HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 	HyperOpInteractionGraph* graph = new HyperOpInteractionGraph();
 	NamedMDNode * RedefineAnnotations = M->getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
 	map<MDNode*, HyperOp*> hyperOpMetadataMap;
@@ -72,9 +95,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 					hyperOp->setStaticHyperOp(true);
 				} else if (hyperOpType.equals("Dynamic")) {
 					hyperOp->setStaticHyperOp(false);
-					StringRef instanceTag = ((MDString*) hyperOpMDNode->getOperand(3))->getName();
+					hyperOp->setInstanceof((Function *) hyperOpMDNode->getOperand(3));
+					StringRef instanceTag = ((MDString*) hyperOpMDNode->getOperand(4))->getName();
+					hyperOp->setInstanceId(parseInstanceIdString(instanceTag));
 				}
-
 				graph->addHyperOp(hyperOp);
 				hyperOpMetadataMap.insert(std::make_pair(hyperOpMDNode, hyperOp));
 				functionMetadataMap.insert(std::make_pair(function, hyperOpMDNode));
@@ -123,6 +147,14 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 							MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(consumerMDNodeIndex);
 							HyperOp* consumerHyperOp = hyperOpMetadataMap[(MDNode*) consumerMDNode->getOperand(0)];
 							StringRef dataType = ((MDString*) consumerMDNode->getOperand(1))->getName();
+							unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue();
+							if(consumedByMDNode->getNumOperands()>3){
+								//An instance is consuming the data
+ 								list<InstanceSlot> consumerInstanceId = parseInstanceIdString(((MDString*)consumedByMDNode->getOperand(3))->getName());
+ 								Function* consumerInstanceOf = consumerHyperOp->getInstanceof();
+ 								//Create a new HyperOp
+
+							}
 							HyperOpEdge* edge = new HyperOpEdge();
 							if (dataType.compare(SCALAR) == 0) {
 								edge->Type = HyperOpEdge::SCALAR;
@@ -139,7 +171,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 								volumeOfCommunication.push_back(volume);
 								edge->setVolume(volumeOfCommunication);
 							}
-							unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue();
+							//Find out if the data isbeing passed to an instance
 							edge->setPositionOfContextSlot(positionOfContextSlot);
 							edge->setValue((Value*) instr);
 							sourceHyperOp->addChildEdge(edge, consumerHyperOp);
@@ -183,7 +215,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module *M) {
 		}
 	}
 
-	errs()<<"MAX FRAME SIZE:"<<maxFrameSizeOfHyperOp<<"\n";
+	errs() << "MAX FRAME SIZE:" << maxFrameSizeOfHyperOp << "\n";
 	graph->setMaxMemFrameSize(maxFrameSizeOfHyperOp);
 	graph->print(errs());
 	return graph;

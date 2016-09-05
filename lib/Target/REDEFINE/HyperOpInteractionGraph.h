@@ -40,6 +40,11 @@ static string LOCAL_REFERENCE = "LocalReference";
 
 class HyperOp;
 
+union InstanceSlot{
+	unsigned instance;
+	const char* identifier;
+};
+
 class HyperOpEdge {
 	bool isZeroedOut;
 	bool isIgnoredEdge;
@@ -97,6 +102,8 @@ class HyperOp {
 	unsigned contextFrame;
 	list<unsigned int> executionTimeEstimate;
 	list<unsigned int> topLevel;
+	list<InstanceSlot> instanceId;
+	Function* instanceof;
 	bool fbindRequired;
 	bool staticHyperOp;
 	//Frame to be garbage collected?
@@ -168,6 +175,10 @@ public:
 	void setStaticHyperOp(bool staticHyperOp);
 	void incrementIncomingSyncCount();
 	unsigned getSyncCount();
+	list<InstanceSlot> getInstanceId();
+	void setInstanceId(list<InstanceSlot> instanceId);
+	Function* getInstanceof();
+	void setInstanceof(Function* instanceof);
 };
 
 class HyperOpInteractionGraph {

@@ -7,17 +7,19 @@
 
 #include "HyperOpInteractionGraph.h"
 
-#include "lpsolve/lp_lib.h"
-
-#include <cstdlib>
-#include <utility>
-#include <sstream>
-#include <map>
 #include <cassert>
-#include <iostream>
+#include <cstdlib>
 #include <iterator>
-using namespace std;
+#include <string>
+#include <utility>
+#include <vector>
 
+
+#include "lpsolve/lp_lib.h"
+#include "lpsolve/lp_types.h"
+
+using namespace std;
+#include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Support/Debug.h"
 using namespace llvm;
@@ -111,8 +113,23 @@ unsigned HyperOp::getSyncCount() {
 	return this->numIncomingSyncEdges;
 }
 
+list<InstanceSlot> HyperOp::getInstanceId() {
+	return instanceId;
+}
+
+void HyperOp::setInstanceId(list<InstanceSlot> instanceId) {
+	this->instanceId = instanceId;
+}
 unsigned HyperOp::getHyperOpId() const {
 	return hyperOpId;
+}
+
+Function* HyperOp::getInstanceof(){
+	return instanceof;
+}
+
+void HyperOp::setInstanceof(Function* instanceof) {
+	this->instanceof = instanceof;
 }
 
 void HyperOp::setHyperOpId(unsigned hyperOpId) {
