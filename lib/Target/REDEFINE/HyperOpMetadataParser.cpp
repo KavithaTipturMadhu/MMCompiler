@@ -152,7 +152,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								//An instance is consuming the data
  								list<InstanceSlot> consumerInstanceId = parseInstanceIdString(((MDString*)consumedByMDNode->getOperand(3))->getName());
  								Function* consumerInstanceOf = consumerHyperOp->getInstanceof();
- 								//Create a new HyperOp
+
 
 							}
 							HyperOpEdge* edge = new HyperOpEdge();
@@ -215,7 +215,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 		}
 	}
 
-	errs() << "MAX FRAME SIZE:" << maxFrameSizeOfHyperOp << "\n";
 	graph->setMaxMemFrameSize(maxFrameSizeOfHyperOp);
 	graph->print(errs());
 	return graph;

@@ -40,7 +40,7 @@ static string LOCAL_REFERENCE = "LocalReference";
 
 class HyperOp;
 
-union InstanceSlot{
+union InstanceSlot {
 	unsigned instance;
 	const char* identifier;
 };
@@ -103,6 +103,9 @@ class HyperOp {
 	list<unsigned int> executionTimeEstimate;
 	list<unsigned int> topLevel;
 	list<InstanceSlot> instanceId;
+
+// The function is an instanceof another function,
+//	it is replicated into a newer function because it lets us associate different metadata with the static and dynamic instances
 	Function* instanceof;
 	bool fbindRequired;
 	bool staticHyperOp;
