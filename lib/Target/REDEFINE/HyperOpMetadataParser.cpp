@@ -152,16 +152,14 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					instr->dump();
 					MDNode* consumedByMDNode = instr->getMetadata(HYPEROP_CONSUMED_BY);
 					if (consumedByMDNode != 0) {
-						errs()<<"md node:";
-						consumedByMDNode->dump();
 						for (unsigned consumerMDNodeIndex = 0; consumerMDNodeIndex != consumedByMDNode->getNumOperands(); consumerMDNodeIndex++) {
 							//Create an edge between two HyperOps labeled by the instruction
 							MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(consumerMDNodeIndex);
 							HyperOp* consumerHyperOp;
 							if (consumerMDNode->getNumOperands() > 3) {
-								errs()<<"is this where the problem lies?\n";
+								errs()<<"md node has "<<consumerMDNode->getNumOperands()<<"operands\n";
 								//An instance is consuming the data
-								list<string> consumerInstanceId = parseInstanceIdString(((MDString*) consumedByMDNode->getOperand(3))->getName());
+								list<string> consumerInstanceId = parseInstanceIdString(((MDString*) consumerMDNode->getOperand(3))->getName());
 								MDNode* hyperOp = (MDNode*) consumerMDNode->getOperand(0);
 								//TODO
 								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
@@ -203,6 +201,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 							edge->setValue((Value*) instr);
 							sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 							consumerHyperOp->addParentEdge(edge, sourceHyperOp);
+							errs()<<"added edge\n";
 						}
 					}
 					MDNode* controlledByMDNode = instr->getMetadata(HYPEROP_CONTROLS);
@@ -213,7 +212,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 							//Create an edge between two HyperOps labeled by the instruction
 							if (predicatedMDNode->getNumOperands() > 1) {
 								//An instance is consuming the data
-								list<string> consumerInstanceId = parseInstanceIdString(((MDString*) consumedByMDNode->getOperand(1))->getName());
+								list<string> consumerInstanceId = parseInstanceIdString(((MDString*) predicatedMDNode->getOperand(1))->getName());
 								MDNode* hyperOp = (MDNode*) predicatedMDNode->getOperand(0);
 								//TODO
 								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
@@ -244,7 +243,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 							HyperOp* syncBarrierHyperOp;
 							if (syncedMDNode->getNumOperands() > 1) {
 								//An instance is consuming the data
-								list<string> consumerInstanceId = parseInstanceIdString(((MDString*) consumedByMDNode->getOperand(1))->getName());
+								list<string> consumerInstanceId = parseInstanceIdString(((MDString*) syncedMDNode->getOperand(1))->getName());
 								MDNode* hyperOp = (MDNode*) syncMDNode->getOperand(0);
 								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
 								if (consumerInstanceId.front().compare("id") == 0) {
