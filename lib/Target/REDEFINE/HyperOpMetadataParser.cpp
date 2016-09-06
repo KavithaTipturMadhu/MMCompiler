@@ -148,23 +148,37 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					frameSizeOfHyperOp += REDEFINEUtils::getSizeOfType(((AllocaInst*) instr)->getType());
 				}
 				if (instr->hasMetadata()) {
+					errs()<<"instr dealt with belongs to "<<instr->getParent()->getName();
+					instr->dump();
 					MDNode* consumedByMDNode = instr->getMetadata(HYPEROP_CONSUMED_BY);
 					if (consumedByMDNode != 0) {
+						errs()<<"md node:";
+						consumedByMDNode->dump();
 						for (unsigned consumerMDNodeIndex = 0; consumerMDNodeIndex != consumedByMDNode->getNumOperands(); consumerMDNodeIndex++) {
 							//Create an edge between two HyperOps labeled by the instruction
 							MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(consumerMDNodeIndex);
-//							if (consumerMDNode->getNumOperands() > 3) {
-//								//An instance is consuming the data
-//								list<string> consumerInstanceId = parseInstanceIdString(((MDString*) consumedByMDNode->getOperand(3))->getName());
-//								MDNode* hyperOp = (MDNode*) consumerMDNode->getOperand(0);
-//								//TODO
-//								if (consumerInstanceId.front().compare("id") == 0) {
-//									graph->getOrCreateHyperOp();
-//								} else if (consumerInstanceId.front().compare("prefixId") == 0) {
-//									graph->getOrCreateHyperOp();
-//								}
-//							}
-							HyperOp* consumerHyperOp = hyperOpMetadataMap[(MDNode*) consumerMDNode->getOperand(0)];
+							HyperOp* consumerHyperOp;
+							if (consumerMDNode->getNumOperands() > 3) {
+								errs()<<"is this where the problem lies?\n";
+								//An instance is consuming the data
+								list<string> consumerInstanceId = parseInstanceIdString(((MDString*) consumedByMDNode->getOperand(3))->getName());
+								MDNode* hyperOp = (MDNode*) consumerMDNode->getOperand(0);
+								//TODO
+								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
+								if (consumerInstanceId.front().compare("id") == 0 || consumerInstanceId.front().compare("prefixId") == 0) {
+									consumerHyperOpId.push_back(0);
+									consumerHyperOp = graph->getOrCreateHyperOp((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
+									if (consumerInstanceId.front().compare("prefixId") == 0) {
+										//Swap producer and consumer hyperOps
+										HyperOp* temporary;
+										temporary = sourceHyperOp;
+										sourceHyperOp = consumerHyperOp;
+										consumerHyperOp = temporary;
+									}
+								}
+							} else {
+								consumerHyperOp = hyperOpMetadataMap[(MDNode*) consumerMDNode->getOperand(0)];
+							}
 							StringRef dataType = ((MDString*) consumerMDNode->getOperand(1))->getName();
 							unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue();
 
@@ -184,7 +198,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								volumeOfCommunication.push_back(volume);
 								edge->setVolume(volumeOfCommunication);
 							}
-							//Find out if the data isbeing passed to an instance
+							//Find out if the data is being passed to an instance
 							edge->setPositionOfContextSlot(positionOfContextSlot);
 							edge->setValue((Value*) instr);
 							sourceHyperOp->addChildEdge(edge, consumerHyperOp);
@@ -195,14 +209,30 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					if (controlledByMDNode != 0) {
 						for (unsigned predicatedMDNodeIndex = 0; predicatedMDNodeIndex != controlledByMDNode->getNumOperands(); predicatedMDNodeIndex++) {
 							MDNode* predicatedMDNode = (MDNode*) controlledByMDNode->getOperand(predicatedMDNodeIndex);
+							HyperOp* consumerHyperOp;
 							//Create an edge between two HyperOps labeled by the instruction
-							HyperOp* predicatedHyperOp = hyperOpMetadataMap[(MDNode*) predicatedMDNode->getOperand(0)];
-							predicatedHyperOp->setPredicatedHyperOp();
+							if (predicatedMDNode->getNumOperands() > 1) {
+								//An instance is consuming the data
+								list<string> consumerInstanceId = parseInstanceIdString(((MDString*) consumedByMDNode->getOperand(1))->getName());
+								MDNode* hyperOp = (MDNode*) predicatedMDNode->getOperand(0);
+								//TODO
+								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
+								if (consumerInstanceId.front().compare("id") == 0) {
+									consumerHyperOpId.push_back(0);
+									consumerHyperOp = graph->getOrCreateHyperOp((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
+								} else if (consumerInstanceId.front().compare("prefixId") == 0) {
+									consumerHyperOpId.pop_back();
+									consumerHyperOp = graph->getOrCreateHyperOp((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
+								}
+							} else {
+								consumerHyperOp = hyperOpMetadataMap[(MDNode*) predicatedMDNode->getOperand(0)];
+							}
+							consumerHyperOp->setPredicatedHyperOp();
 							HyperOpEdge* edge = new HyperOpEdge();
 							edge->Type = HyperOpEdge::PREDICATE;
 							edge->setValue((Value*) instr);
-							sourceHyperOp->addChildEdge(edge, predicatedHyperOp);
-							predicatedHyperOp->addParentEdge(edge, sourceHyperOp);
+							sourceHyperOp->addChildEdge(edge, consumerHyperOp);
+							consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 						}
 					}
 
@@ -211,7 +241,23 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 						for (unsigned syncMDNodeIndex = 0; syncMDNodeIndex != syncMDNode->getNumOperands(); syncMDNodeIndex++) {
 							MDNode* syncedMDNode = (MDNode*) syncMDNode->getOperand(syncMDNodeIndex);
 							//Create an edge between two HyperOps labeled by the instruction
-							HyperOp* syncBarrierHyperOp = hyperOpMetadataMap[(MDNode*) syncedMDNode->getOperand(0)];
+							HyperOp* syncBarrierHyperOp;
+							if (syncedMDNode->getNumOperands() > 1) {
+								//An instance is consuming the data
+								list<string> consumerInstanceId = parseInstanceIdString(((MDString*) consumedByMDNode->getOperand(1))->getName());
+								MDNode* hyperOp = (MDNode*) syncMDNode->getOperand(0);
+								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
+								if (consumerInstanceId.front().compare("id") == 0) {
+									consumerHyperOpId.push_back(0);
+									syncBarrierHyperOp = graph->getOrCreateHyperOp((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
+								} else if (consumerInstanceId.front().compare("prefixId") == 0) {
+									consumerHyperOpId.pop_back();
+									syncBarrierHyperOp = graph->getOrCreateHyperOp((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
+								}
+							} else {
+								syncBarrierHyperOp = hyperOpMetadataMap[(MDNode*) syncedMDNode->getOperand(0)];
+							}
+							//Create an edge between two HyperOps labeled by the instruction
 							HyperOpEdge* edge = new HyperOpEdge();
 							edge->Type = HyperOpEdge::SYNC;
 							sourceHyperOp->addChildEdge(edge, syncBarrierHyperOp);
