@@ -40,11 +40,6 @@ static string LOCAL_REFERENCE = "LocalReference";
 
 class HyperOp;
 
-union InstanceSlot {
-	unsigned instance;
-	const char* identifier;
-};
-
 class HyperOpEdge {
 	bool isZeroedOut;
 	bool isIgnoredEdge;
@@ -102,7 +97,7 @@ class HyperOp {
 	unsigned contextFrame;
 	list<unsigned int> executionTimeEstimate;
 	list<unsigned int> topLevel;
-	list<InstanceSlot> instanceId;
+	list<unsigned> instanceId;
 
 // The function is an instanceof another function,
 //	it is replicated into a newer function because it lets us associate different metadata with the static and dynamic instances
@@ -178,8 +173,8 @@ public:
 	void setStaticHyperOp(bool staticHyperOp);
 	void incrementIncomingSyncCount();
 	unsigned getSyncCount();
-	list<InstanceSlot> getInstanceId();
-	void setInstanceId(list<InstanceSlot> instanceId);
+	list<unsigned> getInstanceId();
+	void setInstanceId(list<unsigned> instanceId);
 	Function* getInstanceof();
 	void setInstanceof(Function* instanceof);
 };
@@ -251,6 +246,8 @@ public:
 	unsigned int getMaxContextFrameSize() const;
 
 	void setMaxContextFrameSize(unsigned int maxFrameSize);
+
+	HyperOp* getOrCreateHyperOp(Function* function, Function* instanceOf, list<unsigned> instanceId);
 
 };
 #endif /* LIB_TARGET_RISCV_HYPEROPINTERACTIONGRAPH_H_ */

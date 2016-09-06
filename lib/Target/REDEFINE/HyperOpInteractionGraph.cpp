@@ -14,7 +14,6 @@
 #include <utility>
 #include <vector>
 
-
 #include "lpsolve/lp_lib.h"
 #include "lpsolve/lp_types.h"
 
@@ -113,18 +112,18 @@ unsigned HyperOp::getSyncCount() {
 	return this->numIncomingSyncEdges;
 }
 
-list<InstanceSlot> HyperOp::getInstanceId() {
+list<unsigned> HyperOp::getInstanceId() {
 	return instanceId;
 }
 
-void HyperOp::setInstanceId(list<InstanceSlot> instanceId) {
+void HyperOp::setInstanceId(list<unsigned> instanceId) {
 	this->instanceId = instanceId;
 }
 unsigned HyperOp::getHyperOpId() const {
 	return hyperOpId;
 }
 
-Function* HyperOp::getInstanceof(){
+Function* HyperOp::getInstanceof() {
 	return instanceof;
 }
 
@@ -527,6 +526,33 @@ unsigned int HyperOpInteractionGraph::getMaxContextFrameSize() const {
 
 void HyperOpInteractionGraph::setMaxContextFrameSize(unsigned int maxFrameSize) {
 	this->maxContextFrameSize = maxFrameSize;
+}
+
+HyperOp* HyperOpInteractionGraph::getOrCreateHyperOp(Function* function, Function* instanceOf, list<unsigned> instanceId) {
+	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
+		if ((*vertexItr)->getFunction() == function && (*vertexItr)->getInstanceof() == instanceOf) {
+			list<unsigned> originalId = (*vertexItr)->getInstanceId();
+			if (originalId.size() != instanceId.size()) {
+				continue;
+			}
+			list<unsigned>::iterator originalIdItr = originalId.begin();
+			bool match = true;
+			for (list<unsigned>::iterator idItr = instanceId.begin(); idItr != instanceId.end()&&originalIdItr != originalId.end(); idItr++, originalIdItr++) {
+				if (*idItr != *originalIdItr) {
+					match = false;
+					break;
+				}
+			}
+
+			if (match) {
+				return (*vertexItr);
+			}
+		}
+	}
+	HyperOp* newHyperOp = new HyperOp(function);
+	newHyperOp->setInstanceof(instanceOf);
+	newHyperOp->setInstanceId(instanceId);
+	return newHyperOp;
 }
 
 void HyperOpInteractionGraph::addHyperOp(HyperOp *Vertex) {
