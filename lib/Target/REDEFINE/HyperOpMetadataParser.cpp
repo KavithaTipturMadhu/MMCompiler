@@ -99,6 +99,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					hyperOp->setStaticHyperOp(false);
 					hyperOp->setInstanceof((Function *) hyperOpMDNode->getOperand(3));
 					StringRef instanceTag = ((MDString*) hyperOpMDNode->getOperand(4))->getName();
+					errs()<<"hyperop added "<<function->getName()<<" with instance "<<((Function *) hyperOpMDNode->getOperand(3))->getName()<<" and id:"<<instanceTag<<"\n";
 					hyperOp->setInstanceId(parseInstanceId(instanceTag));
 				}
 				graph->addHyperOp(hyperOp);
@@ -161,15 +162,20 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
 								if (consumerInstanceId.front().compare("id") == 0) {
 									consumerHyperOpId.push_back(0);
-									consumerHyperOp = graph->getOrCreateHyperOp((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
+									errs()<<"getting hyperop with func:"<<((Function*) hyperOp->getOperand(1))->getName()<<" and is an instance of "<<((Function*) hyperOp->getOperand(3))->getName()<<" and id:<";
+									for(list<unsigned>::iterator idItr=consumerHyperOpId.begin();idItr!=consumerHyperOpId.end();idItr++){
+										errs()<<(*idItr)<<",";
+									}
+									errs()<<">";
+									consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
 								} else if (consumerInstanceId.front().compare("prefixId") == 0) {
 									consumerHyperOpId.pop_back();
-									consumerHyperOp = graph->getOrCreateHyperOp((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
+									consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
 								}
 							} else {
 								consumerHyperOp = hyperOpMetadataMap[(MDNode*) consumerMDNode->getOperand(0)];
 							}
-							errs() << "consumer hop:" << consumerHyperOp->getFunction()->getName() << "\n";
+							errs() << "\nconsumer hop:" << consumerHyperOp->getFunction()->getName() << "\n";
 							StringRef dataType = ((MDString*) consumerMDNode->getOperand(1))->getName();
 							unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue();
 
@@ -211,10 +217,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
 								if (consumerInstanceId.front().compare("id") == 0) {
 									consumerHyperOpId.push_back(0);
-									consumerHyperOp = graph->getOrCreateHyperOp((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
+									consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
 								} else if (consumerInstanceId.front().compare("prefixId") == 0) {
 									consumerHyperOpId.pop_back();
-									consumerHyperOp = graph->getOrCreateHyperOp((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
+									consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
 								}
 							} else {
 								consumerHyperOp = hyperOpMetadataMap[(MDNode*) predicatedMDNode->getOperand(0)];
@@ -241,10 +247,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
 								if (consumerInstanceId.front().compare("id") == 0) {
 									consumerHyperOpId.push_back(0);
-									syncBarrierHyperOp = graph->getOrCreateHyperOp((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
+									syncBarrierHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
 								} else if (consumerInstanceId.front().compare("prefixId") == 0) {
 									consumerHyperOpId.pop_back();
-									syncBarrierHyperOp = graph->getOrCreateHyperOp((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
+									syncBarrierHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
 								}
 							} else {
 								syncBarrierHyperOp = hyperOpMetadataMap[(MDNode*) syncedMDNode->getOperand(0)];
@@ -263,6 +269,13 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 		}
 		if (maxFrameSizeOfHyperOp < frameSizeOfHyperOp) {
 			maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
+		}
+	}
+
+	//Add dummy edges to the hanging hyperops
+	for(list<HyperOp*>::iterator vertexItr = graph->Vertices.begin(); vertexItr!=graph->Vertices.end();vertexItr++){
+		if((*vertexItr)->isEndHyperOp()&&(*vertexItr)->ChildMap.empty()){
+			(*vertexItr)
 		}
 	}
 

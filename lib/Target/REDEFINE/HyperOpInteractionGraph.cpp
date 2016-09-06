@@ -131,6 +131,25 @@ void HyperOp::setInstanceof(Function* instanceof) {
 	this->instanceof = instanceof;
 }
 
+string HyperOp::asString() {
+	stringstream retVal;
+	if (isStaticHyperOp()) {
+		retVal << function->getName().data();
+	} else {
+		retVal << function->getName().data()<<instanceof->getName().data()<<"<";
+		unsigned index=0;
+		for (list<unsigned>::iterator idItr = instanceId.begin(); idItr != instanceId.end(); idItr++, index++) {
+			retVal << (*idItr);
+			if(index<instanceId.size()-1){
+				retVal<<",";
+			}
+			else{
+				retVal<<">)";
+			}
+		}
+	}
+	return retVal.str();
+}
 void HyperOp::setHyperOpId(unsigned hyperOpId) {
 	this->hyperOpId = hyperOpId;
 }
@@ -528,30 +547,31 @@ void HyperOpInteractionGraph::setMaxContextFrameSize(unsigned int maxFrameSize) 
 	this->maxContextFrameSize = maxFrameSize;
 }
 
-HyperOp* HyperOpInteractionGraph::getOrCreateHyperOp(Function* function, Function* instanceOf, list<unsigned> instanceId) {
+HyperOp* HyperOpInteractionGraph::getOrCreateHyperOpInstance(Function* function, Function* instanceOf, list<unsigned> instanceId) {
 	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
 		if ((*vertexItr)->getFunction() == function && (*vertexItr)->getInstanceof() == instanceOf) {
 			list<unsigned> originalId = (*vertexItr)->getInstanceId();
-			if (originalId.size() != instanceId.size()) {
-				continue;
-			}
-			list<unsigned>::iterator originalIdItr = originalId.begin();
-			bool match = true;
-			for (list<unsigned>::iterator idItr = instanceId.begin(); idItr != instanceId.end()&&originalIdItr != originalId.end(); idItr++, originalIdItr++) {
-				if (*idItr != *originalIdItr) {
-					match = false;
-					break;
+			if (originalId.size() == instanceId.size()) {
+				list<unsigned>::iterator originalIdItr = originalId.begin();
+				bool match = true;
+				for (list<unsigned>::iterator idItr = instanceId.begin(); idItr != instanceId.end() && originalIdItr != originalId.end(); idItr++, originalIdItr++) {
+					if (*idItr != *originalIdItr) {
+						match = false;
+						break;
+					}
 				}
-			}
 
-			if (match) {
-				return (*vertexItr);
+				if (match) {
+					return (*vertexItr);
+				}
 			}
 		}
 	}
 	HyperOp* newHyperOp = new HyperOp(function);
 	newHyperOp->setInstanceof(instanceOf);
 	newHyperOp->setInstanceId(instanceId);
+	newHyperOp->setStaticHyperOp(false);
+	this->addHyperOp(newHyperOp);
 	return newHyperOp;
 }
 
@@ -2115,10 +2135,9 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 	}
 }
 
-HyperOp * HyperOpInteractionGraph::getHyperOp(Function* F) {
+HyperOp * HyperOpInteractionGraph::getHyperOp(Function * F) {
 	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
-		//TODO comparing names because metadata parser gives function references that don't match with cached references, could remove the function reference in the object completely later
-		if ((*vertexItr)->getFunction()->getName().compare(F->getName()) == 0) {
+		if ((*vertexItr)->getFunction()==F) {
 			return (*vertexItr);
 		}
 	}
@@ -2129,7 +2148,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 	if (!this->Vertices.empty()) {
 		for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 			HyperOp* vertex = *vertexIterator;
-			os << vertex->getFunction()->getName() << "[label=\"Name:" << vertex->getFunction()->getName() << ",";
+			os << vertex->asString() << "[label=\"Name:" << vertex->asString()<< ",";
 			string dom, postdom;
 			if ((*vertexIterator)->getImmediateDominator() != 0) {
 				dom = (*vertexIterator)->getImmediateDominator()->getFunction()->getName();
@@ -2154,7 +2173,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 			os << "\"];\n";
 			map<HyperOpEdge*, HyperOp*> children = vertex->ChildMap;
 			for (map<HyperOpEdge*, HyperOp*>::iterator childItr = children.begin(); childItr != children.end(); childItr++) {
-				os << vertex->getFunction()->getName() << "->" << childItr->second->getFunction()->getName() << "[label=";
+				os << vertex->asString() << "->" << childItr->second->asString() << "[label=";
 				HyperOpEdge* edge = (*childItr).first;
 				if (edge->Type == HyperOpEdge::SCALAR) {
 					os << "scalar";

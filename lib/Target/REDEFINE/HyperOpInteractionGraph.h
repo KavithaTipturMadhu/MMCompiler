@@ -177,6 +177,7 @@ public:
 	void setInstanceId(list<unsigned> instanceId);
 	Function* getInstanceof();
 	void setInstanceof(Function* instanceof);
+	string asString();
 };
 
 class HyperOpInteractionGraph {
@@ -247,7 +248,7 @@ public:
 
 	void setMaxContextFrameSize(unsigned int maxFrameSize);
 
-	HyperOp* getOrCreateHyperOp(Function* function, Function* instanceOf, list<unsigned> instanceId);
+	HyperOp* getOrCreateHyperOpInstance(Function* function, Function* instanceOf, list<unsigned> instanceId);
 
 };
 #endif /* LIB_TARGET_RISCV_HYPEROPINTERACTIONGRAPH_H_ */

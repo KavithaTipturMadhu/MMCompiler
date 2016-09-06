@@ -1470,6 +1470,7 @@ struct HyperOpCreationPass: public ModulePass {
 							clonedDefInst->dump();
 							//Is the producer static?
 							MDNode * consumedByMetadata;
+							//TODO this isn't enough for nested recursion cycles
 							if ((isProducerStatic&&isStaticHyperOp)||(!isProducerStatic&&!isStaticHyperOp)) {
 								errs()<<"adding static md\n";
 								//Add "consumedby" metadata to the function locals that need to be passed to other HyperOps
