@@ -98,7 +98,7 @@ class HyperOp {
 	list<unsigned int> executionTimeEstimate;
 	list<unsigned int> topLevel;
 	list<unsigned> instanceId;
-
+	bool unrolledInstance;
 // The function is an instanceof another function,
 //	it is replicated into a newer function because it lets us associate different metadata with the static and dynamic instances
 	Function* instanceof;
@@ -178,6 +178,8 @@ public:
 	Function* getInstanceof();
 	void setInstanceof(Function* instanceof);
 	string asString();
+	bool isUnrolledInstance();
+	void setIsUnrolledInstance(bool isUnrolledInstance);
 };
 
 class HyperOpInteractionGraph {

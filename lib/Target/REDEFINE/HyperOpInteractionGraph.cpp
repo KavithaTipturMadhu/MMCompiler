@@ -136,20 +136,29 @@ string HyperOp::asString() {
 	if (isStaticHyperOp()) {
 		retVal << function->getName().data();
 	} else {
-		retVal << function->getName().data()<<instanceof->getName().data()<<"<";
-		unsigned index=0;
+		retVal << function->getName().data() << instanceof->getName().data();
+//				<<"<";
+		unsigned index = 0;
 		for (list<unsigned>::iterator idItr = instanceId.begin(); idItr != instanceId.end(); idItr++, index++) {
 			retVal << (*idItr);
-			if(index<instanceId.size()-1){
-				retVal<<",";
-			}
-			else{
-				retVal<<">)";
-			}
+//			if(index<instanceId.size()-1) {
+//				retVal<<",";
+//			}
+//			else {
+//				retVal<<">)";
+//			}
 		}
 	}
 	return retVal.str();
 }
+bool HyperOp::isUnrolledInstance() {
+	return unrolledInstance;
+}
+
+void HyperOp::setIsUnrolledInstance(bool isUnrolledInstance) {
+	this->unrolledInstance = isUnrolledInstance;
+}
+
 void HyperOp::setHyperOpId(unsigned hyperOpId) {
 	this->hyperOpId = hyperOpId;
 }
@@ -559,8 +568,8 @@ HyperOp* HyperOpInteractionGraph::getOrCreateHyperOpInstance(Function* function,
 						match = false;
 						break;
 					}
-				}
 
+				}
 				if (match) {
 					return (*vertexItr);
 				}
@@ -571,6 +580,7 @@ HyperOp* HyperOpInteractionGraph::getOrCreateHyperOpInstance(Function* function,
 	newHyperOp->setInstanceof(instanceOf);
 	newHyperOp->setInstanceId(instanceId);
 	newHyperOp->setStaticHyperOp(false);
+	newHyperOp->setIsUnrolledInstance(true);
 	this->addHyperOp(newHyperOp);
 	return newHyperOp;
 }
@@ -2137,7 +2147,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 
 HyperOp * HyperOpInteractionGraph::getHyperOp(Function * F) {
 	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
-		if ((*vertexItr)->getFunction()==F) {
+		if ((*vertexItr)->getFunction() == F) {
 			return (*vertexItr);
 		}
 	}
@@ -2148,7 +2158,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 	if (!this->Vertices.empty()) {
 		for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 			HyperOp* vertex = *vertexIterator;
-			os << vertex->asString() << "[label=\"Name:" << vertex->asString()<< ",";
+			os << vertex->asString() << "[label=\"Name:" << vertex->asString() << ",";
 			string dom, postdom;
 			if ((*vertexIterator)->getImmediateDominator() != 0) {
 				dom = (*vertexIterator)->getImmediateDominator()->getFunction()->getName();

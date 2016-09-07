@@ -82,6 +82,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 	map<MDNode*, HyperOp*> hyperOpMetadataMap;
 	//Since bijective map isnt available
 	map<Function*, MDNode*> functionMetadataMap;
+	HyperOp* entryHyperOp;
+	HyperOp* exitHyperOp;
 
 	unsigned hyperOpId = 0;
 	if (RedefineAnnotations != 0) {
@@ -99,7 +101,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					hyperOp->setStaticHyperOp(false);
 					hyperOp->setInstanceof((Function *) hyperOpMDNode->getOperand(3));
 					StringRef instanceTag = ((MDString*) hyperOpMDNode->getOperand(4))->getName();
-					errs()<<"hyperop added "<<function->getName()<<" with instance "<<((Function *) hyperOpMDNode->getOperand(3))->getName()<<" and id:"<<instanceTag<<"\n";
+					errs() << "hyperop added " << function->getName() << " with instance " << ((Function *) hyperOpMDNode->getOperand(3))->getName() << " and id:" << instanceTag << "\n";
 					hyperOp->setInstanceId(parseInstanceId(instanceTag));
 				}
 				graph->addHyperOp(hyperOp);
@@ -112,10 +114,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 			MDNode* hyperOpMDNode = RedefineAnnotations->getOperand(i);
 			StringRef type = ((MDString*) hyperOpMDNode->getOperand(0))->getName();
 			if (type.compare(HYPEROP_ENTRY) == 0) {
-				HyperOp* entryHyperOp = hyperOpMetadataMap[(MDNode*) hyperOpMDNode->getOperand(1)];
+				entryHyperOp = hyperOpMetadataMap[(MDNode*) hyperOpMDNode->getOperand(1)];
 				entryHyperOp->setStartHyperOp();
 			} else if (type.compare(HYPEROP_EXIT) == 0) {
-				HyperOp* exitHyperOp = hyperOpMetadataMap[(MDNode*) hyperOpMDNode->getOperand(1)];
+				exitHyperOp = hyperOpMetadataMap[(MDNode*) hyperOpMDNode->getOperand(1)];
 				exitHyperOp->setEndHyperOp();
 			} else if (type.compare(HYPEROP_INTERMEDIATE) == 0) {
 				HyperOp* intermediateHyperOp = hyperOpMetadataMap[(MDNode*) hyperOpMDNode->getOperand(1)];
@@ -162,11 +164,11 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
 								if (consumerInstanceId.front().compare("id") == 0) {
 									consumerHyperOpId.push_back(0);
-									errs()<<"getting hyperop with func:"<<((Function*) hyperOp->getOperand(1))->getName()<<" and is an instance of "<<((Function*) hyperOp->getOperand(3))->getName()<<" and id:<";
-									for(list<unsigned>::iterator idItr=consumerHyperOpId.begin();idItr!=consumerHyperOpId.end();idItr++){
-										errs()<<(*idItr)<<",";
+									errs() << "getting hyperop with func:" << ((Function*) hyperOp->getOperand(1))->getName() << " and is an instance of " << ((Function*) hyperOp->getOperand(3))->getName() << " and id:<";
+									for (list<unsigned>::iterator idItr = consumerHyperOpId.begin(); idItr != consumerHyperOpId.end(); idItr++) {
+										errs() << (*idItr) << ",";
 									}
-									errs()<<">";
+									errs() << ">";
 									consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
 								} else if (consumerInstanceId.front().compare("prefixId") == 0) {
 									consumerHyperOpId.pop_back();
@@ -200,7 +202,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 							edge->setValue((Value*) instr);
 							sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 							consumerHyperOp->addParentEdge(edge, sourceHyperOp);
-							errs() << "added edge\n";
 						}
 					}
 					MDNode* controlledByMDNode = instr->getMetadata(HYPEROP_CONTROLS);
@@ -273,9 +274,15 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 	}
 
 	//Add dummy edges to the hanging hyperops
-	for(list<HyperOp*>::iterator vertexItr = graph->Vertices.begin(); vertexItr!=graph->Vertices.end();vertexItr++){
-		if((*vertexItr)->isEndHyperOp()&&(*vertexItr)->ChildMap.empty()){
-			(*vertexItr)
+	for (list<HyperOp*>::iterator vertexItr = graph->Vertices.begin(); vertexItr != graph->Vertices.end(); vertexItr++) {
+		if (!(*vertexItr)->isEndHyperOp() && (*vertexItr)->ChildMap.empty() && (*vertexItr)->isUnrolledInstance()) {
+			//Create an edge between unrolled instance and end HyperOp
+			HyperOpEdge* edge = new HyperOpEdge();
+			edge->Type = HyperOpEdge::SYNC;
+			(*vertexItr)->addChildEdge(edge, exitHyperOp);
+			exitHyperOp->addParentEdge(edge, (*vertexItr));
+			exitHyperOp->setBarrierHyperOp();
+			exitHyperOp->incrementIncomingSyncCount();
 		}
 	}
 

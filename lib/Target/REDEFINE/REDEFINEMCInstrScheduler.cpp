@@ -1085,6 +1085,10 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	map<HyperOp*, unsigned> registerContainingHyperOpFrameAddress;
 	unsigned currentCE = 0;
 	for (list<HyperOp*>::iterator childHyperOpItr = graph->Vertices.begin(); childHyperOpItr != graph->Vertices.end(); childHyperOpItr++) {
+		if((*childHyperOpItr)->isUnrolledInstance()){
+			//No need to generate code for unrolled instances
+			continue;
+		}
 		//Among the HyperOps immediately dominated by the hyperOp, add fbind for those HyperOps that require it
 		if ((*childHyperOpItr)->getImmediateDominator() == hyperOp) {
 			if (*childHyperOpItr != hyperOp && (*childHyperOpItr)->isFbindRequired()) {
