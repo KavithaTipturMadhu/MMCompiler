@@ -834,10 +834,20 @@ void HyperOpInteractionGraph::computeDominatorInfo() {
  * Indicates additional edges corresponding to WriteCM instructions for forwarding context frame addresses
  */
 void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
-	//Forward addresses to producers that have a HyperOp in their dominance frontier
+	//Forward addresses to producers that have a HyperOp in their dominance frontier and to the HyperOps that delete the context frame
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		HyperOp* vertex = *vertexIterator;
-		list<HyperOp*> vertexDomFrontier = vertex->getDominanceFrontier();
+		HyperOp* liveStartOfVertex = vertex->getImmediateDominator();
+		HyperOp* liveEndOfVertex=0;
+		if (liveStartOfVertex != 0) {
+			liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
+		}
+		list<HyperOp*> vertexDomFrontier;
+		std::copy(vertex->getDominanceFrontier().begin(), vertex->getDominanceFrontier().end(), std::back_inserter(vertexDomFrontier));
+		//Address also needs to be forwarded to the HyperOp deleting the context frame
+		if(liveEndOfVertex!=0&&liveEndOfVertex!=vertex&&!vertex->isStaticHyperOp()){
+			vertexDomFrontier.push_back(liveEndOfVertex);
+		}
 		if (!vertex->getDominanceFrontier().empty()) {
 			for (list<HyperOp*>::iterator dominanceFrontierIterator = vertexDomFrontier.begin(); dominanceFrontierIterator != vertexDomFrontier.end(); dominanceFrontierIterator++) {
 				HyperOp* dominanceFrontierHyperOp = *dominanceFrontierIterator;
@@ -863,9 +873,12 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						}
 						if (freeContextSlot < maxContextFrameSize) {
 							contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
+						}else{
+							//TODO: Set the address to be passed as local reference
 						}
 						if (!(vertex->isStaticHyperOp() && vertex->getImmediateDominator()->isStaticHyperOp())) {
 							this->addEdge(vertex->getImmediateDominator(), vertex, (HyperOpEdge*) contextFrameEdge);
+							errs()<<"have I added anything at all?\n";
 						}
 					}
 				}

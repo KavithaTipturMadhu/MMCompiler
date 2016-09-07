@@ -1078,8 +1078,13 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	allInstructionsOfRegion.clear();
 	insertPosition = 0;
 
-//Add Fbind
-	DEBUG(dbgs() << "Adding writecm for sync instructions and fbind instructions\n");
+	list<unsigned> liveInPhysRegisters;
+
+	for (MachineRegisterInfo::livein_iterator liveInItr = MF.getRegInfo().livein_begin(); liveInItr != MF.getRegInfo().livein_end(); liveInItr++) {
+		liveInPhysRegisters.push_back(liveInItr->first);
+	}
+
+	DEBUG(dbgs() << "Adding falloc, writecm(for sync instructions) and fbind instructions\n");
 
 	map<HyperOp*, unsigned> registerContainingHyperOpFrameAddress;
 	unsigned currentCE = 0;
@@ -1092,7 +1097,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		if ((*childHyperOpItr)->getImmediateDominator() == hyperOp) {
 			if (*childHyperOpItr != hyperOp) {
 				unsigned registerContainingConsumerFrameAddr;
-
 				if (!(*childHyperOpItr)->isStaticHyperOp() && registerContainingHyperOpFrameAddress.find(*childHyperOpItr) == registerContainingHyperOpFrameAddress.end()) {
 					//Add fcreate instruction to create dynamic HyperOp instances
 					registerContainingConsumerFrameAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
@@ -1101,7 +1105,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					falloc.addImm(1);
 					allInstructionsOfRegion.push_back(make_pair(falloc.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 					registerContainingHyperOpFrameAddress.insert(make_pair(*childHyperOpItr, registerContainingConsumerFrameAddr));
-				} else if (((*childHyperOpItr)->isFbindRequired()||(*childHyperOpItr)->isBarrierHyperOp()) && registerContainingHyperOpFrameAddress.find(*childHyperOpItr) == registerContainingHyperOpFrameAddress.end()) {
+				} else if (((*childHyperOpItr)->isFbindRequired() || (*childHyperOpItr)->isBarrierHyperOp()) && registerContainingHyperOpFrameAddress.find(*childHyperOpItr) == registerContainingHyperOpFrameAddress.end()) {
 					int hyperOpFrame = (*childHyperOpItr)->getContextFrame();
 					registerContainingConsumerFrameAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
@@ -1170,8 +1174,50 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				}
 			}
 		}
+
+		HyperOp* liveStartOfVertex = (*childHyperOpItr)->getImmediateDominator();
+		HyperOp* liveEndOfVertex;
+		if (liveStartOfVertex != 0) {
+			liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
+		} else {
+			liveEndOfVertex = (*childHyperOpItr);
+		}
+		//Add fdelete instruction from r30
+		if (liveEndOfVertex == hyperOp) {
+			MachineInstrBuilder fdelete;
+			if (liveEndOfVertex == (*childHyperOpItr)) {
+				//Add an instruction to delete the frame of the HyperOp
+				fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(virtualRegistersForInstAddr[0].first).addImm(0);
+			} else if((*childHyperOpItr)->isStaticHyperOp()){
+				fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(REDEFINE::zero).addImm((*childHyperOpItr)->getContextFrame()<<6);
+			}
+			else{
+				//Find he edge corresponding to the context frame of the child hyperop
+				for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = liveEndOfVertex->ParentMap.begin(); parentItr != liveEndOfVertex->ParentMap.end(); parentItr++) {
+					if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == (*childHyperOpItr)) {
+						//Get the slot to read from which translates to a register anyway
+						int contextSlot = parentItr->first->getPositionOfContextSlot();
+						unsigned registerContainingAddr;
+						unsigned id = 0;
+						for (list<unsigned>::iterator liveInRegItr = liveInPhysRegisters.begin(); liveInRegItr != liveInPhysRegisters.end(); liveInRegItr++, id++) {
+							if (id == contextSlot) {
+								registerContainingAddr = *liveInRegItr;
+								break;
+							}
+						}
+						fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(registerContainingAddr).addImm(0);
+						break;
+					}
+				}
+			}
+			errs()<<"is fdelete null?"<<(fdelete==0)<<"\n";
+			if (firstInstructionOfpHyperOpInRegion[0] == 0) {
+				firstInstructionOfpHyperOpInRegion[0] = fdelete.operator llvm::MachineInstr *();
+			}
+			LIS->getSlotIndexes()->insertMachineInstrInMaps(fdelete.operator llvm::MachineInstr *());
+			allInstructionsOfRegion.push_back(make_pair(fdelete.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
+		}
 	}
-//End of add fbind
 
 //LLVM IR is assumed to be in mem form; Loading from the memory location with the same name as the value should do for all the data being communicated between HyperOps
 	vector<list<pair<HyperOp*, unsigned> > > consumerHyperOps;
@@ -1511,26 +1557,10 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			syncInstruction.addImm(contextFrameOffset);
 
 			allInstructionsOfRegion.push_back(make_pair(syncInstruction.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
-			//Add instruction to bundle
 			LIS->getSlotIndexes()->insertMachineInstrInMaps(syncInstruction.operator llvm::MachineInstr *());
 			currentCE = (currentCE + 1) % ceCount;
 		}
 	}
-
-	DEBUG(dbgs() << "Adding fdelete instruction\n");
-	if (hyperOp->frameNeedsGC()) {
-		//Add fdelete instruction
-		MachineInstrBuilder fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(virtualRegistersForInstAddr[0].first).addImm(0);
-
-		if (firstInstructionOfpHyperOpInRegion[0] == 0) {
-			firstInstructionOfpHyperOpInRegion[0] = fdelete.operator llvm::MachineInstr *();
-		}
-
-		LIS->getSlotIndexes()->insertMachineInstrInMaps(fdelete.operator llvm::MachineInstr *());
-		allInstructionsOfRegion.push_back(make_pair(fdelete.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
-	}
-
-//Shuffle writecm and fbind instructions one last time
 	for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstructionItr = allInstructionsOfRegion.begin(); allInstructionItr != allInstructionsOfRegion.end(); allInstructionItr++) {
 		MachineInstr* instruction = allInstructionItr->first;
 		unsigned ce = allInstructionItr->second.first;
