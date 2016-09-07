@@ -2152,7 +2152,6 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 			}
 			if (addedParentsToCurrentHyperOp.empty() && startHyperOp != createdFunction) {
-				errs() << "Adding exit edge to " << createdFunction->getName() << "\n";
 				//There are no incoming edge to the hyperop, add a predicate edge from the entry HyperOp
 				vector<Value*> nodeList;
 				Value* values[1];
@@ -2166,9 +2165,8 @@ struct HyperOpCreationPass: public ModulePass {
 				StoreInst* storeInst = new StoreInst(ConstantInt::get(ctxt, APInt(1, 1)), ai);
 				storeInst->setAlignment(4);
 				storeInst->insertBefore(retInstMap[startHyperOp]);
-				errs() << "metadata:";
 				node->dump();
-				ai->setMetadata(HYPEROP_CONTROLS, node);
+				ai->setMetadata(HYPEROP_SYNC, node);
 				list<Instruction*> incomingEdgesToHop;
 				incomingEdgesToHop.push_back(ai);
 				if (find(predicateProducers.begin(), predicateProducers.end(), ai->getParent()->getParent()) == predicateProducers.end()) {

@@ -864,7 +864,9 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						if (freeContextSlot < maxContextFrameSize) {
 							contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
 						}
-						this->addEdge(vertex->getImmediateDominator(), vertex, (HyperOpEdge*) contextFrameEdge);
+						if (!(vertex->isStaticHyperOp() && vertex->getImmediateDominator()->isStaticHyperOp())) {
+							this->addEdge(vertex->getImmediateDominator(), vertex, (HyperOpEdge*) contextFrameEdge);
+						}
 					}
 				}
 			}

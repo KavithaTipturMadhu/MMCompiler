@@ -145,9 +145,24 @@ REDEFINE specific instructions
 //REDEFINE I instructions 
 def CALL: InstIREDEFINE<"call", 0b0000100, 0b000       , add, GR32, GR32, imm32sx12>;
 def CREATEINST: InstIREDEFINE<"createinst", 0b0000100, 0b001       , add, GR32, GR32, imm32sx12>;
-def FALLOC: InstIREDEFINE<"falloc", 0b0000100, 0b010       , add, GR32, GR32, imm32sx12>;
 def READPM: InstIREDEFINE<"readpm", 0b0000000, 0b010       , add, GR32, GR32, imm32sx12>;
 def DREADPM: InstIREDEFINE<"dreadpm", 0b0000001, 0b010       , add, GR32, GR32, imm32sx12>;
+
+def FALLOC: InstREDEFINE<4, (outs GR32:$dst), (ins imm32sx12:$src), 
+                "falloc\t$dst, $src", 
+                []> {
+  field bits<32> Inst;
+
+  bits<5> RD;
+  bits<5> RS1;
+  bits<12> IMM;
+
+  let Inst{31-20} = IMM{11-0};
+  let Inst{19-15} = 0b00000;
+  let Inst{14-12} = 0b010;
+  let Inst{11 - 7} = RD;
+  let Inst{6 - 0} = 0b0000100;
+}
 
 //REDEFINE S instructions
 
