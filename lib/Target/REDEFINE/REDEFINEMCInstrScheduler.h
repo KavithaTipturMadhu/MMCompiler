@@ -76,7 +76,7 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	//Tracks the writecm instructions that have already been added in a different machine function; this is required to patch the writecm instructions once the registers corresponding to HyperOp inputs are shuffled
 	map<Function*, list<MachineInstr*> > writeInstrToContextFrame;
 
-	const char* HYPEROP_ID_PREFIX = "HyperOp#";
+	const char* HYPEROP_ID_PREFIX = "HyOp#";
 
 	unsigned copyOfInstanceId;
 

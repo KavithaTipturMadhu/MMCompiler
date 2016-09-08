@@ -102,6 +102,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
 	HyperOp* hyperOp = HIG->getHyperOp(const_cast<Function*>(MF->getFunction()));
 	//Add instance metadata
+
 	//TODO additional changes for instances of the same HyperOp
 	string isStaticHyperOp(STATIC_HYPEROP_ANNOTATION);
 	isStaticHyperOp.append("\t").append(hyperOp->isStaticHyperOp() ? "Y" : "N").append("\n");
@@ -147,15 +148,14 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		OutStreamer.EmitRawText(StringRef(operandValidity));
 
 		string opWaitCount(OP_WAIT_CNT_ANNOTATION);
-		if(hyperOp->isBarrierHyperOp()) {
-			opWaitCount.append("\t").append(itostr(argCount+1)).append("\n");
-		}else{
+		if (hyperOp->isBarrierHyperOp()) {
+			opWaitCount.append("\t").append(itostr(argCount + 1)).append("\n");
+		} else {
 			opWaitCount.append("\t").append(itostr(argCount)).append("\n");
 		}
 		OutStreamer.EmitRawText(StringRef(opWaitCount));
 
 		OutStreamer.EmitRawText(StringRef(".IMD_END\n"));
-		OutStreamer.EmitRawText(StringRef(".HYOP_END\n\n"));
 		//string isNextHyperOpInstValid(ISNEXT_HOP_INST_VALID_ANNOTATION);
 		//string nextHyperOpInst(NEXT_HYPEROP_INST_ANNOTATION);
 		//isNextHyperOpInstValid.append("\t").append("0").append("\n");
@@ -164,6 +164,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		//OutStreamer.EmitRawText(StringRef(isNextHyperOpInstValid));
 		//OutStreamer.EmitRawText(StringRef(nextHyperOpInst));
 	}
+	OutStreamer.EmitRawText(StringRef(".HYOP_END\n\n"));
 }
 
 void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
@@ -181,7 +182,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		int fabricColumnCount = (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getN();
 		for (list<HyperOp*>::iterator hyperOpItr = HIG->Vertices.begin(); hyperOpItr != HIG->Vertices.end(); hyperOpItr++) {
 			HyperOp* hyperOp = *hyperOpItr;
-			if(hyperOp->isUnrolledInstance()){
+			if (hyperOp->isUnrolledInstance()) {
 				continue;
 			}
 			int mappedToX = hyperOp->getTargetResource() / fabricRowCount;
@@ -218,7 +219,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		startAddr.append("\t").append(itostr(0)).append("\n");
 		OutStreamer.EmitRawText(StringRef(startAddr));
 	}
-	
+
 	// Added By Arka, HyperOp Static Metadeta
 	string hyperOpLabel = ".HyOp#";
 	hyperOpLabel.append(itostr(hyperOp->getHyperOpId())).append(":\n");

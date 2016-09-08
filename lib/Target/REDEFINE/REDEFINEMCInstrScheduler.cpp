@@ -1175,47 +1175,47 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			}
 		}
 
-		HyperOp* liveStartOfVertex = (*childHyperOpItr)->getImmediateDominator();
-		HyperOp* liveEndOfVertex;
-		if (liveStartOfVertex != 0) {
-			liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
-		} else {
-			liveEndOfVertex = (*childHyperOpItr);
-		}
-		//Add fdelete instruction from r30
-		if (liveEndOfVertex == hyperOp) {
-			MachineInstrBuilder fdelete;
-			if (liveEndOfVertex == (*childHyperOpItr)) {
-				//Add an instruction to delete the frame of the HyperOp
-				fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(virtualRegistersForInstAddr[0].first).addImm(0);
-			} else if((*childHyperOpItr)->isStaticHyperOp()){
-				fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(REDEFINE::zero).addImm((*childHyperOpItr)->getContextFrame()<<6);
+		if (!(*childHyperOpItr)->isStartHyperOp()) {
+			HyperOp* liveStartOfVertex = (*childHyperOpItr)->getImmediateDominator();
+			HyperOp* liveEndOfVertex;
+			if (liveStartOfVertex != 0) {
+				liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
+			} else {
+				liveEndOfVertex = (*childHyperOpItr);
 			}
-			else{
-				//Find he edge corresponding to the context frame of the child hyperop
-				for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = liveEndOfVertex->ParentMap.begin(); parentItr != liveEndOfVertex->ParentMap.end(); parentItr++) {
-					if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == (*childHyperOpItr)) {
-						//Get the slot to read from which translates to a register anyway
-						int contextSlot = parentItr->first->getPositionOfContextSlot();
-						unsigned registerContainingAddr;
-						unsigned id = 0;
-						for (list<unsigned>::iterator liveInRegItr = liveInPhysRegisters.begin(); liveInRegItr != liveInPhysRegisters.end(); liveInRegItr++, id++) {
-							if (id == contextSlot) {
-								registerContainingAddr = *liveInRegItr;
-								break;
+			//Add fdelete instruction from r30
+			if (liveEndOfVertex == hyperOp) {
+				MachineInstrBuilder fdelete;
+				if (liveEndOfVertex == (*childHyperOpItr)) {
+					//Add an instruction to delete the frame of the HyperOp
+					fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(virtualRegistersForInstAddr[0].first).addImm(0);
+				} else if ((*childHyperOpItr)->isStaticHyperOp()) {
+					fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(REDEFINE::zero).addImm((*childHyperOpItr)->getContextFrame() << 6);
+				} else {
+					//Find he edge corresponding to the context frame of the child hyperop
+					for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = liveEndOfVertex->ParentMap.begin(); parentItr != liveEndOfVertex->ParentMap.end(); parentItr++) {
+						if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == (*childHyperOpItr)) {
+							//Get the slot to read from which translates to a register anyway
+							int contextSlot = parentItr->first->getPositionOfContextSlot();
+							unsigned registerContainingAddr;
+							unsigned id = 0;
+							for (list<unsigned>::iterator liveInRegItr = liveInPhysRegisters.begin(); liveInRegItr != liveInPhysRegisters.end(); liveInRegItr++, id++) {
+								if (id == contextSlot) {
+									registerContainingAddr = *liveInRegItr;
+									break;
+								}
 							}
+							fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(registerContainingAddr).addImm(0);
+							break;
 						}
-						fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(registerContainingAddr).addImm(0);
-						break;
 					}
 				}
+				if (firstInstructionOfpHyperOpInRegion[0] == 0) {
+					firstInstructionOfpHyperOpInRegion[0] = fdelete.operator llvm::MachineInstr *();
+				}
+				LIS->getSlotIndexes()->insertMachineInstrInMaps(fdelete.operator llvm::MachineInstr *());
+				allInstructionsOfRegion.push_back(make_pair(fdelete.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 			}
-			errs()<<"is fdelete null?"<<(fdelete==0)<<"\n";
-			if (firstInstructionOfpHyperOpInRegion[0] == 0) {
-				firstInstructionOfpHyperOpInRegion[0] = fdelete.operator llvm::MachineInstr *();
-			}
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(fdelete.operator llvm::MachineInstr *());
-			allInstructionsOfRegion.push_back(make_pair(fdelete.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 		}
 	}
 
