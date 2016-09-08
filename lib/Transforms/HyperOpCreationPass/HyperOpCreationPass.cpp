@@ -257,7 +257,8 @@ struct HyperOpCreationPass: public ModulePass {
 		return 1 + depthOfSuccessor;
 	}
 
-	Function* getFunctionAtCallSite(list<CallInst*> callSite, map<Function*, list<CallInst*> > createdHyperOpAndCallSite) {
+	list<Function*> getFunctionAtCallSite(list<CallInst*> callSite, map<Function*, list<CallInst*> > createdHyperOpAndCallSite) {
+		list<Function*> functionList;
 		for (map<Function*, list<CallInst*> >::iterator createdHopItr = createdHyperOpAndCallSite.begin(); createdHopItr != createdHyperOpAndCallSite.end(); createdHopItr++) {
 			list<CallInst*> createdHopCallSite = createdHopItr->second;
 			bool callSiteMatch = true;
@@ -273,10 +274,10 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 
 			if (callSiteMatch) {
-				return createdHopItr->first;
+				functionList.push_back(createdHopItr->first);
 			}
 		}
-		return 0;
+		return functionList;
 	}
 
 	Instruction* getClonedArgument(Value* argument, list<CallInst*> callSite, map<Function*, list<CallInst*> > createdHyperOpAndCallSite, map<Function*, map<Instruction*, Instruction*> > originalToClonedInstructionMap) {
@@ -1172,16 +1173,36 @@ struct HyperOpCreationPass: public ModulePass {
 				values[2] = MDString::get(ctxt, DYNAMIC_HYPEROP);
 				list<CallInst*> parentCallSite;
 				std::copy(callSite.begin(), callSite.end(), back_inserter(parentCallSite));
-				Function* parentFunction = getFunctionAtCallSite(parentCallSite, createdHyperOpAndCallSite);
-				while (createdHyperOpAndType[parentFunction] != STATIC && !parentCallSite.empty()) {
+				//pop from call site till you end up with a function thats marked static
+				while (!parentCallSite.empty()) {
+					//This is a list because the parent function maybe broken down to multiple functions
+					list<Function*> parentFunctionList = getFunctionAtCallSite(parentCallSite, createdHyperOpAndCallSite);
+					if (createdHyperOpAndType[parentFunctionList.front()] == STATIC) {
+						break;
+					}
 					parentCallSite.pop_back();
-					parentFunction = getFunctionAtCallSite(parentCallSite, createdHyperOpAndCallSite);
 				}
-				if (!parentCallSite.empty() && (parentCallSite.back()->getCalledFunction() != callSite.back()->getCalledFunction())) {
-					values[3] = getFunctionAtCallSite(parentCallSite, createdHyperOpAndCallSite);
+
+				list<Function*> parentFunctionList = getFunctionAtCallSite(parentCallSite, createdHyperOpAndCallSite);
+				//The called function doesn't match the callsite of the current hyperop which means that the current HyperOp is not the first in the recursion cycle
+				if (parentCallSite.back()->getCalledFunction() != callSite.back()->getCalledFunction()) {
+					values[3] = newFunction;
 				} else {
 					//Find the original function from which the parent function was created
-					Function* originalParentFunction = createdHyperOpAndOriginalBasicBlockAndArgMap[parentFunction].first.front()->getParent();
+					for (list<Function*>::iterator parentFuncItr = parentFunctionList.begin(); parentFuncItr != parentFunctionList.end(); parentFuncItr++) {
+						bool matchFound = true;
+						list<BasicBlock*> parentFuncBBList = createdHyperOpAndOriginalBasicBlockAndArgMap[*parentFuncItr].first;
+						for (list<BasicBlock*>::iterator bbItr = parentFuncBBList.begin(); bbItr != parentFuncBBList.end(); bbItr++) {
+							if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), *bbItr) == accumulatedBasicBlocks.end()) {
+								matchFound = false;
+								break;
+							}
+						}
+						if (matchFound) {
+							values[3] = *parentFuncItr;
+							break;
+						}
+					}
 				}
 				values[4] = MDString::get(ctxt, "<0>");
 				funcAnnotation = MDNode::get(ctxt, values);
