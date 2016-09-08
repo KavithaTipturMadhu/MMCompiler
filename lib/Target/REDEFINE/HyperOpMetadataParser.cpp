@@ -146,12 +146,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 		hyperOpTraversalList.pop_front();
 		traversedList.push_back(sourceHyperOp);
 		Function* sourceFunction;
-		errs() << "\n--------\nsourceHyperOp:" << sourceHyperOp->asString() << "\n";
 		sourceFunction = sourceHyperOp->getFunction();
-		//Traverse through instructions of the module
-
 		unsigned frameSizeOfHyperOp = 0;
 		unsigned argIndex = 1;
+		//Traverse through instructions of the module
 		for (Function::arg_iterator funcArgItr = sourceFunction->arg_begin(); funcArgItr != sourceFunction->arg_end(); funcArgItr++, argIndex++) {
 			Argument* argument = &*funcArgItr;
 			if (!sourceHyperOp->getFunction()->getAttributes().hasAttribute(argIndex, Attribute::InReg)) {
@@ -260,7 +258,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					}
 
 					if (consumerHyperOp != 0 && !hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList) && !sourceHyperOp->isUnrolledInstance()) {
-						errs() << "added instance:" << consumerHyperOp->asString() << " and is it an instance:" << consumerHyperOp->isUnrolledInstance() << "\n";
 						hyperOpTraversalList.push_back(consumerHyperOp);
 					}
 					MDNode* syncMDNode = instr->getMetadata(HYPEROP_SYNC);
@@ -299,7 +296,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 						}
 					}
 					if (consumerHyperOp != 0 && !hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList) && !sourceHyperOp->isUnrolledInstance()) {
-						errs() << "added instance:" << consumerHyperOp->asString() << " and is it an instance:" << consumerHyperOp->isUnrolledInstance() << "\n";
 						hyperOpTraversalList.push_back(consumerHyperOp);
 					}
 				}

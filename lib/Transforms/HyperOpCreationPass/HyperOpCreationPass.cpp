@@ -1172,8 +1172,17 @@ struct HyperOpCreationPass: public ModulePass {
 				values[2] = MDString::get(ctxt, DYNAMIC_HYPEROP);
 				list<CallInst*> parentCallSite;
 				std::copy(callSite.begin(), callSite.end(), back_inserter(parentCallSite));
-				parentCallSite.pop_back();
-				values[3] = getFunctionAtCallSite(parentCallSite, createdHyperOpAndCallSite);
+				Function* parentFunction = getFunctionAtCallSite(parentCallSite, createdHyperOpAndCallSite);
+				while (createdHyperOpAndType[parentFunction] != STATIC && !parentCallSite.empty()) {
+					parentCallSite.pop_back();
+					parentFunction = getFunctionAtCallSite(parentCallSite, createdHyperOpAndCallSite);
+				}
+				if (!parentCallSite.empty() && (parentCallSite.back()->getCalledFunction() != callSite.back()->getCalledFunction())) {
+					values[3] = getFunctionAtCallSite(parentCallSite, createdHyperOpAndCallSite);
+				} else {
+					//Find the original function from which the parent function was created
+					Function* originalParentFunction = createdHyperOpAndOriginalBasicBlockAndArgMap[parentFunction].first.front()->getParent();
+				}
 				values[4] = MDString::get(ctxt, "<0>");
 				funcAnnotation = MDNode::get(ctxt, values);
 			} else {
@@ -1313,7 +1322,7 @@ struct HyperOpCreationPass: public ModulePass {
 			unsigned hyperOpArgumentIndex = 0;
 			//Replace arguments of called functions with the right call arguments or return values
 			for (HyperOpArgumentList::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
-				errs()<<"hyperop arg:";
+				errs() << "hyperop arg:";
 				hyperOpArgItr->first.front()->dump();
 				map<Instruction*, Value*> replacementArg;
 				HyperOpArgumentType replacementArgType = hyperOpArgItr->second;
@@ -1466,13 +1475,13 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 						for (list<Instruction*>::iterator clonedInstItr = clonedInstructionsToBeLabeled.begin(); clonedInstItr != clonedInstructionsToBeLabeled.end(); clonedInstItr++) {
 							Instruction* clonedDefInst = *clonedInstItr;
-							errs()<<"adding metadata to communicate ";
+							errs() << "adding metadata to communicate ";
 							clonedDefInst->dump();
 							//Is the producer static?
 							MDNode * consumedByMetadata;
 							//TODO this isn't enough for nested recursion cycles
-							if ((isProducerStatic&&isStaticHyperOp)||(!isProducerStatic&&!isStaticHyperOp)) {
-								errs()<<"adding static md\n";
+							if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
+								errs() << "adding static md\n";
 								//Add "consumedby" metadata to the function locals that need to be passed to other HyperOps
 								Value * values[3];
 								values[0] = funcAnnotation;
@@ -1485,7 +1494,7 @@ struct HyperOpCreationPass: public ModulePass {
 								values[2] = ConstantInt::get(ctxt, APInt(32, hyperOpArgumentIndex));
 								consumedByMetadata = MDNode::get(ctxt, values);
 							} else {
-								errs()<<"adding dynamic md\n";
+								errs() << "adding dynamic md\n";
 								//Add "consumedby" metadata to the function locals that need to be passed to other HyperOps
 								Value * values[4];
 								values[0] = funcAnnotation;
@@ -1624,7 +1633,7 @@ struct HyperOpCreationPass: public ModulePass {
 								}
 								//Label the instruction with predicates metadata
 								MDNode* newPredicateMetadata;
-								if ((isProducerStatic&&isStaticHyperOp)||(!isProducerStatic&&!isStaticHyperOp)) {
+								if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
 									Value * values[1];
 									values[0] = funcAnnotation;
 									newPredicateMetadata = MDNode::get(ctxt, values);
@@ -1783,7 +1792,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 					//Label the instruction with predicates metadata
 					MDNode* newPredicateMetadata;
-					if ((isProducerStatic&&isStaticHyperOp)||(!isProducerStatic&&!isStaticHyperOp)) {
+					if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
 						Value * values[1];
 						values[0] = funcAnnotation;
 						newPredicateMetadata = MDNode::get(ctxt, values);
@@ -1993,7 +2002,7 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 						//Label the instruction with predicates metadata
 						MDNode* newPredicateMetadata;
-						if ((isProducerStatic&&isStaticHyperOp)||(!isProducerStatic&&!isStaticHyperOp)) {
+						if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
 							Value * values[1];
 							values[0] = funcAnnotation;
 							newPredicateMetadata = MDNode::get(ctxt, values);
