@@ -126,18 +126,30 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 	}
 	//Traverse instructions for metadata
 	unsigned maxFrameSizeOfHyperOp = 0;
+	list<HyperOp*> hyperOpTraversalList;
+
 	for (Module::iterator moduleItr = M->begin(); moduleItr != M->end(); moduleItr++) {
 		//Traverse through instructions of the module
 		HyperOp* sourceHyperOp = graph->getHyperOp(moduleItr);
+		if (sourceHyperOp != 0) {
+			hyperOpTraversalList.push_back(sourceHyperOp);
+		}
+	}
+	while (!hyperOpTraversalList.empty()) {
+		//Traverse through instructions of the module
+		HyperOp* sourceHyperOp = hyperOpTraversalList.front();
+		hyperOpTraversalList.pop_front();
+		//Traverse through instructions of the module
+
 		unsigned frameSizeOfHyperOp = 0;
 		unsigned argIndex = 1;
-		for (Function::arg_iterator funcArgItr = moduleItr->arg_begin(); funcArgItr != moduleItr->arg_end(); funcArgItr++, argIndex++) {
+		for (Function::arg_iterator funcArgItr = sourceHyperOp->getFunction()->arg_begin(); funcArgItr != sourceHyperOp->getFunction()->arg_end(); funcArgItr++, argIndex++) {
 			Argument* argument = &*funcArgItr;
-			if (!moduleItr->getAttributes().hasAttribute(argIndex, Attribute::InReg)) {
+			if (!sourceHyperOp->getFunction()->getAttributes().hasAttribute(argIndex, Attribute::InReg)) {
 				frameSizeOfHyperOp += REDEFINEUtils::getSizeOfType(funcArgItr->getType());
 			}
 		}
-		for (Function::iterator funcItr = (*moduleItr).begin(); funcItr != (*moduleItr).end(); funcItr++) {
+		for (Function::iterator funcItr = sourceHyperOp->getFunction()->begin(); funcItr != sourceHyperOp->getFunction()->end(); funcItr++) {
 			for (BasicBlock::iterator bbItr = (*funcItr).begin(); bbItr != (*funcItr).end(); bbItr++) {
 				Instruction* instr = bbItr;
 				if (isa<AllocaInst>(instr)) {
