@@ -839,14 +839,14 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		HyperOp* vertex = *vertexIterator;
 		HyperOp* liveStartOfVertex = vertex->getImmediateDominator();
-		HyperOp* liveEndOfVertex=0;
+		HyperOp* liveEndOfVertex = 0;
 		if (liveStartOfVertex != 0) {
 			liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
 		}
 		list<HyperOp*> vertexDomFrontier;
 		std::copy(vertex->getDominanceFrontier().begin(), vertex->getDominanceFrontier().end(), std::back_inserter(vertexDomFrontier));
 		//Address also needs to be forwarded to the HyperOp deleting the context frame
-		if(liveEndOfVertex!=0&&liveEndOfVertex!=vertex&&!vertex->isStaticHyperOp()){
+		if (liveEndOfVertex != 0 && liveEndOfVertex != vertex && !vertex->isStaticHyperOp()) {
 			vertexDomFrontier.push_back(liveEndOfVertex);
 		}
 		if (!vertex->getDominanceFrontier().empty()) {
@@ -874,12 +874,12 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						}
 						if (freeContextSlot < maxContextFrameSize) {
 							contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
-						}else{
+						} else {
 							//TODO: Set the address to be passed as local reference
 						}
 						if (!(vertex->isStaticHyperOp() && vertex->getImmediateDominator()->isStaticHyperOp())) {
 							this->addEdge(vertex->getImmediateDominator(), vertex, (HyperOpEdge*) contextFrameEdge);
-							errs()<<"have I added anything at all?\n";
+							errs() << "have I added anything at all?\n";
 						}
 					}
 				}
@@ -2174,7 +2174,18 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 	if (!this->Vertices.empty()) {
 		for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 			HyperOp* vertex = *vertexIterator;
-			os << vertex->asString() << "[label=\"Name:" << vertex->asString() << ",";
+			os << vertex->asString();
+			os << "[";
+			if (!vertex->isStaticHyperOp()) {
+				os<<"style=filled,";
+				if (vertex->isUnrolledInstance()) {
+					os << "fillcolor=yellow,";
+				} else {
+					os << "fillcolor=gray,";
+				}
+			}
+			os << "label=\"Name:" << vertex->asString() << ",";
+
 			string dom, postdom;
 			if ((*vertexIterator)->getImmediateDominator() != 0) {
 				dom = (*vertexIterator)->getImmediateDominator()->getFunction()->getName();
