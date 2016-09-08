@@ -578,6 +578,7 @@ HyperOp* HyperOpInteractionGraph::getOrCreateHyperOpInstance(Function* function,
 		}
 	}
 	HyperOp* newHyperOp = new HyperOp(function);
+	newHyperOp->setHyperOpId(this->getHyperOp(function)->getHyperOpId());
 	newHyperOp->setInstanceof(instanceOf);
 	newHyperOp->setInstanceId(instanceId);
 	newHyperOp->setStaticHyperOp(false);
