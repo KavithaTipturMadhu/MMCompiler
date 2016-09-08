@@ -43,6 +43,7 @@ HyperOp::HyperOp(Function* function) {
 	this->gcRequired = false;
 	this->staticHyperOp = true;
 	this->numIncomingSyncEdges = 0;
+	this->unrolledInstance = false;
 }
 
 HyperOp::~HyperOp() {
