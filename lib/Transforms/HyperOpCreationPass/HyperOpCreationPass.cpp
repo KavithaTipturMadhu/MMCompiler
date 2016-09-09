@@ -43,7 +43,7 @@ struct HyperOpCreationPass: public ModulePass {
 	const string SCALAR_ARGUMENT = "Scalar";
 	const string LOCAL_REFERENCE_ARGUMENT = "LocalReference";
 
-	const unsigned int FRAME_SIZE = 4;
+	const unsigned int FRAME_SIZE = 16;
 
 	enum HyperOpArgumentType {
 		SCALAR, LOCAL_REFERENCE, GLOBAL_REFERENCE
@@ -600,6 +600,7 @@ struct HyperOpCreationPass: public ModulePass {
 				BasicBlock* bbItr = bbTraverser.front();
 				bbTraverser.pop_front();
 				bool canAcquireBBItr = true;
+				errs()<<"Work9ing on bb:"<<bbItr->getName()<<"\n";
 				//If basic block is not the entry block
 				if (bbItr != &(function->getEntryBlock())) {
 					//Check if all the parent nodes of the basic block are in the same HyperOp
@@ -631,7 +632,6 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 						}
 					}
-
 					//Check if the basic block's inclusion results introduces multiple entry points to the same HyperOp
 					if (canAcquireBBItr && !accumulatedBasicBlocks.empty()) {
 						//Find the basic blocks that jump to the basic block being acquired
@@ -651,6 +651,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
+				errs()<<"can acquire bb?"<<canAcquireBBItr<<"\n";
 				if (!canAcquireBBItr) {
 					//Create a HyperOp at this boundary
 					endOfHyperOp = true;
@@ -1185,6 +1186,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 				list<Function*> parentFunctionList = getFunctionAtCallSite(parentCallSite, createdHyperOpAndCallSite);
 				//The called function doesn't match the callsite of the current hyperop which means that the current HyperOp is not the first in the recursion cycle
+				//todo uncomment
 				if (parentCallSite.back()->getCalledFunction() != callSite.back()->getCalledFunction()) {
 					values[3] = newFunction;
 				} else {
@@ -1316,8 +1318,6 @@ struct HyperOpCreationPass: public ModulePass {
 			list<BasicBlock*> accumulatedBasicBlocks;
 			HyperOpArgumentList hyperOpArguments;
 			createdHyperOpAndOriginalBasicBlockAndArgMap[newFunction] = make_pair(accumulatedBasicBlocks, hyperOpArguments);
-			errs() << "state of module after adding end:";
-			M.dump();
 		}
 		//End of creation of hyperops
 
@@ -1343,7 +1343,7 @@ struct HyperOpCreationPass: public ModulePass {
 			unsigned hyperOpArgumentIndex = 0;
 			//Replace arguments of called functions with the right call arguments or return values
 			for (HyperOpArgumentList::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
-				errs()<<"argument being fixed:";
+				errs() << "argument being fixed:";
 				hyperOpArgItr->first.front()->dump();
 				map<Instruction*, Value*> replacementArg;
 				HyperOpArgumentType replacementArgType = hyperOpArgItr->second;
@@ -1387,31 +1387,30 @@ struct HyperOpCreationPass: public ModulePass {
 
 					std::copy(callSite.begin(), callSite.end(), back_inserter(callSiteCopy));
 					callSiteCopy.push_back(callInst);
-					Function* replicatedCalledFunction;
-					Value* returnValue;
+					Function* replicatedCalledFunction = 0;
+					Value* returnValue = 0;
 
 					while (true) {
 						CallInst* appendCall;
+						//TODO refactor
 						for (map<Function*, list<CallInst*> >::iterator createdHopItr = createdHyperOpAndCallSite.begin(); createdHopItr != createdHyperOpAndCallSite.end(); createdHopItr++) {
-							list<BasicBlock*> accumulatedBlocks = createdHyperOpAndOriginalBasicBlockAndArgMap[createdHopItr->first].first;
-							BasicBlock* lastBB = &accumulatedBlocks.front()->getParent()->back();
+							list<BasicBlock*> createdHopAccumulatedBlocks = createdHyperOpAndOriginalBasicBlockAndArgMap[createdHopItr->first].first;
+							BasicBlock* lastBB = &createdHopAccumulatedBlocks.front()->getParent()->back();
 							bool callSiteMatch = true;
 							list<CallInst*> createdHopCallSite = createdHopItr->second;
 							if (createdHopCallSite.size() != callSiteCopy.size()) {
-								callSiteMatch = false;
+								continue;
 							}
-							if (callSiteMatch) {
-								list<CallInst*>::iterator callSiteItr = callSiteCopy.begin();
-								for (list<CallInst*>::iterator createHopCallSiteItr = createdHopCallSite.begin(); createHopCallSiteItr != createdHopCallSite.end() && callSiteItr != callSiteCopy.end(); createHopCallSiteItr++, callSiteItr++) {
-									if (*createHopCallSiteItr != *callSiteItr) {
-										callSiteMatch = false;
-										break;
-									}
+							list<CallInst*>::iterator callSiteItr = callSiteCopy.begin();
+							for (list<CallInst*>::iterator createHopCallSiteItr = createdHopCallSite.begin(); createHopCallSiteItr != createdHopCallSite.end() && callSiteItr != callSiteCopy.end(); createHopCallSiteItr++, callSiteItr++) {
+								(*callSiteItr)->dump();
+								if (*createHopCallSiteItr != *callSiteItr) {
+									callSiteMatch = false;
+									break;
 								}
 							}
 							if (callSiteMatch) {
-								errs()<<"call site match found\n";
-								if (find(accumulatedBlocks.begin(), accumulatedBlocks.end(), lastBB) != accumulatedBlocks.end() || (isa<CallInst>(lastBB->front()) && isa<ReturnInst>(lastBB->front().getNextNode()))) {
+								if (find(createdHopAccumulatedBlocks.begin(), createdHopAccumulatedBlocks.end(), lastBB) != createdHopAccumulatedBlocks.end() || (isa<CallInst>(lastBB->front()) && isa<ReturnInst>(lastBB->front().getNextNode()))) {
 									replicatedCalledFunction = createdHopItr->first;
 									appendCall = (CallInst*) &lastBB->front();
 									break;
@@ -1429,6 +1428,9 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 						}
 					}
+//					if (replicatedCalledFunction == 0) {
+//						continue;
+//					}
 					Instruction* clonedInst;
 					if (isa<Constant>(returnValue)) {
 						//Immediate value
@@ -1527,7 +1529,11 @@ struct HyperOpCreationPass: public ModulePass {
 								}
 								//Local reference args don't need a context slot but we are adding them here anyway since they tail the arguments of a function and are required during metadata parsing
 								values[2] = ConstantInt::get(ctxt, APInt(32, hyperOpArgumentIndex));
-								values[3] = MDString::get(ctxt, "<id,0>");
+								if (isProducerStatic && !isStaticHyperOp) {
+									values[3] = MDString::get(ctxt, "<id,0>");
+								} else {
+									values[3] = MDString::get(ctxt, "<prefixId>");
+								}
 								consumedByMetadata = MDNode::get(ctxt, values);
 							}
 							Instruction* metadataHost = 0;
@@ -1655,6 +1661,7 @@ struct HyperOpCreationPass: public ModulePass {
 								}
 								//Label the instruction with predicates metadata
 								MDNode* newPredicateMetadata;
+								//TODO this isn't enough for nested recursion cycles
 								if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
 									Value * values[1];
 									values[0] = funcAnnotation;
@@ -1662,7 +1669,11 @@ struct HyperOpCreationPass: public ModulePass {
 								} else {
 									Value * values[1];
 									values[0] = funcAnnotation;
-									values[1] = MDString::get(ctxt, StringRef("<id,0>"));
+									if (isProducerStatic && !isStaticHyperOp) {
+										values[1] = MDString::get(ctxt, "<id,0>");
+									} else {
+										values[1] = MDString::get(ctxt, "<prefixId>");
+									}
 									newPredicateMetadata = MDNode::get(ctxt, values);
 								}
 								metadataList.push_back(newPredicateMetadata);
@@ -1699,7 +1710,7 @@ struct HyperOpCreationPass: public ModulePass {
 					//Current function is a call
 					newCallSite.pop_back();
 				}
-				Function* replicatedCalledFunction;
+				Function* replicatedCalledFunction = 0;
 				if (isa<CallInst>(predicateOperand)) {
 					newCallSite.push_back((CallInst*) predicateOperand);
 					while (true) {
@@ -1743,6 +1754,9 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 
 				}
+//				if (replicatedCalledFunction == 0) {
+//					continue;
+//				}
 				if (isa<Constant>(predicateOperand)) {
 					//Immediate value
 					clonedInstr = new AllocaInst(predicateOperand->getType());
@@ -1814,6 +1828,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 					//Label the instruction with predicates metadata
 					MDNode* newPredicateMetadata;
+					//TODO this isn't enough for nested recursion cycles
 					if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
 						Value * values[1];
 						values[0] = funcAnnotation;
@@ -1821,7 +1836,11 @@ struct HyperOpCreationPass: public ModulePass {
 					} else {
 						Value * values[2];
 						values[0] = funcAnnotation;
-						values[1] = MDString::get(ctxt, StringRef("<id,0>"));
+						if (isProducerStatic && !isStaticHyperOp) {
+							values[1] = MDString::get(ctxt, "<id,0>");
+						} else {
+							values[1] = MDString::get(ctxt, "<prefixId>");
+						}
 						newPredicateMetadata = MDNode::get(ctxt, values);
 					}
 					metadataList.push_back(newPredicateMetadata);
@@ -1864,11 +1883,13 @@ struct HyperOpCreationPass: public ModulePass {
 			//Remove unconditional branch instruction, add the annotation to the alloca instruction of the branch
 			for (list<Instruction*>::iterator unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
 				Value* unconditionalBranchInstr = *unconditionalBranchSourceItr;
+				errs() << "unconditional branch:";
+				unconditionalBranchInstr->dump();
 				Value* originalUnconditionalBranchInstr = unconditionalBranchInstr;
 				BasicBlock* targetBB = ((BranchInst*) unconditionalBranchInstr)->getSuccessor(0);
 				list<pair<Function*, Instruction*> > addedJumpSources;
 				Instruction* clonedInstr;
-				Function* replicatedCalledFunction;
+				Function* replicatedCalledFunction = 0;
 				list<BasicBlock*> parentBBList;
 				list<CallInst*> newCallSite;
 				std::copy(callSite.begin(), callSite.end(), std::back_inserter(newCallSite));
@@ -1909,7 +1930,7 @@ struct HyperOpCreationPass: public ModulePass {
 						//Current function is a call
 						newCallSite.pop_back();
 					}
-					Function* replicatedCalledFunction;
+					Function* replicatedCalledFunction = 0;
 					if (isa<CallInst>(predicateOperand)) {
 						newCallSite.push_back((CallInst*) predicateOperand);
 						while (true) {
@@ -1953,6 +1974,9 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 
 					}
+//					if (replicatedCalledFunction == 0) {
+//						continue;
+//					}
 					if (isa<Constant>(predicateOperand)) {
 						//Immediate value
 						clonedInstr = new AllocaInst(predicateOperand->getType());
@@ -2024,6 +2048,7 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 						//Label the instruction with predicates metadata
 						MDNode* newPredicateMetadata;
+						//TODO this isn't enough for nested recursion cycles
 						if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
 							Value * values[1];
 							values[0] = funcAnnotation;
@@ -2031,7 +2056,11 @@ struct HyperOpCreationPass: public ModulePass {
 						} else {
 							Value * values[2];
 							values[0] = funcAnnotation;
-							values[1] = MDString::get(ctxt, StringRef("<id,0>"));
+							if (isProducerStatic && !isStaticHyperOp) {
+								values[1] = MDString::get(ctxt, "<id,0>");
+							} else {
+								values[1] = MDString::get(ctxt, "<prefixId>");
+							}
 							newPredicateMetadata = MDNode::get(ctxt, values);
 						}
 						metadataList.push_back(newPredicateMetadata);
@@ -2196,7 +2225,6 @@ struct HyperOpCreationPass: public ModulePass {
 				StoreInst* storeInst = new StoreInst(ConstantInt::get(ctxt, APInt(1, 1)), ai);
 				storeInst->setAlignment(4);
 				storeInst->insertBefore(retInstMap[startHyperOp]);
-				node->dump();
 				ai->setMetadata(HYPEROP_SYNC, node);
 				list<Instruction*> incomingEdgesToHop;
 				incomingEdgesToHop.push_back(ai);
@@ -2370,6 +2398,22 @@ struct HyperOpCreationPass: public ModulePass {
 
 			for (list<BasicBlock*>::iterator deleteItr = bbForDelete.begin(); deleteItr != bbForDelete.end(); deleteItr++) {
 				(*deleteItr)->eraseFromParent();
+			}
+		}
+
+		DEBUG(dbgs() << "\n-----------Adding entry bb-----------\n");
+		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
+			Function* newFunction = createdHyperOpItr->first;
+			//If the entry basic block has multiple incoming edges, create a new HyperOp which has an unconditional jump to it
+			unsigned predCount = 0;
+			for (pred_iterator predecessorItr = pred_begin(&newFunction->getEntryBlock()); predecessorItr != pred_end(&newFunction->getEntryBlock()); predecessorItr++, predCount++) {
+			}
+			if (predCount > 0) {
+				//Create a new bb as the first bb
+				BasicBlock* oldBB = &newFunction->getEntryBlock();
+				BasicBlock* newEntryBB = BasicBlock::Create(ctxt, newFunction->getName().str().append(".entry"), newFunction, oldBB);
+				Instruction* branchInst = BranchInst::Create(oldBB);
+				newEntryBB->getInstList().insert(newEntryBB->getFirstInsertionPt(), branchInst);
 			}
 		}
 
