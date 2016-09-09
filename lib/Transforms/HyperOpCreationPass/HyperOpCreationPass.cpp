@@ -967,7 +967,7 @@ struct HyperOpCreationPass: public ModulePass {
 				list<pair<list<BasicBlock*>, HyperOpArgumentList> > calledFunctionBBList = originalFunctionToHyperOpBBListMap[calledOriginalFunction];
 				//Update the arguments to the HyperOp to be created in place of the callsite
 				for (list<pair<list<BasicBlock*>, HyperOpArgumentList> >::reverse_iterator replacementFuncItr = calledFunctionBBList.rbegin(); replacementFuncItr != calledFunctionBBList.rend(); replacementFuncItr++) {
-					traversalList.push_front(make_pair(make_pair(replacementFuncItr->first, replacementFuncItr->second), newCallSite));
+					traversalList.push_back(make_pair(make_pair(replacementFuncItr->first, replacementFuncItr->second), newCallSite));
 				}
 				continue;
 			}
@@ -1343,7 +1343,7 @@ struct HyperOpCreationPass: public ModulePass {
 			unsigned hyperOpArgumentIndex = 0;
 			//Replace arguments of called functions with the right call arguments or return values
 			for (HyperOpArgumentList::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
-				errs() << "hyperop arg:";
+				errs()<<"argument being fixed:";
 				hyperOpArgItr->first.front()->dump();
 				map<Instruction*, Value*> replacementArg;
 				HyperOpArgumentType replacementArgType = hyperOpArgItr->second;
@@ -1410,6 +1410,7 @@ struct HyperOpCreationPass: public ModulePass {
 								}
 							}
 							if (callSiteMatch) {
+								errs()<<"call site match found\n";
 								if (find(accumulatedBlocks.begin(), accumulatedBlocks.end(), lastBB) != accumulatedBlocks.end() || (isa<CallInst>(lastBB->front()) && isa<ReturnInst>(lastBB->front().getNextNode()))) {
 									replicatedCalledFunction = createdHopItr->first;
 									appendCall = (CallInst*) &lastBB->front();
