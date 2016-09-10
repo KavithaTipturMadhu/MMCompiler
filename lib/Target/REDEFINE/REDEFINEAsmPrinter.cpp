@@ -83,12 +83,13 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 		OutStreamer.EmitRawText(StringRef(codeSegmentStart));
 
 		for (list<const MachineInstr*>::iterator mcItr = pHyperOpItr->begin(); mcItr != pHyperOpItr->end(); mcItr++) {
-			if (startOfBBInPHyperOp[pHyperOpIndex].front() == *mcItr) {
+			if (!startOfBBInPHyperOp[pHyperOpIndex].empty()&&startOfBBInPHyperOp[pHyperOpIndex].front() == *mcItr) {
 				MCSymbol *label = (*mcItr)->getParent()->getSymbol();
 				label->setUndefined();
 				OutStreamer.EmitLabel(label);
 				startOfBBInPHyperOp[pHyperOpIndex].pop_front();
 			}
+			errs()<<"label prbs\n";
 			EmitInstruction(*mcItr);
 		}
 		OutStreamer.EmitRawText(StringRef(".PHYOP_END\n"));
