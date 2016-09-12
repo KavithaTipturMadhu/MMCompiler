@@ -847,7 +847,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 		}
 		list<HyperOp*> vertexDomFrontier;
 		list<HyperOp*> originalDomFrontier = vertex->getDominanceFrontier();
-		if (!originalDomFrontier.empty()) {
+		if (!originalDomFrontier.empty()&&!vertex->isStaticHyperOp()) {
 			std::copy(originalDomFrontier.begin(), originalDomFrontier.end(), std::back_inserter(vertexDomFrontier));
 		}
 		//Address also needs to be forwarded to the HyperOp deleting the context frame
@@ -872,10 +872,10 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 					}
 				}
 				int freeContextSlot = -1;
-				if (vertex->ParentMap.empty()) {
+				if (dominanceFrontierHyperOp->ParentMap.empty()) {
 					freeContextSlot++;
 				} else {
-					for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = vertex->ParentMap.begin(); parentEdgeItr != vertex->ParentMap.end(); parentEdgeItr++) {
+					for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = dominanceFrontierHyperOp->ParentMap.begin(); parentEdgeItr != dominanceFrontierHyperOp->ParentMap.end(); parentEdgeItr++) {
 						HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
 						if (previouslyAddedEdge->getPositionOfContextSlot() > freeContextSlot) {
 							freeContextSlot = previouslyAddedEdge->getPositionOfContextSlot() + 1;
@@ -2223,7 +2223,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 					os << "localref";
 //					edge->getValue()->print(os);
 				} else if (edge->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
-					os << "context frame address";
+					os << "frameAddress";
 				} else if (edge->Type == HyperOpEdge::PREDICATE) {
 					os << "control";
 //					if (edge->getValue() != 0) {

@@ -1203,15 +1203,11 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == (*childHyperOpItr)) {
 								//Get the slot to read from which translates to a register anyway
 								int contextSlot = parentItr->first->getPositionOfContextSlot();
-								unsigned registerContainingAddr;
-								unsigned id = 0;
-								for (list<unsigned>::iterator liveInRegItr = liveInPhysRegisters.begin(); liveInRegItr != liveInPhysRegisters.end(); liveInRegItr++, id++) {
-									if (id == contextSlot) {
-										registerContainingAddr = *liveInRegItr;
-										break;
-									}
-								}
+								errs()<<"context slot:"<<contextSlot<<"\n";
+								unsigned registerContainingAddr = REDEFINEphysRegs[liveInPhysRegisters.size()+contextSlot-1];
 								fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(registerContainingAddr).addImm(0);
+								errs()<<"whats fdelete:";
+								fdelete.operator ->()->dump();
 								break;
 							}
 						}

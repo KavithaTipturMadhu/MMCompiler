@@ -21,6 +21,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
+#include "REDEFINE.h"
 //#include "metis.h"
 
 using namespace llvm;
@@ -79,6 +80,7 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	const char* HYPEROP_ID_PREFIX = "HyOp#";
 
 	unsigned copyOfInstanceId;
+	unsigned REDEFINEphysRegs[16] = {REDEFINE::ra,REDEFINE::sp,REDEFINE::gp,REDEFINE::tp,REDEFINE::t0,REDEFINE::t1,REDEFINE::t2,REDEFINE::t3,REDEFINE::fp,REDEFINE::s0,REDEFINE::s1,REDEFINE::a0,REDEFINE::a1,REDEFINE::a2,REDEFINE::a3,REDEFINE::a4 };
 
 public:
 	REDEFINEMCInstrScheduler(MachineSchedContext *C, MachineSchedStrategy *S);
