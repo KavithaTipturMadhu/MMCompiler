@@ -309,9 +309,9 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 			unsigned addiRegister = MI->getOperand(0).getReg();
 
 			MachineInstrBuilder luiForTopBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::LUI)).addReg(addiRegister, RegState::Define).addImm((immediateValue & 0xfffff000) >> 12);
-			MachineInstrBuilder luiForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::LUI)).addReg(REDEFINE::t0, RegState::Define).addImm(immediateValue & 0xfff);
-			MachineInstrBuilder srliForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::SRLI)).addReg(REDEFINE::t0, RegState::Define).addReg(REDEFINE::t0, RegState::InternalRead).addImm(12);
-			MachineInstrBuilder add = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADD)).addReg(addiRegister).addReg(addiRegister).addReg(REDEFINE::t0);
+			MachineInstrBuilder luiForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::LUI)).addReg(REDEFINE::a5, RegState::Define).addImm(immediateValue & 0xfff);
+			MachineInstrBuilder srliForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::SRLI)).addReg(REDEFINE::a5, RegState::Define).addReg(REDEFINE::a5, RegState::InternalRead).addImm(12);
+			MachineInstrBuilder add = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADD)).addReg(addiRegister).addReg(addiRegister).addReg(REDEFINE::a5);
 
 			if (MI->isBundled()) {
 				MI->eraseFromBundle();
@@ -387,7 +387,6 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 			return true;
 		}
 	}
-
 	return false;
 
 }

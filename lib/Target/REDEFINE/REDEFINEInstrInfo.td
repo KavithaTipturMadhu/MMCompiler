@@ -183,11 +183,10 @@ def END: InstREDEFINE<4, (outs), (ins imm32sx12:$src),
   let Inst{6 - 0} = 0b0000000;
 }
 
-def WRITECM : InstSREDEFINE<"writecm" , 0b0100100, 0b000, add , GR32, GR32, imm32sx12>;
-def WRITECMP : InstSREDEFINE<"writecmp" , 0b0100100, 0b010 , add , GR32, GR32, imm32sx12>;
 def TRET : InstSREDEFINE<"tret" , 0b0100100, 0b001, add , GR32, GR32, imm32sx12>;
 def SYNC : InstSREDEFINE<"sync" , 0b0100100, 0b011, add , GR32, GR32, imm32sx12>;
 def FBIND : InstSREDEFINE<"fbind" , 0b0000100, 0b011, add , GR32, GR32, imm32sx12>;
+
 def FDELETE: InstREDEFINE<4, (outs), (ins GR32:$id, imm32sx12:$imm), 
                 "fdelete \t$id, $imm", 
                 []> {
@@ -204,7 +203,8 @@ def FDELETE: InstREDEFINE<4, (outs), (ins GR32:$id, imm32sx12:$imm),
   let Inst{7 - 11} = IMM{4-0};
   let Inst{6 - 0} = 0b0000100;
 }
-
+def WRITECM : InstSREDEFINE<"writecm" , 0b0100100, 0b000, add , GR32, GR32, imm32sx12>;
+def WRITECMP : InstSREDEFINE<"writecmp" , 0b0100100, 0b010 , add , GR32, GR32, imm32sx12>;
 def WRITEPM : InstSREDEFINE<"writepm" , 0b0100000, 0b010, add , GR32, GR32, imm32sx12>;
 /*
 def DIV   : InstR<"div"  , 0b0110011, 0b0000001100, sdiv  , GR32, GR32>;

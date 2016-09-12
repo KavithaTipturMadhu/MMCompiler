@@ -1503,7 +1503,7 @@ struct HyperOpCreationPass: public ModulePass {
 							if (isa<StoreInst>(clonedDefInst)) {
 								errs()<<"whats in bb?";
 								clonedDefInst->getParent()->getParent()->dump();
-								clonedDefInst = ((StoreInst*) clonedDefInst)->getOperand(1);
+								clonedDefInst = (Instruction*)((StoreInst*) clonedDefInst)->getOperand(1);
 								errs()<<"is a store\n";
 								if (!isa<AllocaInst>(clonedDefInst)) {
 									errs()<<"arg to func:";

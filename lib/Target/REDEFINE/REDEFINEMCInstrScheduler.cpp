@@ -1087,12 +1087,10 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	DEBUG(dbgs() << "Adding falloc, writecm(for sync instructions) and fbind instructions\n");
 	map<HyperOp*, unsigned> registerContainingHyperOpFrameAddress;
 	unsigned currentCE = 0;
-	errs()<<"current hyperop "<<hyperOp->asString()<<"\n";
 	if (!hyperOp->isUnrolledInstance()) {
 		for (list<HyperOp*>::iterator childHyperOpItr = graph->Vertices.begin(); childHyperOpItr != graph->Vertices.end(); childHyperOpItr++) {
 			//Among the HyperOps immediately dominated by the hyperOp, add fbind for those HyperOps that require it
 			if ((*childHyperOpItr)->getImmediateDominator() == hyperOp) {
-				errs()<<"prob with imm dom?"<<(*childHyperOpItr)->asString()<<"\n";
 				if (*childHyperOpItr != hyperOp) {
 					unsigned registerContainingConsumerFrameAddr;
 					if (!(*childHyperOpItr)->isStaticHyperOp() && registerContainingHyperOpFrameAddress.find(*childHyperOpItr) == registerContainingHyperOpFrameAddress.end()) {
@@ -1187,27 +1185,37 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				} else {
 					liveEndOfVertex = (*childHyperOpItr);
 				}
-				errs()<<"live end of hop "<<(*childHyperOpItr)->asString()<<":"<<liveEndOfVertex->asString()<<"\n";
 				//Add fdelete instruction from r30
 				if (liveEndOfVertex == hyperOp) {
-					errs()<<"prob with fdelete?"<<(*childHyperOpItr)->asString()<<"\n";
 					MachineInstrBuilder fdelete;
 					if (liveEndOfVertex == (*childHyperOpItr)) {
 						//Add an instruction to delete the frame of the HyperOp
 						fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(virtualRegistersForInstAddr[0].first).addImm(0);
 					} else if ((*childHyperOpItr)->isStaticHyperOp()) {
-						fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(REDEFINE::zero).addImm((*childHyperOpItr)->getContextFrame() << 6);
+						//Immediate is larger than 12 bits
+						if ((*childHyperOpItr)->getContextFrame() != 0 && Log2_32_Ceil((uint32_t) ((*childHyperOpItr)->getContextFrame() << 6)) > 10) {
+							unsigned registerWithContextAddress = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+							MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
+							addi.addReg(registerWithContextAddress, RegState::Define);
+							addi.addReg(REDEFINE::zero);
+							addi.addImm((*childHyperOpItr)->getContextFrame() << 6);
+							if (firstInstructionOfpHyperOpInRegion[0] == 0) {
+								firstInstructionOfpHyperOpInRegion[0] = addi.operator llvm::MachineInstr *();
+							}
+							LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
+							allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
+							fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(registerWithContextAddress).addImm(0);
+						}else{
+							fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(REDEFINE::zero).addImm((*childHyperOpItr)->getContextFrame() << 6);
+						}
 					} else {
 						//Find the edge corresponding to the context frame of the child hyperop
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = liveEndOfVertex->ParentMap.begin(); parentItr != liveEndOfVertex->ParentMap.end(); parentItr++) {
 							if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == (*childHyperOpItr)) {
 								//Get the slot to read from which translates to a register anyway
 								int contextSlot = parentItr->first->getPositionOfContextSlot();
-								errs()<<"context slot:"<<contextSlot<<"\n";
-								unsigned registerContainingAddr = REDEFINEphysRegs[liveInPhysRegisters.size()+contextSlot-1];
+								unsigned registerContainingAddr = REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot - 1];
 								fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(registerContainingAddr).addImm(0);
-								errs()<<"whats fdelete:";
-								fdelete.operator ->()->dump();
 								break;
 							}
 						}
@@ -1262,7 +1270,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						if (hyperOp == consumer->getImmediateDominator()) {
 							//Current HyperOp is the one that creates the instance
 							registerContainingConsumerBase = registerContainingHyperOpFrameAddress[consumer];
-							errs() << "problem with reg base?" << PrintReg(registerContainingConsumerBase) << "\n";
 						} else {
 							//The context frame is created by a different HyperOp
 							for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
