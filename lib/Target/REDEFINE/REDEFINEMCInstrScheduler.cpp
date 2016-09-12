@@ -1179,15 +1179,21 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 			if (!(*childHyperOpItr)->isStartHyperOp()) {
 				HyperOp* liveStartOfVertex = (*childHyperOpItr)->getImmediateDominator();
-				HyperOp* liveEndOfVertex;
+				HyperOp* liveEndOfVertex = 0;
 				if (liveStartOfVertex != 0) {
-					liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
-				} else {
+					if (liveStartOfVertex->getImmediatePostDominator() != 0) {
+						liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator()->getImmediatePostDominator();
+					} else {
+						liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
+					}
+				}
+				if (liveEndOfVertex == 0) {
 					liveEndOfVertex = (*childHyperOpItr);
 				}
 				//Add fdelete instruction from r30
 				if (liveEndOfVertex == hyperOp) {
 					MachineInstrBuilder fdelete;
+					errs()<<"adding fdelete for "<<(*childHyperOpItr)->asString()<<" in "<<hyperOp->asString()<<"\n";
 					if (liveEndOfVertex == (*childHyperOpItr)) {
 						//Add an instruction to delete the frame of the HyperOp
 						fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(virtualRegistersForInstAddr[0].first).addImm(0);
@@ -1205,7 +1211,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
 							allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 							fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(registerWithContextAddress).addImm(0);
-						}else{
+						} else {
 							fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(REDEFINE::zero).addImm((*childHyperOpItr)->getContextFrame() << 6);
 						}
 					} else {
