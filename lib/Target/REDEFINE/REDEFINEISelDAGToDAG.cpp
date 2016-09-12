@@ -231,6 +231,8 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 	static unsigned firstFunction=0;
 	//Add instructions to write to context frames if the function is the first one being dealt with
 	if (firstFunction==0) {
+		errs() << "Whats in module?";
+		Fn->getParent()->dump();
 		//Parse the HIG metadata the first time, subsequent HyperOps can use the graph
 		HyperOpMetadataParser parser;
 		((REDEFINETargetMachine&) TM).HIG = parser.parseMetadata(const_cast<Module*>(Fn->getParent()));
@@ -242,6 +244,7 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 		((REDEFINETargetMachine&) TM).HIG->mapClustersToComputeResources();
 		((REDEFINETargetMachine&) TM).HIG->associateStaticContextFrames();
 		((REDEFINETargetMachine&) TM).HIG->minimizeControlEdges();
+		((REDEFINETargetMachine&) TM).HIG->addContextFrameAddressForwardingEdges();
 		((REDEFINETargetMachine&) TM).HIG->print(dbgs());
 		firstFunction = 1;
 	}

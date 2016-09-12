@@ -1087,10 +1087,12 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	DEBUG(dbgs() << "Adding falloc, writecm(for sync instructions) and fbind instructions\n");
 	map<HyperOp*, unsigned> registerContainingHyperOpFrameAddress;
 	unsigned currentCE = 0;
+	errs()<<"current hyperop "<<hyperOp->asString()<<"\n";
 	if (!hyperOp->isUnrolledInstance()) {
 		for (list<HyperOp*>::iterator childHyperOpItr = graph->Vertices.begin(); childHyperOpItr != graph->Vertices.end(); childHyperOpItr++) {
 			//Among the HyperOps immediately dominated by the hyperOp, add fbind for those HyperOps that require it
 			if ((*childHyperOpItr)->getImmediateDominator() == hyperOp) {
+				errs()<<"prob with imm dom?"<<(*childHyperOpItr)->asString()<<"\n";
 				if (*childHyperOpItr != hyperOp) {
 					unsigned registerContainingConsumerFrameAddr;
 					if (!(*childHyperOpItr)->isStaticHyperOp() && registerContainingHyperOpFrameAddress.find(*childHyperOpItr) == registerContainingHyperOpFrameAddress.end()) {
@@ -1101,7 +1103,9 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						falloc.addImm(1);
 						allInstructionsOfRegion.push_back(make_pair(falloc.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						registerContainingHyperOpFrameAddress.insert(make_pair(*childHyperOpItr, registerContainingConsumerFrameAddr));
-						errs() << "added falloc for " << (*childHyperOpItr)->getFunction()->getName() << "\n";
+						if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
+							firstInstructionOfpHyperOpInRegion[currentCE] = falloc.operator llvm::MachineInstr *();
+						}
 					} else if (((*childHyperOpItr)->isFbindRequired() || (*childHyperOpItr)->isBarrierHyperOp()) && registerContainingHyperOpFrameAddress.find(*childHyperOpItr) == registerContainingHyperOpFrameAddress.end()) {
 						int hyperOpFrame = (*childHyperOpItr)->getContextFrame();
 						registerContainingConsumerFrameAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
@@ -1109,6 +1113,9 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						addi.addReg(registerContainingConsumerFrameAddr, RegState::Define);
 						addi.addReg(REDEFINE::zero);
 						addi.addImm(hyperOpFrame);
+						if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
+							firstInstructionOfpHyperOpInRegion[currentCE] = addi.operator llvm::MachineInstr *();
+						}
 						allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						registerContainingHyperOpFrameAddress.insert(make_pair(*childHyperOpItr, registerContainingConsumerFrameAddr));
 					}
@@ -1180,8 +1187,10 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				} else {
 					liveEndOfVertex = (*childHyperOpItr);
 				}
+				errs()<<"live end of hop "<<(*childHyperOpItr)->asString()<<":"<<liveEndOfVertex->asString()<<"\n";
 				//Add fdelete instruction from r30
 				if (liveEndOfVertex == hyperOp) {
+					errs()<<"prob with fdelete?"<<(*childHyperOpItr)->asString()<<"\n";
 					MachineInstrBuilder fdelete;
 					if (liveEndOfVertex == (*childHyperOpItr)) {
 						//Add an instruction to delete the frame of the HyperOp

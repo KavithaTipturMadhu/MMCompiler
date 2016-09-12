@@ -559,7 +559,7 @@ void HyperOpInteractionGraph::setMaxContextFrameSize(unsigned int maxFrameSize) 
 
 HyperOp* HyperOpInteractionGraph::getOrCreateHyperOpInstance(Function* function, Function* instanceOf, list<unsigned> instanceId) {
 	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
-		if ((*vertexItr)->getFunction() == function && (*vertexItr)->getInstanceof() == instanceOf) {
+		if ((*vertexItr)->getInstanceof() == instanceOf) {
 			list<unsigned> originalId = (*vertexItr)->getInstanceId();
 			if (originalId.size() == instanceId.size()) {
 				list<unsigned>::iterator originalIdItr = originalId.begin();
@@ -839,13 +839,17 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 	//Forward addresses to producers that have a HyperOp in their dominance frontier and to the HyperOps that delete the context frame
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		HyperOp* vertex = *vertexIterator;
+		errs() << "\n======\nvertex:" << vertex->asString() << "\n";
 		HyperOp* liveStartOfVertex = vertex->getImmediateDominator();
 		HyperOp* liveEndOfVertex = 0;
 		if (liveStartOfVertex != 0) {
 			liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
 		}
 		list<HyperOp*> vertexDomFrontier;
-		std::copy(vertex->getDominanceFrontier().begin(), vertex->getDominanceFrontier().end(), std::back_inserter(vertexDomFrontier));
+		list<HyperOp*> originalDomFrontier = vertex->getDominanceFrontier();
+		if (!originalDomFrontier.empty()) {
+			std::copy(originalDomFrontier.begin(), originalDomFrontier.end(), std::back_inserter(vertexDomFrontier));
+		}
 		//Address also needs to be forwarded to the HyperOp deleting the context frame
 		if (liveEndOfVertex != 0 && liveEndOfVertex != vertex && !vertex->isStaticHyperOp()) {
 			vertexDomFrontier.push_back(liveEndOfVertex);
@@ -853,36 +857,35 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 		if (!vertex->getDominanceFrontier().empty()) {
 			for (list<HyperOp*>::iterator dominanceFrontierIterator = vertexDomFrontier.begin(); dominanceFrontierIterator != vertexDomFrontier.end(); dominanceFrontierIterator++) {
 				HyperOp* dominanceFrontierHyperOp = *dominanceFrontierIterator;
+				HyperOpEdge* contextFrameEdge = new HyperOpEdge();
+				contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS);
 				if (dominanceFrontierHyperOp->getImmediateDominator() == vertex->getImmediateDominator()) {
-					HyperOpEdge* contextFrameEdge = new HyperOpEdge();
-					contextFrameEdge->setContextFrameAddress(dominanceFrontierHyperOp);
-					this->addEdge(vertex->getImmediateDominator(), vertex, (HyperOpEdge*) contextFrameEdge);
+					contextFrameEdge->setContextFrameAddress(vertex);
+					this->addEdge(vertex->getImmediateDominator(), dominanceFrontierHyperOp, (HyperOpEdge*) contextFrameEdge);
 				} else {
 					list<HyperOp*> immediateDominatorDominanceFrontier = vertex->getImmediateDominator()->getDominanceFrontier();
 					if (std::find(immediateDominatorDominanceFrontier.begin(), immediateDominatorDominanceFrontier.end(), dominanceFrontierHyperOp) != immediateDominatorDominanceFrontier.end()) {
-						HyperOpEdge* contextFrameEdge = new HyperOpEdge();
-						contextFrameEdge->setContextFrameAddress(dominanceFrontierHyperOp);
-						int freeContextSlot = -1;
-						if (vertex->ParentMap.empty()) {
-							freeContextSlot++;
-						} else {
-							for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = vertex->ParentMap.begin(); parentEdgeItr != vertex->ParentMap.end(); parentEdgeItr++) {
-								HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
-								if (previouslyAddedEdge->getPositionOfContextSlot() > freeContextSlot) {
-									freeContextSlot = previouslyAddedEdge->getPositionOfContextSlot() + 1;
-								}
-							}
-						}
-						if (freeContextSlot < maxContextFrameSize) {
-							contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
-						} else {
-							//TODO: Set the address to be passed as local reference
-						}
+						contextFrameEdge->setContextFrameAddress(vertex);
 						if (!(vertex->isStaticHyperOp() && vertex->getImmediateDominator()->isStaticHyperOp())) {
-							this->addEdge(vertex->getImmediateDominator(), vertex, (HyperOpEdge*) contextFrameEdge);
-							errs() << "have I added anything at all?\n";
+							this->addEdge(vertex->getImmediateDominator(), dominanceFrontierHyperOp, (HyperOpEdge*) contextFrameEdge);
 						}
 					}
+				}
+				int freeContextSlot = -1;
+				if (vertex->ParentMap.empty()) {
+					freeContextSlot++;
+				} else {
+					for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = vertex->ParentMap.begin(); parentEdgeItr != vertex->ParentMap.end(); parentEdgeItr++) {
+						HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
+						if (previouslyAddedEdge->getPositionOfContextSlot() > freeContextSlot) {
+							freeContextSlot = previouslyAddedEdge->getPositionOfContextSlot() + 1;
+						}
+					}
+				}
+				if (freeContextSlot < maxContextFrameSize) {
+					contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
+				} else {
+					//TODO: Set the address to be passed as local reference
 				}
 			}
 		}
@@ -2178,7 +2181,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 			os << vertex->asString();
 			os << "[";
 			if (!vertex->isStaticHyperOp()) {
-				os<<"style=filled,";
+				os << "style=filled,";
 				if (vertex->isUnrolledInstance()) {
 					os << "fillcolor=yellow,";
 				} else {
