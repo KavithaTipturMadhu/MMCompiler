@@ -17,6 +17,12 @@
 #include "lpsolve/lp_lib.h"
 #include "lpsolve/lp_types.h"
 
+namespace {
+
+const int NUM_FRAMES_PER_CR = 800;
+
+}
+
 using namespace std;
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Function.h"
@@ -2061,7 +2067,7 @@ void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrame
 	for (; boostVertexIt != boostVertexEnd; ++boostVertexIt) {
 		HyperOp* hyperOp = vertexDescriptorAndHyperOpMap[*boostVertexIt];
 		if (hyperOp->isStaticHyperOp()) {
-			hyperOp->setContextFrame(color_vec[index++]);
+			hyperOp->setContextFrame((hyperOp->getTargetResource() * NUM_FRAMES_PER_CR) + color_vec[index++]);
 		}
 	}
 }
