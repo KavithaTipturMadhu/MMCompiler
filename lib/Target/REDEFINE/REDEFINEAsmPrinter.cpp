@@ -58,8 +58,8 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 	int ceCount = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
 	// Emit target-specific gunk before the function body.
 	EmitFunctionBodyStart();
-	// Print out code for the function.
-	bool HasAnyRealCode = false;
+	errs()<<"whats in function?";
+	MF->dump();
 	const MachineInstr *LastMI = 0;
 	vector<list<const MachineInstr*> > pHyperOpInstructions(ceCount);
 	vector<list<const MachineInstr*> > startOfBBInPHyperOp(ceCount);
@@ -75,14 +75,17 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 		}
 	}
 
-	int pHyperOpIndex = 0;
-	for (vector<list<const MachineInstr*> >::iterator pHyperOpItr = pHyperOpInstructions.begin(); pHyperOpItr != pHyperOpInstructions.end(); pHyperOpItr++, pHyperOpIndex++) {
-
+	int pHyperOpIndex ;
+	errs()<<"instr count:"<<pHyperOpInstructions.size()<<"\n";
+	for(pHyperOpIndex = 0;pHyperOpIndex<pHyperOpInstructions.size();pHyperOpIndex++){
+		errs()<<"phop index:"<<pHyperOpIndex<<"\n";
+		list<const MachineInstr*> pHyperOpItr = pHyperOpInstructions[pHyperOpIndex];
+//	for (vector<list<const MachineInstr*> >::iterator pHyperOpItr = pHyperOpInstructions.begin(); pHyperOpItr != pHyperOpInstructions.end(); pHyperOpItr++, pHyperOpIndex++) {
 		string codeSegmentStart = ".PHYOP#";
 		codeSegmentStart.append(itostr(pHyperOpIndex)).append("\n");
 		OutStreamer.EmitRawText(StringRef(codeSegmentStart));
 
-		for (list<const MachineInstr*>::iterator mcItr = pHyperOpItr->begin(); mcItr != pHyperOpItr->end(); mcItr++) {
+		for (list<const MachineInstr*>::iterator mcItr = pHyperOpItr.begin(); mcItr != pHyperOpItr.end(); mcItr++) {
 			if (!startOfBBInPHyperOp[pHyperOpIndex].empty()&&startOfBBInPHyperOp[pHyperOpIndex].front() == *mcItr) {
 				MCSymbol *label = (*mcItr)->getParent()->getSymbol();
 				label->setUndefined();
@@ -92,6 +95,7 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 			EmitInstruction(*mcItr);
 		}
 		OutStreamer.EmitRawText(StringRef(".PHYOP_END\n"));
+		errs()<<"why not proceed?\n";
 	}
 
 	EmitFunctionBodyEnd();
@@ -182,7 +186,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		int fabricColumnCount = (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getN();
 		for (list<HyperOp*>::iterator hyperOpItr = HIG->Vertices.begin(); hyperOpItr != HIG->Vertices.end(); hyperOpItr++) {
 			HyperOp* hyperOp = *hyperOpItr;
-			if (hyperOp->isUnrolledInstance()) {
+			if (!hyperOp->isStaticHyperOp()) {
 				continue;
 			}
 			int mappedToX = hyperOp->getTargetResource() / fabricRowCount;

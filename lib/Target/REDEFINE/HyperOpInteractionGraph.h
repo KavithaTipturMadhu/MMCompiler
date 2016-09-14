@@ -44,6 +44,7 @@ class HyperOpEdge {
 	bool isZeroedOut;
 	bool isIgnoredEdge;
 	int positionOfContextSlot;
+	int incomingArgumentPosition;
 
 protected:
 	Value* variable;
@@ -59,7 +60,9 @@ public:
 		//Edge used for ordering HyperOps such that
 		ORDERING,
 		//Edge to ensure completion of the hyperOp by inserting equivalent delay instruction in the end HyperOp
-		SYNC
+		SYNC,
+		//Edge to forward data that was delivered into the context
+		ADDRESS_FORWARD_EDGE
 	} Type;
 	HyperOpEdge();
 	virtual ~HyperOpEdge();
@@ -77,6 +80,8 @@ public:
 	void setType(EdgeType type);
 	HyperOp* getContextFrameAddress();
 	void setContextFrameAddress(HyperOp* contextFrameAddress);
+	int getIncomingArgumentPosition() ;
+	void setIncomingArgumentPosition(int incomingArgumentPosition);
 };
 
 class HyperOp {
