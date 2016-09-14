@@ -70,14 +70,6 @@ void HyperOpEdge::setContextFrameAddress(HyperOp* contextFrameAddress) {
 	this->contextFrameAddress = contextFrameAddress;
 }
 
-int HyperOpEdge::getIncomingArgumentPosition() {
-	return incomingArgumentPosition;
-}
-
-void HyperOpEdge::setIncomingArgumentPosition(int incomingArgumentPosition) {
-	this->incomingArgumentPosition = incomingArgumentPosition;
-}
-
 int HyperOpEdge::getPositionOfContextSlot() const {
 	return positionOfContextSlot;
 }
@@ -876,26 +868,20 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 		}
 
 		for (list<HyperOp*>::iterator dominanceFrontierIterator = vertexDomFrontier.begin(); dominanceFrontierIterator != vertexDomFrontier.end(); dominanceFrontierIterator++) {
-			errs() << "domf node:" << (*dominanceFrontierIterator)->asString() << "\n";
 			HyperOp* dominanceFrontierHyperOp = *dominanceFrontierIterator;
 			HyperOp* immediateDominator = vertex->getImmediateDominator();
-			HyperOpEdge * firstEdgeInChain = 0;
 			HyperOpEdge* contextFrameEdge = new HyperOpEdge();
 			contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS);
 			contextFrameEdge->setContextFrameAddress(dominanceFrontierHyperOp);
 			if (dominanceFrontierHyperOp->getImmediateDominator() == vertex->getImmediateDominator()) {
 				this->addEdge(immediateDominator, vertex, (HyperOpEdge*) contextFrameEdge);
-				errs() << "context frame edge added between " << immediateDominator->asString() << " and " << vertex->asString() << "\n";
 			} else {
 				list<HyperOp*> immediateDominatorDominanceFrontier = immediateDominator->getDominanceFrontier();
 				HyperOp* prevVertex = vertex;
 				while (immediateDominator != 0 && !immediateDominatorDominanceFrontier.empty() && std::find(immediateDominatorDominanceFrontier.begin(), immediateDominatorDominanceFrontier.end(), dominanceFrontierHyperOp) != immediateDominatorDominanceFrontier.end()) {
 					HyperOpEdge* frameForwardChainEdge = new HyperOpEdge();
-					frameForwardChainEdge->setType(HyperOpEdge::ADDRESS_FORWARD_EDGE);
+					frameForwardChainEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS);
 					this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) frameForwardChainEdge);
-					if (firstEdgeInChain != 0) {
-						frameForwardChainEdge->setIncomingArgumentPosition(firstEdgeInChain->getPositionOfContextSlot());
-					}
 					//Find the last free context slot at consumer
 					int freeContextSlot = -1;
 					if (dominanceFrontierHyperOp->ParentMap.empty()) {
@@ -915,19 +901,15 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 					}
 					prevVertex = immediateDominator;
 					immediateDominator = immediateDominator->getImmediateDominator();
-					errs() << "immediate dom updated to " << immediateDominator->asString() << "\n";
 					if (immediateDominator != 0) {
 						immediateDominatorDominanceFrontier = immediateDominator->getDominanceFrontier();
 					}
-					firstEdgeInChain = frameForwardChainEdge;
 				}
 				this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) contextFrameEdge);
-				errs() << "context frame edge chain added between " << immediateDominator->asString() << " and " << prevVertex->asString() << "\n";
 			}
 			int freeContextSlot = -1;
 			for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = dominanceFrontierHyperOp->ParentMap.begin(); parentEdgeItr != dominanceFrontierHyperOp->ParentMap.end(); parentEdgeItr++) {
 				HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
-				errs() << "previously added edge at slot " << previouslyAddedEdge->getPositionOfContextSlot() << "\n";
 				if (previouslyAddedEdge->getPositionOfContextSlot() > freeContextSlot) {
 					freeContextSlot = previouslyAddedEdge->getPositionOfContextSlot() + 1;
 				}
@@ -940,11 +922,6 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 			} else {
 				//TODO: Set the address to be passed as local reference
 			}
-			errs() << "at slot " << freeContextSlot << "\n";
-			if (firstEdgeInChain != 0) {
-				firstEdgeInChain->setIncomingArgumentPosition(contextFrameEdge->getPositionOfContextSlot());
-			}
-
 		}
 	}
 }
@@ -2117,7 +2094,7 @@ void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrame
 	for (; boostVertexIt != boostVertexEnd; ++boostVertexIt) {
 		HyperOp* hyperOp = vertexDescriptorAndHyperOpMap[*boostVertexIt];
 		if (hyperOp->isStaticHyperOp()) {
-			hyperOp->setContextFrame((hyperOp->getTargetResource() * NUM_FRAMES_PER_CR) + color_vec[index++]);
+			hyperOp->setContextFrame(color_vec[index++]);
 		}
 	}
 }
@@ -2291,8 +2268,6 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 					os << "order";
 				} else if (edge->Type == HyperOpEdge::SYNC) {
 					os << "sync";
-				} else if (edge->Type == HyperOpEdge::ADDRESS_FORWARD_EDGE) {
-					os << "addressforward";
 				}
 				os << "];\n";
 			}

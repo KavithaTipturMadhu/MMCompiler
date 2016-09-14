@@ -36,3 +36,12 @@ unsigned REDEFINEUtils::getAlignedSizeOfType(Type * type) {
 	}
 	return returnSize;
 }
+
+unsigned REDEFINEUtils::getHyperOpId(HyperOp* hyperOp) {
+	unsigned returnValue;
+	unsigned contextFrameId = hyperOp->getContextFrame();
+	unsigned crId = hyperOp->getTargetResource();
+	unsigned pageNumber = contextFrameId / 52;
+	contextFrameId = contextFrameId % 52;
+	return (crId << 22) | (pageNumber << 12) | (contextFrameId << 6);
+}

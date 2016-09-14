@@ -1,12 +1,12 @@
-int sum(int x){
-	if(x>10){
-		return sum(x-1);
+int factorial(int x){
+	if(x>1){
+		return x*factorial(x-1);
 	}
-	return x;
+	return 1;
 }
 
 int redefine_out_val;
 void redefine_start(){
-	redefine_out_val = sum(20);
+	redefine_out_val = factorial(20);
 }
 

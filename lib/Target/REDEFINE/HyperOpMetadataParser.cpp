@@ -107,6 +107,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 				} else if (hyperOpType.equals("Dynamic")) {
 					hyperOp->setStaticHyperOp(false);
 					hyperOp->setInstanceof((Function *) hyperOpMDNode->getOperand(3));
+					hyperOp->setFbindRequired(true);
 					StringRef instanceTag = ((MDString*) hyperOpMDNode->getOperand(4))->getName();
 					hyperOp->setInstanceId(parseInstanceId(instanceTag));
 				}
@@ -234,13 +235,11 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								//Find out if the data is being passed to an instance
 								edge->setPositionOfContextSlot(positionOfContextSlot);
 								edge->setValue((Value*) instr);
-								errs() << "Added data edge between " << sourceHyperOp->asString() << " and " << consumerHyperOp->asString() << "\n";
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 
 								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)) {
 									//						&& !sourceHyperOp->isUnrolledInstance()) {
-									errs() << "added instance:" << consumerHyperOp->asString() << " and is it an instance:" << consumerHyperOp->isUnrolledInstance() << "\n";
 									hyperOpTraversalList.push_back(consumerHyperOp);
 								}
 							}

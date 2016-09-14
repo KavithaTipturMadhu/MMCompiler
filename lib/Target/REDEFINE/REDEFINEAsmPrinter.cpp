@@ -116,7 +116,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		OutStreamer.EmitRawText(StringRef(".IMD_BEGIN\n"));
 
 		string instanceId(HYPEROP_INSTANCE_PREFIX);
-		instanceId.append(itostr(hyperOp->getContextFrame() << 6)).append("\t");
+		instanceId.append(itostr(REDEFINEUtils::getHyperOpId(hyperOp))).append("\t");
 		OutStreamer.EmitRawText(StringRef(instanceId));
 
 		AttributeSet attributes = MF->getFunction()->getAttributes();
