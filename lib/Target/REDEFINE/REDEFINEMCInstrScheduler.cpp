@@ -1220,16 +1220,11 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	for (map<HyperOpEdge*, HyperOp*>::iterator childItr = hyperOp->ChildMap.begin(); childItr != hyperOp->ChildMap.end(); childItr++) {
 		HyperOpEdge* edge = childItr->first;
 		HyperOp* consumer = childItr->second;
-		if (edge->getType() == HyperOpEdge::SCALAR || edge->getType() == HyperOpEdge::LOCAL_REFERENCE) {
-			errs()<<"scalar/local ref\n";
+		if (edge->getType() == HyperOpEdge::SCALAR || edge->getType() == HyperOpEdge::LOCAL_REFERENCE || edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
 			unsigned registerContainingConsumerBase;
-			unsigned targetCE = currentCE
-					;
-			errs()<<"edge value:";
-			edge->getValue()->dump();
+			unsigned targetCE = currentCE;
 			for (unsigned i = 0; i < ceCount; i++) {
 				vector<const Value*> memoryLocationsAccessed = memoryLocationsAccessedInCE[i];
-				errs()<<"accessed locations:";
 				for (unsigned j = 0; j < memoryLocationsAccessed.size(); j++) {
 					memoryLocationsAccessed[j]->dump();
 					if (memoryLocationsAccessed[j] == edge->getValue()) {
@@ -1238,23 +1233,14 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					}
 				}
 			}
-
 			if (!consumer->isStaticHyperOp() && consumer->getImmediateDominator() != hyperOp) {
 				//Just use the physical register that's mapped to the consumer hyperOp
 				for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
 					if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == consumer) {
 						//Get the slot to read from which translates to a register anyway
 						int contextSlot = parentItr->first->getPositionOfContextSlot();
-						unsigned id = 0;
-						for (list<unsigned>::iterator liveInRegItr = liveInPhysRegisters.begin(); liveInRegItr != liveInPhysRegisters.end(); liveInRegItr++, id++) {
-							if (id == contextSlot) {
-								registerContainingConsumerBase = *liveInRegItr;
-								break;
-							}
-						}
-						if (id != liveInPhysRegisters.size()) {
-							break;
-						}
+						registerContainingConsumerBase = REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot];
+						break;
 					}
 				}
 			}
@@ -1272,6 +1258,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
 				registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(consumer, make_pair(registerContainingConsumerBase, targetCE)));
+				errs() << "static hop id:" << registerContainingConsumerBase << "\n";
 			} else if (registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].second != targetCE && (consumer->isStaticHyperOp() || consumer->getImmediateDominator() == hyperOp)) {
 				unsigned sourceCEContainingFrameAddress = registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].second;
 				//Load the base scratchpad address to a register in the producer CE for the first time
@@ -1321,13 +1308,34 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 				allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
-
+				registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(consumer, make_pair(registerContainingConsumerBase, targetCE)));
+				errs() << "inserted to map:" << registerContainingConsumerBase << "\n";
 				faninOfHyperOp[targetCE] = faninOfHyperOp[targetCE] + datawidth;
 			} else {
 				registerContainingConsumerBase = registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].first;
 			}
+			if (edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
+				MachineInstrBuilder writeToContextFrame = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::WRITECM));
+				writeToContextFrame.addReg(registerContainingConsumerBase);
+				writeToContextFrame.addReg(registerContainingConsumerBase);
+				writeToContextFrame.addImm(edge->getPositionOfContextSlot());
 
-			if (edge->getType() == HyperOpEdge::SCALAR) {
+				allInstructionsOfRegion.push_back(make_pair(writeToContextFrame.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+				//Add instruction to bundle
+				LIS->getSlotIndexes()->insertMachineInstrInMaps(writeToContextFrame.operator llvm::MachineInstr *());
+
+				//Add the writecm instructions to the function map so that they can be patched for the right context frame location later
+				Function* consumerFunction = consumer->getFunction();
+				list<MachineInstr*> writeInstructionsToConsumer;
+				if (writeInstrToContextFrame.find(consumerFunction) != writeInstrToContextFrame.end()) {
+					writeInstructionsToConsumer = writeInstrToContextFrame.find(consumerFunction)->second;
+					writeInstrToContextFrame.erase(writeInstrToContextFrame.find(consumerFunction));
+				}
+
+				writeInstructionsToConsumer.push_back(writeToContextFrame.operator ->());
+				writeInstrToContextFrame.insert(make_pair(consumerFunction, writeInstructionsToConsumer));
+
+			} else if (edge->getType() == HyperOpEdge::SCALAR) {
 				//position is multiplied by 4 since the context memory is byte addressable
 				unsigned contextFrameOffset = edge->getPositionOfContextSlot() * datawidth;
 				unsigned objectIndex = -1;
@@ -1453,13 +1461,15 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 				if (regContainingMemFrameBaseAddress.find(consumer) == regContainingMemFrameBaseAddress.end()) {
 					unsigned crId = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-
-					MachineInstrBuilder shiftForCRId = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(crId, RegState::Define).addReg(registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].first).addImm(21);
+					MachineInstrBuilder shiftForCRId = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(crId, RegState::Define).addReg(registerContainingConsumerBase).addImm(21);
 					allInstructionsOfRegion.push_back(make_pair(shiftForCRId.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftForCRId.operator llvm::MachineInstr *());
 
+					if (firstInstructionOfpHyperOpInRegion[targetCE] == 0) {
+						firstInstructionOfpHyperOpInRegion[targetCE] = shiftForCRId.operator llvm::MachineInstr *();
+					}
 					unsigned shiftedPageNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					MachineInstrBuilder shiftForPageNumber = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedPageNumber, RegState::Define).addReg(registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].first).addImm(11);
+					MachineInstrBuilder shiftForPageNumber = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedPageNumber, RegState::Define).addReg(registerContainingConsumerBase).addImm(11);
 					allInstructionsOfRegion.push_back(make_pair(shiftForPageNumber.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftForPageNumber.operator llvm::MachineInstr *());
 					unsigned pageNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
@@ -1468,7 +1478,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(bitmaskForPageNumber.operator llvm::MachineInstr *());
 
 					unsigned shiftedFrameNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					MachineInstrBuilder shiftForFrameNumber = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedFrameNumber, RegState::Define).addReg(registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].first).addImm(6);
+					MachineInstrBuilder shiftForFrameNumber = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedFrameNumber, RegState::Define).addReg(registerContainingConsumerBase).addImm(6);
 					allInstructionsOfRegion.push_back(make_pair(shiftForFrameNumber.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftForFrameNumber.operator llvm::MachineInstr *());
 					unsigned frameNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
@@ -1564,7 +1574,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				}
 			}
 		}
-		errs() << "target ce:" << targetCE << "\n";
 		if (edge->getType() == HyperOpEdge::PREDICATE || edge->getType() == HyperOpEdge::SYNC || edge->getType() == HyperOpEdge::ORDERING) {
 			if (!consumer->isStaticHyperOp() && consumer->getImmediateDominator() != hyperOp) {
 				//Just use the physical register that's mapped to the consumer hyperOp
@@ -1572,16 +1581,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == consumer) {
 						//Get the slot to read from which translates to a register anyway
 						int contextSlot = parentItr->first->getPositionOfContextSlot();
-						unsigned id = 0;
-						for (list<unsigned>::iterator liveInRegItr = liveInPhysRegisters.begin(); liveInRegItr != liveInPhysRegisters.end(); liveInRegItr++, id++) {
-							if (id == contextSlot) {
-								registerContainingConsumerBase = *liveInRegItr;
-								break;
-							}
-						}
-						if (id != liveInPhysRegisters.size()) {
-							break;
-						}
+						registerContainingConsumerBase = REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot];
+						break;
 					}
 				}
 			}
