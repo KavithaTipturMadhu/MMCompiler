@@ -92,6 +92,8 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 				OutStreamer.EmitLabel(label);
 				startOfBBInPHyperOp[pHyperOpIndex].pop_front();
 			}
+			errs()<<"printing:";
+			(*mcItr)->dump();
 			EmitInstruction(*mcItr);
 		}
 		OutStreamer.EmitRawText(StringRef(".PHYOP_END\n"));

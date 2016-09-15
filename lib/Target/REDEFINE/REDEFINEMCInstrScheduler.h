@@ -74,6 +74,8 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	//Register containing code segment+global data segment address
 	int memoryFrameBaseAddress[4];
 
+	int memoryFrameMaxSizeReg[4];
+
 	//Tracks the writecm instructions that have already been added in a different machine function; this is required to patch the writecm instructions once the registers corresponding to HyperOp inputs are shuffled
 	map<Function*, list<MachineInstr*> > writeInstrToContextFrame;
 
