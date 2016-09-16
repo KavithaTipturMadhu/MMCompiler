@@ -2032,9 +2032,11 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 //}
 
 void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrames) {
-	unsigned id=0;
-	for(list<HyperOp*>::iterator clusterItr = cluster.begin();clusterItr!=cluster.end();clusterItr++){
-		(*clusterItr)->setContextFrame(id++);
+	unsigned id = 0;
+	for (list<HyperOp*>::iterator clusterItr = cluster.begin(); clusterItr != cluster.end(); clusterItr++) {
+		if ((*clusterItr)->isStaticHyperOp()) {
+			(*clusterItr)->setContextFrame(id++);
+		}
 	}
 
 //	typedef adjacency_list<listS, vecS, undirectedS, no_property, no_property, no_property, listS> MyGraph;

@@ -130,6 +130,13 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 			}
 		}
 
+		//Add context frame addresses and ordering edges also
+		for(map<HyperOpEdge*, HyperOp*>::iterator parentMapItr = hyperOp->ParentMap.begin(); parentMapItr!=hyperOp->ParentMap.end();parentMapItr++){
+			if(parentMapItr->first->getType()==HyperOpEdge::CONTEXT_FRAME_ADDRESS){
+				argCount++;
+			}
+		}
+
 		// Added By Arka Instance Metadata Annotations
 		string instAnn(".ANN\t");
 		instAnn.append("\t").append(hyperOp->isStartHyperOp() ? "" : "A").append("\t");
