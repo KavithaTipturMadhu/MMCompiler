@@ -1682,16 +1682,18 @@ struct HyperOpCreationPass: public ModulePass {
 								MDNode* newPredicateMetadata;
 								//TODO this isn't enough for nested recursion cycles
 								if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
-									Value * values[1];
+									Value * values[2];
 									values[0] = funcAnnotation;
+									values[1] = MDString::get(ctxt, StringRef("1"));
 									newPredicateMetadata = MDNode::get(ctxt, values);
 								} else {
-									Value * values[1];
+									Value * values[3];
 									values[0] = funcAnnotation;
+									values[1] = MDString::get(ctxt, StringRef("1"));
 									if (isProducerStatic && !isStaticHyperOp) {
-										values[1] = MDString::get(ctxt, "<id,0>");
+										values[2] = MDString::get(ctxt, "<id,0>");
 									} else {
-										values[1] = MDString::get(ctxt, "<prefixId>");
+										values[2] = MDString::get(ctxt, "<prefixId>");
 									}
 									newPredicateMetadata = MDNode::get(ctxt, values);
 								}
@@ -1825,13 +1827,9 @@ struct HyperOpCreationPass: public ModulePass {
 					clonedInstructionsToBeLabeled.push_back(make_pair(clonedInstInstance, clonedPredicateOperand));
 				}
 
-				errs() << "how many instructions do we update?" << clonedInstructionsToBeLabeled.size() << "\n";
 				for (list<pair<Instruction*, Value*> >::iterator clonedInstItr = clonedInstructionsToBeLabeled.begin(); clonedInstItr != clonedInstructionsToBeLabeled.end(); clonedInstItr++) {
 					Instruction* clonedInstr = clonedInstItr->first;
 					Value* predicateOperand = clonedInstItr->second;
-					errs() << "updating instr:";
-					clonedInstr->dump();
-					errs() << "with predicate:";
 					predicateOperand->dump();
 					//Branch instruction's first operand
 					vector<Value*> metadataList;
@@ -1861,35 +1859,49 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 					//Label the instruction with predicates metadata
 					MDNode* newPredicateMetadata;
+
+					MDString* expectedPredicate;
+					if(conditionalBranchSourceItr->second.size()==((BranchInst*) clonedInstr)->getNumSuccessors()){
+						expectedPredicate =  MDString::get(ctxt, StringRef("1"));
+					}else{
+						//Are there only two operands in a branch instruction always or are there more?
+						assert(conditionalBranchSourceItr->second.size()==1&&"there are more than two targets to branch");
+						unsigned positionToBeUpdated = ConstantInt::get(ctxt, APInt(32, conditionalBranchSourceItr->second[0]))->getZExtValue();
+						if(positionToBeUpdated==0){
+							expectedPredicate = MDString::get(ctxt, StringRef("1"));
+						}else{
+							expectedPredicate = MDString::get(ctxt, StringRef("0"));
+						}
+					}
 					//TODO this isn't enough for nested recursion cycles
 					if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
-						Value * values[1];
-						values[0] = funcAnnotation;
-						newPredicateMetadata = MDNode::get(ctxt, values);
-					} else {
 						Value * values[2];
 						values[0] = funcAnnotation;
+						//TODO predicate
+						values[1] = expectedPredicate;
+						newPredicateMetadata = MDNode::get(ctxt, values);
+					} else {
+						Value * values[3];
+						values[0] = funcAnnotation;
+						//TODO predicate
+						values[1] = expectedPredicate;
 						if (isProducerStatic && !isStaticHyperOp) {
-							values[1] = MDString::get(ctxt, "<id,0>");
+							values[2] = MDString::get(ctxt, "<id,0>");
 						} else {
-							values[1] = MDString::get(ctxt, "<prefixId>");
+							values[2] = MDString::get(ctxt, "<prefixId>");
 						}
 						newPredicateMetadata = MDNode::get(ctxt, values);
 					}
 					metadataList.push_back(newPredicateMetadata);
 					MDNode * predicatesRelation = MDNode::get(ctxt, metadataList);
 					metadataHost->setMetadata(HYPEROP_CONTROLS, predicatesRelation);
-					errs() << "metadata added:";
 
 					for (unsigned branchOperandIndex = 0; branchOperandIndex != conditionalBranchSourceItr->second.size(); branchOperandIndex++) {
 						//Update the cloned conditional branch instruction with the right target
 						unsigned positionToBeUpdated = ConstantInt::get(ctxt, APInt(32, conditionalBranchSourceItr->second[branchOperandIndex]))->getZExtValue();
-						errs() << "updating position " << positionToBeUpdated << "\n";
 						Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
 						((BranchInst*) clonedInstr)->setSuccessor(positionToBeUpdated, retInstOfProducer->getParent());
 					}
-					errs() << "instruction updated to ";
-					clonedInstr->dump();
 
 					list<BasicBlock*> branchTargets;
 					for (unsigned successorIndex = 0; successorIndex != ((BranchInst*) clonedInstr)->getNumSuccessors(); successorIndex++) {
@@ -2096,16 +2108,18 @@ struct HyperOpCreationPass: public ModulePass {
 						MDNode* newPredicateMetadata;
 						//TODO this isn't enough for nested recursion cycles
 						if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
-							Value * values[1];
-							values[0] = funcAnnotation;
-							newPredicateMetadata = MDNode::get(ctxt, values);
-						} else {
 							Value * values[2];
 							values[0] = funcAnnotation;
+							values[1] = MDString::get(ctxt, StringRef("1"));
+							newPredicateMetadata = MDNode::get(ctxt, values);
+						} else {
+							Value * values[3];
+							values[0] = funcAnnotation;
+							values[1] = MDString::get(ctxt, StringRef("1"));
 							if (isProducerStatic && !isStaticHyperOp) {
-								values[1] = MDString::get(ctxt, "<id,0>");
+								values[2] = MDString::get(ctxt, "<id,0>");
 							} else {
-								values[1] = MDString::get(ctxt, "<prefixId>");
+								values[2] = MDString::get(ctxt, "<prefixId>");
 							}
 							newPredicateMetadata = MDNode::get(ctxt, values);
 						}

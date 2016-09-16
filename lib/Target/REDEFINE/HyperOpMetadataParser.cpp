@@ -81,8 +81,6 @@ list<unsigned> parseInstanceId(StringRef instanceTag) {
 }
 
 HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
-	errs() << "Parsing module:";
-	M->dump();
 	HyperOpInteractionGraph* graph = new HyperOpInteractionGraph();
 	NamedMDNode * RedefineAnnotations = M->getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
 	map<MDNode*, HyperOp*> hyperOpMetadataMap;
@@ -252,10 +250,12 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 						for (unsigned predicatedMDNodeIndex = 0; predicatedMDNodeIndex != controlledByMDNode->getNumOperands(); predicatedMDNodeIndex++) {
 							HyperOp* consumerHyperOp = 0;
 							MDNode* predicatedMDNode = (MDNode*) controlledByMDNode->getOperand(predicatedMDNodeIndex);
+							errs()<<"predicated md node:";
+							predicatedMDNode->dump();
 							//Create an edge between two HyperOps labeled by the instruction
-							if (predicatedMDNode->getNumOperands() > 1) {
+							if (predicatedMDNode->getNumOperands() > 2) {
 								//An instance is consuming the data
-								list<StringRef> consumerInstanceId = parseInstanceIdString(((MDString*) predicatedMDNode->getOperand(1))->getName());
+								list<StringRef> consumerInstanceId = parseInstanceIdString(((MDString*) predicatedMDNode->getOperand(2))->getName());
 								MDNode* hyperOp = (MDNode*) predicatedMDNode->getOperand(0);
 								//TODO
 								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
@@ -293,7 +293,18 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								HyperOpEdge* edge = new HyperOpEdge();
 								edge->Type = HyperOpEdge::PREDICATE;
 								edge->setValue((Value*) instr);
+								errs()<<"number of operands in predicate md node:"<<predicatedMDNode->getNumOperands()<<"\n";
+								StringRef predicateValue = ((MDString*) predicatedMDNode->getOperand(1))->getName();
+								errs()<<"predicate value:"<<predicateValue<<"\n";
+								if (predicateValue.compare("0") == 0) {
+									edge->setPredicateValue(0);
+								}else{
+									edge->setPredicateValue(1);
+								}
+								errs()<<"md node on instruction:";
+								instr->dump();
 								errs() << "Added control edge between " << sourceHyperOp->asString() << " and " << consumerHyperOp->asString() << "\n";
+								errs()<<"predicate :"<<predicateValue<<"\n";
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)) {
