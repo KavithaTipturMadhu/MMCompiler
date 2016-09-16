@@ -2032,71 +2032,73 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 //}
 
 void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrames) {
-	typedef adjacency_list<listS, vecS, undirectedS, no_property, no_property, no_property, listS> MyGraph;
-	typedef graph_traits<MyGraph>::vertices_size_type vertices_size_type;
-	typedef property_map<MyGraph, vertex_index_t>::const_type vertex_index_map;
-	typedef graph_traits<MyGraph>::vertex_descriptor vertex_descriptor;
-	MyGraph g;
-	map<HyperOp*, vertex_descriptor> hyperOpAndVertexDescriptorMap;
-	map<vertex_descriptor, HyperOp*> vertexDescriptorAndHyperOpMap;
+	unsigned id=0;
+	for(list<HyperOp*>::iterator clusterItr = cluster.begin();clusterItr!=cluster.end();clusterItr++){
+		(*clusterItr)->setContextFrame(id++);
+	}
 
-	for (list<HyperOp*>::iterator vertexIterator = cluster.begin(); vertexIterator != cluster.end(); vertexIterator++) {
-		vertex_descriptor newVertex = add_vertex(g);
-		hyperOpAndVertexDescriptorMap[*vertexIterator] = newVertex;
-		vertexDescriptorAndHyperOpMap[newVertex] = *vertexIterator;
-	}
-	for (list<HyperOp*>::iterator vertexIterator = cluster.begin(); vertexIterator != cluster.end(); vertexIterator++) {
-		HyperOp* vertex = *vertexIterator;
-		//There is no need to associate context frames with dynamic hyperops
-		if (!vertex->isStaticHyperOp()) {
-			continue;
-		}
-		errs() << "context for vertex " << vertex->asString() << "\n";
-		HyperOp* liveStartOfVertex = vertex->getImmediateDominator();
-		HyperOp* liveEndOfVertex = 0;
-		if (liveStartOfVertex != 0) {
-			liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
-		}
-		errs() << "i reached here\n";
-		if (liveEndOfVertex == 0) {
-			liveEndOfVertex = vertex;
-		}
-		errs() << "live end of " << vertex->asString() << ":" << liveEndOfVertex->asString() << "\n";
-		list<HyperOp*>::iterator secondVertexIterator = vertexIterator;
-		advance(secondVertexIterator, 1);
-		if (secondVertexIterator != cluster.end()) {
-			for (; secondVertexIterator != cluster.end(); secondVertexIterator++) {
-				HyperOp* secondVertex = *secondVertexIterator;
-				HyperOp* liveStartOfSecondVertex = secondVertex->getImmediateDominator();
-				HyperOp* liveEndOfSecondVertex = 0;
-				if (liveStartOfSecondVertex != 0) {
-					liveEndOfSecondVertex = liveStartOfSecondVertex->getImmediatePostDominator();
-				}
-				if (liveEndOfSecondVertex == 0) {
-					liveEndOfSecondVertex = secondVertex;
-				}
-				if (liveEndOfVertex->isPredecessor(liveStartOfSecondVertex) || liveEndOfSecondVertex->isPredecessor(liveStartOfVertex)) {
-					continue;
-				} else {
-					//Conflict in the graph, add an edge in the graph
-					add_edge(hyperOpAndVertexDescriptorMap[vertex], hyperOpAndVertexDescriptorMap[secondVertex], g);
-				}
-			}
-		}
-	}
-	//Color the conflict graph
-	MyGraph::vertex_iterator boostVertexIt, boostVertexEnd;
-	vector<vertices_size_type> color_vec(numContextFrames);
-	iterator_property_map<vertices_size_type*, vertex_index_map> color(&color_vec.front(), get(vertex_index, g));
-	vertices_size_type num_colors = sequential_vertex_coloring(g, color);
-	int index = 0;
-	boost::tie(boostVertexIt, boostVertexEnd) = vertices(g);
-	for (; boostVertexIt != boostVertexEnd; ++boostVertexIt) {
-		HyperOp* hyperOp = vertexDescriptorAndHyperOpMap[*boostVertexIt];
-		if (hyperOp->isStaticHyperOp()) {
-			hyperOp->setContextFrame(color_vec[index++]);
-		}
-	}
+//	typedef adjacency_list<listS, vecS, undirectedS, no_property, no_property, no_property, listS> MyGraph;
+//	typedef graph_traits<MyGraph>::vertices_size_type vertices_size_type;
+//	typedef property_map<MyGraph, vertex_index_t>::const_type vertex_index_map;
+//	typedef graph_traits<MyGraph>::vertex_descriptor vertex_descriptor;
+//	MyGraph g;
+//	map<HyperOp*, vertex_descriptor> hyperOpAndVertexDescriptorMap;
+//	map<vertex_descriptor, HyperOp*> vertexDescriptorAndHyperOpMap;
+//
+//	for (list<HyperOp*>::iterator vertexIterator = cluster.begin(); vertexIterator != cluster.end(); vertexIterator++) {
+//		vertex_descriptor newVertex = add_vertex(g);
+//		hyperOpAndVertexDescriptorMap[*vertexIterator] = newVertex;
+//		vertexDescriptorAndHyperOpMap[newVertex] = *vertexIterator;
+//	}
+//	for (list<HyperOp*>::iterator vertexIterator = cluster.begin(); vertexIterator != cluster.end(); vertexIterator++) {
+//		HyperOp* vertex = *vertexIterator;
+//		//There is no need to associate context frames with dynamic hyperops
+//		if (!vertex->isStaticHyperOp()) {
+//			continue;
+//		}
+//		HyperOp* liveStartOfVertex = vertex->getImmediateDominator();
+//		HyperOp* liveEndOfVertex = 0;
+//		if (liveStartOfVertex != 0) {
+//			liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
+//		}
+//		if (liveEndOfVertex == 0) {
+//			liveEndOfVertex = vertex;
+//		}
+//		list<HyperOp*>::iterator secondVertexIterator = vertexIterator;
+//		advance(secondVertexIterator, 1);
+//		if (secondVertexIterator != cluster.end()) {
+//			for (; secondVertexIterator != cluster.end(); secondVertexIterator++) {
+//				HyperOp* secondVertex = *secondVertexIterator;
+//				HyperOp* liveStartOfSecondVertex = secondVertex->getImmediateDominator();
+//				HyperOp* liveEndOfSecondVertex = 0;
+//				if (liveStartOfSecondVertex != 0) {
+//					liveEndOfSecondVertex = liveStartOfSecondVertex->getImmediatePostDominator();
+//				}
+//				if (liveEndOfSecondVertex == 0) {
+//					liveEndOfSecondVertex = secondVertex;
+//				}
+//				if (liveEndOfVertex->isPredecessor(liveStartOfSecondVertex) || liveEndOfSecondVertex->isPredecessor(liveStartOfVertex)) {
+//					continue;
+//				} else {
+//					//Conflict in the graph, add an edge in the graph
+//					add_edge(hyperOpAndVertexDescriptorMap[vertex], hyperOpAndVertexDescriptorMap[secondVertex], g);
+//				}
+//			}
+//		}
+//	}
+//	//Color the conflict graph
+//	MyGraph::vertex_iterator boostVertexIt, boostVertexEnd;
+//	vector<vertices_size_type> color_vec(numContextFrames);
+//	iterator_property_map<vertices_size_type*, vertex_index_map> color(&color_vec.front(), get(vertex_index, g));
+//	vertices_size_type num_colors = sequential_vertex_coloring(g, color);
+//	int index = 0;
+//	boost::tie(boostVertexIt, boostVertexEnd) = vertices(g);
+//	for (; boostVertexIt != boostVertexEnd; ++boostVertexIt) {
+//		HyperOp* hyperOp = vertexDescriptorAndHyperOpMap[*boostVertexIt];
+//		if (hyperOp->isStaticHyperOp()) {
+//			hyperOp->setContextFrame(color_vec[index++]);
+//		}
+//	}
 }
 
 void HyperOpInteractionGraph::associateStaticContextFrames() {
