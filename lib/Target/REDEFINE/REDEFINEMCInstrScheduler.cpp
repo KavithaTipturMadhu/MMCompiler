@@ -1098,7 +1098,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		if ((*childHyperOpItr)->getImmediateDominator() == hyperOp) {
 			if (*childHyperOpItr != hyperOp) {
 				unsigned registerContainingConsumerFrameAddr;
-				errs()<<"consumer hop:"<<(*childHyperOpItr)->asString()<<"\n";
+				errs() << "consumer hop:" << (*childHyperOpItr)->asString() << "\n";
 				if (!(*childHyperOpItr)->isStaticHyperOp() && registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr) == registerContainingHyperOpFrameAddressAndCEWithFalloc.end()) {
 					//Add fcreate instruction to create dynamic HyperOp instances
 					registerContainingConsumerFrameAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
@@ -1110,7 +1110,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
 						firstInstructionOfpHyperOpInRegion[currentCE] = falloc.operator llvm::MachineInstr *();
 					}
-					errs()<<"falloc added\n";
+					errs() << "falloc added\n";
 				} else if (((*childHyperOpItr)->isFbindRequired() || (*childHyperOpItr)->isBarrierHyperOp()) && registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr) == registerContainingHyperOpFrameAddressAndCEWithFalloc.end()) {
 					registerContainingConsumerFrameAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
@@ -1325,13 +1325,13 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				registerContainingConsumerBase = registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].first;
 			}
 			if (edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
-				errs()<<"forwarding context frame addr from "<<hyperOp->asString()<<" to "<<consumer->asString()<<"\n";
+				errs() << "forwarding context frame addr from " << hyperOp->asString() << " to " << consumer->asString() << "\n";
 				unsigned registerContainingData;
 				if (edge->getContextFrameAddress()->getImmediateDominator() == hyperOp) {
-					errs()<<"frame was created in the same hop\n";
+					errs() << "frame was created in the same hop\n";
 					registerContainingData = registerContainingHyperOpFrameAddressAndCEWithFalloc[edge->getContextFrameAddress()].first;
 				} else {
-					errs()<<"frame is fwded\n";
+					errs() << "frame is fwded\n";
 					//The address was forwarded to the current HyperOp
 					for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
 						if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == edge->getContextFrameAddress()) {
@@ -1619,15 +1619,20 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		unsigned registerContainingConsumerBase;
 		unsigned targetCE = currentCE;
 
+		errs() << "memory location i am looking for ";
+		edge->getValue()->dump();
 		for (unsigned i = 0; i < ceCount; i++) {
 			vector<const Value*> memoryLocationsAccessed = memoryLocationsAccessedInCE[i];
+			errs() << "memory locations accessed by CE " << i << ":";
 			for (unsigned j = 0; j < memoryLocationsAccessed.size(); j++) {
+				memoryLocationsAccessed[j]->dump();
 				if (memoryLocationsAccessed[j] == edge->getValue()) {
 					targetCE = i;
 					break;
 				}
 			}
 		}
+		errs() << "target ce was found to be:" << targetCE << "\n";
 		if (edge->getType() == HyperOpEdge::PREDICATE || edge->getType() == HyperOpEdge::SYNC || edge->getType() == HyperOpEdge::ORDERING) {
 			if (!consumer->isStaticHyperOp() && consumer->getImmediateDominator() != hyperOp) {
 				//Just use the physical register that's mapped to the consumer hyperOp
@@ -1727,19 +1732,25 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				//TODO Add a load instruction to get data from memory onto a register; There could be forced schedule edges that we don't want to add load instructions for the same
 				unsigned registerContainingData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 				if (objectIndex != -1) {
+					unsigned registerContainingPredicate = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					MachineInstrBuilder loadInstr = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::LW));
-					loadInstr.addReg(registerContainingData, RegState::Define);
-//					loadInstr.addReg(virtualRegistersForInstAddr[targetCE].second);
+					loadInstr.addReg(registerContainingPredicate, RegState::Define);
 					loadInstr.addReg(REDEFINE::t5);
-//					unsigned tempReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-//					loadInstr.addReg(tempReg);
 					loadInstr.addFrameIndex(objectIndex);
 					if (firstInstructionOfpHyperOpInRegion[targetCE] == 0) {
 						firstInstructionOfpHyperOpInRegion[targetCE] = loadInstr.operator llvm::MachineInstr *();
 					}
 					allInstructionsOfRegion.push_back(make_pair(loadInstr.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(loadInstr.operator llvm::MachineInstr *());
-//					LIS->addLiveRangeToEndOfBlock(tempReg, loadInstr.operator ->());
+
+					//Add an instruction to compare with 1
+					MachineInstrBuilder compareInstr = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SLTI));
+					compareInstr.addReg(registerContainingData, RegState::Define);
+					compareInstr.addReg(registerContainingPredicate);
+					compareInstr.addImm(1);
+
+					allInstructionsOfRegion.push_back(make_pair(compareInstr.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+					LIS->getSlotIndexes()->insertMachineInstrInMaps(compareInstr.operator llvm::MachineInstr *());
 				}
 				//No need to access memory for a true predicate, copying via addi will do
 				else {
