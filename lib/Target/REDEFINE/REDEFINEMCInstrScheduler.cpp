@@ -120,7 +120,6 @@ void REDEFINEMCInstrScheduler::enterRegion(MachineBasicBlock *bb, MachineBasicBl
 }
 
 void REDEFINEMCInstrScheduler::schedule() {
-	errs()<<"are we scheduling anything?\n";
 	buildDAGWithRegPressure();
 
 	Topo.InitDAGTopologicalSorting();
@@ -336,8 +335,7 @@ map<unsigned, map<unsigned, unsigned> > replacementRegisterMap;
 //Key of the first map represents the CE and the list contains all the registers already locally defined and hence don't require a readpm from the original definition
 map<unsigned, list<unsigned> > redefinitionsInCE;
 
-//First basic block in the function
-if (BB->getParent()->begin()->getName().compare(BB->getName()) == 0) {
+if (RegionBegin==BB->begin()) {
 	HyperOpInteractionGraph * graph = ((REDEFINETargetMachine&) TM).HIG;
 	const Module* parentModule = BB->getParent()->getFunction()->getParent();
 	unsigned maxGlobalSize = 0;
@@ -1061,7 +1059,6 @@ if (firstInstruction != 0) {
 }
 
 void REDEFINEMCInstrScheduler::finishBlock() {
-	errs()<<"finish block for bb"<<BB->getNumber()<<" in function "<<BB->getParent()->getName()<<"\n";
 //If the basic block is the terminator
 if (BB->getName().compare(MF.back().getName()) == 0) {
 	Module * parentModule = const_cast<Module*>(BB->getParent()->getFunction()->getParent());
@@ -1100,7 +1097,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		if ((*childHyperOpItr)->getImmediateDominator() == hyperOp) {
 			if (*childHyperOpItr != hyperOp) {
 				unsigned registerContainingConsumerFrameAddr;
-				errs() << "consumer hop:" << (*childHyperOpItr)->asString() << "\n";
 				if (!(*childHyperOpItr)->isStaticHyperOp() && registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr) == registerContainingHyperOpFrameAddressAndCEWithFalloc.end()) {
 					//Add fcreate instruction to create dynamic HyperOp instances
 					registerContainingConsumerFrameAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
@@ -1112,7 +1108,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
 						firstInstructionOfpHyperOpInRegion[currentCE] = falloc.operator llvm::MachineInstr *();
 					}
-					errs() << "falloc added\n";
 				} else if (((*childHyperOpItr)->isFbindRequired() || (*childHyperOpItr)->isBarrierHyperOp()) && registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr) == registerContainingHyperOpFrameAddressAndCEWithFalloc.end()) {
 					registerContainingConsumerFrameAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
@@ -1162,8 +1157,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					writecm.addReg(registerWithSyncCount);
 					writecm.addImm(60);
 
-					errs() << "added writecm for barrier HyperOp sync:";
-					writecm.operator ->()->dump();
 					allInstructionsOfRegion.push_back(make_pair(writecm.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(writecm.operator llvm::MachineInstr *());
 					currentCE = (currentCE + 1) % ceCount;
@@ -1327,13 +1320,10 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				registerContainingConsumerBase = registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].first;
 			}
 			if (edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
-				errs() << "forwarding context frame addr from " << hyperOp->asString() << " to " << consumer->asString() << "\n";
 				unsigned registerContainingData;
 				if (edge->getContextFrameAddress()->getImmediateDominator() == hyperOp) {
-					errs() << "frame was created in the same hop\n";
 					registerContainingData = registerContainingHyperOpFrameAddressAndCEWithFalloc[edge->getContextFrameAddress()].first;
 				} else {
-					errs() << "frame is fwded\n";
 					//The address was forwarded to the current HyperOp
 					for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
 						if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == edge->getContextFrameAddress()) {
@@ -1349,8 +1339,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				writeToContextFrame.addReg(registerContainingConsumerBase);
 				writeToContextFrame.addReg(registerContainingData);
 				writeToContextFrame.addImm(edge->getPositionOfContextSlot());
-				errs() << "added writecm for context frame address:";
-				writeToContextFrame.operator ->()->dump();
 
 				if (firstInstructionOfpHyperOpInRegion[targetCE] == 0) {
 					firstInstructionOfpHyperOpInRegion[targetCE] = writeToContextFrame.operator llvm::MachineInstr *();
@@ -1403,9 +1391,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				writeToContextFrame.addReg(registerContainingConsumerBase);
 				writeToContextFrame.addReg(registerContainingData);
 				writeToContextFrame.addImm(contextFrameOffset);
-
-				errs() << "added writecm for scalar:";
-				writeToContextFrame.operator ->()->dump();
 
 				allInstructionsOfRegion.push_back(make_pair(writeToContextFrame.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 				//Add instruction to bundle
