@@ -1184,7 +1184,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					//Add an instruction to delete the frame of the HyperOp
 					fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE));
 //					fdelete.addReg(virtualRegistersForInstAddr[0].first);
-					fdelete.addReg(REDEFINE::t5);
+					fdelete.addReg(REDEFINE::t4);
 					fdelete.addImm(0);
 				} else if ((*childHyperOpItr)->isStaticHyperOp()) {
 					//Immediate is larger than 12 bits
