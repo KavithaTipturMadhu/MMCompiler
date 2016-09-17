@@ -1606,20 +1606,15 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		unsigned registerContainingConsumerBase;
 		unsigned targetCE = currentCE;
 
-		errs() << "memory location i am looking for ";
-		edge->getValue()->dump();
 		for (unsigned i = 0; i < ceCount; i++) {
 			vector<const Value*> memoryLocationsAccessed = memoryLocationsAccessedInCE[i];
-			errs() << "memory locations accessed by CE " << i << ":";
 			for (unsigned j = 0; j < memoryLocationsAccessed.size(); j++) {
-				memoryLocationsAccessed[j]->dump();
 				if (memoryLocationsAccessed[j] == edge->getValue()) {
 					targetCE = i;
 					break;
 				}
 			}
 		}
-		errs() << "target ce was found to be:" << targetCE << "\n";
 		if (edge->getType() == HyperOpEdge::PREDICATE || edge->getType() == HyperOpEdge::SYNC || edge->getType() == HyperOpEdge::ORDERING) {
 			if (!consumer->isStaticHyperOp() && consumer->getImmediateDominator() != hyperOp) {
 				//Just use the physical register that's mapped to the consumer hyperOp
@@ -1719,9 +1714,11 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				//TODO Add a load instruction to get data from memory onto a register; There could be forced schedule edges that we don't want to add load instructions for the same
 				unsigned registerContainingData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 				if (objectIndex != -1) {
-					unsigned registerContainingPredicate = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+					unsigned registerContainingPredicateData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+
 					MachineInstrBuilder loadInstr = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::LW));
-					loadInstr.addReg(registerContainingPredicate, RegState::Define);
+					loadInstr.addReg(registerContainingPredicateData, RegState::Define);
+					loadInstr.addReg(REDEFINE::t5);
 					loadInstr.addFrameIndex(objectIndex);
 					if (firstInstructionOfpHyperOpInRegion[targetCE] == 0) {
 						firstInstructionOfpHyperOpInRegion[targetCE] = loadInstr.operator llvm::MachineInstr *();
@@ -1729,7 +1726,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					allInstructionsOfRegion.push_back(make_pair(loadInstr.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(loadInstr.operator llvm::MachineInstr *());
 
-					//Add an instruction to compare with expected pred val
 					MachineInstrBuilder sltiForPredicate = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SLTI));
 					sltiForPredicate.addReg(registerContainingData, RegState::Define);
 					sltiForPredicate.addReg(registerContainingPredicateData);
