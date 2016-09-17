@@ -1352,7 +1352,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				MachineInstrBuilder writeToContextFrame = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::WRITECM));
 				writeToContextFrame.addReg(registerContainingConsumerBase);
 				writeToContextFrame.addReg(registerContainingData);
-				writeToContextFrame.addImm(edge->getPositionOfContextSlot());
+				writeToContextFrame.addImm(edge->getPositionOfContextSlot() * datawidth);
 
 				if (firstInstructionOfpHyperOpInRegion[targetCE] == 0) {
 					firstInstructionOfpHyperOpInRegion[targetCE] = writeToContextFrame.operator llvm::MachineInstr *();

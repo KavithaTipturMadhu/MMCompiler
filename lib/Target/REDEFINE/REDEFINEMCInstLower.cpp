@@ -110,15 +110,15 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 			//The object is a reference being passed via memory
 			if (frameInfo->getObjectIndexEnd() > 0) {
 				for (int i = 0; i < frameInfo->getObjectIndexEnd(); i++) {
-					currentObjectOffset += frameInfo->getObjectSize(i);
+					currentObjectOffset += REDEFINEUtils::getSizeOfType(frameInfo->getObjectAllocation(i)->getType());
 				}
 			}
 			for (int i = -1; i > MO.getIndex(); i--) {
-				currentObjectOffset += frameInfo->getObjectSize(i);
+				currentObjectOffset += REDEFINEUtils::getSizeOfType(frameInfo->getObjectAllocation(i)->getType());
 			}
 		} else {
 			for (int i = 0; i < MO.getIndex(); i++) {
-				currentObjectOffset += frameInfo->getObjectSize(i);
+				currentObjectOffset += REDEFINEUtils::getSizeOfType(frameInfo->getObjectAllocation(i)->getType());
 			}
 		}
 		MCOperand retVal = MCOperand::CreateImm(currentObjectOffset);

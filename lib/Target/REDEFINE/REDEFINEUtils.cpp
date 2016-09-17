@@ -25,7 +25,7 @@ unsigned REDEFINEUtils::getSizeOfType(Type * type) {
 		}
 		return size * numElements;
 	}
-	return (objectType->getPrimitiveSizeInBits() / 8);
+	return (32 / 8);
 }
 
 //Returns size of the type aligned by ALIGNMENT_SIZE
