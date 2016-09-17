@@ -1745,10 +1745,11 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					allInstructionsOfRegion.push_back(make_pair(loadInstr.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(loadInstr.operator llvm::MachineInstr *());
 
-					MachineInstrBuilder sltiForPredicate = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SLTI));
+					MachineInstrBuilder sltiForPredicate = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SLTIU));
 					sltiForPredicate.addReg(registerContainingData, RegState::Define);
 					sltiForPredicate.addReg(registerContainingPredicateData);
-					sltiForPredicate.addImm(edge->getPredicateValue());
+					//check use of sltui to find out why inverse of predicate is used
+					sltiForPredicate.addImm(!edge->getPredicateValue());
 
 					allInstructionsOfRegion.push_back(make_pair(sltiForPredicate.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(sltiForPredicate.operator llvm::MachineInstr *());
