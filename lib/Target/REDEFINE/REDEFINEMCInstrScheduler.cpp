@@ -1097,10 +1097,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		if ((*childHyperOpItr)->getImmediateDominator() == hyperOp) {
 			if (*childHyperOpItr != hyperOp) {
 				unsigned registerContainingConsumerFrameAddr;
-<<<<<<< HEAD
-				errs() << "consumer hop:" << (*childHyperOpItr)->asString() << "\n";
-=======
->>>>>>> 055437a0a55e2e9a315777285d0403f4b0e284d2
 				if (!(*childHyperOpItr)->isStaticHyperOp() && registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr) == registerContainingHyperOpFrameAddressAndCEWithFalloc.end()) {
 					//Add fcreate instruction to create dynamic HyperOp instances
 					registerContainingConsumerFrameAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
@@ -1112,10 +1108,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
 						firstInstructionOfpHyperOpInRegion[currentCE] = falloc.operator llvm::MachineInstr *();
 					}
-<<<<<<< HEAD
-					errs() << "falloc added\n";
-=======
->>>>>>> 055437a0a55e2e9a315777285d0403f4b0e284d2
 				} else if (((*childHyperOpItr)->isFbindRequired() || (*childHyperOpItr)->isBarrierHyperOp()) && registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr) == registerContainingHyperOpFrameAddressAndCEWithFalloc.end()) {
 					registerContainingConsumerFrameAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
@@ -1328,20 +1320,10 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				registerContainingConsumerBase = registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].first;
 			}
 			if (edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
-<<<<<<< HEAD
-				errs() << "forwarding context frame addr from " << hyperOp->asString() << " to " << consumer->asString() << "\n";
-				unsigned registerContainingData;
-				if (edge->getContextFrameAddress()->getImmediateDominator() == hyperOp) {
-					errs() << "frame was created in the same hop\n";
-					registerContainingData = registerContainingHyperOpFrameAddressAndCEWithFalloc[edge->getContextFrameAddress()].first;
-				} else {
-					errs() << "frame is fwded\n";
-=======
 				unsigned registerContainingData;
 				if (edge->getContextFrameAddress()->getImmediateDominator() == hyperOp) {
 					registerContainingData = registerContainingHyperOpFrameAddressAndCEWithFalloc[edge->getContextFrameAddress()].first;
 				} else {
->>>>>>> 055437a0a55e2e9a315777285d0403f4b0e284d2
 					//The address was forwarded to the current HyperOp
 					for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
 						if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == edge->getContextFrameAddress()) {
