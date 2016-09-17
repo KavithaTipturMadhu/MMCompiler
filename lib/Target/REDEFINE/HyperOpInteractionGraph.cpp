@@ -886,7 +886,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 
 					int freeContextSlot;
 					int max = -1;
-					for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = dominanceFrontierHyperOp->ParentMap.begin(); parentEdgeItr != dominanceFrontierHyperOp->ParentMap.end(); parentEdgeItr++) {
+					for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = vertex->ParentMap.begin(); parentEdgeItr != vertex->ParentMap.end(); parentEdgeItr++) {
 						HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
 						if (previouslyAddedEdge->getPositionOfContextSlot() > max) {
 							max = previouslyAddedEdge->getPositionOfContextSlot();
@@ -912,7 +912,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 							//Find the last free context slot at consumer
 							int freeContextSlot;
 							int max = -1;
-							for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = immediateDominator->ParentMap.begin(); parentEdgeItr != immediateDominator->ParentMap.end(); parentEdgeItr++) {
+							for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = prevVertex->ParentMap.begin(); parentEdgeItr != prevVertex->ParentMap.end(); parentEdgeItr++) {
 								HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
 								if (previouslyAddedEdge->getPositionOfContextSlot() > max) {
 									max = previouslyAddedEdge->getPositionOfContextSlot();

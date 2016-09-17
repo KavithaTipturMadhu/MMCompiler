@@ -1731,7 +1731,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				}
 
 				//TODO Add a load instruction to get data from memory onto a register; There could be forced schedule edges that we don't want to add load instructions for the same
-				unsigned registerContainingData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+				unsigned registerContainingData;
 				if (objectIndex != -1) {
 					unsigned registerContainingPredicateData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 
@@ -1745,14 +1745,19 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					allInstructionsOfRegion.push_back(make_pair(loadInstr.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(loadInstr.operator llvm::MachineInstr *());
 
-					MachineInstrBuilder sltiForPredicate = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SLTIU));
-					sltiForPredicate.addReg(registerContainingData, RegState::Define);
-					sltiForPredicate.addReg(registerContainingPredicateData);
-					//check use of sltui to find out why inverse of predicate is used
-					sltiForPredicate.addImm(!edge->getPredicateValue());
+					if (edge->getPredicateValue()) {
+						registerContainingData = registerContainingPredicateData;
+					} else {
+						registerContainingData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder sltiForPredicate = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SLTIU));
+						sltiForPredicate.addReg(registerContainingData, RegState::Define);
+						sltiForPredicate.addReg(registerContainingPredicateData);
+						//check use of sltui to find out why inverse of predicate is used
+						sltiForPredicate.addImm(!edge->getPredicateValue());
 
-					allInstructionsOfRegion.push_back(make_pair(sltiForPredicate.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(sltiForPredicate.operator llvm::MachineInstr *());
+						allInstructionsOfRegion.push_back(make_pair(sltiForPredicate.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(sltiForPredicate.operator llvm::MachineInstr *());
+					}
 				}
 				//No need to access memory for a true predicate, copying via addi will do
 				else {
