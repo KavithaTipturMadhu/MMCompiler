@@ -1524,7 +1524,7 @@ struct HyperOpCreationPass: public ModulePass {
 							MDNode * consumedByMetadata;
 							//TODO this isn't enough for nested recursion cycles
 							if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
-								errs() << "adding static md\n";
+								errs() << "adding static md from"<<clonedDefInst->getParent()->getParent()->getName()<<" and target "<<createdFunction->getName()<<"\n";
 								//Add "consumedby" metadata to the function locals that need to be passed to other HyperOps
 								Value * values[3];
 								values[0] = funcAnnotation;
@@ -1537,7 +1537,7 @@ struct HyperOpCreationPass: public ModulePass {
 								values[2] = ConstantInt::get(ctxt, APInt(32, hyperOpArgumentIndex));
 								consumedByMetadata = MDNode::get(ctxt, values);
 							} else {
-								errs() << "adding dynamic md\n";
+								errs() << "adding static md from"<<clonedDefInst->getParent()->getParent()->getName()<<" and target "<<createdFunction->getName()<<"\n";
 								//Add "consumedby" metadata to the function locals that need to be passed to other HyperOps
 								Value * values[4];
 								values[0] = funcAnnotation;
