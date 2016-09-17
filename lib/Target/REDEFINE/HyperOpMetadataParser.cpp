@@ -153,7 +153,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 		traversedList.push_back(sourceHyperOp);
 		Function* sourceFunction;
 		sourceFunction = sourceHyperOp->getFunction();
-		errs() << "\n=====\nparsing " << sourceHyperOp->asString() << "\n";
 		unsigned frameSizeOfHyperOp = 0;
 		unsigned argIndex = 1;
 		//Traverse through instructions of the module
@@ -217,6 +216,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								HyperOpEdge* edge = new HyperOpEdge();
 								if (dataType.compare(SCALAR) == 0) {
 									edge->Type = HyperOpEdge::SCALAR;
+									//Find out if the data is being passed to an instance
+									edge->setPositionOfContextSlot(positionOfContextSlot);
 								} else if (dataType.compare(LOCAL_REFERENCE) == 0) {
 									edge->Type = HyperOpEdge::LOCAL_REFERENCE;
 									list<unsigned> volumeOfCommunication;
@@ -230,8 +231,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 									volumeOfCommunication.push_back(volume);
 									edge->setVolume(volumeOfCommunication);
 								}
-								//Find out if the data is being passed to an instance
-								edge->setPositionOfContextSlot(positionOfContextSlot);
 								edge->setValue((Value*) instr);
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
@@ -250,7 +249,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 						for (unsigned predicatedMDNodeIndex = 0; predicatedMDNodeIndex != controlledByMDNode->getNumOperands(); predicatedMDNodeIndex++) {
 							HyperOp* consumerHyperOp = 0;
 							MDNode* predicatedMDNode = (MDNode*) controlledByMDNode->getOperand(predicatedMDNodeIndex);
-							errs()<<"predicated md node:";
+							errs() << "predicated md node:";
 							predicatedMDNode->dump();
 							//Create an edge between two HyperOps labeled by the instruction
 							if (predicatedMDNode->getNumOperands() > 2) {
@@ -293,18 +292,18 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								HyperOpEdge* edge = new HyperOpEdge();
 								edge->Type = HyperOpEdge::PREDICATE;
 								edge->setValue((Value*) instr);
-								errs()<<"number of operands in predicate md node:"<<predicatedMDNode->getNumOperands()<<"\n";
+								errs() << "number of operands in predicate md node:" << predicatedMDNode->getNumOperands() << "\n";
 								StringRef predicateValue = ((MDString*) predicatedMDNode->getOperand(1))->getName();
-								errs()<<"predicate value:"<<predicateValue<<"\n";
+								errs() << "predicate value:" << predicateValue << "\n";
 								if (predicateValue.compare("0") == 0) {
 									edge->setPredicateValue(0);
-								}else{
+								} else {
 									edge->setPredicateValue(1);
 								}
-								errs()<<"md node on instruction:";
+								errs() << "md node on instruction:";
 								instr->dump();
 								errs() << "Added control edge between " << sourceHyperOp->asString() << " and " << consumerHyperOp->asString() << "\n";
-								errs()<<"predicate :"<<predicateValue<<"\n";
+								errs() << "predicate :" << predicateValue << "\n";
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)) {
