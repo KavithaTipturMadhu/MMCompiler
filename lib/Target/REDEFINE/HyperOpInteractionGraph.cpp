@@ -70,7 +70,15 @@ void HyperOpEdge::setContextFrameAddress(HyperOp* contextFrameAddress) {
 	this->contextFrameAddress = contextFrameAddress;
 }
 
-int HyperOpEdge::getPositionOfContextSlot() const {
+unsigned HyperOpEdge::getPredicateValue() {
+	return predicateValue;
+}
+
+void HyperOpEdge::setPredicateValue(unsigned predicateValue) {
+	this->predicateValue = predicateValue;
+}
+
+int HyperOpEdge::getPositionOfContextSlot() {
 	return positionOfContextSlot;
 }
 
