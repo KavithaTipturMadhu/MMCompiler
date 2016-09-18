@@ -854,7 +854,6 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		HyperOp* vertex = *vertexIterator;
 		if (!vertex->isUnrolledInstance()) {
-			errs() << "\n======\ncontext frame addr edges for vertex:" << vertex->asString() << "\n";
 			list<HyperOp*> vertexDomFrontier;
 
 			list<HyperOp*> originalDomFrontier = vertex->getDominanceFrontier();
@@ -1272,7 +1271,7 @@ void HyperOpInteractionGraph::clusterNodes() {
 	list<HyperOp*> partialDominantSequence;
 	partialDominantSequence.push_back(startHyperOp);
 	pair<list<HyperOp*>, list<unsigned int> > dominantSequencePair = computeDominantSequence(partialDominantSequence);
-	printDS(dominantSequencePair.first);
+//	printDS(dominantSequencePair.first);
 	list<HyperOp*> dominantSequence = dominantSequencePair.first;
 	list<unsigned int> executionTime = dominantSequencePair.second;
 
@@ -1295,9 +1294,9 @@ void HyperOpInteractionGraph::clusterNodes() {
 			break;
 		}
 
-		errs() << "dominant sequence computed:";
-		printDS(dominantSequence);
-		errs() << "zeroing edge between " << source->getFunction()->getName() << " and " << target->getFunction()->getName() << "\n";
+//		errs() << "dominant sequence computed:";
+//		printDS(dominantSequence);
+//		errs() << "zeroing edge between " << source->getFunction()->getName() << " and " << target->getFunction()->getName() << "\n";
 		//Find the cluster containing source and target
 		list<HyperOp*> sourceCluster;
 		list<HyperOp*> targetCluster;

@@ -422,10 +422,12 @@ LiveInterval *RAGreedy::dequeue() {
 unsigned RAGreedy::tryAssign(LiveInterval &VirtReg, AllocationOrder &Order, SmallVectorImpl<LiveInterval*> &NewVRegs) {
 	Order.rewind();
 	unsigned PhysReg;
-	while ((PhysReg = Order.next()))
+	errs()<<"allocation order:"<<Order.isHint();
+	while ((PhysReg = Order.next())){
+		errs()<<"Interference in case of "<<PrintReg(VirtReg.reg)<<":"<<Matrix->checkInterference(VirtReg, PhysReg)<<"\n";
 		if (!Matrix->checkInterference(VirtReg, PhysReg))
 			break;
-
+	}
 	//TODO I have no idea what the impact of this is going to be, adding Order.isHint(MRI->getSimpleHint(VirtReg.reg)) instead of the following conditional
 	//if (!PhysReg || Order.isHint()
 	if (!PhysReg || Order.isHint() || Order.isHint(MRI->getSimpleHint(VirtReg.reg))) {
@@ -1664,7 +1666,6 @@ unsigned RAGreedy::selectOrSplit(LiveInterval &VirtReg, SmallVectorImpl<LiveInte
 	AllocationOrder Order(VirtReg.reg, *VRM, RegClassInfo);
 	if (unsigned PhysReg = tryAssign(VirtReg, Order, NewVRegs))
 		return PhysReg;
-
 	LiveRangeStage Stage = getStage(VirtReg);
 	DEBUG(dbgs() << StageName[Stage] << " Cascade " << ExtraRegInfo[VirtReg.reg].Cascade << '\n');
 
@@ -1785,19 +1786,14 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 		}
 	}
 
-	int physRegIndex = 0;
 
 	//For each CE, find the right physical register to be allocated
 	for (unsigned i = 0; i < ceAndLiveInArgList.size(); i++) {
 		list<unsigned> inputsToCEInVirtReg = ceAndLiveInArgList[i];
+		int physRegIndex = 0;
 		for (list<unsigned>::iterator inputToCEItr = inputsToCEInVirtReg.begin(); inputToCEItr != inputsToCEInVirtReg.end(); inputToCEItr++) {
 			unsigned inputPhysicalReg = *inputToCEItr;
-			//Find the physical register that must be allocated to it
-			unsigned physRegOfInterest = 0;
-			for (unsigned j = 0; j < i; j++) {
-				physRegOfInterest += ceAndLiveInArgList[j].size();
-			}
-			unsigned physicalRegToBeAllocated = indexOfAllocatedPhysicalRegs[physRegIndex - physRegOfInterest];
+			unsigned physicalRegToBeAllocated = indexOfAllocatedPhysicalRegs[physRegIndex];
 			shuffledPhys2PhysRegMap.insert(make_pair(inputPhysicalReg, physicalRegToBeAllocated));
 			shuffledVirt2PhysRegMap.insert(make_pair(MRI->getLiveInVirtReg(inputPhysicalReg), physicalRegToBeAllocated));
 			physRegIndex++;
@@ -1822,7 +1818,6 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 
 	allocatePhysRegs();
 	releaseMemory();
-	mf.dump();
 //TODO please take care of the assert commented out in IntervalMap.h
 	return true;
 }

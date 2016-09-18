@@ -49,6 +49,8 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	//Instruction in a region, the pHyperOp it belongs to and its position in the region
 	list<pair<MachineInstr*, pair<unsigned, unsigned> > > allInstructionsOfRegion;
 
+	list<pair<MachineInstr*, pair<unsigned, unsigned> > > allInstructionsOfBB;
+
 	//We need this to do additional code motion and ease creation of pHyperOp bundles
 	//TODO
 	vector<MachineInstr*> firstInstructionOfpHyperOpInRegion;

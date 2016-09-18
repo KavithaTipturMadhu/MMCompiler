@@ -309,8 +309,6 @@ if (IsTopNode) {
 void REDEFINEMCInstrScheduler::startBlock(MachineBasicBlock *bb) {
 BB = bb;
 DEBUG(dbgs() << "\n-------------\nStarting new basic block BB#" << BB->getNumber() << "\n");
-errs() << "bb contains:";
-BB->dump();
 
 firstInstructionOfpHyperOp.clear();
 faninOfHyperOp.clear();
@@ -320,6 +318,7 @@ for (int i = 0; i < ceCount; i++) {
 		registerContainingBaseAddress[i][j] = -1;
 	}
 }
+allInstructionsOfBB.clear();
 registersUsedInBB.clear();
 }
 
@@ -1068,6 +1067,11 @@ firstInstructionOfpHyperOp.push_front(firstInstrRegionCopy);
 if (firstInstruction != 0) {
 	RegionBegin = firstInstruction;
 }
+
+for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::reverse_iterator instItr = allInstructionsOfRegion.rbegin(); instItr != allInstructionsOfRegion.rend(); instItr++) {
+	allInstructionsOfBB.push_front(*instItr);
+}
+
 }
 
 void REDEFINEMCInstrScheduler::finishBlock() {
@@ -1216,7 +1220,11 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == (*childHyperOpItr)) {
 							//Get the slot to read from which translates to a register anyway
 							int contextSlot = parentItr->first->getPositionOfContextSlot();
-							unsigned registerContainingAddr = REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot];
+							unsigned registerContainingAddr = lastBB.getParent()->addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot], TRI->getMinimalPhysRegClass(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]));
+							lastBB.addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
+							MachineInstrBuilder copyInstr = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::COPY)).addReg(registerContainingAddr, RegState::Define).addReg(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
+							LIS->getSlotIndexes()->insertMachineInstrInMaps(copyInstr.operator llvm::MachineInstr *());
+							allInstructionsOfRegion.push_back(make_pair(copyInstr.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 							fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(registerContainingAddr).addImm(0);
 							break;
 						}
@@ -1258,7 +1266,12 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == consumer) {
 						//Get the slot to read from which translates to a register anyway
 						int contextSlot = parentItr->first->getPositionOfContextSlot();
-						registerContainingConsumerBase = REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot];
+						registerContainingConsumerBase = lastBB.getParent()->addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot], TRI->getMinimalPhysRegClass(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]));
+						MachineInstrBuilder copyInstr = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::COPY)).addReg(registerContainingConsumerBase, RegState::Define).addReg(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(copyInstr.operator llvm::MachineInstr *());
+						allInstructionsOfRegion.push_back(make_pair(copyInstr.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
+
+						lastBB.addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
 						break;
 					}
 				}
@@ -1343,7 +1356,12 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == edge->getContextFrameAddress()) {
 							//Get the slot to read from which translates to a register anyway
 							int contextSlot = parentItr->first->getPositionOfContextSlot();
-							registerContainingData = REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot];
+							registerContainingData = lastBB.getParent()->addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot], TRI->getMinimalPhysRegClass(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]));
+							MachineInstrBuilder copyInstr = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::COPY)).addReg(registerContainingData, RegState::Define).addReg(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
+							LIS->getSlotIndexes()->insertMachineInstrInMaps(copyInstr.operator llvm::MachineInstr *());
+							allInstructionsOfRegion.push_back(make_pair(copyInstr.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
+
+							lastBB.addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
 							break;
 						}
 					}
@@ -1641,7 +1659,12 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == consumer) {
 						//Get the slot to read from which translates to a register anyway
 						int contextSlot = parentItr->first->getPositionOfContextSlot();
-						registerContainingConsumerBase = REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot];
+						registerContainingConsumerBase = lastBB.getParent()->addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot], TRI->getMinimalPhysRegClass(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]));
+						MachineInstrBuilder copyInstr = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::COPY)).addReg(registerContainingConsumerBase, RegState::Define).addReg(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(copyInstr.operator llvm::MachineInstr *());
+						allInstructionsOfRegion.push_back(make_pair(copyInstr.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
+
+						lastBB.addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
 						break;
 					}
 				}
@@ -1819,11 +1842,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	}
 	for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstructionItr = allInstructionsOfRegion.begin(); allInstructionItr != allInstructionsOfRegion.end(); allInstructionItr++) {
 		MachineInstr* instruction = allInstructionItr->first;
-		errs() << "\n-----\ntrying to move the instruction:";
-		instruction->dump();
 		unsigned ce = allInstructionItr->second.first;
 		unsigned position = allInstructionItr->second.second;
-		errs() << "Current ce:" << ce << " and its position " << position << "\n";
 		instruction->setFlag(MachineInstr::NoFlags);
 		unsigned i = ce + 1;
 		MachineInstr* nextCeInstruction;
@@ -1833,29 +1853,25 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				if (nextCeInstruction != BB->end() && nextCeInstruction != 0) {
 					break;
 				}
-				errs() << "next ce " << i << "\n";
 			}
 			if (nextCeInstruction == 0) {
 				nextCeInstruction = BB->end();
-			}
-			if (nextCeInstruction != BB->end()) {
-				errs() << "next ce starts at ";
-				nextCeInstruction->dump();
 			}
 
 			for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator secondItr = allInstructionsOfRegion.begin(); secondItr != allInstructionsOfRegion.end(); secondItr++) {
 				if (secondItr->first == nextCeInstruction) {
 					unsigned nextCeInstructionPosition = secondItr->second.second;
 					if (nextCeInstructionPosition < position) {
-						errs() << "next ce instruction is at " << nextCeInstructionPosition << " while the current instruction is at " << position << ", moving up\n";
 						BB->splice(nextCeInstruction, BB, instruction);
-						errs() << "bb state after:";
-						BB->dump();
 						break;
 					}
 				}
 			}
 		}
+	}
+
+	for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator instItr = allInstructionsOfRegion.begin(); instItr != allInstructionsOfRegion.end(); instItr++) {
+		allInstructionsOfBB.push_back(*instItr);
 	}
 
 	for (unsigned i = 0; i < ceCount; i++) {
@@ -1874,92 +1890,110 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		endInstruction.addImm(0);
 		endHyperOpInstructionRegion.push_back(endInstruction.operator ->());
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(endInstruction.operator llvm::MachineInstr *());
+		allInstructionsOfBB.push_back(make_pair(endInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
+
 		for (unsigned j = 0; j < 2; j++) {
 			MachineInstrBuilder nopInstruction = BuildMI(*BB, BB->end(), BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
 			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
 			nopInstruction.addReg(REDEFINE::zero);
 			nopInstruction.addImm(0);
 			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
+			allInstructionsOfBB.push_back(make_pair(nopInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 		}
 	}
-
 	firstInstructionOfpHyperOp.push_back(endHyperOpInstructionRegion);
+
 }
 
-//Shuffle instructions of region
-vector<MachineInstr*> firstRegionBoundaries = firstInstructionOfpHyperOp.front();
-if (firstInstructionOfpHyperOp.size() > 1) {
-	DEBUG(dbgs() << "Merging regions of basic block BB#" << BB->getNumber() << "\n");
-//Set the start of each region
-	for (unsigned i = 0; i < ceCount; i++) {
-		if (firstRegionBoundaries[i] == 0) {
-			for (list<vector<MachineInstr*> >::iterator firstInstrItr = firstInstructionOfpHyperOp.begin(); firstInstrItr != firstInstructionOfpHyperOp.end(); firstInstrItr++) {
-				vector<MachineInstr*> firstInstrOfNextRegion = *firstInstrItr;
-				if (firstInstrOfNextRegion[i] != 0 && firstInstrOfNextRegion[i] != BB->end()) {
-					firstRegionBoundaries[i] = firstInstrOfNextRegion[i];
-					break;
-				}
-			}
-		}
+////Compute successive regions for merge after first regions
+//	for (unsigned j = 1; j < firstInstructionOfpHyperOp.size(); j++) {
+//		unsigned index = 0;
+//		vector<MachineInstr*> mergingRegionBoundaries;
+//		list<vector<MachineInstr*> >::iterator currentRegion;
+//		for (list<vector<MachineInstr*> >::iterator firstInstrOfPhop = firstInstructionOfpHyperOp.begin(); firstInstrOfPhop != firstInstructionOfpHyperOp.end(); firstInstrOfPhop++, index++) {
+//			if (index >= j && (*firstInstrOfPhop)[index] != BB->end()) {
+//				mergingRegionBoundaries = *firstInstrOfPhop;
+//				currentRegion = firstInstrOfPhop;
+//			}
+//		}
+//
+//		//Merge pHyperOps from regions i and j
+//		for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
+//			MachineInstr* nextCeInstruction;
+//			MachineInstr* startMerge;
+//			MachineInstr* endMerge;
+//			startMerge = mergingRegionBoundaries[ceIndex];
+//			if (ceIndex + 1 != ceCount) {
+//				nextCeInstruction = firstRegionBoundaries[ceIndex + 1];
+//				endMerge = mergingRegionBoundaries[ceIndex + 1];
+//			} else {
+//				nextCeInstruction = BB->end();
+//				endMerge = BB->end();
+//			}
+//			if (nextCeInstruction == 0) {
+//				nextCeInstruction = BB->end();
+//			}
+//
+//			if (startMerge == 0 || startMerge == BB->end() || nextCeInstruction == BB->end() || nextCeInstruction == 0 || instructionAppearsBefore(BB, startMerge, nextCeInstruction)) {
+//				continue;
+//			}
+//
+//			if (endMerge == 0) {
+//				if (currentRegion == firstInstructionOfpHyperOp.end()) {
+//					endMerge = BB->end();
+//				} else {
+//					currentRegion++;
+//					endMerge = (*currentRegion)[0];
+//				}
+//			}
+//			if (startMerge == endMerge) {
+//				continue;
+//			}
+//			errs() << "instructions go before ";
+//			nextCeInstruction->dump();
+//			errs() << "end merge:";
+//			if (endMerge != BB->end()) {
+//				endMerge->dump();
+//			}
+//
+//			while (startMerge != endMerge) {
+//				MachineInstr* instructionToMerge = startMerge;
+//				startMerge = startMerge->getNextNode();
+//				errs() << "Merging ";
+//				instructionToMerge->dump();
+//				BB->splice(nextCeInstruction, BB, instructionToMerge);
+//			}
+//		}
+//	}
+
+errs() << "bb before merge:";
+BB->dump();
+map<unsigned, pair<MachineInstr*, unsigned> > firstInstructionInCE;
+unsigned currentStartPosition = 0;
+list<pair<MachineInstr*, pair<unsigned, unsigned> > > currentPositionMap;
+for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstructionItr = allInstructionsOfBB.begin(); allInstructionItr != allInstructionsOfBB.end(); allInstructionItr++, currentStartPosition++) {
+	unsigned ce = allInstructionItr->second.first;
+	if (firstInstructionInCE.find(ce) == firstInstructionInCE.end()) {
+		firstInstructionInCE.insert(make_pair(ce, make_pair(allInstructionItr->first, currentStartPosition)));
+		errs() << "first instruction in ce " << ce << ":";
+		allInstructionItr->first->dump();
 	}
-//Compute successive regions for merge after first regions
-	for (unsigned j = 1; j < firstInstructionOfpHyperOp.size(); j++) {
-		unsigned index = 0;
-		vector<MachineInstr*> mergingRegionBoundaries;
-		list<vector<MachineInstr*> >::iterator currentRegion;
-		for (list<vector<MachineInstr*> >::iterator firstInstrOfPhop = firstInstructionOfpHyperOp.begin(); firstInstrOfPhop != firstInstructionOfpHyperOp.end(); firstInstrOfPhop++, index++) {
-			if (index >= j && (*firstInstrOfPhop)[index] != BB->end()) {
-				mergingRegionBoundaries = *firstInstrOfPhop;
-				currentRegion = firstInstrOfPhop;
-			}
-		}
+	errs() << "instr in ce " << ce << ":";
+	allInstructionItr->first->dump();
+	currentPositionMap.push_back(make_pair(allInstructionItr->first, make_pair(allInstructionItr->second.first, currentStartPosition)));
+}
 
-		//Merge pHyperOps from regions i and j
-		for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
-			MachineInstr* nextCeInstruction;
-			MachineInstr* startMerge;
-			MachineInstr* endMerge;
-			startMerge = mergingRegionBoundaries[ceIndex];
-			if (ceIndex + 1 != ceCount) {
-				nextCeInstruction = firstRegionBoundaries[ceIndex + 1];
-				endMerge = mergingRegionBoundaries[ceIndex + 1];
-			} else {
-				nextCeInstruction = BB->end();
-				endMerge = BB->end();
-			}
-			if (nextCeInstruction == 0) {
-				nextCeInstruction = BB->end();
-			}
-
-			if (startMerge == 0 || startMerge == BB->end() || nextCeInstruction == BB->end() || nextCeInstruction == 0 || instructionAppearsBefore(BB, startMerge, nextCeInstruction)) {
-				continue;
-			}
-
-			if (endMerge == 0) {
-				if (currentRegion == firstInstructionOfpHyperOp.end()) {
-					endMerge = BB->end();
-				} else {
-					currentRegion++;
-					endMerge = (*currentRegion)[0];
-				}
-			}
-			if (startMerge == endMerge) {
-				continue;
-			}
-			errs() << "instructions go before ";
-			nextCeInstruction->dump();
-			errs() << "end merge:";
-			if (endMerge != BB->end()) {
-				endMerge->dump();
-			}
-
-			while (startMerge != endMerge) {
-				MachineInstr* instructionToMerge = startMerge;
-				startMerge = startMerge->getNextNode();
-				errs() << "Merging ";
-				instructionToMerge->dump();
-				BB->splice(nextCeInstruction, BB, instructionToMerge);
-			}
+for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstructionItr = currentPositionMap.begin(); allInstructionItr != currentPositionMap.end(); allInstructionItr++) {
+	MachineInstr* instruction = allInstructionItr->first;
+	unsigned ce = allInstructionItr->second.first;
+	unsigned position = allInstructionItr->second.second;
+	instruction->setFlag(MachineInstr::NoFlags);
+	MachineInstr* nextCeInstruction;
+	if (ce < ceCount - 1 && firstInstructionInCE.find(ce + 1) != firstInstructionInCE.end()) {
+		MachineInstr* nextCeInstruction = firstInstructionInCE[ce + 1].first;
+		unsigned nextCeInstructionPosition = firstInstructionInCE[ce + 1].second;
+		if (nextCeInstructionPosition < position) {
+			BB->splice(nextCeInstruction, BB, instruction);
 		}
 	}
 }
@@ -1967,11 +2001,17 @@ if (firstInstructionOfpHyperOp.size() > 1) {
 DEBUG(dbgs() << "After Shuffling regions of basic block, state of BB#" << BB->getNumber() << ":\n");
 BB->print(dbgs());
 
+list<unsigned> liveInPhysicalRegs;
+for (MachineRegisterInfo::livein_iterator liveInItr = MF.getRegInfo().livein_begin(); liveInItr != MF.getRegInfo().livein_end(); liveInItr++) {
+	liveInPhysicalRegs.push_back(liveInItr->first);
+	errs() << "live in reg:" << PrintReg(liveInItr->first) << "\n";
+}
+
 //ACtually we don't need to use inst_itr here cos bundles are created after this, but leaving this for now
 for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != BB->instr_end(); instItr++) {
 	for (unsigned i = 0; i < instItr->getNumOperands(); i++) {
 		MachineOperand& operand = instItr->getOperand(i);
-		if (operand.isReg() && find(registersUsedInBB.begin(), registersUsedInBB.end(), operand.getReg()) == registersUsedInBB.end()) {
+		if (operand.isReg() && find(liveInPhysicalRegs.begin(), liveInPhysicalRegs.end(), operand.getReg()) == liveInPhysicalRegs.end() && find(registersUsedInBB.begin(), registersUsedInBB.end(), operand.getReg()) == registersUsedInBB.end()) {
 			unsigned operandRegister = operand.getReg();
 			bool ignore = false;
 			for (unsigned i = 0; i < ceCount; i++) {
@@ -1989,25 +2029,19 @@ for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != B
 }
 LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), registersUsedInBB);
 //Create instruction bundles corresponding to pHyperOps
-if (!firstInstructionOfpHyperOp.empty()) {
+if (!firstInstructionInCE.empty()) {
 	DEBUG(dbgs() << "Creating pHyperOp bundles for CEs\n");
 	for (unsigned i = 0; i < ceCount; i++) {
-		MachineInstr* firstInstructionInCE = firstRegionBoundaries[i];
+		MachineInstr* firstInstructionofCE = firstInstructionInCE[i].first;
 		MachineInstr* firstInstructionInNextCE = 0;
-		int index = i + 1;
-		while (index < ceCount) {
-			firstInstructionInNextCE = firstRegionBoundaries[index];
-			if (firstInstructionInNextCE != 0 && firstInstructionInNextCE != BB->end()) {
-				break;
-			}
-			index++;
+		if (i < ceCount - 1) {
+			firstInstructionInNextCE = firstInstructionInCE[i + 1].first;
 		}
-
 		if (firstInstructionInNextCE == 0) {
 			firstInstructionInNextCE = BB->end();
 		}
 
-		if (firstInstructionInCE == BB->end() || firstInstructionInCE == 0) {
+		if (firstInstructionofCE == BB->end() || firstInstructionofCE == 0) {
 //			continue;
 			//pHyperOp is empty, add a nop
 			MachineInstrBuilder nopInstruction = BuildMI(*BB, firstInstructionInNextCE, BB->front().getDebugLoc(), TII->get(REDEFINE::ADDI));
@@ -2015,10 +2049,16 @@ if (!firstInstructionOfpHyperOp.empty()) {
 			nopInstruction.addReg(REDEFINE::zero);
 			nopInstruction.addImm(0);
 			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-			firstInstructionInCE = nopInstruction.operator ->();
+			firstInstructionofCE = nopInstruction.operator ->();
 		}
 
-		MIBundleBuilder* bundleBuilder = new MIBundleBuilder(*BB, firstInstructionInCE, firstInstructionInNextCE);
+		errs() << "creating bundle between ";
+		firstInstructionofCE->dump();
+		errs() << "and ";
+		if (firstInstructionInNextCE != BB->end()) {
+			firstInstructionInNextCE->dump();
+		}
+		MIBundleBuilder* bundleBuilder = new MIBundleBuilder(*BB, firstInstructionofCE, firstInstructionInNextCE);
 	}
 }
 DEBUG(dbgs() << "After bundling, state of BB" << BB->getNumber() << ":");

@@ -186,10 +186,10 @@ bool LiveRangeCalc::findReachingDefs(LiveInterval *LI,
   // Using Seen as a visited set, perform a BFS for all reaching defs.
   for (unsigned i = 0; i != WorkList.size(); ++i) {
     MachineBasicBlock *MBB = MF->getBlockNumbered(WorkList[i]);
-
 #ifndef NDEBUG
     if (MBB->pred_empty()) {
-      MBB->getParent()->verify();
+       MBB->getParent()->verify();
+      errs()<<PrintReg(LI->reg)<<"\n";
       llvm_unreachable("Use not jointly dominated by defs.");
     }
 
