@@ -858,9 +858,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 
 			list<HyperOp*> originalDomFrontier = vertex->getDominanceFrontier();
 			for (list<HyperOp*>::iterator originalDomfItr = originalDomFrontier.begin(); originalDomfItr != originalDomFrontier.end(); originalDomfItr++) {
-				if (!(*originalDomfItr)->isStaticHyperOp()) {
-					vertexDomFrontier.push_back(*originalDomfItr);
-				}
+				vertexDomFrontier.push_back(*originalDomfItr);
 			}
 
 			for (list<HyperOp*>::iterator tempItr = Vertices.begin(); tempItr != Vertices.end(); tempItr++) {
@@ -870,7 +868,8 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 					liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
 				}
 				//Address also needs to be forwarded to the HyperOp deleting the context frame
-				if (liveEndOfVertex != 0 && liveEndOfVertex == vertex && !(*tempItr)->isStaticHyperOp() && find(originalDomFrontier.begin(), originalDomFrontier.end(), *tempItr) == originalDomFrontier.end()) {
+				if (liveEndOfVertex != 0 && liveEndOfVertex == vertex && find(originalDomFrontier.begin(), originalDomFrontier.end(), *tempItr) == originalDomFrontier.end()) {
+//						&& !(*tempItr)->isStaticHyperOp() && ) {
 					vertexDomFrontier.push_back(*tempItr);
 				}
 			}
@@ -900,7 +899,17 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						//TODO: Set the address to be passed as local reference
 					}
 					if (dominanceFrontierHyperOp->getImmediateDominator() == vertex->getImmediateDominator()) {
-						this->addEdge(immediateDominator, vertex, (HyperOpEdge*) contextFrameEdge);
+						bool edgeAddedPreviously = false;
+						for (map<HyperOpEdge*, HyperOp*>::iterator childMapItr = immediateDominator->ChildMap.begin(); childMapItr != immediateDominator->ChildMap.end(); childMapItr++) {
+							if (childMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && childMapItr->first->getContextFrameAddress() == dominanceFrontierHyperOp && childMapItr->second == vertex) {
+								edgeAddedPreviously = true;
+								break;
+							}
+						}
+						if (!edgeAddedPreviously) {
+							this->addEdge(immediateDominator, vertex, (HyperOpEdge*) contextFrameEdge);
+							errs() << "edge added between " << immediateDominator->asString() << " and " << vertex->asString() << " to fwd " << dominanceFrontierHyperOp->asString() << "\n";
+						}
 					} else {
 						list<HyperOp*> immediateDominatorDominanceFrontier = immediateDominator->getDominanceFrontier();
 						HyperOp* prevVertex = vertex;
@@ -924,19 +933,33 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 							} else {
 								//TODO: Set the address to be passed as local reference
 							}
+
+							bool edgeAddedPreviously = false;
+							for (map<HyperOpEdge*, HyperOp*>::iterator childMapItr = immediateDominator->ChildMap.begin(); childMapItr != immediateDominator->ChildMap.end(); childMapItr++) {
+								if (childMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && childMapItr->first->getContextFrameAddress() == dominanceFrontierHyperOp && childMapItr->second == prevVertex) {
+									edgeAddedPreviously = true;
+									break;
+								}
+							}
+							if (!edgeAddedPreviously) {
+								this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) frameForwardChainEdge);
+								errs() << "intermediate forwarding edge added between " << immediateDominator->asString() << " and " << prevVertex->asString() << " to fwd " << dominanceFrontierHyperOp->asString() << "\n";
+							}
 							prevVertex = immediateDominator;
 							immediateDominator = immediateDominator->getImmediateDominator();
 							if (immediateDominator != 0) {
 								immediateDominatorDominanceFrontier = immediateDominator->getDominanceFrontier();
 							}
-							this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) frameForwardChainEdge);
 						}
 						this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) contextFrameEdge);
+						errs() << "edge added between " << immediateDominator->asString() << " and " << prevVertex->asString() << " to fwd " << dominanceFrontierHyperOp->asString() << "\n";
 					}
 				}
 			}
 		}
 	}
+	errs() << "context frame addresses added\n";
+	print(dbgs());
 }
 
 void estimateExecutionTime(HyperOp *hyperOp) {

@@ -1097,12 +1097,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	allInstructionsOfRegion.clear();
 	insertPosition = 0;
 
-	//Used in fdelete insertion as well as writecm
-	list<unsigned> liveInPhysRegisters;
-	for (MachineRegisterInfo::livein_iterator liveInItr = MF.getRegInfo().livein_begin(); liveInItr != MF.getRegInfo().livein_end(); liveInItr++) {
-		liveInPhysRegisters.push_back(liveInItr->first);
-	}
-
 	map<HyperOp*, unsigned> regContainingMemFrameBaseAddress;
 
 	DEBUG(dbgs() << "Adding falloc, writecm(for sync instructions) and fbind instructions\n");
@@ -1220,12 +1214,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == (*childHyperOpItr)) {
 							//Get the slot to read from which translates to a register anyway
 							int contextSlot = parentItr->first->getPositionOfContextSlot();
-							unsigned registerContainingAddr = lastBB.getParent()->addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot], TRI->getMinimalPhysRegClass(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]));
-							lastBB.addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
-							MachineInstrBuilder copyInstr = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::COPY)).addReg(registerContainingAddr, RegState::Define).addReg(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(copyInstr.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(copyInstr.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
-							fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(registerContainingAddr).addImm(0);
+							fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(REDEFINEphysRegs[contextSlot]).addImm(0);
 							break;
 						}
 					}
@@ -1266,12 +1255,15 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == consumer) {
 						//Get the slot to read from which translates to a register anyway
 						int contextSlot = parentItr->first->getPositionOfContextSlot();
-						registerContainingConsumerBase = lastBB.getParent()->addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot], TRI->getMinimalPhysRegClass(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]));
-						MachineInstrBuilder copyInstr = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::COPY)).addReg(registerContainingConsumerBase, RegState::Define).addReg(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
-						LIS->getSlotIndexes()->insertMachineInstrInMaps(copyInstr.operator llvm::MachineInstr *());
-						allInstructionsOfRegion.push_back(make_pair(copyInstr.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
-
-						lastBB.addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
+						errs() << "context slot position:" << contextSlot << "\n";
+						registerContainingConsumerBase = REDEFINEphysRegs[contextSlot];
+						errs() << "consumer base in " << PrintReg(registerContainingConsumerBase) << "\n";
+//								lastBB.getParent()->addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot], TRI->getMinimalPhysRegClass(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]));
+//						MachineInstrBuilder copyInstr = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::COPY)).addReg(registerContainingConsumerBase, RegState::Define).addReg(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
+//						LIS->getSlotIndexes()->insertMachineInstrInMaps(copyInstr.operator llvm::MachineInstr *());
+//						allInstructionsOfRegion.push_back(make_pair(copyInstr.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
+//
+//						lastBB.addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
 						break;
 					}
 				}
@@ -1356,22 +1348,25 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == edge->getContextFrameAddress()) {
 							//Get the slot to read from which translates to a register anyway
 							int contextSlot = parentItr->first->getPositionOfContextSlot();
-							registerContainingData = lastBB.getParent()->addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot], TRI->getMinimalPhysRegClass(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]));
-							MachineInstrBuilder copyInstr = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::COPY)).addReg(registerContainingData, RegState::Define).addReg(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(copyInstr.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(copyInstr.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
-
-							lastBB.addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
+							registerContainingData = REDEFINEphysRegs[contextSlot];
+//									lastBB.getParent()->addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot], TRI->getMinimalPhysRegClass(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]));
+//							MachineInstrBuilder copyInstr = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::COPY)).addReg(registerContainingData, RegState::Define).addReg(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
+//							LIS->getSlotIndexes()->insertMachineInstrInMaps(copyInstr.operator llvm::MachineInstr *());
+//							allInstructionsOfRegion.push_back(make_pair(copyInstr.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
+//
+//							lastBB.addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
 							break;
 						}
 					}
 				}
 
+				errs() << "edge details:" << edge->getContextFrameAddress()->asString() << " and position of context slot:" << edge->getPositionOfContextSlot() << "\n";
+				errs() << "adding writecm between " << hyperOp->asString() << " and " << consumer->asString() << " with edge position:" << edge->getPositionOfContextSlot() << "\n";
 				MachineInstrBuilder writeToContextFrame = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::WRITECM));
 				writeToContextFrame.addReg(registerContainingConsumerBase);
 				writeToContextFrame.addReg(registerContainingData);
 				writeToContextFrame.addImm(edge->getPositionOfContextSlot() * datawidth);
-
+				writeToContextFrame.operator ->()->dump();
 				if (firstInstructionOfpHyperOpInRegion[targetCE] == 0) {
 					firstInstructionOfpHyperOpInRegion[targetCE] = writeToContextFrame.operator llvm::MachineInstr *();
 				}
@@ -1441,6 +1436,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			}
 			//if local reference, add writes to the local memory of consumer HyperOp and remove the consumer HyperOp's argument
 			else if (edge->getType() == HyperOpEdge::LOCAL_REFERENCE) {
+				errs() << "Dealing with local reference edge " << consumer->asString() << "\n";
 				unsigned frameLocationOfSourceData = 0;
 				Type* dataType;
 				AllocaInst* allocInstr;
@@ -1659,12 +1655,13 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == consumer) {
 						//Get the slot to read from which translates to a register anyway
 						int contextSlot = parentItr->first->getPositionOfContextSlot();
-						registerContainingConsumerBase = lastBB.getParent()->addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot], TRI->getMinimalPhysRegClass(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]));
-						MachineInstrBuilder copyInstr = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::COPY)).addReg(registerContainingConsumerBase, RegState::Define).addReg(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
-						LIS->getSlotIndexes()->insertMachineInstrInMaps(copyInstr.operator llvm::MachineInstr *());
-						allInstructionsOfRegion.push_back(make_pair(copyInstr.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
-
-						lastBB.addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
+						registerContainingConsumerBase = REDEFINEphysRegs[contextSlot];
+//								lastBB.getParent()->addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot], TRI->getMinimalPhysRegClass(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]));
+//						MachineInstrBuilder copyInstr = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::COPY)).addReg(registerContainingConsumerBase, RegState::Define).addReg(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
+//						LIS->getSlotIndexes()->insertMachineInstrInMaps(copyInstr.operator llvm::MachineInstr *());
+//						allInstructionsOfRegion.push_back(make_pair(copyInstr.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
+//
+//						lastBB.addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
 						break;
 					}
 				}
@@ -2004,9 +2001,13 @@ BB->print(dbgs());
 list<unsigned> liveInPhysicalRegs;
 for (MachineRegisterInfo::livein_iterator liveInItr = MF.getRegInfo().livein_begin(); liveInItr != MF.getRegInfo().livein_end(); liveInItr++) {
 	liveInPhysicalRegs.push_back(liveInItr->first);
-	errs() << "live in reg:" << PrintReg(liveInItr->first) << "\n";
 }
 
+for (unsigned i = 0; i < 16; i++) {
+	liveInPhysicalRegs.push_back(REDEFINEphysRegs[i]);
+}
+
+//additional live-in regs in context memory also need to be added
 //ACtually we don't need to use inst_itr here cos bundles are created after this, but leaving this for now
 for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != BB->instr_end(); instItr++) {
 	for (unsigned i = 0; i < instItr->getNumOperands(); i++) {
@@ -2015,14 +2016,14 @@ for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != B
 			unsigned operandRegister = operand.getReg();
 			bool ignore = false;
 			for (unsigned i = 0; i < ceCount; i++) {
-				if (virtualRegistersForInstAddr[i].first == operandRegister || virtualRegistersForInstAddr[i].second == operandRegister) {
+				if (virtualRegistersForInstAddr[i].first == operandRegister || virtualRegistersForInstAddr[i].second == operandRegister || allocatedVirtualAndReplacementPhysicalRegMap.find(operandRegister) != allocatedVirtualAndReplacementPhysicalRegMap.end()) {
 					ignore = true;
 					break;
 				}
 			}
 			if (!ignore) {
 				registersUsedInBB.push_back(operand.getReg());
-//				errs()<<"register added for repair:"<<PrintReg(operand.getReg(), TRI, operand.getSubReg())<<"\n";
+				errs() << "register added for repair:" << PrintReg(operand.getReg(), TRI, operand.getSubReg()) << "\n";
 			}
 		}
 	}
@@ -2082,6 +2083,16 @@ for (MachineRegisterInfo::livein_iterator liveInItr = MF.getRegInfo().livein_beg
 	liveInPhysRegisters.push_back(liveInItr->first);
 }
 
+HyperOpInteractionGraph * graph = ((REDEFINETargetMachine&) TM).HIG;
+HyperOp* currentHyperOp = graph->getHyperOp(const_cast<Function*>(MF.getFunction()));
+currentHyperOp->setNumCEs(ceCount);
+
+for (map<HyperOpEdge*, HyperOp*>::iterator contextMemItr = currentHyperOp->ParentMap.begin(); contextMemItr != currentHyperOp->ParentMap.end(); contextMemItr++) {
+	if (contextMemItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
+		liveInPhysRegisters.push_back(REDEFINEphysRegs[contextMemItr->first->getPositionOfContextSlot()]);
+	}
+}
+
 //Get the live-in registers and map to the ce to which they belong
 for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE; ++MBBI) {
 	int pHyperOpIndex = -1;
@@ -2091,9 +2102,9 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 			pHyperOpIndex++;
 		}
 //We only need to worry about copy instructions
-		if (MI->isCopy()) {
-			//Get the copy instruction's source register
-			MachineOperand &MO = MI->getOperand(1);
+		//Get the copy instruction's source register
+		for (unsigned i = 0; i < MI->getNumOperands(); i++) {
+			MachineOperand &MO = MI->getOperand(i);
 			//Just making sure that the register is live-in, although not necessary because no physical registers exist at this stage other than the ones that were passed inreg to the function
 			if (MO.isReg() && find(liveInPhysRegisters.begin(), liveInPhysRegisters.end(), MO.getReg()) != liveInPhysRegisters.end()) {
 				//Check if the physical register has already been marked as live-in
@@ -2124,10 +2135,6 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 		}
 	}
 }
-
-HyperOpInteractionGraph * graph = ((REDEFINETargetMachine&) TM).HIG;
-HyperOp* currentHyperOp = graph->getHyperOp(const_cast<Function*>(MF.getFunction()));
-currentHyperOp->setNumCEs(ceCount);
 
 unsigned contextFrameLocation = 0;
 for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
@@ -2257,14 +2264,14 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 		}
 	}
 }
-
-//Shuffle context frame slots for the HyperOp
-map<HyperOpEdge*, HyperOp*> parentMap = graph->getHyperOp(const_cast<Function*>(MF.getFunction()))->ParentMap;
-for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = parentMap.begin(); parentItr != parentMap.end(); parentItr++) {
-	HyperOpEdge* edge = parentItr->first;
-	unsigned previousPhysReg = contextFrameSlotAndPhysReg[edge->getPositionOfContextSlot()];
-	edge->setPositionOfContextSlot(physRegAndContextFrameSlot[previousPhysReg]);
-}
+//
+////Shuffle context frame slots for the HyperOp
+//map<HyperOpEdge*, HyperOp*> parentMap = graph->getHyperOp(const_cast<Function*>(MF.getFunction()))->ParentMap;
+//for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = parentMap.begin(); parentItr != parentMap.end(); parentItr++) {
+//	HyperOpEdge* edge = parentItr->first;
+//	unsigned previousPhysReg = contextFrameSlotAndPhysReg[edge->getPositionOfContextSlot()];
+//	edge->setPositionOfContextSlot(physRegAndContextFrameSlot[previousPhysReg]);
+//}
 
 DEBUG(dbgs() << "Patching the instructions that are supposed to use the physical registers r30 and r31\n");
 for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
@@ -2280,6 +2287,8 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 					instrItr->getOperand(i).setReg(REDEFINE::t5);
 				} else if (virtualRegistersForInstAddr[ceIndex].first == instrItr->getOperand(i).getReg()) {
 					instrItr->getOperand(i).setReg(REDEFINE::t4);
+				} else if (allocatedVirtualAndReplacementPhysicalRegMap.find(instrItr->getOperand(i).getReg()) != allocatedVirtualAndReplacementPhysicalRegMap.end()) {
+					instrItr->getOperand(i).setReg(allocatedVirtualAndReplacementPhysicalRegMap[instrItr->getOperand(i).getReg()]);
 				}
 			}
 		}
