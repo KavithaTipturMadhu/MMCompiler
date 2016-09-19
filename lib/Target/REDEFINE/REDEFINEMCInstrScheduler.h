@@ -54,15 +54,11 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	//We need this to do additional code motion and ease creation of pHyperOp bundles
 	//TODO
 	vector<MachineInstr*> firstInstructionOfpHyperOpInRegion;
-	//For each region, firstInstructionOfpHyperOpInRegion
-	list<vector<MachineInstr*> > firstInstructionOfpHyperOp;
 
 	vector<unsigned> registersUsedInBB;
 
 	//Contains t4 and t5 registers, a copy of t5 and their allocated virtual registers in each pHyperOp
 	pair<unsigned, unsigned > virtualRegistersForInstAddr[4];
-
-	map<unsigned, unsigned> allocatedVirtualAndReplacementPhysicalRegMap;
 
 	//Position tracking a new insertion
 	unsigned insertPosition = 0;

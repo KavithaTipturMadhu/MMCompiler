@@ -606,6 +606,7 @@ void HyperOpInteractionGraph::addHyperOp(HyperOp *Vertex) {
 }
 
 void HyperOpInteractionGraph::addEdge(HyperOp* SourceVertex, HyperOp * TargetVertex, HyperOpEdge * Edge) {
+	errs() << "edge added:" << Edge << "\n";
 	TargetVertex->addParentEdge(Edge, SourceVertex);
 	SourceVertex->addChildEdge(Edge, TargetVertex);
 }
@@ -908,7 +909,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						}
 						if (!edgeAddedPreviously) {
 							this->addEdge(immediateDominator, vertex, (HyperOpEdge*) contextFrameEdge);
-							errs() << "edge added between " << immediateDominator->asString() << " and " << vertex->asString() << " to fwd " << dominanceFrontierHyperOp->asString() << "\n";
+							errs() << "edge added between " << immediateDominator->asString() << " and " << vertex->asString() << " to fwd " << dominanceFrontierHyperOp->asString() << ":" << contextFrameEdge << "\n";
 						}
 					} else {
 						list<HyperOp*> immediateDominatorDominanceFrontier = immediateDominator->getDominanceFrontier();
@@ -916,6 +917,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						while (immediateDominator != 0 && !immediateDominatorDominanceFrontier.empty() && std::find(immediateDominatorDominanceFrontier.begin(), immediateDominatorDominanceFrontier.end(), dominanceFrontierHyperOp) != immediateDominatorDominanceFrontier.end()) {
 							HyperOpEdge* frameForwardChainEdge = new HyperOpEdge();
 							frameForwardChainEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS);
+							frameForwardChainEdge->setContextFrameAddress(dominanceFrontierHyperOp);
 							//Find the last free context slot at consumer
 							int freeContextSlot;
 							int max = -1, maxAvailableContextSlots;
@@ -943,7 +945,6 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 							}
 							if (!edgeAddedPreviously) {
 								this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) frameForwardChainEdge);
-								errs() << "intermediate forwarding edge added between " << immediateDominator->asString() << " and " << prevVertex->asString() << " to fwd " << dominanceFrontierHyperOp->asString() << "\n";
 							}
 							prevVertex = immediateDominator;
 							immediateDominator = immediateDominator->getImmediateDominator();
@@ -952,7 +953,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 							}
 						}
 						this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) contextFrameEdge);
-						errs() << "edge added between " << immediateDominator->asString() << " and " << prevVertex->asString() << " to fwd " << dominanceFrontierHyperOp->asString() << "\n";
+						errs() << "edge added between " << immediateDominator->asString() << " and " << prevVertex->asString() << " to fwd " << dominanceFrontierHyperOp->asString() << ":" << contextFrameEdge << "\n";
 					}
 				}
 			}

@@ -422,12 +422,10 @@ LiveInterval *RAGreedy::dequeue() {
 unsigned RAGreedy::tryAssign(LiveInterval &VirtReg, AllocationOrder &Order, SmallVectorImpl<LiveInterval*> &NewVRegs) {
 	Order.rewind();
 	unsigned PhysReg;
-	errs()<<"allocation order:"<<Order.isHint();
-	while ((PhysReg = Order.next())){
-		errs()<<"Interference in case of "<<PrintReg(VirtReg.reg)<<":"<<Matrix->checkInterference(VirtReg, PhysReg)<<"\n";
+	while ((PhysReg = Order.next()))
 		if (!Matrix->checkInterference(VirtReg, PhysReg))
 			break;
-	}
+
 	//TODO I have no idea what the impact of this is going to be, adding Order.isHint(MRI->getSimpleHint(VirtReg.reg)) instead of the following conditional
 	//if (!PhysReg || Order.isHint()
 	if (!PhysReg || Order.isHint() || Order.isHint(MRI->getSimpleHint(VirtReg.reg))) {
@@ -1785,7 +1783,6 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 			}
 		}
 	}
-
 
 	//For each CE, find the right physical register to be allocated
 	for (unsigned i = 0; i < ceAndLiveInArgList.size(); i++) {
