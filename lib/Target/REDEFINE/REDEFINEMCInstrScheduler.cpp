@@ -1165,14 +1165,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 				//Add the writecm instructions to the function map so that they can be patched for the right context frame location later
 				Function* consumerFunction = (*childHyperOpItr)->getFunction();
-				list<MachineInstr*> writeInstructionsToConsumer;
-				if (writeInstrToContextFrame.find(consumerFunction) != writeInstrToContextFrame.end()) {
-					writeInstructionsToConsumer = writeInstrToContextFrame.find(consumerFunction)->second;
-					writeInstrToContextFrame.erase(writeInstrToContextFrame.find(consumerFunction));
-				}
-
-				writeInstructionsToConsumer.push_back(writecm.operator ->());
-				writeInstrToContextFrame.insert(make_pair(consumerFunction, writeInstructionsToConsumer));
 
 				allInstructionsOfRegion.push_back(make_pair(writecm.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(writecm.operator llvm::MachineInstr *());
@@ -1551,20 +1543,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					allInstructionsOfRegion.push_back(make_pair(bitmaskForFrameNumber.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(bitmaskForFrameNumber.operator llvm::MachineInstr *());
 
-					//Add the write instructions to the function map so that they can be patched for the right context frame location later
-					Function* consumerFunction = consumer->getFunction();
-					list<MachineInstr*> writeInstructionsToConsumer;
-					if (writeInstrToContextFrame.find(consumerFunction) != writeInstrToContextFrame.end()) {
-						writeInstructionsToConsumer = writeInstrToContextFrame.find(consumerFunction)->second;
-						writeInstrToContextFrame.erase(writeInstrToContextFrame.find(consumerFunction));
-					}
-
-					writeInstructionsToConsumer.push_back(shiftForCRId.operator ->());
-					writeInstructionsToConsumer.push_back(shiftForFrameNumber.operator ->());
-					writeInstructionsToConsumer.push_back(shiftForPageNumber.operator ->());
-					writeInstrToContextFrame.insert(make_pair(consumerFunction, writeInstructionsToConsumer));
-
-
 					unsigned loadImmInReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					MachineInstrBuilder mulOperandForCRBase = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(loadImmInReg, RegState::Define).addReg(crId).addImm(800);
 					allInstructionsOfRegion.push_back(make_pair(mulOperandForCRBase.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
@@ -1827,17 +1805,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				allInstructionsOfRegion.push_back(make_pair(writeToContextFrame.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 				//Add instruction to bundle
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(writeToContextFrame.operator llvm::MachineInstr *());
-
-				//Add the writecm instructions to the function map so that they can be patched for the right context frame location later
-				Function* consumerFunction = consumer->getFunction();
-				list<MachineInstr*> writeInstructionsToConsumer;
-				if (writeInstrToContextFrame.find(consumerFunction) != writeInstrToContextFrame.end()) {
-					writeInstructionsToConsumer = writeInstrToContextFrame.find(consumerFunction)->second;
-					writeInstrToContextFrame.erase(writeInstrToContextFrame.find(consumerFunction));
-				}
-
-				writeInstructionsToConsumer.push_back(writeToContextFrame.operator ->());
-				writeInstrToContextFrame.insert(make_pair(consumerFunction, writeInstructionsToConsumer));
 			} else if (edge->getType() == HyperOpEdge::SYNC) {
 				//sync always goes to the 15th slot
 				unsigned contextFrameOffset = 60;
@@ -1861,18 +1828,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 				allInstructionsOfRegion.push_back(make_pair(syncInstruction.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(syncInstruction.operator llvm::MachineInstr *());
-
-				//Add the writecm instructions to the function map so that they can be patched for the right context frame location later
-				Function* consumerFunction = consumer->getFunction();
-				list<MachineInstr*> writeInstructionsToConsumer;
-				if (writeInstrToContextFrame.find(consumerFunction) != writeInstrToContextFrame.end()) {
-					writeInstructionsToConsumer = writeInstrToContextFrame.find(consumerFunction)->second;
-					writeInstrToContextFrame.erase(writeInstrToContextFrame.find(consumerFunction));
-				}
-
-				writeInstructionsToConsumer.push_back(syncInstruction.operator ->());
-				writeInstrToContextFrame.insert(make_pair(consumerFunction, writeInstructionsToConsumer));
-
 			}
 		}
 	}
@@ -2122,6 +2077,7 @@ for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
 				contextFrameSlotAndPhysReg[contextFrameLocation] = physReg;
 				physRegAndContextFrameSlot[physReg] = contextFrameLocation;
 				physRegAndLiveIn[physReg] = ceIndex;
+				errs() << "phys reg " << PrintReg(physReg) << " is live-in in ce " << ceIndex << "\n";
 				contextFrameLocation++;
 			}
 		}
@@ -2133,6 +2089,7 @@ DEBUG(dbgs() << "Patching writecm instructions to shuffle physical registers\n")
 //TODO This assumes that the producer HyperOps have already been dealt with and all necessary writecm instructions have been added
 if (writeInstrToContextFrame.find(const_cast<Function*>(MF.getFunction())) != writeInstrToContextFrame.end()) {
 	list<MachineInstr*> writeInstrToBePatched = this->writeInstrToContextFrame.find(const_cast<Function*>(MF.getFunction()))->second;
+	errs() << "number of writes to be patched that write to " << MF.getFunction()->getName() << ":" << writeInstrToBePatched.size() << "\n";
 	for (list<MachineInstr*>::iterator writeInstItr = writeInstrToBePatched.begin(); writeInstItr != writeInstrToBePatched.end(); writeInstItr++) {
 		MachineInstr* writeInst = *writeInstItr;
 //Replace the immediate offset of write instruction that corresponds to the context frame slot being written into
@@ -2147,6 +2104,7 @@ if (writeInstrToContextFrame.find(const_cast<Function*>(MF.getFunction())) != wr
  */
 //TODO Make necessary changes to check if the operand has been replicated atleast once
 DEBUG(dbgs() << "Replicating HyperOp inputs\n");
+map<unsigned, map<unsigned, unsigned> > replicatedRegInCE;
 for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE; ++MBBI) {
 	int pHyperOpIndex = -1;
 	for (MachineBasicBlock::instr_iterator MII = MBBI->instr_begin(); MII != MBBI->instr_end(); ++MII) {
@@ -2159,8 +2117,11 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 		for (unsigned i = 0; i < MI->getNumOperands(); i++) {
 			MachineOperand &MO = MI->getOperand(i);
 			if (MO.isReg() && find(liveInPhysRegisters.begin(), liveInPhysRegisters.end(), MO.getReg()) != liveInPhysRegisters.end()) {
+				errs() << "problem is because of MO";
+				MO.print(dbgs());
 				unsigned physicalReg = MO.getReg();
-				if (physRegAndLiveIn[physicalReg] == -1 || physRegAndLiveIn[physicalReg] != pHyperOpIndex) {
+				errs()<<"but isn't it live-in?"<<physRegAndLiveIn[physicalReg]<<" while the current pHop :"<<pHyperOpIndex<<"\n";
+				if ((physRegAndLiveIn[physicalReg] == -1 || physRegAndLiveIn[physicalReg] != pHyperOpIndex) && (replicatedRegInCE.find(pHyperOpIndex) == replicatedRegInCE.end() || replicatedRegInCE[pHyperOpIndex].find(physicalReg) == replicatedRegInCE[pHyperOpIndex].end())) {
 					MachineInstr* firstDefinition = physRegAndFirstMachineOperand.find(physicalReg)->second;
 					errs() << "first definition of " << PrintReg(physicalReg) << ":";
 					firstDefinition->dump();
@@ -2181,22 +2142,6 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 					writepm.addReg(physicalReg);
 					//TODO
 					writepm.addImm(SPLOCATIONS - (physRegAndContextFrameSlot[physicalReg] * datawidth));
-					//Inherit bundle properties
-					if (sourceLui.operator ->() != 0) {
-						sourceLui.operator ->()->bundleWithSucc();
-					}
-					errs()<<"bb now:";
-					writepm.operator ->()->getParent()->dump();
-					writepm.operator ->()->bundleWithSucc();
-					errs()<<"writepm bundled with succ\n";
-
-					if (firstDefinition->isBundledWithPred()) {
-						if (sourceLui != 0) {
-							sourceLui.operator ->()->bundleWithPred();
-						} else {
-							writepm.operator ->()->bundleWithPred();
-						}
-					}
 
 					MachineInstrBuilder targetLui;
 					//Load the base scratchpad address to a register in the consumer CE the first time
@@ -2210,31 +2155,19 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 //						LIS->getOrCreateInterval(targetSpAddressRegister);
 						registerContainingBaseAddress[pHyperOpIndex][pHyperOpIndex] = (int) targetSpAddressRegister;
 					}
+					unsigned readpmTarget = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					MachineInstrBuilder readpm = BuildMI(*MBBI, MI, MI->getDebugLoc(), TII->get(REDEFINE::DREADPM));
-					readpm.addReg(MO.getReg(), RegState::Define);
+					readpm.addReg(readpmTarget, RegState::Define);
 					readpm.addReg(registerContainingBaseAddress[pHyperOpIndex][pHyperOpIndex]);
 					//TODO
 					readpm.addImm(SPLOCATIONS - (physRegAndContextFrameSlot[physicalReg] + datawidth));
+					MO.setReg(readpmTarget);
 
-					//Inherit bundle properties
-					if (targetLui.operator ->() != 0) {
-						targetLui.operator ->()->bundleWithSucc();
-					}
-					readpm.operator ->()->bundleWithSucc();
-					errs()<<"readpm bundled with succ\n";
-
-					if (MI->isBundledWithPred()) {
-						if (targetLui != 0) {
-							sourceLui.operator ->()->bundleWithPred();
-						} else {
-							readpm.operator ->()->bundleWithPred();
-						}
-					}
-
-					//Remove the original copy instruction
-					if (MI->isBundled()) {
-						MI->eraseFromBundle();
-					}
+					replicatedRegInCE[pHyperOpIndex][physicalReg] = readpmTarget;
+					LIS->getOrCreateInterval(readpmTarget);
+					LIS->addLiveRangeToEndOfBlock(readpmTarget, readpm);
+				} else if(physRegAndLiveIn[physicalReg]!=pHyperOpIndex){
+					MO.setReg(replicatedRegInCE[pHyperOpIndex][physicalReg]);
 				}
 			}
 
@@ -2242,13 +2175,16 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 	}
 }
 //
-////Shuffle context frame slots for the HyperOp in case the parent hyperop hasn't been processed yet
-//map<HyperOpEdge*, HyperOp*> parentMap = graph->getHyperOp(const_cast<Function*>(MF.getFunction()))->ParentMap;
-//for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = parentMap.begin(); parentItr != parentMap.end(); parentItr++) {
-//	HyperOpEdge* edge = parentItr->first;
-//	unsigned previousPhysReg = contextFrameSlotAndPhysReg[edge->getPositionOfContextSlot()];
-//	edge->setPositionOfContextSlot(physRegAndContextFrameSlot[previousPhysReg]);
-//}
+//Shuffle context frame slots for the HyperOp in case the parent hyperop hasn't been processed yet
+map<HyperOpEdge*, HyperOp*> parentMap = graph->getHyperOp(const_cast<Function*>(MF.getFunction()))->ParentMap;
+for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = parentMap.begin(); parentItr != parentMap.end(); parentItr++) {
+	HyperOpEdge* edge = parentItr->first;
+	if (edge->getType() == HyperOpEdge::SCALAR || edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
+		unsigned previousPhysReg = contextFrameSlotAndPhysReg[edge->getPositionOfContextSlot()];
+		errs() << "updating the edge that used to point to " << edge->getPositionOfContextSlot() << "to" << physRegAndContextFrameSlot[previousPhysReg] << "\n";
+		edge->setPositionOfContextSlot(physRegAndContextFrameSlot[previousPhysReg]);
+	}
+}
 
 DEBUG(dbgs() << "Patching the instructions that are supposed to use the physical registers r30 and r31\n");
 for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
