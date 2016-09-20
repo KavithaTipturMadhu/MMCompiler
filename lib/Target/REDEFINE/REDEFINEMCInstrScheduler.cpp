@@ -1226,12 +1226,12 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		}
 	}
 
-	DEBUG(dbgs() << "Adding writecm instructions\n");
+	DEBUG(dbgs() << "Adding writecm instructions to hyperOp "<<hyperOp->asString()<<"\n");
 //Cyclically distribute the writecm stubs among pHyperOps
 	for (map<HyperOpEdge*, HyperOp*>::iterator childItr = hyperOp->ChildMap.begin(); childItr != hyperOp->ChildMap.end(); childItr++) {
 		HyperOpEdge* edge = childItr->first;
 		HyperOp* consumer = childItr->second;
-		errs() << "consumer hop:" << consumer->asString() << "\n";
+		errs() << "consumer hop:" << consumer->asString() << " with edge type "<<edge->getType()<<"\n";
 
 		if (edge->getType() == HyperOpEdge::SCALAR || edge->getType() == HyperOpEdge::LOCAL_REFERENCE || edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
 			unsigned registerContainingConsumerBase;
@@ -1336,10 +1336,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 				registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(consumer, make_pair(registerContainingConsumerBase, targetCE)));
 				faninOfHyperOp[targetCE] = faninOfHyperOp[targetCE] + datawidth;
-				errs() << "reg thru another ce\n";
 			} else {
 				registerContainingConsumerBase = registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].first;
-				errs() << "reg thru imm dom\n";
 			}
 			if (edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
 				unsigned registerContainingData;
@@ -1363,7 +1361,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					}
 				}
 
-				errs() << "edge details:" << edge->getContextFrameAddress()->asString() << " and position of context slot:" << edge->getPositionOfContextSlot() << "\n";
+				errs() << "edge goes from" << hyperOp->asString()<<" and "<<consumer->asString()<<" containing data "<<edge->getContextFrameAddress()->asString() << " and position of context slot:" << edge->getPositionOfContextSlot() << "\n";
 				errs() << "adding writecm between " << hyperOp->asString() << " and " << consumer->asString() << " with edge position:" << edge->getPositionOfContextSlot() << "\n";
 				MachineInstrBuilder writeToContextFrame = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::WRITECM));
 				writeToContextFrame.addReg(registerContainingConsumerBase);
@@ -2046,9 +2044,6 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 							liveInForPhyperOp = i;
 							break;
 						}
-						if (liveInForPhyperOp != -1) {
-							break;
-						}
 					}
 				}
 
@@ -2069,7 +2064,7 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 unsigned contextFrameLocation = 0;
 for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
 	if (ceAndLiveInPhysicalRegMap.find(ceIndex) != ceAndLiveInPhysicalRegMap.end()) {
-		list<unsigned> liveInRegs = ceAndLiveInPhysicalRegMap.find(ceIndex)->second;
+		list<unsigned> liveInRegs = ceAndLiveInPhysicalRegMap[ceIndex];
 		currentHyperOp->setNumCEInputs(ceIndex, liveInRegs.size());
 		if (!liveInRegs.empty()) {
 			for (list<unsigned>::iterator physRegItr = liveInRegs.begin(); physRegItr != liveInRegs.end(); physRegItr++) {
@@ -2077,14 +2072,13 @@ for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
 				contextFrameSlotAndPhysReg[contextFrameLocation] = physReg;
 				physRegAndContextFrameSlot[physReg] = contextFrameLocation;
 				physRegAndLiveIn[physReg] = ceIndex;
-				errs() << "phys reg " << PrintReg(physReg) << " is live-in in ce " << ceIndex << "\n";
 				contextFrameLocation++;
 			}
 		}
 	}
 }
 
-DEBUG(dbgs() << "Patching writecm instructions to shuffle physical registers\n");
+DEBUG(dbgs() << "Patching writecm instructions to shuffle physical registers of function "<<MF.getFunction()->getName()<<"\n");
 //Modify the writecm instructions corresponding to writes to the current MachineFunction's context frame
 //TODO This assumes that the producer HyperOps have already been dealt with and all necessary writecm instructions have been added
 if (writeInstrToContextFrame.find(const_cast<Function*>(MF.getFunction())) != writeInstrToContextFrame.end()) {
@@ -2092,6 +2086,8 @@ if (writeInstrToContextFrame.find(const_cast<Function*>(MF.getFunction())) != wr
 	errs() << "number of writes to be patched that write to " << MF.getFunction()->getName() << ":" << writeInstrToBePatched.size() << "\n";
 	for (list<MachineInstr*>::iterator writeInstItr = writeInstrToBePatched.begin(); writeInstItr != writeInstrToBePatched.end(); writeInstItr++) {
 		MachineInstr* writeInst = *writeInstItr;
+		errs()<<"patching write:";
+		writeInst->dump();
 //Replace the immediate offset of write instruction that corresponds to the context frame slot being written into
 		unsigned previousFrameSlot = writeInst->getOperand(2).getImm();
 		writeInst->getOperand(2).setImm(physRegAndContextFrameSlot[contextFrameSlotAndPhysReg[previousFrameSlot]]);
@@ -2120,7 +2116,7 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 				errs() << "problem is because of MO";
 				MO.print(dbgs());
 				unsigned physicalReg = MO.getReg();
-				errs()<<"but isn't it live-in?"<<physRegAndLiveIn[physicalReg]<<" while the current pHop :"<<pHyperOpIndex<<"\n";
+				errs() << "but isn't it live-in?" << physRegAndLiveIn[physicalReg] << " while the current pHop :" << pHyperOpIndex << "\n";
 				if ((physRegAndLiveIn[physicalReg] == -1 || physRegAndLiveIn[physicalReg] != pHyperOpIndex) && (replicatedRegInCE.find(pHyperOpIndex) == replicatedRegInCE.end() || replicatedRegInCE[pHyperOpIndex].find(physicalReg) == replicatedRegInCE[pHyperOpIndex].end())) {
 					MachineInstr* firstDefinition = physRegAndFirstMachineOperand.find(physicalReg)->second;
 					errs() << "first definition of " << PrintReg(physicalReg) << ":";
@@ -2166,7 +2162,7 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 					replicatedRegInCE[pHyperOpIndex][physicalReg] = readpmTarget;
 					LIS->getOrCreateInterval(readpmTarget);
 					LIS->addLiveRangeToEndOfBlock(readpmTarget, readpm);
-				} else if(physRegAndLiveIn[physicalReg]!=pHyperOpIndex){
+				} else if (physRegAndLiveIn[physicalReg] != pHyperOpIndex) {
 					MO.setReg(replicatedRegInCE[pHyperOpIndex][physicalReg]);
 				}
 			}
@@ -2175,16 +2171,16 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 	}
 }
 //
-//Shuffle context frame slots for the HyperOp in case the parent hyperop hasn't been processed yet
-map<HyperOpEdge*, HyperOp*> parentMap = graph->getHyperOp(const_cast<Function*>(MF.getFunction()))->ParentMap;
-for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = parentMap.begin(); parentItr != parentMap.end(); parentItr++) {
-	HyperOpEdge* edge = parentItr->first;
-	if (edge->getType() == HyperOpEdge::SCALAR || edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
-		unsigned previousPhysReg = contextFrameSlotAndPhysReg[edge->getPositionOfContextSlot()];
-		errs() << "updating the edge that used to point to " << edge->getPositionOfContextSlot() << "to" << physRegAndContextFrameSlot[previousPhysReg] << "\n";
-		edge->setPositionOfContextSlot(physRegAndContextFrameSlot[previousPhysReg]);
-	}
-}
+////Shuffle context frame slots for the HyperOp in case the parent hyperop hasn't been processed yet
+//map<HyperOpEdge*, HyperOp*> parentMap = graph->getHyperOp(const_cast<Function*>(MF.getFunction()))->ParentMap;
+//for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = parentMap.begin(); parentItr != parentMap.end(); parentItr++) {
+//	HyperOpEdge* edge = parentItr->first;
+//	if (edge->getType() == HyperOpEdge::SCALAR || edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
+//		unsigned previousPhysReg = contextFrameSlotAndPhysReg[edge->getPositionOfContextSlot()];
+//		errs() << "updating the edge that used to point to " << edge->getPositionOfContextSlot() << "to" << physRegAndContextFrameSlot[previousPhysReg] << "\n";
+//		edge->setPositionOfContextSlot(physRegAndContextFrameSlot[previousPhysReg]);
+//	}
+//}
 
 DEBUG(dbgs() << "Patching the instructions that are supposed to use the physical registers r30 and r31\n");
 for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
