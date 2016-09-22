@@ -11,6 +11,7 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Type.h"
 #include "HyperOpInteractionGraph.h"
+#include <execinfo.h>
 
 namespace llvm {
 class REDEFINEUtils {
@@ -21,6 +22,7 @@ public:
 	//This method is to ensure that the types are aligned to 'n' word sizes to guarantee that data movement between DGM and global memory and vice-versa dont need extra packets to be processed
 	static unsigned getAlignedSizeOfType(Type * type);
 	static unsigned getHyperOpId(HyperOp* hyperOp);
+	static void print_backtrace(void);
 };
 }
 #endif /* LIB_TARGET_REDEFINE_REDEFINEUTILS_H_ */

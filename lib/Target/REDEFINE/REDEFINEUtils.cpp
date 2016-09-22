@@ -45,3 +45,21 @@ unsigned REDEFINEUtils::getHyperOpId(HyperOp* hyperOp) {
 	contextFrameId = contextFrameId % 52;
 	return (crId << 22) | (pageNumber << 12) | (contextFrameId << 6);
 }
+
+void REDEFINEUtils::print_backtrace(void)
+{
+        static const char start[] = "BACKTRACE ------------\n";
+        static const char end[] = "----------------------\n";
+
+        void *bt[1024];
+        int bt_size;
+        char **bt_syms;
+        int i;
+
+        bt_size = backtrace(bt, 1024);
+        bt_syms = backtrace_symbols(bt, bt_size);
+        for (i = 1; i < bt_size; i++) {
+              errs()<<bt_syms[i]<<"\n";
+        }
+    free(bt_syms);
+}
