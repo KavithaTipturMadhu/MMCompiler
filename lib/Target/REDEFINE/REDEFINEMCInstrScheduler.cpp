@@ -319,6 +319,18 @@ for (int i = 0; i < ceCount; i++) {
 }
 allInstructionsOfBB.clear();
 registersUsedInBB.clear();
+if (BB != MF.begin()) {
+	HyperOpInteractionGraph * graph = ((REDEFINETargetMachine&) TM).HIG;
+	HyperOp* currentHyperOp = graph->getHyperOp(const_cast<Function*>(MF.getFunction()));
+	for (map<HyperOpEdge*, HyperOp*>::iterator contextMemItr = currentHyperOp->ParentMap.begin(); contextMemItr != currentHyperOp->ParentMap.end(); contextMemItr++) {
+		if (contextMemItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
+			unsigned physicalReg = REDEFINEphysRegs[contextMemItr->first->getPositionOfContextSlot()];
+			MF.addLiveIn(physicalReg, TRI->getMinimalPhysRegClass(physicalReg));
+			BB->addLiveIn(physicalReg);
+		}
+	}
+//	MRI.EmitLiveInCopies(BB, *TRI, *TII);
+}
 }
 
 void REDEFINEMCInstrScheduler::exitRegion() {
@@ -1263,8 +1275,10 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							//Get the slot to read from which translates to a register anyway
 							int contextSlot = parentItr->first->getPositionOfContextSlot();
 							fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(REDEFINEphysRegs[contextSlot]).addImm(0);
-//							unsigned virtualReg = lastBB.getParent()->addLiveIn(REDEFINEphysRegs[contextSlot], TRI->getRegClass(REDEFINEphysRegs[contextSlot]));
+//							unsigned virtualReg = lastBB.getParent()->addLiveIn(REDEFINEphysRegs[contextSlot],TRI->getMinimalPhysRegClass(REDEFINEphysRegs[contextSlot]));
 //							fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(virtualReg).addImm(0);
+//							LIS->getOrCreateInterval(virtualReg);
+//							LIS->addLiveRangeToEndOfBlock(virtualReg,fdelete.operator ->());
 							break;
 						}
 					}
@@ -2063,11 +2077,11 @@ list<unsigned> liveInPhysRegisters;
 for (MachineRegisterInfo::livein_iterator liveInItr = MF.getRegInfo().livein_begin(); liveInItr != MF.getRegInfo().livein_end(); liveInItr++) {
 	liveInPhysRegisters.push_back(liveInItr->first);
 }
-for (map<HyperOpEdge*, HyperOp*>::iterator contextMemItr = currentHyperOp->ParentMap.begin(); contextMemItr != currentHyperOp->ParentMap.end(); contextMemItr++) {
-	if (contextMemItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
-		liveInPhysRegisters.push_back(REDEFINEphysRegs[contextMemItr->first->getPositionOfContextSlot()]);
-	}
-}
+//for (map<HyperOpEdge*, HyperOp*>::iterator contextMemItr = currentHyperOp->ParentMap.begin(); contextMemItr != currentHyperOp->ParentMap.end(); contextMemItr++) {
+//	if (contextMemItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
+//		liveInPhysRegisters.push_back(REDEFINEphysRegs[contextMemItr->first->getPositionOfContextSlot()]);
+//	}
+//}
 
 //Get the live-in registers and map to the ce to which they belong
 for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE; ++MBBI) {
@@ -2250,5 +2264,4 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 
 DEBUG(dbgs() << "Final state of Machine Function:");
 MF.print(dbgs());
-
 }
