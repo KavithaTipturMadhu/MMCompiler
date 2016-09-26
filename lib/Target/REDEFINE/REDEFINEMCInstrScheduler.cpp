@@ -1256,17 +1256,26 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == (*childHyperOpItr)) {
 							//Get the slot to read from which translates to a register anyway
 							unsigned physicalReg = REDEFINEphysRegs[parentItr->first->getPositionOfContextSlot()];
-//							if (!MRI.isLiveIn(physicalReg)) {
-							//There is no need to check if the register is live-in and have an else block here
-							unsigned virtualReg = MF.addLiveIn(physicalReg, TRI->getMinimalPhysRegClass(physicalReg));
-							lastBB.addLiveIn(physicalReg);
-							MRI.addLiveIn(physicalReg, virtualReg);
-							//Emit copy
-							MachineInstrBuilder copy = BuildMI(lastBB, lastInstruction, location, TII->get(TargetOpcode::COPY), virtualReg).addReg(physicalReg);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
-							LIS->getOrCreateInterval(virtualReg);
-							LIS->addLiveRangeToEndOfBlock(virtualReg, copy.operator ->());
-							allInstructionsOfRegion.push_back(make_pair(copy.operator ->(), make_pair(0, insertPosition++)));
+							unsigned virtualReg;
+							if (!MF.getRegInfo().isLiveIn(physicalReg)) {
+								errs() << "Adding as livein the predicate consumer address:" << PrintReg(physicalReg) << "\n";
+								//There is no need to check if the register is live-in and have an else block here
+								virtualReg = MF.addLiveIn(physicalReg, TRI->getMinimalPhysRegClass(physicalReg));
+//								lastBB.addLiveIn(physicalReg);
+								for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
+									bbItr->addLiveIn(physicalReg);
+								}
+								MF.getRegInfo().setRegAllocationHint(virtualReg, 0, physicalReg);
+//								MRI.addLiveIn(physicalReg, virtualReg);
+								//Emit copy
+								MachineInstrBuilder copy = BuildMI(lastBB, lastInstruction, location, TII->get(TargetOpcode::COPY)).addReg(virtualReg, RegState::Define).addReg(physicalReg);
+								LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
+//								LIS->getOrCreateInterval(virtualReg);
+//								LIS->addLiveRangeToEndOfBlock(virtualReg, copy.operator ->());
+								allInstructionsOfRegion.push_back(make_pair(copy.operator ->(), make_pair(0, insertPosition++)));
+							} else {
+								virtualReg = MF.getRegInfo().getLiveInVirtReg(physicalReg);
+							}
 							fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(virtualReg).addImm(0);
 							break;
 						}
@@ -1304,51 +1313,34 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			} else if (edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && edge->getContextFrameAddress()->getImmediateDominator() == hyperOp) {
 				targetCE = registerContainingHyperOpFrameAddressAndCEWithFalloc[edge->getContextFrameAddress()].second;
 			}
-			if (consumer->getImmediateDominator() != hyperOp) {
+			if (consumer->getImmediateDominator() != hyperOp && registerContainingHyperOpFrameAddressAndCEWithFalloc.find(consumer) == registerContainingHyperOpFrameAddressAndCEWithFalloc.end()) {
 				//Just use the physical register that's mapped to the consumer hyperOp
 				for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
 					if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == consumer) {
 						//Get the slot to read from which translates to a register anyway
 						unsigned physicalReg = REDEFINEphysRegs[parentItr->first->getPositionOfContextSlot()];
-						if (!MRI.isLiveIn(physicalReg)) {
-							registerContainingConsumerBase = MF.addLiveIn(registerContainingConsumerBase, TRI->getMinimalPhysRegClass(physicalReg));
-							lastBB.addLiveIn(physicalReg);
-							MRI.addLiveIn(physicalReg, registerContainingConsumerBase);
+						if (!MF.getRegInfo().isLiveIn(physicalReg)) {
+							registerContainingConsumerBase = MF.addLiveIn(physicalReg, TRI->getMinimalPhysRegClass(physicalReg));
+//							lastBB.addLiveIn(physicalReg);
+							for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
+								bbItr->addLiveIn(physicalReg);
+							}
+							MF.getRegInfo().setRegAllocationHint(registerContainingConsumerBase, 0, physicalReg);
 							errs() << "Adding as livein the consumer's address:" << PrintReg(physicalReg) << " which is now marked as live in?" << MRI.isLiveIn(physicalReg) << "\n";
 							//Emit copy
-							MachineInstrBuilder copy = BuildMI(lastBB, lastInstruction, location, TII->get(TargetOpcode::COPY), registerContainingConsumerBase).addReg(physicalReg);
+							MachineInstrBuilder copy = BuildMI(lastBB, lastInstruction, location, TII->get(TargetOpcode::COPY)).addReg(registerContainingConsumerBase, RegState::Define).addReg(physicalReg);
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
 							allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+							registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(consumer, make_pair(registerContainingConsumerBase, targetCE)));
+							errs() << "live interval of the phys reg now:";
+							LIS->getRegUnit(physicalReg);
 						} else {
-							registerContainingConsumerBase = MRI.getLiveInVirtReg(physicalReg);
+							registerContainingConsumerBase = MF.getRegInfo().getLiveInVirtReg(physicalReg);
 						}
-//								lastBB.getParent()->addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot], TRI->getMinimalPhysRegClass(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]));
-//						MachineInstrBuilder copyInstr = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::COPY)).addReg(registerContainingConsumerBase, RegState::Define).addReg(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
-//						LIS->getSlotIndexes()->insertMachineInstrInMaps(copyInstr.operator llvm::MachineInstr *());
-//						allInstructionsOfRegion.push_back(make_pair(copyInstr.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
-//
-//						lastBB.addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
 						break;
 					}
 				}
-			}
-//			//consumer hyperOp frame address has not been loaded yet, which means that the HyperOp is either static or the current hyperOp is not the creator of the consumer's frame
-//			else if (registerContainingHyperOpFrameAddressAndCEWithFalloc.find(consumer) == registerContainingHyperOpFrameAddressAndCEWithFalloc.end() && consumer->isStaticHyperOp()) {
-//				//The consumer is static, all we need to do is load the immediate to a new register locally
-//				registerContainingConsumerBase = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-//				MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI));
-//				addi.addReg(registerContainingConsumerBase, RegState::Define);
-//				addi.addReg(REDEFINE::zero);
-//				addi.addImm(REDEFINEUtils::getHyperOpId(consumer));
-//				if (firstInstructionOfpHyperOpInRegion[targetCE] == 0) {
-//					firstInstructionOfpHyperOpInRegion[targetCE] = addi.operator llvm::MachineInstr *();
-//				}
-//				allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
-//				LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
-//				registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(consumer, make_pair(registerContainingConsumerBase, targetCE)));
-//			}
-			else if (registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].second != targetCE) {
-//					&& (consumer->isStaticHyperOp() || consumer->getImmediateDominator() == hyperOp)) {
+			} else if (registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].second != targetCE) {
 				unsigned sourceCEContainingFrameAddress = registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].second;
 				//Load the base scratchpad address to a register in the producer CE for the first time
 				if (registerContainingBaseAddress[sourceCEContainingFrameAddress][targetCE] == -1) {
@@ -1412,25 +1404,23 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == edge->getContextFrameAddress()) {
 							//Get the slot to read from which translates to a register anyway
 							unsigned physicalReg = REDEFINEphysRegs[parentItr->first->getPositionOfContextSlot()];
-							if (!MRI.isLiveIn(physicalReg)) {
-								errs() << "Adding as livein the context frame data :" << PrintReg(physicalReg) << "\n";
+							if (!MF.getRegInfo().isLiveIn(physicalReg)) {
+								errs() << "Adding as livein the predicate consumer address:" << PrintReg(physicalReg) << "\n";
 								registerContainingData = MF.addLiveIn(physicalReg, TRI->getMinimalPhysRegClass(physicalReg));
-								lastBB.addLiveIn(physicalReg);
-								MRI.addLiveIn(physicalReg, registerContainingData);
+//								lastBB.addLiveIn(physicalReg);
+								for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
+									bbItr->addLiveIn(physicalReg);
+								}
+								MF.getRegInfo().setRegAllocationHint(registerContainingData, 0, physicalReg);
+//								MRI.addLiveIn(physicalReg, registerContainingData);
 								//Emit copy
-								MachineInstrBuilder copy = BuildMI(lastBB, lastInstruction, location, TII->get(TargetOpcode::COPY), registerContainingData).addReg(physicalReg);
+								MachineInstrBuilder copy = BuildMI(lastBB, lastInstruction, location, TII->get(TargetOpcode::COPY)).addReg(registerContainingData, RegState::Define).addReg(physicalReg);
 								LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
 								allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 								registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(edge->getContextFrameAddress(), make_pair(registerContainingData, targetCE)));
 							} else {
-								registerContainingData = MRI.getLiveInVirtReg(physicalReg);
+								registerContainingData = MF.getRegInfo().getLiveInVirtReg(physicalReg);
 							}
-//									lastBB.getParent()->addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot], TRI->getMinimalPhysRegClass(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]));
-//							MachineInstrBuilder copyInstr = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::COPY)).addReg(registerContainingData, RegState::Define).addReg(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
-//							LIS->getSlotIndexes()->insertMachineInstrInMaps(copyInstr.operator llvm::MachineInstr *());
-//							allInstructionsOfRegion.push_back(make_pair(copyInstr.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
-//
-//							lastBB.addLiveIn(REDEFINEphysRegs[liveInPhysRegisters.size() + contextSlot]);
 							break;
 						}
 					}
@@ -1727,24 +1717,28 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			}
 		}
 		if (edge->getType() == HyperOpEdge::PREDICATE || edge->getType() == HyperOpEdge::SYNC || edge->getType() == HyperOpEdge::ORDERING) {
-			if (consumer->getImmediateDominator() != hyperOp) {
+			if (consumer->getImmediateDominator() != hyperOp && registerContainingHyperOpFrameAddressAndCEWithFalloc.find(consumer) == registerContainingHyperOpFrameAddressAndCEWithFalloc.end()) {
 				//Just use the physical register that's mapped to the consumer hyperOp
 				for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
 					if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && parentItr->first->getContextFrameAddress() == consumer) {
 						//Get the slot to read from which translates to a register anyway
 						unsigned physicalReg = REDEFINEphysRegs[parentItr->first->getPositionOfContextSlot()];
-						if (!MRI.isLiveIn(physicalReg)) {
+						if (!MF.getRegInfo().isLiveIn(physicalReg)) {
 							errs() << "Adding as livein the predicate consumer address:" << PrintReg(physicalReg) << "\n";
 							registerContainingConsumerBase = MF.addLiveIn(physicalReg, TRI->getMinimalPhysRegClass(physicalReg));
-							lastBB.addLiveIn(physicalReg);
-							MRI.addLiveIn(physicalReg, registerContainingConsumerBase);
+//							lastBB.addLiveIn(physicalReg);
+							for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
+								bbItr->addLiveIn(physicalReg);
+							}
+							MF.getRegInfo().setRegAllocationHint(registerContainingConsumerBase, 0, physicalReg);
+//							MRI.addLiveIn(physicalReg, registerContainingConsumerBase);
 							//Emit copy
-							MachineInstrBuilder copy = BuildMI(lastBB, lastInstruction, location, TII->get(TargetOpcode::COPY), registerContainingConsumerBase).addReg(physicalReg);
+							MachineInstrBuilder copy = BuildMI(lastBB, lastInstruction, location, TII->get(TargetOpcode::COPY)).addReg(registerContainingConsumerBase, RegState::Define).addReg(physicalReg);
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
 							allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 							registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(consumer, make_pair(registerContainingConsumerBase, targetCE)));
 						} else {
-							registerContainingConsumerBase = MRI.getLiveInVirtReg(physicalReg);
+							registerContainingConsumerBase = MF.getRegInfo().getLiveInVirtReg(physicalReg);
 						}
 						break;
 					}
@@ -2013,7 +2007,7 @@ for (MachineRegisterInfo::livein_iterator liveInItr = MF.getRegInfo().livein_beg
 for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != BB->instr_end(); instItr++) {
 	for (unsigned i = 0; i < instItr->getNumOperands(); i++) {
 		MachineOperand& operand = instItr->getOperand(i);
-		if (operand.isReg() && find(liveInPhysicalRegs.begin(), liveInPhysicalRegs.end(), operand.getReg()) == liveInPhysicalRegs.end() && find(registersUsedInBB.begin(), registersUsedInBB.end(), operand.getReg()) == registersUsedInBB.end()) {
+		if (operand.isReg() && find(registersUsedInBB.begin(), registersUsedInBB.end(), operand.getReg()) == registersUsedInBB.end()) {
 			unsigned operandRegister = operand.getReg();
 			bool ignore = false;
 			for (unsigned i = 0; i < ceCount; i++) {
@@ -2083,11 +2077,6 @@ list<unsigned> liveInPhysRegisters;
 for (MachineRegisterInfo::livein_iterator liveInItr = MF.getRegInfo().livein_begin(); liveInItr != MF.getRegInfo().livein_end(); liveInItr++) {
 	liveInPhysRegisters.push_back(liveInItr->first);
 }
-//for (map<HyperOpEdge*, HyperOp*>::iterator contextMemItr = currentHyperOp->ParentMap.begin(); contextMemItr != currentHyperOp->ParentMap.end(); contextMemItr++) {
-//	if (contextMemItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
-//		liveInPhysRegisters.push_back(REDEFINEphysRegs[contextMemItr->first->getPositionOfContextSlot()]);
-//	}
-//}
 
 //Get the live-in registers and map to the ce to which they belong
 for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE; ++MBBI) {
@@ -2176,77 +2165,77 @@ for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = parentMap.begin(); parent
 	}
 }
 
-/*
- * Since REDEFINE doesn't allow replication of context memory inputs to multiple CEs, after the first CE that uses a live-in register corresponding to a HyperOp input is encountered,
- * if another CE requires the same input, it gets the input from scratch pad.
- */
-//TODO Make necessary changes to check if the operand has been replicated atleast once
-DEBUG(dbgs() << "Replicating HyperOp inputs\n");
-map<unsigned, map<unsigned, unsigned> > replicatedRegInCE;
-for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE; ++MBBI) {
-	int pHyperOpIndex = -1;
-	for (MachineBasicBlock::instr_iterator MII = MBBI->instr_begin(); MII != MBBI->instr_end(); ++MII) {
-		MachineInstr *MI = MII;
-//First instruction in basic block
-		if (!MI->isInsideBundle()) {
-			//New pHyperOp
-			pHyperOpIndex++;
-		}
-		for (unsigned i = 0; i < MI->getNumOperands(); i++) {
-			MachineOperand &MO = MI->getOperand(i);
-			if (MO.isReg() && find(liveInPhysRegisters.begin(), liveInPhysRegisters.end(), MO.getReg()) != liveInPhysRegisters.end()) {
-				if (find(liveInPhysRegisters.begin(), liveInPhysRegisters.end(), MO.getReg()) != liveInPhysRegisters.end()) {
-					unsigned physicalReg = MO.getReg();
-					if ((physRegAndLiveIn[physicalReg] == -1 || physRegAndLiveIn[physicalReg] != pHyperOpIndex) && (replicatedRegInCE.find(pHyperOpIndex) == replicatedRegInCE.end() || replicatedRegInCE[pHyperOpIndex].find(physicalReg) == replicatedRegInCE[pHyperOpIndex].end())) {
-						MachineInstr* firstDefinition = physRegAndFirstMachineOperand.find(physicalReg)->second;
-						unsigned pHyperOpContainingDefinition = physRegAndLiveIn[physicalReg];
-						MachineInstrBuilder sourceLui;
-						if (registerContainingBaseAddress[pHyperOpContainingDefinition][pHyperOpIndex] == -1) {
-							sourceLui = BuildMI(*(firstDefinition->getParent()), firstDefinition, firstDefinition->getDebugLoc(), TII->get(REDEFINE::LUI));
-							unsigned sourceSpAddressRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-							sourceLui.addReg(sourceSpAddressRegister, RegState::Define);
-							//TODO May need changing later
-							sourceLui.addImm(pHyperOpIndex);
-							registerContainingBaseAddress[pHyperOpContainingDefinition][pHyperOpIndex] = (int) sourceSpAddressRegister;
-						}
-
-						MachineInstrBuilder writepm = BuildMI(*(firstDefinition->getParent()), firstDefinition, firstDefinition->getDebugLoc(), TII->get(REDEFINE::WRITEPM));
-						writepm.addReg(registerContainingBaseAddress[pHyperOpContainingDefinition][pHyperOpIndex]);
-						writepm.addReg(physicalReg);
-						//TODO
-						writepm.addImm(SPLOCATIONS - (physRegAndContextFrameSlot[physicalReg] * datawidth));
-
-						MachineInstrBuilder targetLui;
-						//Load the base scratchpad address to a register in the consumer CE the first time
-						if (registerContainingBaseAddress[pHyperOpIndex][pHyperOpIndex] == -1) {
-							targetLui = BuildMI(*MBBI, MI, MI->getDebugLoc(), TII->get(REDEFINE::LUI));
-							unsigned targetSpAddressRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-							targetLui.addReg(targetSpAddressRegister, RegState::Define);
-							//TODO May need changing later
-							targetLui.addImm(pHyperOpIndex);
-
-//						LIS->getOrCreateInterval(targetSpAddressRegister);
-							registerContainingBaseAddress[pHyperOpIndex][pHyperOpIndex] = (int) targetSpAddressRegister;
-						}
-						unsigned readpmTarget = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-						MachineInstrBuilder readpm = BuildMI(*MBBI, MI, MI->getDebugLoc(), TII->get(REDEFINE::DREADPM));
-						readpm.addReg(readpmTarget, RegState::Define);
-						readpm.addReg(registerContainingBaseAddress[pHyperOpIndex][pHyperOpIndex]);
-						//TODO
-						readpm.addImm(SPLOCATIONS - (physRegAndContextFrameSlot[physicalReg] * datawidth));
-						MO.setReg(readpmTarget);
-
-						replicatedRegInCE[pHyperOpIndex][physicalReg] = readpmTarget;
-						LIS->getOrCreateInterval(readpmTarget);
-						LIS->addLiveRangeToEndOfBlock(readpmTarget, readpm);
-					} else if (physRegAndLiveIn[physicalReg] != pHyperOpIndex) {
-						MO.setReg(replicatedRegInCE[pHyperOpIndex][physicalReg]);
-					}
-				}
-			}
-		}
-	}
-}
+///*
+// * Since REDEFINE doesn't allow replication of context memory inputs to multiple CEs, after the first CE that uses a live-in register corresponding to a HyperOp input is encountered,
+// * if another CE requires the same input, it gets the input from scratch pad.
+// */
+////TODO Make necessary changes to check if the operand has been replicated atleast once
+//DEBUG(dbgs() << "Replicating HyperOp inputs\n");
+//map<unsigned, map<unsigned, unsigned> > replicatedRegInCE;
+//for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE; ++MBBI) {
+//	int pHyperOpIndex = -1;
+//	for (MachineBasicBlock::instr_iterator MII = MBBI->instr_begin(); MII != MBBI->instr_end(); ++MII) {
+//		MachineInstr *MI = MII;
+////First instruction in basic block
+//		if (!MI->isInsideBundle()) {
+//			//New pHyperOp
+//			pHyperOpIndex++;
+//		}
+//		for (unsigned i = 0; i < MI->getNumOperands(); i++) {
+//			MachineOperand &MO = MI->getOperand(i);
+//			if (MO.isReg() && find(liveInPhysRegisters.begin(), liveInPhysRegisters.end(), MO.getReg()) != liveInPhysRegisters.end()) {
+//				if (find(liveInPhysRegisters.begin(), liveInPhysRegisters.end(), MO.getReg()) != liveInPhysRegisters.end()) {
+//					unsigned physicalReg = MO.getReg();
+//					if ((physRegAndLiveIn[physicalReg] == -1 || physRegAndLiveIn[physicalReg] != pHyperOpIndex) && (replicatedRegInCE.find(pHyperOpIndex) == replicatedRegInCE.end() || replicatedRegInCE[pHyperOpIndex].find(physicalReg) == replicatedRegInCE[pHyperOpIndex].end())) {
+//						MachineInstr* firstDefinition = physRegAndFirstMachineOperand.find(physicalReg)->second;
+//						unsigned pHyperOpContainingDefinition = physRegAndLiveIn[physicalReg];
+//						MachineInstrBuilder sourceLui;
+//						if (registerContainingBaseAddress[pHyperOpContainingDefinition][pHyperOpIndex] == -1) {
+//							sourceLui = BuildMI(*(firstDefinition->getParent()), firstDefinition, firstDefinition->getDebugLoc(), TII->get(REDEFINE::LUI));
+//							unsigned sourceSpAddressRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+//							sourceLui.addReg(sourceSpAddressRegister, RegState::Define);
+//							//TODO May need changing later
+//							sourceLui.addImm(pHyperOpIndex);
+//							registerContainingBaseAddress[pHyperOpContainingDefinition][pHyperOpIndex] = (int) sourceSpAddressRegister;
+//						}
+//
+//						MachineInstrBuilder writepm = BuildMI(*(firstDefinition->getParent()), firstDefinition, firstDefinition->getDebugLoc(), TII->get(REDEFINE::WRITEPM));
+//						writepm.addReg(registerContainingBaseAddress[pHyperOpContainingDefinition][pHyperOpIndex]);
+//						writepm.addReg(physicalReg);
+//						//TODO
+//						writepm.addImm(SPLOCATIONS - (physRegAndContextFrameSlot[physicalReg] * datawidth));
+//
+//						MachineInstrBuilder targetLui;
+//						//Load the base scratchpad address to a register in the consumer CE the first time
+//						if (registerContainingBaseAddress[pHyperOpIndex][pHyperOpIndex] == -1) {
+//							targetLui = BuildMI(*MBBI, MI, MI->getDebugLoc(), TII->get(REDEFINE::LUI));
+//							unsigned targetSpAddressRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+//							targetLui.addReg(targetSpAddressRegister, RegState::Define);
+//							//TODO May need changing later
+//							targetLui.addImm(pHyperOpIndex);
+//
+////						LIS->getOrCreateInterval(targetSpAddressRegister);
+//							registerContainingBaseAddress[pHyperOpIndex][pHyperOpIndex] = (int) targetSpAddressRegister;
+//						}
+//						unsigned readpmTarget = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+//						MachineInstrBuilder readpm = BuildMI(*MBBI, MI, MI->getDebugLoc(), TII->get(REDEFINE::DREADPM));
+//						readpm.addReg(readpmTarget, RegState::Define);
+//						readpm.addReg(registerContainingBaseAddress[pHyperOpIndex][pHyperOpIndex]);
+//						//TODO
+//						readpm.addImm(SPLOCATIONS - (physRegAndContextFrameSlot[physicalReg] * datawidth));
+//						MO.setReg(readpmTarget);
+//
+//						replicatedRegInCE[pHyperOpIndex][physicalReg] = readpmTarget;
+//						LIS->getOrCreateInterval(readpmTarget);
+//						LIS->addLiveRangeToEndOfBlock(readpmTarget, readpm);
+//					} else if (physRegAndLiveIn[physicalReg] != pHyperOpIndex) {
+//						MO.setReg(replicatedRegInCE[pHyperOpIndex][physicalReg]);
+//					}
+//				}
+//			}
+//		}
+//	}
+//}
 
 DEBUG(dbgs() << "Patching the instructions that are supposed to use the physical registers r30 and r31\n");
 for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
@@ -2267,6 +2256,8 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 		}
 	}
 }
+
+LIS->computeLiveInRegUnits();
 
 DEBUG(dbgs() << "Final state of Machine Function:");
 MF.print(dbgs());
