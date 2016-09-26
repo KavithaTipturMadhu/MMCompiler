@@ -371,6 +371,8 @@ namespace llvm {
       return RegUnitIntervals[Unit];
     }
 
+    void computeLiveInRegUnits();
+
   private:
     /// Compute live intervals for all virtual registers.
     void computeVirtRegs();
@@ -383,7 +385,6 @@ namespace llvm {
     void printInstrs(raw_ostream &O) const;
     void dumpInstrs() const;
 
-    void computeLiveInRegUnits();
     void computeRegUnitInterval(LiveInterval*);
     void computeVirtRegInterval(LiveInterval*);
 
