@@ -175,6 +175,7 @@ public:
 	bool isStaticHyperOp() const;
 	void setStaticHyperOp(bool staticHyperOp);
 	void incrementIncomingSyncCount();
+	void decrementIncomingSyncCount();
 	unsigned getSyncCount();
 	list<unsigned> getInstanceId();
 	void setInstanceId(list<unsigned> instanceId);
