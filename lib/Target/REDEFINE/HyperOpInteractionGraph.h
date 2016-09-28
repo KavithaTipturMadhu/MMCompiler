@@ -45,6 +45,7 @@ class HyperOpEdge {
 	bool isIgnoredEdge;
 	int positionOfContextSlot;
 	unsigned predicateValue;
+	unsigned decrementOperandCount;
 
 protected:
 	Value* variable;
@@ -80,6 +81,8 @@ public:
 	void setContextFrameAddress(HyperOp* contextFrameAddress);
 	unsigned getPredicateValue();
 	void setPredicateValue(unsigned predicateValue);
+	unsigned getDecrementOperandCount();
+	void setDecrementOperandCount(unsigned decrementOperandCount);
 };
 
 class HyperOp {
