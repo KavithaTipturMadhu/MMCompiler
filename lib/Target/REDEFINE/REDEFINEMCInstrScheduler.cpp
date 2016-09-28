@@ -1816,7 +1816,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 			if (edge->getType() == HyperOpEdge::PREDICATE || edge->getType() == HyperOpEdge::ORDERING) {
 				//predicate can take any offset wrt context frame base, it does not have a dedicated slot
-				unsigned contextFrameOffset = 0;
+				unsigned contextFrameOffset = edge->getDecrementOperandCount();
 
 				unsigned objectIndex = -1;
 				//Get the index of the stack allocated object, starting from 0 because negative offsets from fp contain function arguments

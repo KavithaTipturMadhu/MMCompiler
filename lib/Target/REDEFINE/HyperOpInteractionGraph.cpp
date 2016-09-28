@@ -2315,21 +2315,34 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 				}
 			}
 		}
-
 	}
 
 //	Add predicate delivery edges to HyperOps that are on non taken paths but may have data coming from a HyperOp that precedes the HyperOp producing the predicate
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hyperOp = *hopItr;
-		if (!hyperOp->isPredicatedHyperOp()&&!hyperOp->isBarrierHyperOp()) {
+		if (!hyperOp->isPredicatedHyperOp() && !hyperOp->isBarrierHyperOp()) {
 			HyperOp* immediateDominator = hyperOp->getImmediateDominator();
 			pair<HyperOpEdge*, HyperOp*> parentPredicate = lastPredicateInput(hyperOp);
 			list<HyperOp*> parentList = hyperOp->getParentList();
-			if(find(parentList.begin(), parentList.end(),immediateDominator)!=parentList.end()&&pathExistsInHIG(immediateDominator, parentPredicate.second)){
+			if (find(parentList.begin(), parentList.end(), immediateDominator) != parentList.end() && pathExistsInHIG(immediateDominator, parentPredicate.second)) {
 				//Add a predicate edge from the predicate parent to the current HyperOp
 				HyperOp* parentProducingPredicate = parentPredicate.second;
+				unsigned decByValue;
 				//TODO
-				//				HyperOpEdge* newPredicateEdge =?
+				//Count number of inputs coming from other parent nodes which are also predicated by the same HyperOp
+				for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
+					if ((parentItr->first->getType()==HyperOpEdge::SCALAR||parentItr->first->getType()==HyperOpEdge::LOCAL_REFERENCE)&&parentItr->second != immediateDominator && pathExistsInHIG(parentProducingPredicate, parentItr->second)) {
+						decByValue ++;
+					}
+				}
+
+				HyperOpEdge* predicateEdge = new HyperOpEdge();
+				predicateEdge->setType(HyperOpEdge::PREDICATE);
+				predicateEdge->setDecrementOperandCount(decByValue);
+				predicateEdge->setValue(parentPredicate.first->getValue());
+				predicateEdge->setPredicateValue(parentPredicate.first->getPredicateValue());
+				hyperOp->setPredicatedHyperOp();
+				this->addEdge(parentPredicate.second, hyperOp,predicateEdge);
 			}
 		}
 	}
