@@ -123,7 +123,7 @@ void HyperOp::incrementIncomingSyncCount() {
 	this->numIncomingSyncEdges++;
 }
 
-void HyperOp::decrementIncomingSyncCount(){
+void HyperOp::decrementIncomingSyncCount() {
 	this->numIncomingSyncEdges--;
 }
 unsigned HyperOp::getSyncCount() {
@@ -2234,26 +2234,33 @@ void HyperOpInteractionGraph::associateStaticContextFrames() {
 	}
 }
 
-bool pathExistsInHIG(HyperOp* source, HyperOp* target){
-	for(map<HyperOpEdge*, HyperOp*>::iterator childItr = source->ChildMap.begin();childItr!=source->ChildMap.end();childItr++){
-		if(childItr->second==target||pathExistsInHIG(childItr->second, target)){
+bool pathExistsInHIG(HyperOp* source, HyperOp* target) {
+	errs()<<"finding path between "<<source->asString()<<" and "<<target->asString()<<"\n";
+	for (map<HyperOpEdge*, HyperOp*>::iterator childItr = source->ChildMap.begin(); childItr != source->ChildMap.end(); childItr++) {
+		if (childItr->second == target || pathExistsInHIG(childItr->second, target)) {
 			return true;
 		}
 	}
 	return false;
 }
 
-pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
-	pair<HyperOpEdge*, HyperOp*> returnPredicate;
+pair<HyperOpEdge*, HyperOp*>* lastPredicateInput(HyperOp* currentHyperOp) {
+	errs()<<"finding last pred to "<<currentHyperOp->asString()<<"\n";
+	pair<HyperOpEdge*, HyperOp*>* returnPredicate = NULL;
 	bool firstIteration = true;
 	for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = currentHyperOp->ParentMap.begin(); parentItr != currentHyperOp->ParentMap.end(); parentItr++) {
-		if(parentItr->first->getType()==HyperOpEdge::PREDICATE){
+		pair<HyperOpEdge*, HyperOp*>* predicateFromParent;
+		if (parentItr->first->getType() == HyperOpEdge::PREDICATE) {
+			predicateFromParent = &(make_pair(parentItr->first, parentItr->second));
+		} else {
+			predicateFromParent = lastPredicateInput(parentItr->second);
+		}
+		if (predicateFromParent != NULL && (firstIteration || pathExistsInHIG(returnPredicate->second, predicateFromParent->second))) {
+			errs()<<"we have done an assignment before\n";
 			//Check if returnPredicate held currently is higher up in the tree
-			if(firstIteration||pathExistsInHIG(returnPredicate.second, currentHyperOp)){
-				returnPredicate = make_pair(parentItr->first, parentItr->second);
-				if(firstIteration){
-					firstIteration = false;
-				}
+			returnPredicate = predicateFromParent;
+			if (firstIteration) {
+				firstIteration = false;
 			}
 		}
 	}
@@ -2302,26 +2309,33 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 	//Update the sync count of nodes with sync edges incoming from mutually exclusive paths
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hyperOp = *hopItr;
-		list<pair<HyperOpEdge*, HyperOp*> > parentPredicateList;
-		for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
-			if (parentItr->first->getType() == HyperOpEdge::SYNC) {
+		list<HyperOpEdge*> parentPredicateList;
+		errs() << "\n-----\nlooking for predicate leading to:" << hyperOp->asString() << "\n";
+		if (hyperOp->isBarrierHyperOp()) {
+			for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
+				if (parentItr->first->getType() == HyperOpEdge::SYNC) {
+					errs() << "parent with sync edge:" << parentItr->second->asString() << "\n";
 //				Find the edges leading to parentItr from the entry HyperOp
-				parentPredicateList.push_back(lastPredicateInput(parentItr->second));
-			}
-		}
-
-		//Find out if there are predicates complimentary to each other
-		for(list<pair<HyperOpEdge*, HyperOp*> >::iterator predicateItr = parentPredicateList.begin();predicateItr!=parentPredicateList.end();predicateItr++){
-			pair<HyperOpEdge*, HyperOp*> predicate = *predicateItr;
-			for(list<pair<HyperOpEdge*, HyperOp*> >::iterator secondPredicateItr = parentPredicateList.begin();secondPredicateItr!=parentPredicateList.end();secondPredicateItr++){
-				//Check if predicates are mutually exclusive
-				if(predicateItr!=secondPredicateItr&&predicateItr->first->getContextFrameAddress()==secondPredicateItr->first->getContextFrameAddress()&&predicateItr->first->getPredicateValue()!=secondPredicateItr->first->getPredicateValue()){
-					hyperOp->decrementIncomingSyncCount();
+					pair<HyperOpEdge*, HyperOp*>* parentPredicate = lastPredicateInput(parentItr->second);
+					if (parentPredicate != 0) {
+						parentPredicateList.push_back(parentPredicate->first);
+						errs() << "Added atleast one predicate edge:";
+						parentPredicate->first->getValue()->dump();
+					}
 				}
 			}
 
-		}
+			//Find out if there are predicates complimentary to each other
+			for (list<HyperOpEdge*>::iterator predicateItr = parentPredicateList.begin(); predicateItr != parentPredicateList.end(); predicateItr++) {
+				for (list<HyperOpEdge*>::iterator secondPredicateItr = parentPredicateList.begin(); secondPredicateItr != parentPredicateList.end(); secondPredicateItr++) {
+					//Check if predicates are mutually exclusive
+					if (predicateItr != secondPredicateItr && (*predicateItr)->getValue() == (*secondPredicateItr)->getValue() && (*predicateItr)->getPredicateValue() != (*secondPredicateItr)->getPredicateValue()) {
+						hyperOp->decrementIncomingSyncCount();
+					}
+				}
 
+			}
+		}
 	}
 }
 
@@ -2364,6 +2378,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 
 //			os << "Dom:" << dom << ", PostDom:" << postdom << ",";
 			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
+			os << "SyncCount:" << (*vertexIterator)->getSyncCount();
 //			os << "Domf:";
 //			if (!vertex->getDominanceFrontier().empty()) {
 //				list<HyperOp*> domf = vertex->getDominanceFrontier();
