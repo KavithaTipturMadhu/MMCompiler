@@ -2256,17 +2256,58 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 	HyperOpEdge* dummyEdge = 0;
 	HyperOp* dummyHyperOp = 0;
 	pair<HyperOpEdge*, HyperOp*> returnPredicate = make_pair(dummyEdge, dummyHyperOp);
+	errs() << "looking for last predicate of " << currentHyperOp->asString() << "\n";
+	//Check if there is an immediate parent that delivers a predicate to the current HyperOp
 	for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = currentHyperOp->ParentMap.begin(); parentItr != currentHyperOp->ParentMap.end(); parentItr++) {
 		if (!parentItr->second->isUnrolledInstance()) {
 			pair<HyperOpEdge*, HyperOp*> predicateFromParent;
 			if (parentItr->first->getType() == HyperOpEdge::PREDICATE) {
-				predicateFromParent = make_pair(parentItr->first, parentItr->second);
-			} else {
-				predicateFromParent = lastPredicateInput(parentItr->second);
+				returnPredicate = make_pair(parentItr->first, parentItr->second);
+				errs() << "there exists a predicate edge from " << parentItr->second->asString() << "\n";
 			}
-			if (predicateFromParent.first != 0 && (returnPredicate.first == 0 || pathExistsInHIG(returnPredicate.second, predicateFromParent.second))) {
-				//Check if returnPredicate held currently is higher up in the tree
-				returnPredicate = predicateFromParent;
+		}
+	}
+
+	if (returnPredicate.first == 0) {
+		errs()<<"No immediate parent delivering predicate\n";
+		for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = currentHyperOp->ParentMap.begin(); parentItr != currentHyperOp->ParentMap.end(); parentItr++) {
+			if (!parentItr->second->isUnrolledInstance()) {
+				errs() << "considering parent " << parentItr->second->asString() << " of "<<currentHyperOp->asString()<<"\n";
+				pair<HyperOpEdge*, HyperOp*> predicateFromParent;
+				if (parentItr->first->getType() == HyperOpEdge::PREDICATE) {
+					errs() << "there exists a predicate edge from " << parentItr->second->asString() << "\n";
+					predicateFromParent = make_pair(parentItr->first, parentItr->second);
+				} else {
+					predicateFromParent = lastPredicateInput(parentItr->second);
+				}
+				if (predicateFromParent.first != 0) {
+					if (returnPredicate.first == 0) {
+						returnPredicate = predicateFromParent;
+						errs() << "Adding predicate for the first time " << returnPredicate.second->asString() << " for the current HyperOp "<<currentHyperOp->asString()<<"\n";
+					} else {
+						//Check if returnPredicate held currently is higher up in the tree
+						if (pathExistsInHIG(returnPredicate.second, predicateFromParent.second)) {
+							returnPredicate = predicateFromParent;
+							errs() << "Replacing the previous predicate to " << returnPredicate.second->asString() << "\n";
+						} else if (pathExistsInHIG(predicateFromParent.second, returnPredicate.second)) {
+							continue;
+						} else if (!(returnPredicate.first->getValue() == predicateFromParent.first->getValue() && returnPredicate.first->getPredicateValue() == predicateFromParent.first->getPredicateValue() && returnPredicate.second == predicateFromParent.second)) {
+							errs() << "did I ever appear here?\n";
+							HyperOp* commonParent = 0;
+							//The nodes don't have a path between them, they are on parallel paths, find the common parent node that the two come from
+							for (list<HyperOp*>::iterator firstParentItr = returnPredicate.second->getParentList().begin(); firstParentItr != returnPredicate.second->getParentList().end(); firstParentItr++) {
+								for (list<HyperOp*>::iterator secondParentItr = predicateFromParent.second->getParentList().begin(); secondParentItr != predicateFromParent.second->getParentList().end(); secondParentItr++) {
+									if (*firstParentItr == *secondParentItr && (commonParent == 0 || pathExistsInHIG(commonParent, *firstParentItr))) {
+										commonParent = *firstParentItr;
+										errs() << "Did I appear here with common parent " << commonParent->asString() << " for " << returnPredicate.second->asString() << " and " << predicateFromParent.second->asString() << "\n";
+									}
+								}
+							}
+							errs() << "No common parent?" << (commonParent != 0) << "\n";
+							returnPredicate = lastPredicateInput(commonParent);
+						}
+					}
+				}
 			}
 		}
 	}
@@ -2322,17 +2363,18 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		HyperOp* hyperOp = *hopItr;
 		if (!hyperOp->isPredicatedHyperOp() && !hyperOp->isBarrierHyperOp()) {
 			HyperOp* immediateDominator = hyperOp->getImmediateDominator();
+			errs() << "\n==========\nfinding last predicate to " << hyperOp->asString() << "\n";
 			pair<HyperOpEdge*, HyperOp*> parentPredicate = lastPredicateInput(hyperOp);
 			list<HyperOp*> parentList = hyperOp->getParentList();
 			if (find(parentList.begin(), parentList.end(), immediateDominator) != parentList.end() && pathExistsInHIG(immediateDominator, parentPredicate.second)) {
 				//Add a predicate edge from the predicate parent to the current HyperOp
 				HyperOp* parentProducingPredicate = parentPredicate.second;
-				unsigned decByValue;
+				unsigned decByValue = 0;
 				//TODO
 				//Count number of inputs coming from other parent nodes which are also predicated by the same HyperOp
 				for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
-					if ((parentItr->first->getType()==HyperOpEdge::SCALAR||parentItr->first->getType()==HyperOpEdge::LOCAL_REFERENCE)&&parentItr->second != immediateDominator && pathExistsInHIG(parentProducingPredicate, parentItr->second)) {
-						decByValue ++;
+					if ((parentItr->first->getType() == HyperOpEdge::SCALAR || parentItr->first->getType() == HyperOpEdge::LOCAL_REFERENCE) && parentItr->second != immediateDominator && pathExistsInHIG(parentProducingPredicate, parentItr->second)) {
+						decByValue++;
 					}
 				}
 
@@ -2342,7 +2384,10 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 				predicateEdge->setValue(parentPredicate.first->getValue());
 				predicateEdge->setPredicateValue(parentPredicate.first->getPredicateValue());
 				hyperOp->setPredicatedHyperOp();
-				this->addEdge(parentPredicate.second, hyperOp,predicateEdge);
+				this->addEdge(parentPredicate.second, hyperOp, predicateEdge);
+				errs()<<"atleast one edge was added between "<<parentPredicate.second->asString()<<" and "<<hyperOp->asString()<<" with predicate that belongs to the parent node "<<((Instruction*)parentPredicate.first->getValue())->getParent()->getParent()->getName()<<":";
+				parentPredicate.first->getValue()->dump();
+				this->print(errs());
 			}
 		}
 	}
@@ -2443,7 +2488,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 				} else if (edge->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
 					os << "frameAddress" << edge->getPositionOfContextSlot() << edge->getContextFrameAddress()->asString();
 				} else if (edge->Type == HyperOpEdge::PREDICATE) {
-					os << "control" << edge->getPredicateValue();
+					os << "control" << edge->getPredicateValue() << edge->getDecrementOperandCount();
 //					if (edge->getValue() != 0) {
 //						edge->getValue()->print(os);
 //					} else {
