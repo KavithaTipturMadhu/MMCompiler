@@ -2290,7 +2290,7 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 		change = false;
 		list<list<pair<HyperOpEdge*, HyperOp*> > > removalList;
 		list<list<pair<HyperOpEdge*, HyperOp*> > > additionList;
-		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++, i++) {
+		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++) {
 			if (*predicateChainItr != predicateChains.back()) {
 				list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator secondPredicateChainItr = predicateChainItr;
 				secondPredicateChainItr++;
@@ -2314,8 +2314,12 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 						}
 
 						if (restOfChainMatches) {
-							removalList.push_back(*predicateChainItr);
-							removalList.push_back(*secondPredicateChainItr);
+							if (find(removalList.begin(), removalList.end(), *predicateChainItr) == removalList.end()) {
+								removalList.push_back(*predicateChainItr);
+							}
+							if (find(removalList.begin(), removalList.end(), *secondPredicateChainItr) == removalList.end()) {
+								removalList.push_back(*secondPredicateChainItr);
+							}
 
 							//Create a new predicate chain that is one short of the chains in consideration
 							list<pair<HyperOpEdge*, HyperOp*> > prefixPredicate = *predicateChainItr;
@@ -2327,13 +2331,12 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 			}
 		}
 
-		errs() << "removal list size:"<<removalList.size()<<"\n";
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
-			predicateChains.erase(removalItr);
+			predicateChains.remove(*removalItr);
 		}
 
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator additionItr = additionList.begin(); additionItr != additionList.end(); additionItr++) {
-			predicateChains.erase(additionItr);
+			predicateChains.push_back(*additionItr);
 		}
 
 		//Check if there are duplicates and remove them
@@ -2341,10 +2344,10 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 			change = true;
 		}
 
+
 		removalList.clear();
 		int i = 0;
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++, i++) {
-			errs() << "came here " << i << "th time\n";
 			if (*predicateChainItr != predicateChains.back()) {
 				int j = i + 1;
 				list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator secondPredicateChainItr = predicateChainItr;
@@ -2353,7 +2356,6 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 					if (predicateChainItr == secondPredicateChainItr || predicateChainItr->size() != secondPredicateChainItr->size()) {
 						continue;
 					}
-					errs() << "inner loop, came here " << j << "th time\n";
 					//Check if the predicate chains are the same and mark duplicates for removal
 					bool chainMatches = true;
 					//Check if the rest of the predicate chain matches
@@ -2365,8 +2367,7 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 						}
 					}
 
-					errs() << "chain match found\n";
-					if (chainMatches) {
+					if (chainMatches && find(removalList.begin(), removalList.end(), *secondPredicateChainItr) == removalList.end()) {
 						removalList.push_back(*secondPredicateChainItr);
 					}
 				}
@@ -2374,8 +2375,7 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 		}
 		errs() << "how many predicates need to be removed?" << removalList.size() << "\n";
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
-			errs() << "here?\n";
-			predicateChains.erase(removalItr);
+			predicateChains.remove(*removalItr);
 		}
 
 		if (!removalList.empty()) {
