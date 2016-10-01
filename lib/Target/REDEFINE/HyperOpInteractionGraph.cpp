@@ -2244,6 +2244,9 @@ void HyperOpInteractionGraph::associateStaticContextFrames() {
 }
 
 bool pathExistsInHIG(HyperOp* source, HyperOp* target) {
+	if (source == target) {
+		return false;
+	}
 	for (map<HyperOpEdge*, HyperOp*>::iterator childItr = source->ChildMap.begin(); childItr != source->ChildMap.end(); childItr++) {
 		if (childItr->second == target || pathExistsInHIG(childItr->second, target)) {
 			return true;
@@ -2282,9 +2285,8 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 	HyperOpEdge* dummyEdge = 0;
 	HyperOp* dummyHyperOp = 0;
 	pair<HyperOpEdge*, HyperOp*> returnPredicate = make_pair(dummyEdge, dummyHyperOp);
-	errs() << "\n==========\nfinding last predicate to " << currentHyperOp->asString() << "\n";
 	list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains = getReachingPredicateChain(currentHyperOp, currentHyperOp->getImmediateDominator());
-	errs() << "the number of reaching predicates is " << predicateChains.size() << "\n";
+	errs() << "the number of reaching predicates to " << currentHyperOp->asString() << ":" << predicateChains.size() << "\n";
 	bool change = true;
 	while (change) {
 		change = false;
@@ -2331,19 +2333,34 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 			}
 		}
 
+		errs() << "current size:" << predicateChains.size() << ", removal list size:" << removalList.size() << "\n";
+		errs() << "what is in predicate chains list?";
+		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
+			errs() << "\neach chain:";
+			for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
+				errs() << printItr->second->asString() << "->";
+			}
+
+		}
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
+			errs() << "removing entry:";
+			for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = removalItr->begin(); printItr != removalItr->end(); printItr++) {
+				errs() << printItr->second->asString() << "->";
+			}
 			predicateChains.remove(*removalItr);
 		}
+
+		errs() << "size after removal:" << predicateChains.size() << "\n";
 
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator additionItr = additionList.begin(); additionItr != additionList.end(); additionItr++) {
 			predicateChains.push_back(*additionItr);
 		}
+		errs() << "size after addition:" << predicateChains.size() << "\n";
 
 		//Check if there are duplicates and remove them
 		if (!removalList.empty()) {
 			change = true;
 		}
-
 
 		removalList.clear();
 		int i = 0;
@@ -2373,16 +2390,20 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 				}
 			}
 		}
-		errs() << "how many predicates need to be removed?" << removalList.size() << "\n";
+//		errs() << "how many predicates need to be removed?" << removalList.size() << "\n";
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
 			predicateChains.remove(*removalItr);
 		}
+
+		errs() << "size after duplicate removal:" << predicateChains.size() << "\n";
+
 
 		if (!removalList.empty()) {
 			change = true;
 		}
 	}
 
+	errs() << "now it has reduced to:" << predicateChains.size() << "\n";
 	//Now we find the shortest predicate chain
 	list<pair<HyperOpEdge*, HyperOp*> > shortestChain;
 	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++) {
@@ -2502,6 +2523,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		HyperOp* hyperOp = *hopItr;
 		if (!hyperOp->isPredicatedHyperOp() && !hyperOp->isBarrierHyperOp()) {
 			HyperOp* immediateDominator = hyperOp->getImmediateDominator();
+			errs() << "\n==========\nfinding last predicate to " << hyperOp->asString() << "\n";
 			pair<HyperOpEdge*, HyperOp*> parentPredicate = lastPredicateInput(hyperOp);
 			list<HyperOp*> parentList = hyperOp->getParentList();
 			if (find(parentList.begin(), parentList.end(), immediateDominator) != parentList.end() && pathExistsInHIG(immediateDominator, parentPredicate.second)) {
