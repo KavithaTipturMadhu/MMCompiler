@@ -756,13 +756,23 @@ struct HyperOpCreationPass: public ModulePass {
 										list<Value*> newArg;
 										newArg.push_back(*newArgItr);
 										HyperOpArgumentType type = supportedArgType(*newArgItr, M);
+										bool addArgumentToHyperOp = true;
 										//local references needn't be accounted for when counting context frame args since they are passed through memory directly and not through context frame
 										if (type != GLOBAL_REFERENCE && type != LOCAL_REFERENCE) {
 											hyperOpArgCount++;
+//										} else if (type == LOCAL_REFERENCE) {
+//											//Find reaching stores to the argument
+//											if (isa<AllocaInst> (*newArgItr)) {
+//												//Reaching definitions are only for memory instructions
+//												map<BasicBlock*, Instruction*> reachingDefBasicBlocks = reachingStoreOperations((AllocaInst*) *newArgItr, bbItr->getParent(), accumulatedBasicBlocks);
+//												if (reachingDefBasicBlocks.empty()) {
+//													addArgumentToHyperOp = false;
+//												}
+//											}
 										}
-										errs() << "added arg:";
-										newArg.front()->dump();
+//										if (addArgumentToHyperOp) {
 										hyperOpArguments.push_back(make_pair(newArg, type));
+//										}
 									}
 								} else {
 									//Phi instruction's arguments correspond to only one argument to a HyperOp
@@ -1332,6 +1342,7 @@ struct HyperOpCreationPass: public ModulePass {
 			list<Function*> addedParentsToCurrentHyperOp;
 			MDNode* funcAnnotation = hyperOpAndAnnotationMap.find(createdFunction)->second;
 			list<CallInst*> callSite = createdHyperOpAndCallSite[createdFunction];
+			list<Function*> scalarProducers;
 			list<Function*> localReferenceArgProducers;
 			list<Function*> predicateProducers;
 
@@ -1339,7 +1350,7 @@ struct HyperOpCreationPass: public ModulePass {
 			unsigned hyperOpArgumentIndex = 0;
 			//Replace arguments of called functions with the right call arguments or return values
 			for (HyperOpArgumentList::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
-				errs()<<"Adding argument:";
+				errs() << "Adding argument:";
 				hyperOpArgItr->first.front()->dump();
 				map<Instruction*, Value*> replacementArg;
 				HyperOpArgumentType replacementArgType = hyperOpArgItr->second;
@@ -1457,9 +1468,9 @@ struct HyperOpCreationPass: public ModulePass {
 							if (isa<AllocaInst>(argument)) {
 								//Reaching definitions are only for memory instructions
 								reachingDefBasicBlocks = reachingStoreOperations((AllocaInst*) argument, originalFunction, accumulatedOriginalBasicBlocks);
-								if(reachingDefBasicBlocks.empty()){
-									reachingDefBasicBlocks.insert(make_pair(((Instruction*) argument)->getParent(), (Instruction*) argument));
-								}
+//								if(reachingDefBasicBlocks.empty()){
+//									reachingDefBasicBlocks.insert(make_pair(((Instruction*) argument)->getParent(), (Instruction*) argument));
+//								}
 							} else {
 								reachingDefBasicBlocks.insert(make_pair(((Instruction*) argument)->getParent(), (Instruction*) argument));
 							}
@@ -1529,7 +1540,7 @@ struct HyperOpCreationPass: public ModulePass {
 							MDNode * consumedByMetadata;
 							//TODO this isn't enough for nested recursion cycles
 							if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
-								errs() << "adding static md from"<<clonedDefInst->getParent()->getParent()->getName()<<" and target "<<createdFunction->getName()<<"\n";
+								errs() << "adding static md from" << clonedDefInst->getParent()->getParent()->getName() << " and target " << createdFunction->getName() << "\n";
 								//Add "consumedby" metadata to the function locals that need to be passed to other HyperOps
 								Value * values[3];
 								values[0] = funcAnnotation;
@@ -1542,7 +1553,7 @@ struct HyperOpCreationPass: public ModulePass {
 								values[2] = ConstantInt::get(ctxt, APInt(32, hyperOpArgumentIndex));
 								consumedByMetadata = MDNode::get(ctxt, values);
 							} else {
-								errs() << "adding static md from"<<clonedDefInst->getParent()->getParent()->getName()<<" and target "<<createdFunction->getName()<<"\n";
+								errs() << "adding static md from" << clonedDefInst->getParent()->getParent()->getName() << " and target " << createdFunction->getName() << "\n";
 								//Add "consumedby" metadata to the function locals that need to be passed to other HyperOps
 								Value * values[4];
 								values[0] = funcAnnotation;
@@ -1609,7 +1620,10 @@ struct HyperOpCreationPass: public ModulePass {
 							if (isProducerStatic && find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), metadataHost->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
 								addedParentsToCurrentHyperOp.push_back(metadataHost->getParent()->getParent());
 							}
-							if (replacementArgType == LOCAL_REFERENCE && find(localReferenceArgProducers.begin(), localReferenceArgProducers.end(), metadataHost->getParent()->getParent()) == localReferenceArgProducers.end()) {
+
+							if (replacementArgType == SCALAR && find(scalarProducers.begin(), scalarProducers.end(), metadataHost->getParent()->getParent()) == scalarProducers.end()) {
+								scalarProducers.push_back(metadataHost->getParent()->getParent());
+							} else if (replacementArgType == LOCAL_REFERENCE && find(localReferenceArgProducers.begin(), localReferenceArgProducers.end(), metadataHost->getParent()->getParent()) == localReferenceArgProducers.end()) {
 								localReferenceArgProducers.push_back(metadataHost->getParent()->getParent());
 							}
 						}
@@ -1866,15 +1880,15 @@ struct HyperOpCreationPass: public ModulePass {
 					MDNode* newPredicateMetadata;
 
 					MDString* expectedPredicate;
-					if(conditionalBranchSourceItr->second.size()==((BranchInst*) clonedInstr)->getNumSuccessors()){
-						expectedPredicate =  MDString::get(ctxt, StringRef("1"));
-					}else{
+					if (conditionalBranchSourceItr->second.size() == ((BranchInst*) clonedInstr)->getNumSuccessors()) {
+						expectedPredicate = MDString::get(ctxt, StringRef("1"));
+					} else {
 						//Are there only two operands in a branch instruction always or are there more?
-						assert(conditionalBranchSourceItr->second.size()==1&&"there are more than two targets to branch");
+						assert(conditionalBranchSourceItr->second.size() == 1 && "there are more than two targets to branch");
 						unsigned positionToBeUpdated = ConstantInt::get(ctxt, APInt(32, conditionalBranchSourceItr->second[0]))->getZExtValue();
-						if(positionToBeUpdated==0){
+						if (positionToBeUpdated == 0) {
 							expectedPredicate = MDString::get(ctxt, StringRef("1"));
-						}else{
+						} else {
 							expectedPredicate = MDString::get(ctxt, StringRef("0"));
 						}
 					}
@@ -2308,7 +2322,7 @@ struct HyperOpCreationPass: public ModulePass {
 			DEBUG(dbgs() << "\n----------Adding sync edges to HyperOps that only take local reference inputs----------\n");
 			for (list<Function*>::iterator localRefItr = localReferenceArgProducers.begin(); localRefItr != localReferenceArgProducers.end(); localRefItr++) {
 				Function* localRefProducer = *localRefItr;
-				if (predicateProducers.empty() || find(predicateProducers.begin(), predicateProducers.end(), localRefProducer) == predicateProducers.end()) {
+				if ((predicateProducers.empty() || find(predicateProducers.begin(), predicateProducers.end(), localRefProducer) == predicateProducers.end()) && (scalarProducers.empty() || find(scalarProducers.begin(), scalarProducers.end(), localRefProducer) == scalarProducers.end())) {
 					//Add a sync edge from local ref producer and the consumer HyperOp
 					Value* values[1];
 					values[0] = hyperOpAndAnnotationMap[createdFunction];

@@ -572,6 +572,7 @@ unsigned int HyperOpInteractionGraph::getMaxMemFrameSize() const {
 }
 
 void HyperOpInteractionGraph::setMaxMemFrameSize(unsigned int maxFrameSize) {
+	errs()<<"max mem frame size:"<<maxFrameSize<<"\n";
 	this->maxMemFrameSize = maxFrameSize;
 }
 
