@@ -1390,6 +1390,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 		if (!(*childHyperOpItr)->isStartHyperOp()) {
 			HyperOp* liveStartOfVertex = (*childHyperOpItr)->getImmediateDominator();
+			HyperOp* immediatePostDomForDeletion = 0;
 			HyperOp* liveEndOfVertex = 0;
 			if (liveStartOfVertex != 0) {
 				liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
