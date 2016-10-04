@@ -1487,7 +1487,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 							registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(consumer, make_pair(registerContainingConsumerBase, targetCE)));
 							errs() << "live interval of the phys reg now:";
-							LIS->getRegUnit(physicalReg);
+//							LIS->getRegUnit(physicalReg);
 						} else {
 							registerContainingConsumerBase = MF.getRegInfo().getLiveInVirtReg(physicalReg);
 						}
