@@ -1707,6 +1707,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						}
 					}
 				}
+				errs()<<"Frame location of target data initially: "<<frameLocationOfTargetData<<" with position:"<<edge->getPositionOfContextSlot()<<"\n";
 				int beginArgIndex = 0;
 				for (Function::arg_iterator funcArgItr = consumerFunction->arg_begin(); funcArgItr != consumerFunction->arg_end(); funcArgItr++, beginArgIndex++) {
 					if (beginArgIndex == edge->getPositionOfContextSlot()) {
@@ -1718,6 +1719,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					}
 				}
 
+				errs()<<"Frame location of target data computed as "<<frameLocationOfTargetData<<"\n";
 				//Map of primitive data types and their memory locations
 				list<pair<Type*, unsigned> > primitiveTypesMap;
 				list<Type*> containedTypesForTraversal;

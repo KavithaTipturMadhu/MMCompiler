@@ -217,7 +217,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								if (dataType.compare(SCALAR) == 0) {
 									edge->Type = HyperOpEdge::SCALAR;
 									//Find out if the data is being passed to an instance
-									edge->setPositionOfContextSlot(positionOfContextSlot);
 								} else if (dataType.compare(LOCAL_REFERENCE) == 0) {
 									edge->Type = HyperOpEdge::LOCAL_REFERENCE;
 									list<unsigned> volumeOfCommunication;
@@ -231,6 +230,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 									volumeOfCommunication.push_back(volume);
 									edge->setVolume(volumeOfCommunication);
 								}
+								edge->setPositionOfContextSlot(positionOfContextSlot);
 								edge->setValue((Value*) instr);
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
