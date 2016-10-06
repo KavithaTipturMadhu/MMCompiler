@@ -476,6 +476,7 @@ struct HyperOpCreationPass: public ModulePass {
 	};
 
 	list<unsigned> getHyperOpInstanceTag(list<CallInst*> callSite, Function* newFunction, map<Function*, list<CallInst*> > createdHyperOpAndCallSite, map<Function*,list<unsigned> > createdHyperOpAndUniqueId) {
+		list<unsigned> largestTag;
 		for (map<Function*, list<CallInst*> >::iterator createdHopItr = createdHyperOpAndCallSite.begin(); createdHopItr != createdHyperOpAndCallSite.end(); createdHopItr++) {
 			list<CallInst*> callSiteOfCreatedFunc;
 			if (callSiteOfCreatedFunc.back()->getCalledFunction() == callSite.back()->getCalledFunction() && callSite.size() == callSiteOfCreatedFunc.size()) {
@@ -491,10 +492,17 @@ struct HyperOpCreationPass: public ModulePass {
 
 				if(callSitesMatch){
 					//Get the id of the previously added function
-//					list<unsigned> previouslyAllocatedcreatedHyperOpAndUniqueId[createdHopItr->first];
+					list<unsigned> tempTag = createdHyperOpAndUniqueId[createdHopItr->first];
+					if(largestTag.empty()||largestTag.back()<tempTag.back()){
+						largestTag=tempTag;
+					}
 				}
 			}
 		}
+		if(largestTag.empty()){
+			largestTag.push_back(0);
+		}
+		return largestTag;
 	}
 
 	virtual bool runOnModule(Module &M) {
@@ -1260,9 +1268,17 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 
 				//Compute the id that needs to be associated with the current HyperOp since parent may call the same function multiple times
-				list<unsigned*> uniqueIdInCallTree = getHyperOpInstanceTag(callSite, newFunction, createdHyperOpAndCallSite, createdHyperOpAndUniqueId);
-
-				values[4] = MDString::get(ctxt, "<0>");
+				list<unsigned> uniqueIdInCallTree = getHyperOpInstanceTag(callSite, newFunction, createdHyperOpAndCallSite, createdHyperOpAndUniqueId);
+				//Convert the id to a tag string
+				string tag="<";
+				for(list<unsigned>::iterator tagItr = uniqueIdInCallTree.begin();tagItr!=uniqueIdInCallTree.end();tagItr++){
+					tag.append(itostr(tagItr));
+					if(tagItr!=uniqueIdInCallTree.back()){
+						tag.append(",");
+					}
+				}
+				tag.append(">");
+				values[4] = MDString::get(ctxt, tag);
 				funcAnnotation = MDNode::get(ctxt, values);
 			} else {
 				Value * values[3];
