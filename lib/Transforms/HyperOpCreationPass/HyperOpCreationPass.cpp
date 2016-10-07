@@ -2089,6 +2089,8 @@ struct HyperOpCreationPass: public ModulePass {
 			//Remove unconditional branch instruction, add the annotation to the alloca instruction of the branch
 			for (list<Instruction*>::iterator unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
 				Value* unconditionalBranchInstr = *unconditionalBranchSourceItr;
+				errs()<<"unconditional branch:";
+				unconditionalBranchInstr->dump();
 				Value* originalUnconditionalBranchInstr = unconditionalBranchInstr;
 				BasicBlock* targetBB = ((BranchInst*) unconditionalBranchInstr)->getSuccessor(0);
 				list<pair<Function*, Instruction*> > addedJumpSources;
@@ -2380,11 +2382,6 @@ struct HyperOpCreationPass: public ModulePass {
 						clonedInstr = getClonedArgument(unconditionalBranchInstr, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
 					}
 
-					errs() << "what was the unconditional jump that belongs to " << ((Instruction*) clonedInstr)->getParent()->getParent()->getName() << ":";
-					clonedInstr->dump();
-					errs() << "and the original that belongs to " << ((Instruction*) originalUnconditionalBranchInstr)->getParent()->getParent()->getName() << ":";
-					originalUnconditionalBranchInstr->dump();
-
 					list<Instruction*> clonedInstructionsToBeLabeled;
 					clonedInstructionsToBeLabeled.push_back(clonedInstr);
 					Function* producerFunction = ((Instruction*) unconditionalBranchInstr)->getParent()->getParent();
@@ -2417,28 +2414,19 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 					for (list<Instruction*>::iterator clonedInstItr = clonedInstructionsToBeLabeled.begin(); clonedInstItr != clonedInstructionsToBeLabeled.end(); clonedInstItr++) {
+						Instruction* clonedInstr = *clonedInstItr;
 						//Update the unconditional branch instruction's first operand
 						vector<Value*> metadataList;
 						//Since the temporary does not have a memory location associated with it, add an alloca and a store instruction after the argument and label the alloca instruction with metadata
-						AllocaInst* ai = new AllocaInst(Type::getInt1Ty(ctxt));
-						ai->setAlignment(4);
-						ai->insertBefore(clonedInstr->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
-						StoreInst* storeInst = new StoreInst(ConstantInt::get(ctxt, APInt(1, 1)), ai);
-						storeInst->setAlignment(4);
-						storeInst->insertBefore(clonedInstr->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
-						Instruction* metadataHost = ai;
-						//Label the instruction with predicates metadata
 						MDNode* newPredicateMetadata;
 						//TODO this isn't enough for nested recursion cycles
 						if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
-							Value * values[2];
+							Value * values[1];
 							values[0] = funcAnnotation;
-							values[1] = MDString::get(ctxt, StringRef("1"));
 							newPredicateMetadata = MDNode::get(ctxt, values);
 						} else {
-							Value * values[3];
+							Value * values[2];
 							values[0] = funcAnnotation;
-							values[1] = MDString::get(ctxt, StringRef("1"));
 							if (isProducerStatic && !isStaticHyperOp) {
 								list<unsigned> tagId = createdHyperOpAndUniqueId[createdFunction];
 								//Create a new dynamic tag
@@ -2450,15 +2438,15 @@ struct HyperOpCreationPass: public ModulePass {
 									}
 								}
 								tag.append(">");
-								values[2] = MDString::get(ctxt, tag);
+								values[1] = MDString::get(ctxt, tag);
 							} else {
-								values[2] = MDString::get(ctxt, "<prefixId>");
+								values[1] = MDString::get(ctxt, "<prefixId>");
 							}
 							newPredicateMetadata = MDNode::get(ctxt, values);
 						}
 						metadataList.push_back(newPredicateMetadata);
 						MDNode * predicatesRelation = MDNode::get(ctxt, metadataList);
-						metadataHost->setMetadata(HYPEROP_CONTROLS, predicatesRelation);
+						clonedInstr->getParent()->getParent()->getEntryBlock().begin()->setMetadata(HYPEROP_SYNC, predicatesRelation);
 						Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
 
 						if (isa<BranchInst>(clonedInstr)) {

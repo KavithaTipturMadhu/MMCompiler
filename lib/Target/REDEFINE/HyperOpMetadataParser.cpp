@@ -169,8 +169,11 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					frameSizeOfHyperOp += REDEFINEUtils::getSizeOfType(((AllocaInst*) instr)->getType());
 				}
 				if (instr->hasMetadata()) {
+					errs()<<"parsing problems with:";
+					instr->dump();
 					MDNode* consumedByMDNode = instr->getMetadata(HYPEROP_CONSUMED_BY);
 					if (consumedByMDNode != 0) {
+						errs()<<"consumed by issues?\n";
 						for (unsigned consumerMDNodeIndex = 0; consumerMDNodeIndex != consumedByMDNode->getNumOperands(); consumerMDNodeIndex++) {
 							HyperOp* consumerHyperOp = 0;
 							//Create an edge between two HyperOps labeled by the instruction
@@ -326,8 +329,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 						for (unsigned syncMDNodeIndex = 0; syncMDNodeIndex != syncMDNode->getNumOperands(); syncMDNodeIndex++) {
 							HyperOp* consumerHyperOp = 0;
 							MDNode* syncedMDNode = (MDNode*) syncMDNode->getOperand(syncMDNodeIndex);
+							errs()<<"synced md node:";
+							syncedMDNode->dump();
 							//Create an edge between two HyperOps labeled by the instruction
-							if (syncedMDNode->getNumOperands() > 1) {
+							if (syncedMDNode->getNumOperands() > 2) {
 								//An instance is consuming the data
 								list<StringRef> consumerInstanceId = parseInstanceIdString(((MDString*) syncedMDNode->getOperand(1))->getName());
 								MDNode* hyperOp = (MDNode*) syncMDNode->getOperand(0);
