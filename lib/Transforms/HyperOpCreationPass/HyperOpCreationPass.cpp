@@ -475,32 +475,45 @@ struct HyperOpCreationPass: public ModulePass {
 		DYNAMIC, STATIC
 	};
 
-	list<unsigned> getHyperOpInstanceTag(list<CallInst*> callSite, Function* newFunction, map<Function*, list<CallInst*> > createdHyperOpAndCallSite, map<Function*,list<unsigned> > createdHyperOpAndUniqueId) {
+	list<unsigned> getHyperOpInstanceTag(list<CallInst*> callSite, Function* newFunction, map<Function*, list<CallInst*> > createdHyperOpAndCallSite, map<Function*, list<unsigned> > createdHyperOpAndUniqueId, list<BasicBlock*> accumulatedBasiBlocks,
+			map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> > createdHyperOpsAndAccumulatedBB) {
 		list<unsigned> largestTag;
 		for (map<Function*, list<CallInst*> >::iterator createdHopItr = createdHyperOpAndCallSite.begin(); createdHopItr != createdHyperOpAndCallSite.end(); createdHopItr++) {
-			list<CallInst*> callSiteOfCreatedFunc;
-			if (callSiteOfCreatedFunc.back()->getCalledFunction() == callSite.back()->getCalledFunction() && callSite.size() == callSiteOfCreatedFunc.size()) {
+			list<CallInst*> callSiteOfCreatedFunc = createdHopItr->second;
+			if (!callSiteOfCreatedFunc.empty() && callSiteOfCreatedFunc.back()->getCalledFunction() == callSite.back()->getCalledFunction() && callSite.size() == callSiteOfCreatedFunc.size()) {
 				//Check if the prefix of the callsites match
 				bool callSitesMatch = true;
 				list<CallInst*>::iterator newFunctionCallSiteItr = callSite.begin();
 				for (list<CallInst*>::iterator callSiteItr = callSiteOfCreatedFunc.begin(); callSiteItr != callSiteOfCreatedFunc.end() && newFunctionCallSiteItr != callSite.end(); callSiteItr++, newFunctionCallSiteItr++) {
-					if (callSiteItr != callSiteOfCreatedFunc.end() && *callSiteItr != *newFunctionCallSiteItr) {
+					if (*callSiteItr != callSiteOfCreatedFunc.back() && *newFunctionCallSiteItr != callSite.back() && *callSiteItr != *newFunctionCallSiteItr) {
 						callSitesMatch = false;
 						break;
 					}
 				}
 
-				if(callSitesMatch){
-					//Get the id of the previously added function
-					list<unsigned> tempTag = createdHyperOpAndUniqueId[createdHopItr->first];
-					if(largestTag.empty()||largestTag.back()<tempTag.back()){
-						largestTag=tempTag;
+				if (callSitesMatch && createdHyperOpAndUniqueId.find(createdHopItr->first) != createdHyperOpAndUniqueId.end()) {
+					//Check if the new HyperOp is an instance of the previously created one
+					list<BasicBlock*> createdHopAccumulatedBB = createdHyperOpsAndAccumulatedBB[createdHopItr->first].first;
+					list<BasicBlock*> unionOfLists;
+					std::set_union(createdHopAccumulatedBB.begin(), createdHopAccumulatedBB.end(), accumulatedBasiBlocks.begin(), accumulatedBasiBlocks.end(), std::back_inserter(unionOfLists));
+					if (unionOfLists.size() == createdHopAccumulatedBB.size() && unionOfLists.size() == accumulatedBasiBlocks.size()) {
+						//Get the id of the previously added function
+						list<unsigned> tempTag = createdHyperOpAndUniqueId[createdHopItr->first];
+						if (largestTag.empty() || largestTag.back() < tempTag.back()) {
+							largestTag = tempTag;
+						}
 					}
 				}
 			}
 		}
-		if(largestTag.empty()){
+		if (largestTag.empty()) {
 			largestTag.push_back(0);
+		} else {
+			//Increment the last entry in the tag
+			unsigned lastEntry = largestTag.back();
+			largestTag.pop_back();
+			lastEntry++;
+			largestTag.push_back(lastEntry);
 		}
 		return largestTag;
 	}
@@ -1084,6 +1097,7 @@ struct HyperOpCreationPass: public ModulePass {
 							createdHyperOpAndReturnValue.insert(make_pair(newFunction, instItr));
 						}
 					} else {
+						clonedInst = instItr->clone();
 						Instruction * originalInstruction = instItr;
 						originalToClonedInstMap.insert(std::make_pair(originalInstruction, clonedInst));
 						newBB->getInstList().insert(newBB->end(), clonedInst);
@@ -1268,18 +1282,24 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 
 				//Compute the id that needs to be associated with the current HyperOp since parent may call the same function multiple times
-				list<unsigned> uniqueIdInCallTree = getHyperOpInstanceTag(callSite, newFunction, createdHyperOpAndCallSite, createdHyperOpAndUniqueId);
+				errs() << "getting new tag for callsite:";
+				for (list<CallInst*>::iterator callSiteItr = callSite.begin(); callSiteItr != callSite.end(); callSiteItr++) {
+					(*callSiteItr)->dump();
+				}
+				list<unsigned> uniqueIdInCallTree = getHyperOpInstanceTag(callSite, newFunction, createdHyperOpAndCallSite, createdHyperOpAndUniqueId, accumulatedBasicBlocks, createdHyperOpAndOriginalBasicBlockAndArgMap);
 				//Convert the id to a tag string
-				string tag="<";
-				for(list<unsigned>::iterator tagItr = uniqueIdInCallTree.begin();tagItr!=uniqueIdInCallTree.end();tagItr++){
-					tag.append(itostr(tagItr));
-					if(tagItr!=uniqueIdInCallTree.back()){
+				string tag = "<";
+				for (list<unsigned>::iterator tagItr = uniqueIdInCallTree.begin(); tagItr != uniqueIdInCallTree.end(); tagItr++) {
+					tag.append(itostr(*tagItr));
+					if (*tagItr != uniqueIdInCallTree.back()) {
 						tag.append(",");
 					}
 				}
 				tag.append(">");
+				errs() << "new tag:" << tag << "\n";
 				values[4] = MDString::get(ctxt, tag);
 				funcAnnotation = MDNode::get(ctxt, values);
+				createdHyperOpAndUniqueId[newFunction] = uniqueIdInCallTree;
 			} else {
 				Value * values[3];
 				values[0] = MDString::get(ctxt, HYPEROP);
@@ -1354,6 +1374,7 @@ struct HyperOpCreationPass: public ModulePass {
 				redefineAnnotationsNode->addOperand(hyperOpDescMDNode);
 			}
 
+			errs() << "created func:" << newFunction->getName() << "\n";
 			createdHyperOpAndOriginalBasicBlockAndArgMap[newFunction] = make_pair(accumulatedBasicBlocks, hyperOpArguments);
 			createdHyperOpAndCallSite[newFunction] = callSite;
 			createdHyperOpAndConditionalBranchSources[newFunction] = conditionalBranchSources;
@@ -1594,13 +1615,8 @@ struct HyperOpCreationPass: public ModulePass {
 							Instruction* clonedDefInst = *clonedInstItr;
 							Instruction* originalInst = clonedDefInst;
 							if (isa<StoreInst>(clonedDefInst)) {
-								errs() << "whats in bb?";
-								clonedDefInst->getParent()->getParent()->dump();
 								clonedDefInst = (Instruction*) ((StoreInst*) clonedDefInst)->getOperand(1);
-								errs() << "is a store\n";
 								if (!isa<AllocaInst>(clonedDefInst)) {
-									errs() << "arg to func:";
-									clonedDefInst->dump();
 									AllocaInst* ai = new AllocaInst(clonedDefInst->getType());
 									ai->setAlignment(4);
 									//Alloc instructions need to be inserted in the entry basic block of the function because other allocs are treated as dynamic stack allocs
@@ -1641,7 +1657,17 @@ struct HyperOpCreationPass: public ModulePass {
 								//Local reference args don't need a context slot but we are adding them here anyway since they tail the arguments of a function and are required during metadata parsing
 								values[2] = ConstantInt::get(ctxt, APInt(32, hyperOpArgumentIndex));
 								if (isProducerStatic && !isStaticHyperOp) {
-									values[3] = MDString::get(ctxt, "<id,0>");
+									list<unsigned> tagId = createdHyperOpAndUniqueId[createdFunction];
+									//Create a new dynamic tag
+									string tag = "<id,";
+									for (list<unsigned>::iterator tagItr = tagId.begin(); tagItr != tagId.end(); tagItr++) {
+										tag.append(itostr(*tagItr));
+										if (*tagItr != tagId.back()) {
+											tag.append(",");
+										}
+									}
+									tag.append(">");
+									values[3] = MDString::get(ctxt, tag);
 								} else {
 									values[3] = MDString::get(ctxt, "<prefixId>");
 								}
@@ -1795,7 +1821,17 @@ struct HyperOpCreationPass: public ModulePass {
 									values[0] = funcAnnotation;
 									values[1] = MDString::get(ctxt, StringRef("1"));
 									if (isProducerStatic && !isStaticHyperOp) {
-										values[2] = MDString::get(ctxt, "<id,0>");
+										list<unsigned> tagId = createdHyperOpAndUniqueId[createdFunction];
+										//Create a new dynamic tag
+										string tag = "<id,";
+										for (list<unsigned>::iterator tagItr = tagId.begin(); tagItr != tagId.end(); tagItr++) {
+											tag.append(itostr(*tagItr));
+											if (*tagItr != tagId.back()) {
+												tag.append(",");
+											}
+										}
+										tag.append(">");
+										values[2] = MDString::get(ctxt, tag);
 									} else {
 										values[2] = MDString::get(ctxt, "<prefixId>");
 									}
@@ -1997,7 +2033,17 @@ struct HyperOpCreationPass: public ModulePass {
 						//TODO predicate
 						values[1] = expectedPredicate;
 						if (isProducerStatic && !isStaticHyperOp) {
-							values[2] = MDString::get(ctxt, "<id,0>");
+							list<unsigned> tagId = createdHyperOpAndUniqueId[createdFunction];
+							//Create a new dynamic tag
+							string tag = "<id,";
+							for (list<unsigned>::iterator tagItr = tagId.begin(); tagItr != tagId.end(); tagItr++) {
+								tag.append(itostr(*tagItr));
+								if (*tagItr != tagId.back()) {
+									tag.append(",");
+								}
+							}
+							tag.append(">");
+							values[2] = MDString::get(ctxt, tag);
 						} else {
 							values[2] = MDString::get(ctxt, "<prefixId>");
 						}
@@ -2043,8 +2089,6 @@ struct HyperOpCreationPass: public ModulePass {
 			//Remove unconditional branch instruction, add the annotation to the alloca instruction of the branch
 			for (list<Instruction*>::iterator unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
 				Value* unconditionalBranchInstr = *unconditionalBranchSourceItr;
-				errs() << "unconditional branch:";
-				unconditionalBranchInstr->dump();
 				Value* originalUnconditionalBranchInstr = unconditionalBranchInstr;
 				BasicBlock* targetBB = ((BranchInst*) unconditionalBranchInstr)->getSuccessor(0);
 				list<pair<Function*, Instruction*> > addedJumpSources;
@@ -2234,7 +2278,17 @@ struct HyperOpCreationPass: public ModulePass {
 							values[0] = funcAnnotation;
 							values[1] = MDString::get(ctxt, StringRef("1"));
 							if (isProducerStatic && !isStaticHyperOp) {
-								values[2] = MDString::get(ctxt, "<id,0>");
+								list<unsigned> tagId = createdHyperOpAndUniqueId[createdFunction];
+								//Create a new dynamic tag
+								string tag = "<id,";
+								for (list<unsigned>::iterator tagItr = tagId.begin(); tagItr != tagId.end(); tagItr++) {
+									tag.append(itostr(*tagItr));
+									if (*tagItr != tagId.back()) {
+										tag.append(",");
+									}
+								}
+								tag.append(">");
+								values[2] = MDString::get(ctxt, tag);
 							} else {
 								values[2] = MDString::get(ctxt, "<prefixId>");
 							}
@@ -2308,9 +2362,11 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 						}
 					}
+
 					if (unconditionalBranchInstr == *unconditionalBranchSourceItr && isa<CallInst>(&(*unconditionalBranchSourceItr)->getParent()->front())) {
 						continue;
 					}
+
 					if (isa<Constant>(unconditionalBranchInstr)) {
 						//Immediate value
 						clonedInstr = new AllocaInst(unconditionalBranchInstr->getType());
@@ -2323,8 +2379,12 @@ struct HyperOpCreationPass: public ModulePass {
 					} else {
 						clonedInstr = getClonedArgument(unconditionalBranchInstr, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
 					}
-					errs() << "cloned instr for update:";
+
+					errs() << "what was the unconditional jump that belongs to " << ((Instruction*) clonedInstr)->getParent()->getParent()->getName() << ":";
 					clonedInstr->dump();
+					errs() << "and the original that belongs to " << ((Instruction*) originalUnconditionalBranchInstr)->getParent()->getParent()->getName() << ":";
+					originalUnconditionalBranchInstr->dump();
+
 					list<Instruction*> clonedInstructionsToBeLabeled;
 					clonedInstructionsToBeLabeled.push_back(clonedInstr);
 					Function* producerFunction = ((Instruction*) unconditionalBranchInstr)->getParent()->getParent();
@@ -2357,8 +2417,50 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 					for (list<Instruction*>::iterator clonedInstItr = clonedInstructionsToBeLabeled.begin(); clonedInstItr != clonedInstructionsToBeLabeled.end(); clonedInstItr++) {
-						Instruction* clonedInstr = *clonedInstItr;
+						//Update the unconditional branch instruction's first operand
+						vector<Value*> metadataList;
+						//Since the temporary does not have a memory location associated with it, add an alloca and a store instruction after the argument and label the alloca instruction with metadata
+						AllocaInst* ai = new AllocaInst(Type::getInt1Ty(ctxt));
+						ai->setAlignment(4);
+						ai->insertBefore(clonedInstr->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
+						StoreInst* storeInst = new StoreInst(ConstantInt::get(ctxt, APInt(1, 1)), ai);
+						storeInst->setAlignment(4);
+						storeInst->insertBefore(clonedInstr->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
+						Instruction* metadataHost = ai;
+						//Label the instruction with predicates metadata
+						MDNode* newPredicateMetadata;
+						//TODO this isn't enough for nested recursion cycles
+						if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
+							Value * values[2];
+							values[0] = funcAnnotation;
+							values[1] = MDString::get(ctxt, StringRef("1"));
+							newPredicateMetadata = MDNode::get(ctxt, values);
+						} else {
+							Value * values[3];
+							values[0] = funcAnnotation;
+							values[1] = MDString::get(ctxt, StringRef("1"));
+							if (isProducerStatic && !isStaticHyperOp) {
+								list<unsigned> tagId = createdHyperOpAndUniqueId[createdFunction];
+								//Create a new dynamic tag
+								string tag = "<id,";
+								for (list<unsigned>::iterator tagItr = tagId.begin(); tagItr != tagId.end(); tagItr++) {
+									tag.append(itostr(*tagItr));
+									if (*tagItr != tagId.back()) {
+										tag.append(",");
+									}
+								}
+								tag.append(">");
+								values[2] = MDString::get(ctxt, tag);
+							} else {
+								values[2] = MDString::get(ctxt, "<prefixId>");
+							}
+							newPredicateMetadata = MDNode::get(ctxt, values);
+						}
+						metadataList.push_back(newPredicateMetadata);
+						MDNode * predicatesRelation = MDNode::get(ctxt, metadataList);
+						metadataHost->setMetadata(HYPEROP_CONTROLS, predicatesRelation);
 						Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
+
 						if (isa<BranchInst>(clonedInstr)) {
 							//Update the branch instruction to jump to the return basic block
 							clonedInstr->setOperand(0, retInstOfProducer->getParent());

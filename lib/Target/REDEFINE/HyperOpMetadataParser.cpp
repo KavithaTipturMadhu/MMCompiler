@@ -187,7 +187,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
 								if (!sourceHyperOp->isUnrolledInstance() || consumerInstanceId.front().compare("prefixId") == 0) {
 									if (consumerInstanceId.front().compare("id") == 0) {
-										consumerHyperOpId.push_back(0);
+										consumerInstanceId.pop_front();
+										APInt id;
+										consumerInstanceId.front().getAsInteger(0, id);
+										consumerHyperOpId.push_back(id.getZExtValue());
 										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
 										if (staticFlag.compare("Static") == 0) {
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
@@ -260,7 +263,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
 								if (!sourceHyperOp->isUnrolledInstance() || consumerInstanceId.front().compare("prefixId") == 0) {
 									if (consumerInstanceId.front().compare("id") == 0) {
-										consumerHyperOpId.push_back(0);
+										consumerInstanceId.pop_front();
+										APInt id;
+										consumerInstanceId.front().getAsInteger(0, id);
+										consumerHyperOpId.push_back(id.getZExtValue());
 										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
 										if (staticFlag.compare("Static") == 0) {
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
@@ -328,7 +334,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
 								if (!sourceHyperOp->isUnrolledInstance() || consumerInstanceId.front().compare("prefixId") == 0) {
 									if (consumerInstanceId.front().compare("id") == 0) {
-										consumerHyperOpId.push_back(0);
+										consumerInstanceId.pop_front();
+										APInt id;
+										consumerInstanceId.front().getAsInteger(0, id);
+										consumerHyperOpId.push_back(id.getZExtValue());
 										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
 										if (staticFlag.compare("Static") == 0) {
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
