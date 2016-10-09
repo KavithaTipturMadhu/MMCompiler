@@ -201,8 +201,13 @@ class HyperOpInteractionGraph {
 	void computePostImmediateDominatorInfo();
 public:
 	list<HyperOp*> Vertices;
+
 	HyperOpInteractionGraph();
+
 	void addHyperOp(HyperOp *);
+
+	void removeHyperOp(HyperOp *);
+
 	void addEdge(HyperOp* source, HyperOp * target, HyperOpEdge * edge);
 	/**
 	 * Associate immediate dominator, immediate post-dominator and dominance frontier information with vertices

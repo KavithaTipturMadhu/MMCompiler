@@ -572,7 +572,7 @@ unsigned int HyperOpInteractionGraph::getMaxMemFrameSize() const {
 }
 
 void HyperOpInteractionGraph::setMaxMemFrameSize(unsigned int maxFrameSize) {
-	errs()<<"max mem frame size:"<<maxFrameSize<<"\n";
+	errs() << "max mem frame size:" << maxFrameSize << "\n";
 	this->maxMemFrameSize = maxFrameSize;
 }
 
@@ -616,6 +616,19 @@ HyperOp* HyperOpInteractionGraph::getOrCreateHyperOpInstance(Function* function,
 
 void HyperOpInteractionGraph::addHyperOp(HyperOp *Vertex) {
 	this->Vertices.push_back(Vertex);
+}
+
+void HyperOpInteractionGraph::removeHyperOp(HyperOp * vertex) {
+	//Find the parent edges that need to be marked for removal
+	for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = vertex->ParentMap.begin(); parentItr != vertex->ParentMap.end(); parentItr++) {
+		parentItr->second->removeChildEdge(parentItr->first);
+	}
+
+	for (map<HyperOpEdge*, HyperOp*>::iterator childItr = vertex->ChildMap.begin(); childItr != vertex->ChildMap.end(); childItr++) {
+		childItr->second->removeParentEdge(childItr->first);
+	}
+
+	Vertices.remove(vertex);
 }
 
 void HyperOpInteractionGraph::addEdge(HyperOp* SourceVertex, HyperOp * TargetVertex, HyperOpEdge * Edge) {

@@ -1413,7 +1413,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							unsigned physicalReg = REDEFINEphysRegs[parentItr->first->getPositionOfContextSlot()];
 							unsigned virtualReg;
 							if (!MF.getRegInfo().isLiveIn(physicalReg)) {
-								errs() << "Adding as livein the predicate consumer address:" << PrintReg(physicalReg) << "\n";
+								errs() << "Adding as livein the predicate consumer address:" << PrintReg(physicalReg) << " to HyperOp "<<hyperOp->asString()<<"\n";
 								//There is no need to check if the register is live-in and have an else block here
 								virtualReg = MF.addLiveIn(physicalReg, TRI->getMinimalPhysRegClass(physicalReg));
 //								lastBB.addLiveIn(physicalReg);

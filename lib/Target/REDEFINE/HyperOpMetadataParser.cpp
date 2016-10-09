@@ -169,11 +169,11 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					frameSizeOfHyperOp += REDEFINEUtils::getSizeOfType(((AllocaInst*) instr)->getType());
 				}
 				if (instr->hasMetadata()) {
-					errs()<<"parsing problems with:";
+					errs() << "parsing problems with:";
 					instr->dump();
 					MDNode* consumedByMDNode = instr->getMetadata(HYPEROP_CONSUMED_BY);
 					if (consumedByMDNode != 0) {
-						errs()<<"consumed by issues?\n";
+						errs() << "consumed by issues?\n";
 						for (unsigned consumerMDNodeIndex = 0; consumerMDNodeIndex != consumedByMDNode->getNumOperands(); consumerMDNodeIndex++) {
 							HyperOp* consumerHyperOp = 0;
 							//Create an edge between two HyperOps labeled by the instruction
@@ -329,13 +329,13 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 						for (unsigned syncMDNodeIndex = 0; syncMDNodeIndex != syncMDNode->getNumOperands(); syncMDNodeIndex++) {
 							HyperOp* consumerHyperOp = 0;
 							MDNode* syncedMDNode = (MDNode*) syncMDNode->getOperand(syncMDNodeIndex);
-							errs()<<"synced md node:";
+							errs() << "synced md node:";
 							syncedMDNode->dump();
 							//Create an edge between two HyperOps labeled by the instruction
-							if (syncedMDNode->getNumOperands() > 2) {
+							if (syncedMDNode->getNumOperands() > 1) {
 								//An instance is consuming the data
 								list<StringRef> consumerInstanceId = parseInstanceIdString(((MDString*) syncedMDNode->getOperand(1))->getName());
-								MDNode* hyperOp = (MDNode*) syncMDNode->getOperand(0);
+								MDNode* hyperOp = (MDNode*) syncedMDNode->getOperand(0);
 								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
 								if (!sourceHyperOp->isUnrolledInstance() || consumerInstanceId.front().compare("prefixId") == 0) {
 									if (consumerInstanceId.front().compare("id") == 0) {
@@ -394,25 +394,25 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 		}
 	}
 
-	//Add dummy edges to the hanging hyperops
-	for (list<HyperOp*>::iterator vertexItr = graph->Vertices.begin(); vertexItr != graph->Vertices.end(); vertexItr++) {
-		if (!(*vertexItr)->isEndHyperOp() && (*vertexItr)->ChildMap.empty()) {
-			//Create an edge between unrolled instance and end HyperOp
-			HyperOpEdge* edge = new HyperOpEdge();
-			edge->Type = HyperOpEdge::SYNC;
-			(*vertexItr)->addChildEdge(edge, exitHyperOp);
-			exitHyperOp->addParentEdge(edge, (*vertexItr));
-			exitHyperOp->setBarrierHyperOp();
-			exitHyperOp->incrementIncomingSyncCount();
+	//This had to be written as follows because removal of one node may cause other nodes to go hanging
+	while (true) {
+		bool updatedGraph = false;
+		for (list<HyperOp*>::iterator vertexItr = graph->Vertices.begin(); vertexItr != graph->Vertices.end(); vertexItr++) {
+			errs() << "\n----\ntraversing hanging node " << (*vertexItr)->asString() << "\n";
+			if (!(*vertexItr)->isEndHyperOp() && (*vertexItr)->ChildMap.empty()) {
+				graph->removeHyperOp(*vertexItr);
+				updatedGraph = true;
+				break;
+			}
+
+			if (!(*vertexItr)->isStartHyperOp() && (*vertexItr)->ParentMap.empty()) {
+				graph->removeHyperOp(*vertexItr);
+				updatedGraph = true;
+				break;
+			}
 		}
-		if (!(*vertexItr)->isStartHyperOp() && (*vertexItr)->ParentMap.empty()) {
-			//Create an edge between unrolled instance and end HyperOp
-			HyperOpEdge* edge = new HyperOpEdge();
-			edge->Type = HyperOpEdge::SYNC;
-			(*vertexItr)->addParentEdge(edge, exitHyperOp);
-			entryHyperOp->addChildEdge(edge, (*vertexItr));
-			(*vertexItr)->setBarrierHyperOp();
-			(*vertexItr)->incrementIncomingSyncCount();
+		if(!updatedGraph){
+			break;
 		}
 	}
 
