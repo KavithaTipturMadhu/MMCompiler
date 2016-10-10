@@ -228,9 +228,9 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 	Function *Fn = const_cast<Function*>(mf.getFunction());
 	const TargetInstrInfo &TII = *TM.getInstrInfo();
 	const TargetRegisterInfo &TRI = *TM.getRegisterInfo();
-	static unsigned firstFunction=0;
+	static unsigned firstFunction = 0;
 	//Add instructions to write to context frames if the function is the first one being dealt with
-	if (firstFunction==0) {
+	if (firstFunction == 0) {
 		errs() << "Whats in module?";
 		Fn->getParent()->dump();
 		//Parse the HIG metadata the first time, subsequent HyperOps can use the graph
@@ -240,6 +240,8 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 		((REDEFINETargetMachine&) TM).HIG->setNumContextFrames((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getCfCount());
 		((REDEFINETargetMachine&) TM).HIG->setMaxContextFrameSize((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getCfSize());
 		((REDEFINETargetMachine&) TM).HIG->computeDominatorInfo();
+		errs() << "after clustering:";
+		((REDEFINETargetMachine&) TM).HIG->print(dbgs());
 		((REDEFINETargetMachine&) TM).HIG->clusterNodes();
 		((REDEFINETargetMachine&) TM).HIG->mapClustersToComputeResources();
 		((REDEFINETargetMachine&) TM).HIG->associateStaticContextFrames();

@@ -1,0 +1,594 @@
+	.text
+.topology	0	1
+.startaddr	0
+.HyOp#0:
+.SMD_BEGIN	
+.ann	S			
+.numphy	1
+.opdist	0	
+.SMD_END
+.PHYOP#0
+.LBB0_0:
+	add	x30, x0, x31
+	lui	x5, "%hi("ga#256")"
+	lui	x6, "%lo("ga#256")"
+	srli	x6, x6, 12
+	add	x5, x6, x5
+	addi	x6, x0, 20
+	srli	x7, x31, 21
+	srli	x8, x31, 11
+	andi	x8, x8, 15
+	srli	x11, x31, 6
+	andi	x11, x11, 63
+	addi	x12, x7, 800
+	mul	x12, x12, x7
+	addi	x7, x7, 52
+	mul	x7, x7, x8
+	add	x7, x11, x7
+	add	x7, x12, x7
+	mul	x6, x6, x7
+	add	x31, x6, x5
+	addi	x5, x0, 2
+	addi	x6, x31, 0
+	sw	x6, x5, 0
+	addi	x5, x0, 64
+	lw	x6, x31, 0
+	writecm	x5, x6, 0
+	end 	0
+	addi	x0, x0, 0
+	addi	x0, x0, 0
+.PHYOP_END
+.STATICINST	Y
+.IMD_BEGIN
+.HyOpInst#0	
+.ANN							
+.depthHEG	0
+.numphy	1
+.launchCnt	0
+.OpValidity	0000000000000000
+.OpWaitCnt	0
+.IMD_END
+.HYOP_END
+
+.HyOp#1:
+.SMD_BEGIN	
+.ann		E		
+.numphy	1
+.opdist	1	
+.SMD_END
+.PHYOP#0
+.LBB1_0:
+	add	x30, x0, x31
+	lui	x5, "%hi("ga#256")"
+	lui	x6, "%lo("ga#256")"
+	srli	x6, x6, 12
+	add	x5, x6, x5
+	addi	x6, x0, 20
+	srli	x7, x31, 21
+	srli	x8, x31, 11
+	andi	x8, x8, 15
+	srli	x11, x31, 6
+	andi	x11, x11, 63
+	addi	x12, x7, 800
+	mul	x12, x12, x7
+	addi	x7, x7, 52
+	mul	x7, x7, x8
+	add	x7, x11, x7
+	add	x7, x12, x7
+	mul	x6, x6, x7
+	add	x31, x6, x5
+	lui	x5, "%lo("ga#0")"
+	srli	x5, x5, 12
+	lui	x6, "%hi("ga#0")"
+	add	x5, x6, x5
+	sw	x5, x1, 0
+	fdelete 	x30, 0
+	end 	0
+	addi	x0, x0, 0
+	addi	x0, x0, 0
+.PHYOP_END
+.STATICINST	Y
+.IMD_BEGIN
+.HyOpInst#256	
+.ANN		A					
+.depthHEG	11
+.numphy	1
+.launchCnt	1
+.OpValidity	0000000000000000
+.OpWaitCnt	1
+.IMD_END
+.HYOP_END
+
+.HyOp#2:
+.SMD_BEGIN	
+.ann				P
+.numphy	1
+.opdist	3	
+.SMD_END
+.PHYOP#0
+.LBB2_0:
+	add	x30, x0, x31
+	lui	x5, "%hi("ga#256")"
+	lui	x6, "%lo("ga#256")"
+	srli	x6, x6, 12
+	add	x5, x6, x5
+	addi	x6, x0, 20
+	srli	x7, x31, 21
+	srli	x8, x31, 11
+	andi	x8, x8, 15
+	srli	x11, x31, 6
+	andi	x11, x11, 63
+	addi	x12, x7, 800
+	mul	x12, x12, x7
+	addi	x7, x7, 52
+	mul	x7, x7, x8
+	add	x7, x11, x7
+	add	x7, x12, x7
+	mul	x7, x6, x7
+	add	x31, x7, x5
+	addi	x7, x31, 0
+	addi	x8, x31, 4
+	lw	x8, x8, 0
+	mul	x11, x2, x1
+	sw	x8, x11, 0
+	sw	x7, x8, 0
+	srli	x7, x3, 21
+	srli	x8, x3, 11
+	andi	x8, x8, 15
+	srli	x11, x3, 6
+	andi	x11, x11, 63
+	addi	x12, x7, 800
+	mul	x12, x12, x7
+	addi	x7, x7, 52
+	mul	x7, x7, x8
+	add	x7, x11, x7
+	add	x7, x12, x7
+	mul	x6, x6, x7
+	add	x5, x5, x6
+	lw	x6, x31, 0
+	sw	x5, x6, 4
+	lui	x5, 1048575
+	lui	x16, 4095
+	srli	x16, x16, 12
+	add	x5, x16, x5
+	sync	x3, x5, 60
+	end 	0
+	addi	x0, x0, 0
+	addi	x0, x0, 0
+.PHYOP_END
+.STATICINST	Y
+.IMD_BEGIN
+.HyOpInst#128	
+.ANN		A				P	
+.depthHEG	9
+.numphy	1
+.launchCnt	3
+.OpValidity	0000000000000000
+.OpWaitCnt	3
+.IMD_END
+.HYOP_END
+
+.HyOp#3:
+.SMD_BEGIN	
+.ann			B	
+.numphy	1
+.opdist	3	
+.SMD_END
+.PHYOP#0
+.LBB3_0:
+	addi	x5, x0, 256
+	fdelete 	x1, 0
+	fdelete 	x30, 0
+	fdelete 	x2, 0
+	fdelete 	x3, 0
+	lw	x6, x31, 0
+	writecm	x5, x6, 0
+	end 	0
+	addi	x0, x0, 0
+	addi	x0, x0, 0
+.PHYOP_END
+.STATICINST	Y
+.IMD_BEGIN
+.HyOpInst#192	
+.ANN		A		B			
+.depthHEG	10
+.numphy	1
+.launchCnt	3
+.OpValidity	0000000000000000
+.OpWaitCnt	4
+.IMD_END
+.HYOP_END
+
+.HyOp#4:
+.SMD_BEGIN	
+.ann				P
+.numphy	1
+.opdist	1	
+.SMD_END
+.PHYOP#0
+.LBB4_0:
+	add	x30, x0, x31
+	lui	x5, "%hi("ga#256")"
+	lui	x6, "%lo("ga#256")"
+	srli	x6, x6, 12
+	add	x5, x6, x5
+	addi	x6, x0, 20
+	srli	x7, x31, 21
+	srli	x8, x31, 11
+	andi	x8, x8, 15
+	srli	x11, x31, 6
+	andi	x11, x11, 63
+	addi	x12, x7, 800
+	mul	x12, x12, x7
+	addi	x7, x7, 52
+	mul	x7, x7, x8
+	add	x7, x11, x7
+	add	x7, x12, x7
+	mul	x7, x6, x7
+	add	x31, x7, x5
+	addi	x7, x31, 0
+	addi	x8, x31, 4
+	lw	x8, x8, 0
+	addi	x11, x0, 1
+	sw	x8, x11, 0
+	sw	x7, x8, 0
+	srli	x7, x1, 21
+	srli	x8, x1, 11
+	andi	x8, x8, 15
+	srli	x11, x1, 6
+	andi	x11, x11, 63
+	addi	x12, x7, 800
+	mul	x12, x12, x7
+	addi	x7, x7, 52
+	mul	x7, x7, x8
+	add	x7, x11, x7
+	add	x7, x12, x7
+	mul	x6, x6, x7
+	add	x5, x5, x6
+	lw	x6, x31, 0
+	sw	x5, x6, 4
+	lui	x5, 1048575
+	lui	x16, 4095
+	srli	x16, x16, 12
+	add	x5, x16, x5
+	sync	x1, x5, 60
+	end 	0
+	addi	x0, x0, 0
+	addi	x0, x0, 0
+.PHYOP_END
+.STATICINST	Y
+.IMD_BEGIN
+.HyOpInst#4194304	
+.ANN		A				P	
+.depthHEG	2
+.numphy	1
+.launchCnt	1
+.OpValidity	0000000000000000
+.OpWaitCnt	1
+.IMD_END
+.HYOP_END
+
+.HyOp#5:
+.SMD_BEGIN	
+.ann				
+.numphy	1
+.opdist	1	
+.SMD_END
+.PHYOP#0
+.LBB5_0:
+	add	x30, x0, x31
+	lui	x5, "%hi("ga#256")"
+	lui	x6, "%lo("ga#256")"
+	srli	x6, x6, 12
+	add	x5, x6, x5
+	addi	x6, x0, 20
+	srli	x7, x31, 21
+	srli	x8, x31, 11
+	andi	x8, x8, 15
+	srli	x11, x31, 6
+	andi	x11, x11, 63
+	addi	x12, x7, 800
+	mul	x12, x12, x7
+	addi	x7, x7, 52
+	mul	x7, x7, x8
+	add	x7, x11, x7
+	add	x7, x12, x7
+	mul	x6, x6, x7
+	add	x31, x6, x5
+	addi	x6, x0, 1
+	addi	x7, x31, 4
+	addi	x5, x31, 16
+	slt	x6, x6, x1
+	sw	x7, x6, 0
+	sw	x5, x1, 0
+	addi	x5, x0, 2
+	blt	x1, x5, .LBB5_2
+	addi	x0, x0, 0
+	addi	x0, x0, 0
+	jal 	.LBB5_1
+	addi	x0, x0, 0
+	addi	x0, x0, 0
+.LBB5_1:
+	addi	x5, x31, 0
+	addi	x6, x31, 16
+	lw	x7, x6, 0
+	addi	x8, x31, 8
+	sw	x8, x7, 0
+	lw	x6, x6, 0
+	addi	x6, x6, -1
+	sw	x5, x6, 0
+.LBB5_2:
+	addi	x5, x0, 128
+	addi	x8, x0, 192
+	addi	x6, x0, 1
+	writecm	x8, x6, 60
+	lui	x6, 1024
+	lui	x16, 0
+	srli	x16, x16, 12
+	add	x6, x16, x6
+	fdelete 	x30, 0
+	falloc	x7, 1
+	fbind	x0, x7, "HyOp#9"
+	lw	x11, x31, 0
+	writecm	x7, x11, 0
+	lw	x11, x31, 8
+	writecm	x5, x11, 0
+	writecm	x8, x7, 8
+	writecm	x6, x8, 0
+	writecm	x8, x5, 0
+	writecm	x5, x8, 8
+	writecm	x8, x6, 4
+	writecm	x7, x5, 4
+	lw	x8, x31, 4
+	sltiu	x8, x8, 1
+	writecmp	x6, x8, 0
+	lw	x6, x31, 4
+	writecmp	x7, x6, 0
+	lw	x6, x31, 4
+	writecmp	x5, x6, 1
+	end 	0
+	addi	x0, x0, 0
+	addi	x0, x0, 0
+.PHYOP_END
+.STATICINST	Y
+.IMD_BEGIN
+.HyOpInst#64	
+.ANN		A					
+.depthHEG	1
+.numphy	1
+.launchCnt	1
+.OpValidity	0000000000000000
+.OpWaitCnt	1
+.IMD_END
+.HYOP_END
+
+.HyOp#6:
+.SMD_BEGIN	
+.ann				P
+.numphy	1
+.opdist	3	
+.SMD_END
+.PHYOP#0
+.LBB6_0:
+	add	x30, x0, x31
+	lui	x5, "%hi("ga#256")"
+	lui	x6, "%lo("ga#256")"
+	srli	x6, x6, 12
+	add	x5, x6, x5
+	addi	x6, x0, 20
+	srli	x7, x31, 21
+	srli	x8, x31, 11
+	andi	x8, x8, 15
+	srli	x11, x31, 6
+	andi	x11, x11, 63
+	addi	x12, x7, 800
+	mul	x12, x12, x7
+	addi	x7, x7, 52
+	mul	x7, x7, x8
+	add	x7, x11, x7
+	add	x7, x12, x7
+	mul	x7, x6, x7
+	add	x31, x7, x5
+	addi	x7, x31, 0
+	addi	x8, x31, 4
+	lw	x8, x8, 0
+	mul	x11, x2, x1
+	sw	x8, x11, 0
+	sw	x7, x8, 0
+	srli	x7, x3, 21
+	srli	x8, x3, 11
+	andi	x8, x8, 15
+	srli	x11, x3, 6
+	andi	x11, x11, 63
+	addi	x12, x7, 800
+	mul	x12, x12, x7
+	addi	x7, x7, 52
+	mul	x7, x7, x8
+	add	x7, x11, x7
+	add	x7, x12, x7
+	mul	x6, x6, x7
+	add	x5, x5, x6
+	lw	x6, x31, 0
+	sw	x5, x6, 4
+	lui	x5, 1048575
+	lui	x16, 4095
+	srli	x16, x16, 12
+	add	x5, x16, x5
+	sync	x3, x5, 60
+	end 	0
+	addi	x0, x0, 0
+	addi	x0, x0, 0
+.PHYOP_END
+.STATICINST	N
+.HYOP_END
+
+.HyOp#7:
+.SMD_BEGIN	
+.ann			B	
+.numphy	1
+.opdist	4	
+.SMD_END
+.PHYOP#0
+.LBB7_0:
+	fdelete 	x2, 0
+	fdelete 	x30, 0
+	fdelete 	x3, 0
+	fdelete 	x4, 0
+	lw	x5, x31, 0
+	writecm	x1, x5, 4
+	end 	0
+	addi	x0, x0, 0
+	addi	x0, x0, 0
+.PHYOP_END
+.STATICINST	N
+.HYOP_END
+
+.HyOp#8:
+.SMD_BEGIN	
+.ann				P
+.numphy	1
+.opdist	1	
+.SMD_END
+.PHYOP#0
+.LBB8_0:
+	add	x30, x0, x31
+	lui	x5, "%hi("ga#256")"
+	lui	x6, "%lo("ga#256")"
+	srli	x6, x6, 12
+	add	x5, x6, x5
+	addi	x6, x0, 20
+	srli	x7, x31, 21
+	srli	x8, x31, 11
+	andi	x8, x8, 15
+	srli	x11, x31, 6
+	andi	x11, x11, 63
+	addi	x12, x7, 800
+	mul	x12, x12, x7
+	addi	x7, x7, 52
+	mul	x7, x7, x8
+	add	x7, x11, x7
+	add	x7, x12, x7
+	mul	x7, x6, x7
+	add	x31, x7, x5
+	addi	x7, x31, 0
+	addi	x8, x31, 4
+	lw	x8, x8, 0
+	addi	x11, x0, 1
+	sw	x8, x11, 0
+	sw	x7, x8, 0
+	srli	x7, x1, 21
+	srli	x8, x1, 11
+	andi	x8, x8, 15
+	srli	x11, x1, 6
+	andi	x11, x11, 63
+	addi	x12, x7, 800
+	mul	x12, x12, x7
+	addi	x7, x7, 52
+	mul	x7, x7, x8
+	add	x7, x11, x7
+	add	x7, x12, x7
+	mul	x6, x6, x7
+	add	x5, x5, x6
+	lw	x6, x31, 0
+	sw	x5, x6, 4
+	lui	x5, 1048575
+	lui	x16, 4095
+	srli	x16, x16, 12
+	add	x5, x16, x5
+	sync	x1, x5, 60
+	end 	0
+	addi	x0, x0, 0
+	addi	x0, x0, 0
+.PHYOP_END
+.STATICINST	N
+.HYOP_END
+
+.HyOp#9:
+.SMD_BEGIN	
+.ann				P
+.numphy	1
+.opdist	2	
+.SMD_END
+.PHYOP#0
+.LBB9_0:
+	add	x30, x0, x31
+	lui	x5, "%hi("ga#256")"
+	lui	x6, "%lo("ga#256")"
+	srli	x6, x6, 12
+	add	x5, x6, x5
+	addi	x6, x0, 20
+	srli	x7, x31, 21
+	srli	x8, x31, 11
+	andi	x8, x8, 15
+	srli	x11, x31, 6
+	andi	x11, x11, 63
+	addi	x12, x7, 800
+	mul	x12, x12, x7
+	addi	x7, x7, 52
+	mul	x7, x7, x8
+	add	x7, x11, x7
+	add	x7, x12, x7
+	mul	x6, x6, x7
+	add	x31, x6, x5
+	addi	x6, x0, 1
+	addi	x7, x31, 4
+	addi	x5, x31, 16
+	slt	x6, x6, x1
+	sw	x7, x6, 0
+	sw	x5, x1, 0
+	addi	x5, x0, 2
+	blt	x1, x5, .LBB9_2
+	addi	x0, x0, 0
+	addi	x0, x0, 0
+	jal 	.LBB9_1
+	addi	x0, x0, 0
+	addi	x0, x0, 0
+.LBB9_1:
+	addi	x5, x31, 0
+	addi	x6, x31, 16
+	lw	x7, x6, 0
+	addi	x8, x31, 8
+	sw	x8, x7, 0
+	lw	x6, x6, 0
+	addi	x6, x6, -1
+	sw	x5, x6, 0
+.LBB9_2:
+	falloc	x5, 1
+	fbind	x0, x5, "HyOp#6"
+	falloc	x6, 1
+	fbind	x0, x6, "HyOp#7"
+	addi	x7, x0, 1
+	writecm	x6, x7, 60
+	falloc	x7, 1
+	fbind	x0, x7, "HyOp#8"
+	falloc	x8, 1
+	fbind	x0, x8, "HyOp#9"
+	writecm	x6, x7, 8
+	writecm	x6, x2, 0
+	lw	x11, x31, 0
+	writecm	x8, x11, 0
+	lw	x11, x31, 8
+	writecm	x5, x11, 0
+	writecm	x5, x6, 8
+	writecm	x6, x8, 12
+	writecm	x7, x6, 0
+	writecm	x6, x5, 4
+	writecm	x8, x5, 0
+	lw	x6, x31, 4
+	sltiu	x6, x6, 1
+	writecmp	x7, x6, 0
+	lw	x6, x31, 4
+	writecmp	x8, x6, 0
+	lw	x6, x31, 4
+	writecmp	x5, x6, 1
+	end 	0
+	addi	x0, x0, 0
+	addi	x0, x0, 0
+.PHYOP_END
+.STATICINST	N
+.HYOP_END
+
+.IO_BEGIN
+.data_start	1
+o	"ga#0"
+.IO_END

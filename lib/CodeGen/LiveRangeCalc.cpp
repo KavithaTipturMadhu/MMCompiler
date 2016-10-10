@@ -189,7 +189,7 @@ bool LiveRangeCalc::findReachingDefs(LiveInterval *LI,
 #ifndef NDEBUG
     if (MBB->pred_empty()) {
        MBB->getParent()->verify();
-      errs()<<PrintReg(LI->reg)<<"\n";
+      errs()<<"reg being considered:"<<PrintReg(LI->reg)<<"\n";
       llvm_unreachable("Use not jointly dominated by defs.");
     }
 

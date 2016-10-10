@@ -8,6 +8,6 @@ int fib(int x){
 
 int redefine_out_val;
 void redefine_start(){
-	redefine_out_val = fib(2);
+	redefine_out_val = fib(0);
 }
 

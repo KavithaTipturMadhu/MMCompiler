@@ -149,6 +149,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 	while (!hyperOpTraversalList.empty()) {
 		//Traverse through instructions of the module
 		HyperOp* sourceHyperOp = hyperOpTraversalList.front();
+		errs()<<"source hop:"<<sourceHyperOp->asString()<<"\n";
 		hyperOpTraversalList.pop_front();
 		traversedList.push_back(sourceHyperOp);
 		Function* sourceFunction;

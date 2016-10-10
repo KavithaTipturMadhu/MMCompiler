@@ -1275,7 +1275,7 @@ pair<list<unsigned int>, list<pair<list<HyperOp*>, unsigned int> > > mergeNodesA
 		if (sourceClusterNodeFirst != 0) {
 			//The edge ensures that the parent node has been executed and always receives a true predicate from the parent
 			HyperOpEdge *edge = new HyperOpEdge();
-			edge->setType(HyperOpEdge::PREDICATE);
+			edge->setType(HyperOpEdge::ORDERING);
 			edge->setIsEdgeIgnored(true);
 			additionalEdgesMap.push_back(std::make_pair((HyperOpEdge*) edge, make_pair(sourceClusterNodeFirst, targetNodeForMerge)));
 			sourceClusterNodeFirst->addChildEdge((HyperOpEdge*) edge, targetNodeForMerge);
@@ -1283,7 +1283,7 @@ pair<list<unsigned int>, list<pair<list<HyperOp*>, unsigned int> > > mergeNodesA
 		}
 		if (sourceClusterNodeSecond != 0) {
 			HyperOpEdge *edge = new HyperOpEdge();
-			edge->setType(HyperOpEdge::PREDICATE);
+			edge->setType(HyperOpEdge::ORDERING);
 			edge->setIsEdgeIgnored(true);
 			additionalEdgesMap.push_back(std::make_pair((HyperOpEdge*) edge, make_pair(targetNodeForMerge, sourceClusterNodeSecond)));
 			targetNodeForMerge->addChildEdge((HyperOpEdge*) edge, sourceClusterNodeSecond);
@@ -2269,6 +2269,18 @@ bool pathExistsInHIG(HyperOp* source, HyperOp* target) {
 	return false;
 }
 
+bool pathExistsInHIGExcludingOrderingEdges(HyperOp* source, HyperOp* target) {
+	if (source == target) {
+		return false;
+	}
+	for (map<HyperOpEdge*, HyperOp*>::iterator childItr = source->ChildMap.begin(); childItr != source->ChildMap.end(); childItr++) {
+		if (childItr->first->getType()!=HyperOpEdge::ORDERING&&(childItr->second == target || pathExistsInHIG(childItr->second, target))) {
+			return true;
+		}
+	}
+	return false;
+}
+
 list<list<pair<HyperOpEdge*, HyperOp*> > > getReachingPredicateChain(HyperOp* currentHyperOp, HyperOp* immediateDominatorHyperOp) {
 	list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains;
 //	if (!pathExistsInHIG(currentHyperOp, immediateDominatorHyperOp)) {
@@ -2537,7 +2549,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		for (list<HyperOp*>::iterator childItr = children.begin(); childItr != children.end(); childItr++) {
 			HyperOp* childVertex = *childItr;
 			list<HyperOpEdge*> orderingEdges;
-			bool hasIncomingDataOrControlEdge = false;
+			bool hasIncomingDataOrControlEdge = true;
 			//If there are multiple edges between the vertex and childVertex
 			for (map<HyperOpEdge*, HyperOp*>::iterator childEdgeItr = vertex->ChildMap.begin(); childEdgeItr != vertex->ChildMap.end(); childEdgeItr++) {
 				if (childEdgeItr->second == childVertex) {
@@ -2602,7 +2614,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			}
 		}
 	}
-
 	//Update the sync count of nodes with sync edges incoming from mutually exclusive paths
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hyperOp = *hopItr;
@@ -2645,6 +2656,10 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			}
 		}
 	}
+
+	errs() << "after minimizing cluster, graph:";
+	this->print(errs());
+
 }
 
 HyperOp * HyperOpInteractionGraph::getHyperOp(Function * F) {

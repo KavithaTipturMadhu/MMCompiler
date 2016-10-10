@@ -7,10 +7,9 @@ target triple = "redefine"
 ; Function Attrs: nounwind
 define i32 @factorial(i32 %x) #0 {
 entry:
+  %retval = alloca i32, align 4
   %x.addr = alloca i32, align 4
-  %retVal = alloca i32, align 4
   store i32 %x, i32* %x.addr, align 4
-  store i32 0, i32* %retVal, align 4
   %0 = load i32* %x.addr, align 4
   %cmp = icmp sgt i32 %0, 1
   br i1 %cmp, label %if.then, label %if.else
@@ -21,22 +20,22 @@ if.then:                                          ; preds = %entry
   %sub = sub nsw i32 %2, 1
   %call = call i32 @factorial(i32 %sub)
   %mul = mul nsw i32 %1, %call
-  store i32 %mul, i32* %retVal, align 4
-  br label %if.end
+  store i32 %mul, i32* %retval
+  br label %return
 
 if.else:                                          ; preds = %entry
-  store i32 1, i32* %retVal, align 4
-  br label %if.end
+  store i32 1, i32* %retval
+  br label %return
 
-if.end:                                           ; preds = %if.else, %if.then
-  %3 = load i32* %retVal, align 4
+return:                                           ; preds = %if.else, %if.then
+  %3 = load i32* %retval
   ret i32 %3
 }
 
 ; Function Attrs: nounwind
 define void @redefine_start() #0 {
 entry:
-  %call = call i32 @factorial(i32 1)
+  %call = call i32 @factorial(i32 2)
   store i32 %call, i32* @redefine_out_val, align 4
   ret void
 }

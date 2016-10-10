@@ -194,9 +194,9 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		int fabricColumnCount = (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getN();
 		for (list<HyperOp*>::iterator hyperOpItr = HIG->Vertices.begin(); hyperOpItr != HIG->Vertices.end(); hyperOpItr++) {
 			HyperOp* hyperOp = *hyperOpItr;
-			if (!hyperOp->isStaticHyperOp()) {
-				continue;
-			}
+//			if (!hyperOp->isStaticHyperOp()) {
+//				continue;
+//			}
 			int mappedToX = hyperOp->getTargetResource() / fabricRowCount;
 			int mappedToY = hyperOp->getTargetResource() % fabricColumnCount;
 			if (mappedToX > maxXInTopology) {
