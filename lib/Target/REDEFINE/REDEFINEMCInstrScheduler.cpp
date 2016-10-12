@@ -1415,18 +1415,15 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 								errs() << "Adding as livein the predicate consumer address:" << PrintReg(physicalReg) << " to HyperOp " << hyperOp->asString() << "\n";
 								//There is no need to check if the register is live-in and have an else block here
 								virtualReg = MF.addLiveIn(physicalReg, TRI->getMinimalPhysRegClass(physicalReg));
-//								lastBB.addLiveIn(physicalReg);
 								for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 									bbItr->addLiveIn(physicalReg);
 								}
 								MF.getRegInfo().setRegAllocationHint(virtualReg, 0, physicalReg);
-//								MRI.addLiveIn(physicalReg, virtualReg);
 								//Emit copy
 								MachineInstrBuilder copy = BuildMI(lastBB, lastInstruction, location, TII->get(TargetOpcode::COPY)).addReg(virtualReg, RegState::Define).addReg(physicalReg);
 								LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
-//								LIS->getOrCreateInterval(virtualReg);
-//								LIS->addLiveRangeToEndOfBlock(virtualReg, copy.operator ->());
 								allInstructionsOfRegion.push_back(make_pair(copy.operator ->(), make_pair(0, insertPosition++)));
+								LIS->computeLiveInRegUnits();
 							} else {
 								virtualReg = MF.getRegInfo().getLiveInVirtReg(physicalReg);
 							}
@@ -1482,8 +1479,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
 							allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 							registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(consumer, make_pair(registerContainingConsumerBase, targetCE)));
-							errs() << "live interval of the phys reg now:";
-//							LIS->getRegUnit(physicalReg);
+							LIS->computeLiveInRegUnits();
 						} else {
 							registerContainingConsumerBase = MF.getRegInfo().getLiveInVirtReg(physicalReg);
 						}
@@ -1821,8 +1817,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
 							allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 							registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(consumer, make_pair(registerContainingConsumerBase, targetCE)));
-							errs() << "live interval of the phys reg now:";
-//							LIS->getRegUnit(physicalReg);
+							LIS->computeLiveInRegUnits();
 						} else {
 							registerContainingConsumerBase = MF.getRegInfo().getLiveInVirtReg(physicalReg);
 						}
@@ -1907,6 +1902,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 								LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
 								allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 								registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(edge->getContextFrameAddress(), make_pair(registerContainingData, targetCE)));
+								LIS->computeLiveInRegUnits();
 							} else {
 								registerContainingData = MF.getRegInfo().getLiveInVirtReg(physicalReg);
 							}
@@ -2035,6 +2031,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
 							allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 							registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(consumer, make_pair(registerContainingConsumerBase, targetCE)));
+							LIS->computeLiveInRegUnits();
 						} else {
 							registerContainingConsumerBase = MF.getRegInfo().getLiveInVirtReg(physicalReg);
 						}
@@ -2434,35 +2431,35 @@ for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
 	}
 }
 
-DEBUG(dbgs() << "Patching writecm instructions to shuffle physical registers of function " << MF.getFunction()->getName() << "\n");
-//Modify the writecm instructions corresponding to writes to the current MachineFunction's context frame
-//TODO This assumes that the producer HyperOps have already been dealt with and all necessary writecm instructions have been added
-if (writeInstrToContextFrame.find(const_cast<Function*>(MF.getFunction())) != writeInstrToContextFrame.end()) {
-	list<MachineInstr*> writeInstrToBePatched = this->writeInstrToContextFrame.find(const_cast<Function*>(MF.getFunction()))->second;
-	errs() << "number of writes to be patched that write to " << MF.getFunction()->getName() << ":" << writeInstrToBePatched.size() << "\n";
-	for (list<MachineInstr*>::iterator writeInstItr = writeInstrToBePatched.begin(); writeInstItr != writeInstrToBePatched.end(); writeInstItr++) {
-		MachineInstr* writeInst = *writeInstItr;
-		errs() << "patching write:";
-		writeInst->dump();
-//Replace the immediate offset of write instruction that corresponds to the context frame slot being written into
-		unsigned previousFrameSlot = writeInst->getOperand(2).getImm();
-		writeInst->getOperand(2).setImm(physRegAndContextFrameSlot[contextFrameSlotAndPhysReg[previousFrameSlot]]);
-		errs() << "previous slot:" << previousFrameSlot << " swapped to " << physRegAndContextFrameSlot[contextFrameSlotAndPhysReg[previousFrameSlot]] << "\n";
-	}
-}
-
-DEBUG(dbgs() << "Updating edges from parent nodes to shuffle the physical registers of function " << MF.getFunction()->getName() << "\n");
-//Shuffle context frame slots for the HyperOp in case the parent hyperop hasn't been processed yet
-map<HyperOpEdge*, HyperOp*> parentMap = graph->getHyperOp(const_cast<Function*>(MF.getFunction()))->ParentMap;
-for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = parentMap.begin(); parentItr != parentMap.end(); parentItr++) {
-	HyperOpEdge* edge = parentItr->first;
-	if (edge->getType() == HyperOpEdge::SCALAR || edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
-		unsigned previousPhysReg = contextFrameSlotAndPhysReg[edge->getPositionOfContextSlot()];
-		errs() << "updating the edge from " << parentItr->second->asString() << " to " << currentHyperOp->asString() << " that used to point to " << edge->getPositionOfContextSlot() << "to" << physRegAndContextFrameSlot[previousPhysReg] << " because of the use of phys reg " << previousPhysReg
-				<< "\n";
-		edge->setPositionOfContextSlot(physRegAndContextFrameSlot[previousPhysReg]);
-	}
-}
+//DEBUG(dbgs() << "Patching writecm instructions to shuffle physical registers of function " << MF.getFunction()->getName() << "\n");
+////Modify the writecm instructions corresponding to writes to the current MachineFunction's context frame
+////TODO This assumes that the producer HyperOps have already been dealt with and all necessary writecm instructions have been added
+//if (writeInstrToContextFrame.find(const_cast<Function*>(MF.getFunction())) != writeInstrToContextFrame.end()) {
+//	list<MachineInstr*> writeInstrToBePatched = this->writeInstrToContextFrame.find(const_cast<Function*>(MF.getFunction()))->second;
+//	errs() << "number of writes to be patched that write to " << MF.getFunction()->getName() << ":" << writeInstrToBePatched.size() << "\n";
+//	for (list<MachineInstr*>::iterator writeInstItr = writeInstrToBePatched.begin(); writeInstItr != writeInstrToBePatched.end(); writeInstItr++) {
+//		MachineInstr* writeInst = *writeInstItr;
+//		errs() << "patching write:";
+//		writeInst->dump();
+////Replace the immediate offset of write instruction that corresponds to the context frame slot being written into
+//		unsigned previousFrameSlot = writeInst->getOperand(2).getImm();
+//		writeInst->getOperand(2).setImm(physRegAndContextFrameSlot[contextFrameSlotAndPhysReg[previousFrameSlot]]);
+//		errs() << "previous slot:" << previousFrameSlot << " swapped to " << physRegAndContextFrameSlot[contextFrameSlotAndPhysReg[previousFrameSlot]] << "\n";
+//	}
+//}
+//
+//DEBUG(dbgs() << "Updating edges from parent nodes to shuffle the physical registers of function " << MF.getFunction()->getName() << "\n");
+////Shuffle context frame slots for the HyperOp in case the parent hyperop hasn't been processed yet
+//map<HyperOpEdge*, HyperOp*> parentMap = graph->getHyperOp(const_cast<Function*>(MF.getFunction()))->ParentMap;
+//for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = parentMap.begin(); parentItr != parentMap.end(); parentItr++) {
+//	HyperOpEdge* edge = parentItr->first;
+//	if (edge->getType() == HyperOpEdge::SCALAR || edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
+//		unsigned previousPhysReg = contextFrameSlotAndPhysReg[edge->getPositionOfContextSlot()];
+//		errs() << "updating the edge from " << parentItr->second->asString() << " to " << currentHyperOp->asString() << " that used to point to " << edge->getPositionOfContextSlot() << "to" << physRegAndContextFrameSlot[previousPhysReg] << " because of the use of phys reg " << previousPhysReg
+//				<< "\n";
+//		edge->setPositionOfContextSlot(physRegAndContextFrameSlot[previousPhysReg]);
+//	}
+//}
 
 ///*
 // * Since REDEFINE doesn't allow replication of context memory inputs to multiple CEs, after the first CE that uses a live-in register corresponding to a HyperOp input is encountered,

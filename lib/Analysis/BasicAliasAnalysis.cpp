@@ -35,6 +35,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -586,7 +587,7 @@ BasicAliasAnalysis::pointsToConstantMemory(const Location &Loc, bool OrLocal) {
     }
 
     // An alloca instruction defines local memory.
-    if (OrLocal && isa<AllocaInst>(V))
+    if ((OrLocal && isa<AllocaInst>(V))||isa<Argument>(V))
       continue;
 
     // A global constant counts as local memory for our purposes.

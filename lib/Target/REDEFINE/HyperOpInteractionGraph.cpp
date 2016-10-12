@@ -2549,33 +2549,33 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		for (list<HyperOp*>::iterator childItr = children.begin(); childItr != children.end(); childItr++) {
 			HyperOp* childVertex = *childItr;
 			list<HyperOpEdge*> orderingEdges;
-			bool hasIncomingDataOrControlEdge = true;
+//			bool hasIncomingDataOrControlEdge = true;
 			//If there are multiple edges between the vertex and childVertex
 			for (map<HyperOpEdge*, HyperOp*>::iterator childEdgeItr = vertex->ChildMap.begin(); childEdgeItr != vertex->ChildMap.end(); childEdgeItr++) {
 				if (childEdgeItr->second == childVertex) {
 					HyperOpEdge* edge = childEdgeItr->first;
 					if (edge->getType() == HyperOpEdge::ORDERING) {
 						orderingEdges.push_back(edge);
-					} else {
-						hasIncomingDataOrControlEdge = true;
+//					} else {
+//						hasIncomingDataOrControlEdge = true;
 					}
 				}
 			}
 
-			if (hasIncomingDataOrControlEdge) {
+//			if (hasIncomingDataOrControlEdge) {
 				//Remove the ordering edges since they were only introduced for clustering and have no reason to be here
 				//This isn't necessary since ordering edges will not be used to generate writecmp instructions anyway, but retaining this for readability of the graph
 				for (list<HyperOpEdge*>::iterator orderingEdgeItr = orderingEdges.begin(); orderingEdgeItr != orderingEdges.end(); orderingEdgeItr++) {
 					vertex->removeChildEdge(*orderingEdgeItr);
 					childVertex->removeParentEdge(*orderingEdgeItr);
-				}
-			} else if (orderingEdges.size() > 1) {
-				//Retain only one ordering edge between source and destination vertices
-				orderingEdges.pop_front();
-				for (list<HyperOpEdge*>::iterator orderingEdgeItr = orderingEdges.begin(); orderingEdgeItr != orderingEdges.end(); orderingEdgeItr++) {
-					vertex->removeChildEdge(*orderingEdgeItr);
-					childVertex->removeParentEdge(*orderingEdgeItr);
-				}
+//				}
+//			} else if (orderingEdges.size() > 1) {
+//				//Retain only one ordering edge between source and destination vertices
+//				orderingEdges.pop_front();
+//				for (list<HyperOpEdge*>::iterator orderingEdgeItr = orderingEdges.begin(); orderingEdgeItr != orderingEdges.end(); orderingEdgeItr++) {
+//					vertex->removeChildEdge(*orderingEdgeItr);
+//					childVertex->removeParentEdge(*orderingEdgeItr);
+//				}
 			}
 		}
 	}
