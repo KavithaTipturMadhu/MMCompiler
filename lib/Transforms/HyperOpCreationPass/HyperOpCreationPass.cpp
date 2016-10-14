@@ -1282,11 +1282,6 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
-				//Compute the id that needs to be associated with the current HyperOp since parent may call the same function multiple times
-				errs() << "getting new tag for callsite:";
-				for (list<CallInst*>::iterator callSiteItr = callSite.begin(); callSiteItr != callSite.end(); callSiteItr++) {
-					(*callSiteItr)->dump();
-				}
 				list<unsigned> uniqueIdInCallTree = getHyperOpInstanceTag(callSite, newFunction, createdHyperOpAndCallSite, createdHyperOpAndUniqueId, accumulatedBasicBlocks, createdHyperOpAndOriginalBasicBlockAndArgMap);
 				//Convert the id to a tag string
 				string tag = "<";
@@ -1297,7 +1292,6 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 				tag.append(">");
-				errs() << "new tag:" << tag << "\n";
 				values[4] = MDString::get(ctxt, tag);
 				funcAnnotation = MDNode::get(ctxt, values);
 				createdHyperOpAndUniqueId[newFunction] = uniqueIdInCallTree;

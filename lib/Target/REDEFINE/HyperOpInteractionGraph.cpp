@@ -1017,8 +1017,48 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 			}
 		}
 	}
-	errs() << "context frame addresses added\n";
-	print(dbgs());
+
+	//Shuffle the address fwd slots for dynamic instances
+	map<HyperOp*,list<HyperOpEdge*> > incomingContextAddressFwdEdgeAndSlotMapForDynamicInstances;
+	map<HyperOp*, list<HyperOpEdge*> > incomingContextAddressFwdEdgeAndSlotMapForUnrolledInstances;
+	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
+		list<HyperOpEdge*> incomingContextEdgeSlotMap;
+		if (!(*vertexIterator)->isStaticHyperOp()) {
+			for (map<HyperOpEdge*, HyperOp*>::iterator parentMapItr = (*vertexIterator)->ParentMap.begin(); parentMapItr != (*vertexIterator)->ParentMap.end(); parentMapItr++) {
+				if (parentMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && !(parentMapItr->second->isUnrolledInstance()&&(*vertexIterator)->isUnrolledInstance())) {
+					incomingContextEdgeSlotMap.push_back(parentMapItr->first);
+				}
+			}
+			if ((*vertexIterator)->isUnrolledInstance()) {
+				incomingContextAddressFwdEdgeAndSlotMapForUnrolledInstances[*vertexIterator] = incomingContextEdgeSlotMap;
+			} else {
+				incomingContextAddressFwdEdgeAndSlotMapForDynamicInstances[*vertexIterator] = incomingContextEdgeSlotMap;
+			}
+		}
+	}
+
+	for (map<HyperOp*,list<HyperOpEdge*> >::iterator unrolledInstItr = incomingContextAddressFwdEdgeAndSlotMapForUnrolledInstances.begin(); unrolledInstItr != incomingContextAddressFwdEdgeAndSlotMapForUnrolledInstances.end(); unrolledInstItr++) {
+		HyperOp* unrolledInstance = unrolledInstItr->first;
+		list<HyperOpEdge*> dynamicInstanceIncomingEdgeList;
+		for(map<HyperOp*,list<HyperOpEdge*> >::iterator dynamicInstItr = incomingContextAddressFwdEdgeAndSlotMapForDynamicInstances.begin(); dynamicInstItr != incomingContextAddressFwdEdgeAndSlotMapForDynamicInstances.end(); dynamicInstItr++){
+			if(dynamicInstItr->first->getFunction()==unrolledInstance->getFunction()){
+				dynamicInstanceIncomingEdgeList = dynamicInstItr->second;
+				break;
+			}
+		}
+
+		if(!dynamicInstanceIncomingEdgeList.empty()){
+			//Check what the edge in the unrolled edge set maps to
+			for(list<HyperOpEdge*>::iterator unrolledEdgeMapItr = unrolledInstItr->second.begin(); unrolledEdgeMapItr!=unrolledInstItr->second.end(); unrolledEdgeMapItr++){
+				for(list<HyperOpEdge*>::iterator dynamicInstEdgeItr = dynamicInstanceIncomingEdgeList.begin();dynamicInstEdgeItr!=dynamicInstanceIncomingEdgeList.end();dynamicInstEdgeItr++){
+					if((*unrolledEdgeMapItr)->getContextFrameAddress()->getInstanceof()==(*dynamicInstEdgeItr)->getContextFrameAddress()->getInstanceof()){
+						(*unrolledEdgeMapItr)->setPositionOfContextSlot((*dynamicInstEdgeItr)->getPositionOfContextSlot());
+						break;
+					}
+				}
+			}
+		}
+	}
 }
 
 void estimateExecutionTime(HyperOp *hyperOp) {
@@ -2274,7 +2314,7 @@ bool pathExistsInHIGExcludingOrderingEdges(HyperOp* source, HyperOp* target) {
 		return false;
 	}
 	for (map<HyperOpEdge*, HyperOp*>::iterator childItr = source->ChildMap.begin(); childItr != source->ChildMap.end(); childItr++) {
-		if (childItr->first->getType()!=HyperOpEdge::ORDERING&&(childItr->second == target || pathExistsInHIG(childItr->second, target))) {
+		if (childItr->first->getType() != HyperOpEdge::ORDERING && (childItr->second == target || pathExistsInHIG(childItr->second, target))) {
 			return true;
 		}
 	}
@@ -2563,11 +2603,11 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			}
 
 //			if (hasIncomingDataOrControlEdge) {
-				//Remove the ordering edges since they were only introduced for clustering and have no reason to be here
-				//This isn't necessary since ordering edges will not be used to generate writecmp instructions anyway, but retaining this for readability of the graph
-				for (list<HyperOpEdge*>::iterator orderingEdgeItr = orderingEdges.begin(); orderingEdgeItr != orderingEdges.end(); orderingEdgeItr++) {
-					vertex->removeChildEdge(*orderingEdgeItr);
-					childVertex->removeParentEdge(*orderingEdgeItr);
+			//Remove the ordering edges since they were only introduced for clustering and have no reason to be here
+			//This isn't necessary since ordering edges will not be used to generate writecmp instructions anyway, but retaining this for readability of the graph
+			for (list<HyperOpEdge*>::iterator orderingEdgeItr = orderingEdges.begin(); orderingEdgeItr != orderingEdges.end(); orderingEdgeItr++) {
+				vertex->removeChildEdge(*orderingEdgeItr);
+				childVertex->removeParentEdge(*orderingEdgeItr);
 //				}
 //			} else if (orderingEdges.size() > 1) {
 //				//Retain only one ordering edge between source and destination vertices
