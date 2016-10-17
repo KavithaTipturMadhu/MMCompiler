@@ -80,7 +80,6 @@ struct HyperOpCreationPass: public ModulePass {
 		return false;
 	}
 
-
 	bool isArgInList(Function* function, Value* operand) {
 		for (Function::arg_iterator argItr = function->arg_begin(); argItr != function->arg_end(); argItr++) {
 			if (argItr == operand) {
@@ -535,7 +534,7 @@ struct HyperOpCreationPass: public ModulePass {
 		map<Function*, list<CallInst*> > createdHyperOpAndCallSite;
 		map<Function*, list<unsigned> > createdHyperOpAndUniqueId;
 		map<Function*, Value*> createdHyperOpAndReturnValue;
-		map<Function*, map<Instruction*, vector<unsigned> > > createdHyperOpAndConditionalBranchSources;
+		map<Function*, map<Instruction*, vector<pair<BasicBlock*, int> > > > createdHyperOpAndConditionalBranchSources;
 		map<Function*, list<Instruction*> > createdHyperOpAndUnconditionalBranchSources;
 		map<Function*, list<Instruction*> > createdHyperOpAndReachingDefSources;
 		map<Function*, HYPEROP_TYPE> createdHyperOpAndType;
@@ -1069,7 +1068,7 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 
 			//Compute branch sources
-			map<Instruction*, vector<unsigned> > conditionalBranchSources;
+			map<Instruction*, vector<pair<BasicBlock*, int> > > conditionalBranchSources;
 			list<Instruction*> unconditionalBranchSources;
 			list<Instruction*> reachingGlobalDefinitionSources;
 			list<Function*> instancesForCreation;
@@ -1205,18 +1204,58 @@ struct HyperOpCreationPass: public ModulePass {
 					//TODO is the first half of the conditional sufficient?
 					if ((find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), predecessor) == accumulatedBasicBlocks.end() || find(newlyAcquiredBBList.begin(), newlyAcquiredBBList.end(), originalBB) != newlyAcquiredBBList.end())
 							&& originalFunctionToHyperOpBBListMap.find(predecessor->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
-						predecessor->getTerminator()->dump();
 						TerminatorInst* terminator = predecessor->getTerminator();
 						//If the terminator instruction has only one successor, its an unconditional jump
 						if (terminator->getNumSuccessors() == 1 && terminator->getSuccessor(0) == originalBB) {
 							unconditionalBranchSources.push_back(terminator);
+							Instruction* originalUnconditionalBranchInstr = terminator;
+							list<BasicBlock*> parentBBList;
+
+							//Get the parent basic block containing the unconditional jump
+							for (list<pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator bbItr = originalFunctionToHyperOpBBListMap[((Instruction*) originalUnconditionalBranchInstr)->getParent()->getParent()].begin();
+									bbItr != originalFunctionToHyperOpBBListMap[((Instruction*) originalUnconditionalBranchInstr)->getParent()->getParent()].end(); bbItr++) {
+								if (find(bbItr->first.begin(), bbItr->first.end(), ((Instruction*) originalUnconditionalBranchInstr)->getParent()) != bbItr->first.end()) {
+									parentBBList = bbItr->first;
+									break;
+								}
+							}
+
+							//Find out whether there is a conditional jump from the same HyperOp to the unconditional jump instruction's bb or has a reaching predicate from elsewhere and add it to the conditional basic block list
+							list<TerminatorInst*> terminatorInst;
+							terminatorInst.push_back((TerminatorInst*) terminator);
+							Instruction* conditionalBranchInstr = 0;
+							while (!terminatorInst.empty()) {
+								TerminatorInst* tempTerminator = terminatorInst.front();
+								terminatorInst.pop_front();
+								//Check if the terminator itself is conditionally executed
+								for (pred_iterator terminatorPredItr = pred_begin(tempTerminator->getParent()); terminatorPredItr != pred_end(tempTerminator->getParent()); terminatorPredItr++) {
+									BasicBlock* terminatorPredecessor = *terminatorPredItr;
+									//Check if terminatorPredecessor and predecessor are both in the same function to be created
+									if (find(parentBBList.begin(), parentBBList.end(), terminatorPredecessor) != parentBBList.end()) {
+										if (terminatorPredecessor->getTerminator()->getNumSuccessors() > 1) {
+											conditionalBranchInstr = terminatorPredecessor->getTerminator();
+											break;
+										} else {
+											terminatorInst.push_front(terminatorPredecessor->getTerminator());
+										}
+									}
+								}
+							}
+							if (conditionalBranchInstr != 0 && isa<BranchInst>(conditionalBranchInstr) && ((BranchInst*) conditionalBranchInstr)->getNumSuccessors() > 1) {
+								vector<pair<BasicBlock*, int> > successorBBList;
+								TerminatorInst* terminator = ((TerminatorInst*) conditionalBranchInstr);
+								successorBBList.push_back(make_pair(((BranchInst*) originalUnconditionalBranchInstr)->getSuccessor(0), -1));
+								conditionalBranchSources[terminator] = successorBBList;
+							} else {
+								//Find the reaching conditional jump
+							}
 						} else {
 							//Get the first operand of terminator instruction corresponding to a branch
-							vector<unsigned> successorBBList;
+							vector<pair<BasicBlock*, int> > successorBBList;
 							for (int i = 0; i < terminator->getNumSuccessors(); i++) {
 								if (terminator->getSuccessor(i) == originalBB) {
 									//Add only those successors that correspond to a basic block in the current HyperOp
-									successorBBList.push_back(i);
+									successorBBList.push_back(make_pair(terminator->getSuccessor(i), i));
 								}
 							}
 							if (successorBBList.size() == terminator->getNumSuccessors()) {
@@ -1224,7 +1263,7 @@ struct HyperOpCreationPass: public ModulePass {
 								unconditionalBranchSources.push_back(terminator);
 							} else {
 								if (conditionalBranchSources.find(terminator) != conditionalBranchSources.end()) {
-									vector<unsigned> previousSuccessorIndexList = conditionalBranchSources[terminator];
+									vector<pair<BasicBlock*, int> > previousSuccessorIndexList = conditionalBranchSources[terminator];
 									conditionalBranchSources.erase(terminator);
 									std::copy(previousSuccessorIndexList.begin(), previousSuccessorIndexList.end(), back_inserter(successorBBList));
 								}
@@ -1417,7 +1456,7 @@ struct HyperOpCreationPass: public ModulePass {
 			DEBUG(dbgs() << "\n-----------Patching created function " << createdFunction->getName() << "--------------\n");
 			list<BasicBlock*> accumulatedOriginalBasicBlocks = createdHyperOpItr->second.first;
 			HyperOpArgumentList hyperOpArguments = createdHyperOpItr->second.second;
-			map<Instruction*, vector<unsigned> > conditionalBranchSources = createdHyperOpAndConditionalBranchSources[createdFunction];
+			map<Instruction*, vector<pair<BasicBlock*, int> > > conditionalBranchSources = createdHyperOpAndConditionalBranchSources[createdFunction];
 			list<Instruction*> unconditionalBranchSources = createdHyperOpAndUnconditionalBranchSources[createdFunction];
 			list<Instruction*> reachingDefSources = createdHyperOpAndReachingDefSources[createdFunction];
 			bool isStaticHyperOp = createdHyperOpAndType[createdFunction];
@@ -1854,20 +1893,21 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 
 			DEBUG(dbgs() << "\n----------Dealing with conditional branches from other HyperOps----------\n");
-//Find out if there exist any branch instructions leading to the HyperOp, add metadata to the instruction
-			for (map<Instruction*, vector<unsigned> >::iterator conditionalBranchSourceItr = conditionalBranchSources.begin(); conditionalBranchSourceItr != conditionalBranchSources.end(); conditionalBranchSourceItr++) {
+			//Find out if there exist any branch instructions leading to the HyperOp, add metadata to the instruction
+			for (map<Instruction*, vector<pair<BasicBlock*, int> > >::iterator conditionalBranchSourceItr = conditionalBranchSources.begin(); conditionalBranchSourceItr != conditionalBranchSources.end(); conditionalBranchSourceItr++) {
 				Instruction* conditionalBranchInst = conditionalBranchSourceItr->first;
 				errs() << "conditional branch:";
 				conditionalBranchInst->dump();
 				errs() << "from parent func:" << conditionalBranchInst->getParent()->getParent()->getName() << "\n";
-				vector<unsigned> branchOperands = conditionalBranchSourceItr->second;
-				BasicBlock* conditionalTargetBB = ((BranchInst*) conditionalBranchInst)->getSuccessor(branchOperands[0]);
+				vector<pair<BasicBlock*, int> > branchOperands = conditionalBranchSourceItr->second;
+				BasicBlock* conditionalTargetBB = branchOperands[0].first;
+
 				Value* predicateOperand = conditionalBranchInst->getOperand(0);
 				Instruction* clonedInstr;
 				Value* clonedPredicateOperand;
+
 				list<CallInst*> newCallSite;
 				std::copy(callSite.begin(), callSite.end(), std::back_inserter(newCallSite));
-
 				if (isa<CallInst>(&conditionalTargetBB->front())) {
 					//Current function is a call
 					newCallSite.pop_back();
@@ -1919,8 +1959,8 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 						}
 					}
-
 				}
+
 				if (isa<CallInst>(predicateOperand) && predicateOperand == conditionalBranchInst->getOperand(0)) {
 					continue;
 				}
@@ -1968,13 +2008,14 @@ struct HyperOpCreationPass: public ModulePass {
 						Instruction* clonedInstInstance = getClonedArgument(conditionalBranchInst, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
 						clonedInstructionsToBeLabeled.push_back(make_pair(clonedInstInstance, clonedPredicateOperand));
 					}
-
 				}
 
+				errs()<<"wassup?\n";
 				for (list<pair<Instruction*, Value*> >::iterator clonedInstItr = clonedInstructionsToBeLabeled.begin(); clonedInstItr != clonedInstructionsToBeLabeled.end(); clonedInstItr++) {
 					Instruction* clonedInstr = clonedInstItr->first;
 					Value* predicateOperand = clonedInstItr->second;
-					predicateOperand->dump();
+					errs()<<"updating ";
+					clonedInstr->dump();
 					//Branch instruction's first operand
 					vector<Value*> metadataList;
 					Instruction* metadataHost = 0;
@@ -2010,8 +2051,8 @@ struct HyperOpCreationPass: public ModulePass {
 					} else {
 						//Are there only two operands in a branch instruction always or are there more?
 						assert(conditionalBranchSourceItr->second.size() == 1 && "there are more than two targets to branch");
-						unsigned positionToBeUpdated = ConstantInt::get(ctxt, APInt(32, conditionalBranchSourceItr->second[0]))->getZExtValue();
-						if (positionToBeUpdated == 0) {
+						unsigned positionToBeUpdated = ConstantInt::get(ctxt, APInt(32, conditionalBranchSourceItr->second[0].second))->getZExtValue();
+						if (positionToBeUpdated == 0||positionToBeUpdated == -1) {
 							expectedPredicate = MDString::get(ctxt, StringRef("1"));
 						} else {
 							expectedPredicate = MDString::get(ctxt, StringRef("0"));
@@ -2051,10 +2092,12 @@ struct HyperOpCreationPass: public ModulePass {
 					metadataHost->setMetadata(HYPEROP_CONTROLS, predicatesRelation);
 
 					for (unsigned branchOperandIndex = 0; branchOperandIndex != conditionalBranchSourceItr->second.size(); branchOperandIndex++) {
-						//Update the cloned conditional branch instruction with the right target
-						unsigned positionToBeUpdated = ConstantInt::get(ctxt, APInt(32, conditionalBranchSourceItr->second[branchOperandIndex]))->getZExtValue();
-						Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
-						((BranchInst*) clonedInstr)->setSuccessor(positionToBeUpdated, retInstOfProducer->getParent());
+						if (conditionalBranchSourceItr->second[branchOperandIndex].second != -1) {
+							//Update the cloned conditional branch instruction with the right target
+							unsigned positionToBeUpdated = ConstantInt::get(ctxt, APInt(32, conditionalBranchSourceItr->second[branchOperandIndex].second))->getZExtValue();
+							Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
+							((BranchInst*) clonedInstr)->setSuccessor(positionToBeUpdated, retInstOfProducer->getParent());
+						}
 					}
 
 					list<BasicBlock*> branchTargets;
@@ -2079,15 +2122,12 @@ struct HyperOpCreationPass: public ModulePass {
 						predicateProducers.push_back(metadataHost->getParent()->getParent());
 					}
 				}
-
 			}
 
 			DEBUG(dbgs() << "\n----------Dealing with unconditional branches from other HyperOps----------\n");
 			//Remove unconditional branch instruction, add the annotation to the alloca instruction of the branch
 			for (list<Instruction*>::iterator unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
 				Value* unconditionalBranchInstr = *unconditionalBranchSourceItr;
-				errs() << "unconditional branch:";
-				unconditionalBranchInstr->dump();
 				Value* originalUnconditionalBranchInstr = unconditionalBranchInstr;
 				BasicBlock* targetBB = ((BranchInst*) unconditionalBranchInstr)->getSuccessor(0);
 				list<pair<Function*, Instruction*> > addedJumpSources;
@@ -2102,376 +2142,374 @@ struct HyperOpCreationPass: public ModulePass {
 					//Current function is a call
 					newCallSite.pop_back();
 				}
-
-				for (list<pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator bbItr = originalFunctionToHyperOpBBListMap[((Instruction*) unconditionalBranchInstr)->getParent()->getParent()].begin();
-						bbItr != originalFunctionToHyperOpBBListMap[((Instruction*) unconditionalBranchInstr)->getParent()->getParent()].end(); bbItr++) {
-					if (find(bbItr->first.begin(), bbItr->first.end(), ((Instruction*) originalUnconditionalBranchInstr)->getParent()) != bbItr->first.end()) {
-						parentBBList = bbItr->first;
-						break;
-					}
-				}
-				list<TerminatorInst*> terminatorInst;
-				terminatorInst.push_back((TerminatorInst*) originalUnconditionalBranchInstr);
-				while (terminatorInst.size() > 0) {
-					TerminatorInst* tempTerminator = terminatorInst.front();
-					terminatorInst.pop_front();
-					//Check if the terminator itself is conditionally executed
-					for (pred_iterator terminatorPredItr = pred_begin(tempTerminator->getParent()); terminatorPredItr != pred_end(tempTerminator->getParent()); terminatorPredItr++) {
-						BasicBlock* terminatorPredecessor = *terminatorPredItr;
-						//Check if terminatorPredecessor and predecessor are both in the same function to be created
-						if (find(parentBBList.begin(), parentBBList.end(), terminatorPredecessor) != parentBBList.end()) {
-							if (terminatorPredecessor->getTerminator()->getNumSuccessors() > 1) {
-								unconditionalBranchInstr = terminatorPredecessor->getTerminator();
-								unconditionalBranchInstr->dump();
-								break;
-							} else {
-								terminatorInst.push_front(terminatorPredecessor->getTerminator());
-							}
-						}
-					}
-				}
+//
+//				for (list<pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator bbItr = originalFunctionToHyperOpBBListMap[((Instruction*) unconditionalBranchInstr)->getParent()->getParent()].begin();
+//						bbItr != originalFunctionToHyperOpBBListMap[((Instruction*) unconditionalBranchInstr)->getParent()->getParent()].end(); bbItr++) {
+//					if (find(bbItr->first.begin(), bbItr->first.end(), ((Instruction*) originalUnconditionalBranchInstr)->getParent()) != bbItr->first.end()) {
+//						parentBBList = bbItr->first;
+//						break;
+//					}
+//				}
+//				list<TerminatorInst*> terminatorInst;
+//				terminatorInst.push_back((TerminatorInst*) originalUnconditionalBranchInstr);
+//				while (terminatorInst.size() > 0) {
+//					TerminatorInst* tempTerminator = terminatorInst.front();
+//					terminatorInst.pop_front();
+//					//Check if the terminator itself is conditionally executed
+//					for (pred_iterator terminatorPredItr = pred_begin(tempTerminator->getParent()); terminatorPredItr != pred_end(tempTerminator->getParent()); terminatorPredItr++) {
+//						BasicBlock* terminatorPredecessor = *terminatorPredItr;
+//						//Check if terminatorPredecessor and predecessor are both in the same function to be created
+//						if (find(parentBBList.begin(), parentBBList.end(), terminatorPredecessor) != parentBBList.end()) {
+//							if (terminatorPredecessor->getTerminator()->getNumSuccessors() > 1) {
+//								unconditionalBranchInstr = terminatorPredecessor->getTerminator();
+//								break;
+//							} else {
+//								terminatorInst.push_front(terminatorPredecessor->getTerminator());
+//							}
+//						}
+//					}
+//				}
 				//Conditional branch exists in the same function which jumps to the unconditional terminator's basic block
 				//TODO duplicate code, need to clean this up
-				if (unconditionalBranchInstr != originalUnconditionalBranchInstr) {
-					errs() << "unconditional branch not the same as the actual conditional getting delivered\n";
-					Value* predicateOperand = ((Instruction*) unconditionalBranchInstr)->getOperand(0);
-					Instruction* clonedInstr;
-					Value* clonedPredicateOperand;
-					Function* replicatedCalledFunction = 0;
-					if (isa<CallInst>(predicateOperand)) {
-						newCallSite.push_back((CallInst*) predicateOperand);
-						while (true) {
-							CallInst* appendCall = 0;
-							for (map<Function*, list<CallInst*> >::iterator createdHopItr = createdHyperOpAndCallSite.begin(); createdHopItr != createdHyperOpAndCallSite.end(); createdHopItr++) {
-								bool callSiteMatch = true;
-								list<CallInst*> createdHopCallSite = createdHopItr->second;
-								if (createdHopCallSite.size() != newCallSite.size()) {
-									callSiteMatch = false;
-								}
-								if (callSiteMatch) {
-									list<CallInst*>::iterator callSiteItr = newCallSite.begin();
-									for (list<CallInst*>::iterator createHopCallSiteItr = createdHopCallSite.begin(); createHopCallSiteItr != createdHopCallSite.end() && callSiteItr != newCallSite.end(); createHopCallSiteItr++, callSiteItr++) {
-										if (*createHopCallSiteItr != *callSiteItr) {
-											callSiteMatch = false;
-											break;
-										}
-									}
-								}
-								if (callSiteMatch) {
-									Function* callSiteFunc = createdHopItr->first;
-									list<BasicBlock*> accumulatedBlocks = createdHyperOpAndOriginalBasicBlockAndArgMap[callSiteFunc].first;
-									BasicBlock* lastBB = &accumulatedBlocks.front()->getParent()->back();
-									if (find(accumulatedBlocks.begin(), accumulatedBlocks.end(), lastBB) != accumulatedBlocks.end() || (isa<CallInst>(lastBB->front()) && isa<ReturnInst>(lastBB->front().getNextNode()))) {
-										replicatedCalledFunction = createdHopItr->first;
-										appendCall = (CallInst*) &lastBB->front();
-										break;
-									}
-								}
-							}
-							if (createdHyperOpAndReturnValue.find(replicatedCalledFunction) != createdHyperOpAndReturnValue.end()) {
-								predicateOperand = createdHyperOpAndReturnValue[replicatedCalledFunction];
-							}
-
-							if (predicateOperand == 0) {
-								if (appendCall == 0) {
-									break;
-								}
-								newCallSite.push_back(appendCall);
-							} else {
-								if (isa<CallInst>(predicateOperand)) {
-									newCallSite.push_back((CallInst*) predicateOperand);
-								} else {
-									break;
-								}
-							}
-						}
-					}
-					if (isa<CallInst>(predicateOperand) && predicateOperand == ((Instruction*) unconditionalBranchInstr)->getOperand(0)) {
-						continue;
-					}
-					if (isa<Constant>(predicateOperand)) {
-						//Immediate value
-						clonedInstr = new AllocaInst(predicateOperand->getType());
-						((AllocaInst*) clonedInstr)->setAlignment(4);
-						//Alloc instructions need to be inserted in the entry basic block of the function because other allocs are treated as dynamic stack allocs
-						clonedInstr->insertBefore(replicatedCalledFunction->getEntryBlock().getFirstInsertionPt());
-						StoreInst* storeInst = new StoreInst(predicateOperand, clonedInstr);
-						storeInst->setAlignment(4);
-						storeInst->insertBefore(retInstMap[replicatedCalledFunction]);
-					} else {
-						clonedPredicateOperand = getClonedArgument(predicateOperand, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
-						clonedInstr = getClonedArgument(originalUnconditionalBranchInstr, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
-					}
-
-					list<pair<Instruction*, Value*> > clonedInstructionsToBeLabeled;
-					clonedInstructionsToBeLabeled.push_back(make_pair(clonedInstr, clonedPredicateOperand));
-					Function* producerFunction = ((Instruction*) unconditionalBranchInstr)->getParent()->getParent();
-					bool isProducerStatic = createdHyperOpAndType[clonedInstr->getParent()->getParent()];
-					//Find the replicas of the consumer HyperOp which also need to be annotated, hence populating a list
-					if (isProducerStatic && !isStaticHyperOp) {
-						//replicate the meta data in the last instance of the HyperOp corresponding to the last HyperOp in the cycle
-//						list<list<pair<Function*, CallInst*> > > cyclesContainingCall = getCyclesContainingHyperOpInstance(callSite.back(), cyclesInCallGraph);
-						list<list<CallInst*> > callChainList;
-						for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
-							list<CallInst*> callChain;
-							std::copy(callSite.begin(), callSite.end(), std::back_inserter(callChain));
-							list<pair<Function*, CallInst*> > cycle = *cycleItr;
-							if (cycle.front().first == producerFunction) {
-								callChain.pop_back();
-								for (list<pair<Function*, CallInst*> >::iterator cycleItr = cycle.begin(); cycleItr != cycle.end(); cycleItr++) {
-									callChain.push_back(cycleItr->second);
-								}
-								callChainList.push_back(callChain);
-								continue;
-							}
-						}
-
-						for (list<list<CallInst*> >::iterator callChainListItr = callChainList.begin(); callChainListItr != callChainList.end(); callChainListItr++) {
-							list<CallInst*> callChain = *callChainListItr;
-							Value* clonedPredicate = getClonedArgument(predicateOperand, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
-							Instruction* clonedOriginalInstr = getClonedArgument(originalUnconditionalBranchInstr, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
-							clonedInstructionsToBeLabeled.push_back(make_pair((Instruction*) clonedOriginalInstr, clonedPredicate));
-						}
-
-					}
-					for (list<pair<Instruction*, Value*> >::iterator clonedInstItr = clonedInstructionsToBeLabeled.begin(); clonedInstItr != clonedInstructionsToBeLabeled.end(); clonedInstItr++) {
-						Instruction* clonedInstr = clonedInstItr->first;
-						Value* predicateOperand = clonedInstItr->second;
-
-						//Update the unconditional branch instruction's first operand
-						vector<Value*> metadataList;
-						Instruction* metadataHost = 0;
-						if (isa<AllocaInst>(predicateOperand)) {
-							metadataHost = (AllocaInst*) predicateOperand;
-						} else if (allocaInstCreatedForIntermediateValues.find(predicateOperand) != allocaInstCreatedForIntermediateValues.end()) {
-							//Get the equivalent alloca inserted before
-							metadataHost = allocaInstCreatedForIntermediateValues[predicateOperand];
-							MDNode* predicateMetadata = metadataHost->getMetadata(HYPEROP_CONTROLS);
-							if (predicateMetadata != 0) {
-								for (unsigned i = 0; i < predicateMetadata->getNumOperands(); i++) {
-									metadataList.push_back(predicateMetadata->getOperand(i));
-								}
-							}
-						}
-						if (metadataHost == 0) {
-							//Since the temporary does not have a memory location associated with it, add an alloca and a store instruction after the argument and label the alloca instruction with metadata
-							AllocaInst* ai = new AllocaInst(predicateOperand->getType());
-							ai->setAlignment(4);
-							ai->insertBefore(clonedInstr->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
-							StoreInst* storeInst = new StoreInst(predicateOperand, ai);
-							storeInst->setAlignment(4);
-							storeInst->insertBefore(clonedInstr);
-							allocaInstCreatedForIntermediateValues[predicateOperand] = ai;
-							metadataHost = ai;
-						}
-						//Label the instruction with predicates metadata
-						MDNode* newPredicateMetadata;
-						//TODO this isn't enough for nested recursion cycles
-						if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
-							Value * values[2];
-							values[0] = funcAnnotation;
-							values[1] = MDString::get(ctxt, StringRef("1"));
-							newPredicateMetadata = MDNode::get(ctxt, values);
-						} else {
-							Value * values[3];
-							values[0] = funcAnnotation;
-							values[1] = MDString::get(ctxt, StringRef("1"));
-							if (isProducerStatic && !isStaticHyperOp) {
-								list<unsigned> tagId = createdHyperOpAndUniqueId[createdFunction];
-								//Create a new dynamic tag
-								string tag = "<id,";
-								for (list<unsigned>::iterator tagItr = tagId.begin(); tagItr != tagId.end(); tagItr++) {
-									tag.append(itostr(*tagItr));
-									if (*tagItr != tagId.back()) {
-										tag.append(",");
-									}
-								}
-								tag.append(">");
-								values[2] = MDString::get(ctxt, tag);
-							} else {
-								values[2] = MDString::get(ctxt, "<prefixId>");
-							}
-							newPredicateMetadata = MDNode::get(ctxt, values);
-						}
-						metadataList.push_back(newPredicateMetadata);
-						MDNode * predicatesRelation = MDNode::get(ctxt, metadataList);
-						metadataHost->setMetadata(HYPEROP_CONTROLS, predicatesRelation);
-
-						//Update the unconditional branch instruction to jump to the retInst of its function(HyperOp)
-						clonedInstr->setOperand(0, retInstMap[clonedInstr->getParent()->getParent()]->getParent());
-
-						if (isProducerStatic) {
-							if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), metadataHost->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
-								addedParentsToCurrentHyperOp.push_back(metadataHost->getParent()->getParent());
-							}
-						}
-						if (find(predicateProducers.begin(), predicateProducers.end(), metadataHost->getParent()->getParent()) == predicateProducers.end()) {
-							predicateProducers.push_back(metadataHost->getParent()->getParent());
-						}
-					}
-				} else {
-					//Unconditional branch's target is a call instruction
-					if (isa<CallInst>(&(*unconditionalBranchSourceItr)->getParent()->front())) {
+//				if (unconditionalBranchInstr != originalUnconditionalBranchInstr) {
+//					Value* predicateOperand = ((Instruction*) unconditionalBranchInstr)->getOperand(0);
+//					Instruction* clonedInstr;
+//					Value* clonedPredicateOperand;
+//					Function* replicatedCalledFunction = 0;
+//					if (isa<CallInst>(predicateOperand)) {
+//						newCallSite.push_back((CallInst*) predicateOperand);
+//						while (true) {
+//							CallInst* appendCall = 0;
+//							for (map<Function*, list<CallInst*> >::iterator createdHopItr = createdHyperOpAndCallSite.begin(); createdHopItr != createdHyperOpAndCallSite.end(); createdHopItr++) {
+//								bool callSiteMatch = true;
+//								list<CallInst*> createdHopCallSite = createdHopItr->second;
+//								if (createdHopCallSite.size() != newCallSite.size()) {
+//									callSiteMatch = false;
+//								}
+//								if (callSiteMatch) {
+//									list<CallInst*>::iterator callSiteItr = newCallSite.begin();
+//									for (list<CallInst*>::iterator createHopCallSiteItr = createdHopCallSite.begin(); createHopCallSiteItr != createdHopCallSite.end() && callSiteItr != newCallSite.end(); createHopCallSiteItr++, callSiteItr++) {
+//										if (*createHopCallSiteItr != *callSiteItr) {
+//											callSiteMatch = false;
+//											break;
+//										}
+//									}
+//								}
+//								if (callSiteMatch) {
+//									Function* callSiteFunc = createdHopItr->first;
+//									list<BasicBlock*> accumulatedBlocks = createdHyperOpAndOriginalBasicBlockAndArgMap[callSiteFunc].first;
+//									BasicBlock* lastBB = &accumulatedBlocks.front()->getParent()->back();
+//									if (find(accumulatedBlocks.begin(), accumulatedBlocks.end(), lastBB) != accumulatedBlocks.end() || (isa<CallInst>(lastBB->front()) && isa<ReturnInst>(lastBB->front().getNextNode()))) {
+//										replicatedCalledFunction = createdHopItr->first;
+//										appendCall = (CallInst*) &lastBB->front();
+//										break;
+//									}
+//								}
+//							}
+//							if (createdHyperOpAndReturnValue.find(replicatedCalledFunction) != createdHyperOpAndReturnValue.end()) {
+//								predicateOperand = createdHyperOpAndReturnValue[replicatedCalledFunction];
+//							}
+//
+//							if (predicateOperand == 0) {
+//								if (appendCall == 0) {
+//									break;
+//								}
+//								newCallSite.push_back(appendCall);
+//							} else {
+//								if (isa<CallInst>(predicateOperand)) {
+//									newCallSite.push_back((CallInst*) predicateOperand);
+//								} else {
+//									break;
+//								}
+//							}
+//						}
+//					}
+//					if (isa<CallInst>(predicateOperand) && predicateOperand == ((Instruction*) unconditionalBranchInstr)->getOperand(0)) {
+//						continue;
+//					}
+//					if (isa<Constant>(predicateOperand)) {
+//						//Immediate value
+//						clonedInstr = new AllocaInst(predicateOperand->getType());
+//						((AllocaInst*) clonedInstr)->setAlignment(4);
+//						//Alloc instructions need to be inserted in the entry basic block of the function because other allocs are treated as dynamic stack allocs
+//						clonedInstr->insertBefore(replicatedCalledFunction->getEntryBlock().getFirstInsertionPt());
+//						StoreInst* storeInst = new StoreInst(predicateOperand, clonedInstr);
+//						storeInst->setAlignment(4);
+//						storeInst->insertBefore(retInstMap[replicatedCalledFunction]);
+//					} else {
+//						clonedPredicateOperand = getClonedArgument(predicateOperand, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+//						clonedInstr = getClonedArgument(originalUnconditionalBranchInstr, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+//					}
+//
+//					list<pair<Instruction*, Value*> > clonedInstructionsToBeLabeled;
+//					clonedInstructionsToBeLabeled.push_back(make_pair(clonedInstr, clonedPredicateOperand));
+//					Function* producerFunction = ((Instruction*) unconditionalBranchInstr)->getParent()->getParent();
+//					bool isProducerStatic = createdHyperOpAndType[clonedInstr->getParent()->getParent()];
+//					//Find the replicas of the consumer HyperOp which also need to be annotated, hence populating a list
+//					if (isProducerStatic && !isStaticHyperOp) {
+//						//replicate the meta data in the last instance of the HyperOp corresponding to the last HyperOp in the cycle
+////						list<list<pair<Function*, CallInst*> > > cyclesContainingCall = getCyclesContainingHyperOpInstance(callSite.back(), cyclesInCallGraph);
+//						list<list<CallInst*> > callChainList;
+//						for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
+//							list<CallInst*> callChain;
+//							std::copy(callSite.begin(), callSite.end(), std::back_inserter(callChain));
+//							list<pair<Function*, CallInst*> > cycle = *cycleItr;
+//							if (cycle.front().first == producerFunction) {
+//								callChain.pop_back();
+//								for (list<pair<Function*, CallInst*> >::iterator cycleItr = cycle.begin(); cycleItr != cycle.end(); cycleItr++) {
+//									callChain.push_back(cycleItr->second);
+//								}
+//								callChainList.push_back(callChain);
+//								continue;
+//							}
+//						}
+//
+//						for (list<list<CallInst*> >::iterator callChainListItr = callChainList.begin(); callChainListItr != callChainList.end(); callChainListItr++) {
+//							list<CallInst*> callChain = *callChainListItr;
+//							Value* clonedPredicate = getClonedArgument(predicateOperand, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+//							Instruction* clonedOriginalInstr = getClonedArgument(originalUnconditionalBranchInstr, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+//							clonedInstructionsToBeLabeled.push_back(make_pair((Instruction*) clonedOriginalInstr, clonedPredicate));
+//						}
+//
+//					}
+//					for (list<pair<Instruction*, Value*> >::iterator clonedInstItr = clonedInstructionsToBeLabeled.begin(); clonedInstItr != clonedInstructionsToBeLabeled.end(); clonedInstItr++) {
+//						Instruction* clonedInstr = clonedInstItr->first;
+//						Value* predicateOperand = clonedInstItr->second;
+//
+//						//Update the unconditional branch instruction's first operand
+//						vector<Value*> metadataList;
+//						Instruction* metadataHost = 0;
+//						if (isa<AllocaInst>(predicateOperand)) {
+//							metadataHost = (AllocaInst*) predicateOperand;
+//						} else if (allocaInstCreatedForIntermediateValues.find(predicateOperand) != allocaInstCreatedForIntermediateValues.end()) {
+//							//Get the equivalent alloca inserted before
+//							metadataHost = allocaInstCreatedForIntermediateValues[predicateOperand];
+//							MDNode* predicateMetadata = metadataHost->getMetadata(HYPEROP_CONTROLS);
+//							if (predicateMetadata != 0) {
+//								for (unsigned i = 0; i < predicateMetadata->getNumOperands(); i++) {
+//									metadataList.push_back(predicateMetadata->getOperand(i));
+//								}
+//							}
+//						}
+//						if (metadataHost == 0) {
+//							//Since the temporary does not have a memory location associated with it, add an alloca and a store instruction after the argument and label the alloca instruction with metadata
+//							AllocaInst* ai = new AllocaInst(predicateOperand->getType());
+//							ai->setAlignment(4);
+//							ai->insertBefore(clonedInstr->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
+//							StoreInst* storeInst = new StoreInst(predicateOperand, ai);
+//							storeInst->setAlignment(4);
+//							storeInst->insertBefore(clonedInstr);
+//							allocaInstCreatedForIntermediateValues[predicateOperand] = ai;
+//							metadataHost = ai;
+//						}
+//						//Label the instruction with predicates metadata
+//						MDNode* newPredicateMetadata;
+//						//TODO this isn't enough for nested recursion cycles
+//						if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
+//							Value * values[2];
+//							values[0] = funcAnnotation;
+//							values[1] = MDString::get(ctxt, StringRef("1"));
+//							newPredicateMetadata = MDNode::get(ctxt, values);
+//						} else {
+//							Value * values[3];
+//							values[0] = funcAnnotation;
+//							values[1] = MDString::get(ctxt, StringRef("1"));
+//							if (isProducerStatic && !isStaticHyperOp) {
+//								list<unsigned> tagId = createdHyperOpAndUniqueId[createdFunction];
+//								//Create a new dynamic tag
+//								string tag = "<id,";
+//								for (list<unsigned>::iterator tagItr = tagId.begin(); tagItr != tagId.end(); tagItr++) {
+//									tag.append(itostr(*tagItr));
+//									if (*tagItr != tagId.back()) {
+//										tag.append(",");
+//									}
+//								}
+//								tag.append(">");
+//								values[2] = MDString::get(ctxt, tag);
+//							} else {
+//								values[2] = MDString::get(ctxt, "<prefixId>");
+//							}
+//							newPredicateMetadata = MDNode::get(ctxt, values);
+//						}
+//						metadataList.push_back(newPredicateMetadata);
+//						MDNode * predicatesRelation = MDNode::get(ctxt, metadataList);
+//						metadataHost->setMetadata(HYPEROP_CONTROLS, predicatesRelation);
+//
+//						//Update the unconditional branch instruction to jump to the retInst of its function(HyperOp)
+//						clonedInstr->setOperand(0, retInstMap[clonedInstr->getParent()->getParent()]->getParent());
+//
+//						if (isProducerStatic) {
+//							if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), metadataHost->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
+//								addedParentsToCurrentHyperOp.push_back(metadataHost->getParent()->getParent());
+//							}
+//						}
+//						if (find(predicateProducers.begin(), predicateProducers.end(), metadataHost->getParent()->getParent()) == predicateProducers.end()) {
+//							predicateProducers.push_back(metadataHost->getParent()->getParent());
+//						}
+//					}
+//				} else {
+				//Unconditional branch's target is a call instruction
+				if (isa<CallInst>(&(*unconditionalBranchSourceItr)->getParent()->front())) {
 //						&& createdHyperOpAndType.find((*unconditionalBranchSourceItr)->getParent()->getParent()) != createdHyperOpAndType.end() && createdHyperOpAndType[(*unconditionalBranchSourceItr)->getParent()->getParent()]) {
-						newCallSite.push_back((CallInst*) &(*unconditionalBranchSourceItr)->getParent()->front());
-						while (true) {
-							CallInst* appendCall = 0;
-							for (map<Function*, list<CallInst*> >::iterator createdHopItr = createdHyperOpAndCallSite.begin(); createdHopItr != createdHyperOpAndCallSite.end(); createdHopItr++) {
-								bool callSiteMatch = true;
-								list<CallInst*> createdHopCallSite = createdHopItr->second;
-								if (createdHopCallSite.size() != newCallSite.size()) {
-									callSiteMatch = false;
-								}
-								if (callSiteMatch) {
-									list<CallInst*>::iterator callSiteItr = newCallSite.begin();
-									for (list<CallInst*>::iterator createHopCallSiteItr = createdHopCallSite.begin(); createHopCallSiteItr != createdHopCallSite.end() && callSiteItr != newCallSite.end(); createHopCallSiteItr++, callSiteItr++) {
-										if (*createHopCallSiteItr != *callSiteItr) {
-											callSiteMatch = false;
-											break;
-										}
-									}
-								}
-								if (callSiteMatch) {
-									Function* callSiteFunc = createdHopItr->first;
-									list<BasicBlock*> accumulatedBlocks = createdHyperOpAndOriginalBasicBlockAndArgMap[callSiteFunc].first;
-									BasicBlock* lastBB = &accumulatedBlocks.front()->getParent()->back();
-									if (find(accumulatedBlocks.begin(), accumulatedBlocks.end(), lastBB) != accumulatedBlocks.end() || (isa<CallInst>(lastBB->front()) && isa<ReturnInst>(lastBB->front().getNextNode()))) {
-										replicatedCalledFunction = createdHopItr->first;
-										appendCall = (CallInst*) &lastBB->front();
+					newCallSite.push_back((CallInst*) &(*unconditionalBranchSourceItr)->getParent()->front());
+					while (true) {
+						CallInst* appendCall = 0;
+						for (map<Function*, list<CallInst*> >::iterator createdHopItr = createdHyperOpAndCallSite.begin(); createdHopItr != createdHyperOpAndCallSite.end(); createdHopItr++) {
+							bool callSiteMatch = true;
+							list<CallInst*> createdHopCallSite = createdHopItr->second;
+							if (createdHopCallSite.size() != newCallSite.size()) {
+								callSiteMatch = false;
+							}
+							if (callSiteMatch) {
+								list<CallInst*>::iterator callSiteItr = newCallSite.begin();
+								for (list<CallInst*>::iterator createHopCallSiteItr = createdHopCallSite.begin(); createHopCallSiteItr != createdHopCallSite.end() && callSiteItr != newCallSite.end(); createHopCallSiteItr++, callSiteItr++) {
+									if (*createHopCallSiteItr != *callSiteItr) {
+										callSiteMatch = false;
 										break;
 									}
 								}
 							}
-							if (createdHyperOpAndReturnValue.find(replicatedCalledFunction) != createdHyperOpAndReturnValue.end()) {
-								unconditionalBranchInstr = createdHyperOpAndReturnValue[replicatedCalledFunction];
-							}
-
-							if (unconditionalBranchInstr == 0) {
-								if (appendCall == 0) {
-									break;
-								}
-								newCallSite.push_back(appendCall);
-							} else {
-								if (isa<CallInst>(unconditionalBranchInstr)) {
-//									&& createdHyperOpAndType[(*unconditionalBranchSourceItr)->getParent()->getParent()]) {
-									newCallSite.push_back((CallInst*) unconditionalBranchInstr);
-								} else {
+							if (callSiteMatch) {
+								Function* callSiteFunc = createdHopItr->first;
+								list<BasicBlock*> accumulatedBlocks = createdHyperOpAndOriginalBasicBlockAndArgMap[callSiteFunc].first;
+								BasicBlock* lastBB = &accumulatedBlocks.front()->getParent()->back();
+								if (find(accumulatedBlocks.begin(), accumulatedBlocks.end(), lastBB) != accumulatedBlocks.end() || (isa<CallInst>(lastBB->front()) && isa<ReturnInst>(lastBB->front().getNextNode()))) {
+									replicatedCalledFunction = createdHopItr->first;
+									appendCall = (CallInst*) &lastBB->front();
 									break;
 								}
 							}
 						}
-					}
+						if (createdHyperOpAndReturnValue.find(replicatedCalledFunction) != createdHyperOpAndReturnValue.end()) {
+							unconditionalBranchInstr = createdHyperOpAndReturnValue[replicatedCalledFunction];
+						}
 
-					if (unconditionalBranchInstr == *unconditionalBranchSourceItr && isa<CallInst>(&(*unconditionalBranchSourceItr)->getParent()->front())) {
-						continue;
-					}
-
-					if (isa<Constant>(unconditionalBranchInstr)) {
-						//Immediate value
-						clonedInstr = new AllocaInst(unconditionalBranchInstr->getType());
-						((AllocaInst*) clonedInstr)->setAlignment(4);
-						//Alloc instructions need to be inserted in the entry basic block of the function because other allocs are treated as dynamic stack allocs
-						clonedInstr->insertBefore(replicatedCalledFunction->getEntryBlock().getFirstInsertionPt());
-						StoreInst* storeInst = new StoreInst(unconditionalBranchInstr, clonedInstr);
-						storeInst->setAlignment(4);
-						storeInst->insertBefore(retInstMap[replicatedCalledFunction]);
-					} else {
-						clonedInstr = getClonedArgument(unconditionalBranchInstr, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
-					}
-
-					list<Instruction*> clonedInstructionsToBeLabeled;
-					clonedInstructionsToBeLabeled.push_back(clonedInstr);
-					Function* producerFunction = ((Instruction*) unconditionalBranchInstr)->getParent()->getParent();
-					bool isProducerStatic = createdHyperOpAndType[clonedInstr->getParent()->getParent()];
-					//Find the replicas of the consumer HyperOp which also need to be annotated, hence populating a list
-					if (isProducerStatic && !isStaticHyperOp) {
-						//replicate the meta data in the last instance of the HyperOp corresponding to the last HyperOp in the cycle
-						list<list<pair<Function*, CallInst*> > > cyclesContainingCall = getCyclesContainingHyperOpInstance(callSite.back(), cyclesInCallGraph);
-						list<list<CallInst*> > callChainList;
-
-						for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
-							list<CallInst*> callChain;
-							std::copy(callSite.begin(), callSite.end(), std::back_inserter(callChain));
-							list<pair<Function*, CallInst*> > cycle = *cycleItr;
-							if (cycle.front().first == producerFunction) {
-								callChain.pop_back();
-								for (list<pair<Function*, CallInst*> >::iterator cycleItr = cycle.begin(); cycleItr != cycle.end(); cycleItr++) {
-									callChain.push_back(cycleItr->second);
-								}
-								callChainList.push_back(callChain);
-								continue;
+						if (unconditionalBranchInstr == 0) {
+							if (appendCall == 0) {
+								break;
 							}
-						}
-
-						for (list<list<CallInst*> >::iterator callChainListItr = callChainList.begin(); callChainListItr != callChainList.end(); callChainListItr++) {
-							list<CallInst*> callChain = *callChainListItr;
-							//Find the function corresponding to the callChain
-							Instruction* clonedInstInstance = getClonedArgument(unconditionalBranchInstr, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
-							clonedInstructionsToBeLabeled.push_back(clonedInstInstance);
-						}
-					}
-					for (list<Instruction*>::iterator clonedInstItr = clonedInstructionsToBeLabeled.begin(); clonedInstItr != clonedInstructionsToBeLabeled.end(); clonedInstItr++) {
-						Instruction* clonedInstr = *clonedInstItr;
-						//Update the unconditional branch instruction's first operand
-						vector<Value*> metadataList;
-						//Since the temporary does not have a memory location associated with it, add an alloca and a store instruction after the argument and label the alloca instruction with metadata
-						MDNode* newPredicateMetadata;
-						//TODO this isn't enough for nested recursion cycles
-						errs() << "added new md for control with producer type " << isProducerStatic << " and consumer type " << isStaticHyperOp << "\n";
-						if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
-							Value * values[2];
-							values[0] = funcAnnotation;
-							values[1] = MDString::get(ctxt, StringRef("1"));
-							newPredicateMetadata = MDNode::get(ctxt, values);
+							newCallSite.push_back(appendCall);
 						} else {
-							Value * values[3];
-							values[0] = funcAnnotation;
-							values[1] = MDString::get(ctxt, StringRef("1"));
-							if (isProducerStatic && !isStaticHyperOp) {
-								list<unsigned> tagId = createdHyperOpAndUniqueId[createdFunction];
-								//Create a new dynamic tag
-								string tag = "<id,";
-								for (list<unsigned>::iterator tagItr = tagId.begin(); tagItr != tagId.end(); tagItr++) {
-									tag.append(itostr(*tagItr));
-									if (*tagItr != tagId.back()) {
-										tag.append(",");
-									}
-								}
-								tag.append(">");
-								values[2] = MDString::get(ctxt, tag);
+							if (isa<CallInst>(unconditionalBranchInstr)) {
+//									&& createdHyperOpAndType[(*unconditionalBranchSourceItr)->getParent()->getParent()]) {
+								newCallSite.push_back((CallInst*) unconditionalBranchInstr);
 							} else {
-								values[2] = MDString::get(ctxt, "<prefixId>");
-							}
-							newPredicateMetadata = MDNode::get(ctxt, values);
-						}
-						AllocaInst* ai = new AllocaInst(Type::getInt1Ty(ctxt));
-						ai->setAlignment(4);
-						ai->insertBefore(clonedInstr->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
-						StoreInst* storeInst = new StoreInst(ConstantInt::get(ctxt, APInt(1, 1)), ai);
-						storeInst->setAlignment(4);
-						storeInst->insertAfter(ai);
-
-						metadataList.push_back(newPredicateMetadata);
-						MDNode * predicatesRelation = MDNode::get(ctxt, metadataList);
-						ai->setMetadata(HYPEROP_CONTROLS, predicatesRelation);
-						Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
-
-						if (isProducerStatic) {
-							if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), clonedInstr->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
-								addedParentsToCurrentHyperOp.push_back(clonedInstr->getParent()->getParent());
+								break;
 							}
 						}
-						if (find(predicateProducers.begin(), predicateProducers.end(), clonedInstr->getParent()->getParent()) == predicateProducers.end()) {
-							predicateProducers.push_back(clonedInstr->getParent()->getParent());
-						}
+					}
+				}
 
-						if (isa<BranchInst>(clonedInstr)) {
-							//Update the branch instruction to jump to the return basic block
-							clonedInstr->setOperand(0, retInstOfProducer->getParent());
+				if (unconditionalBranchInstr == *unconditionalBranchSourceItr && isa<CallInst>(&(*unconditionalBranchSourceItr)->getParent()->front())) {
+					continue;
+				}
+
+				if (isa<Constant>(unconditionalBranchInstr)) {
+					//Immediate value
+					clonedInstr = new AllocaInst(unconditionalBranchInstr->getType());
+					((AllocaInst*) clonedInstr)->setAlignment(4);
+					//Alloc instructions need to be inserted in the entry basic block of the function because other allocs are treated as dynamic stack allocs
+					clonedInstr->insertBefore(replicatedCalledFunction->getEntryBlock().getFirstInsertionPt());
+					StoreInst* storeInst = new StoreInst(unconditionalBranchInstr, clonedInstr);
+					storeInst->setAlignment(4);
+					storeInst->insertBefore(retInstMap[replicatedCalledFunction]);
+				} else {
+					clonedInstr = getClonedArgument(unconditionalBranchInstr, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+				}
+
+				list<Instruction*> clonedInstructionsToBeLabeled;
+				clonedInstructionsToBeLabeled.push_back(clonedInstr);
+				Function* producerFunction = ((Instruction*) unconditionalBranchInstr)->getParent()->getParent();
+				bool isProducerStatic = createdHyperOpAndType[clonedInstr->getParent()->getParent()];
+				//Find the replicas of the consumer HyperOp which also need to be annotated, hence populating a list
+				if (isProducerStatic && !isStaticHyperOp) {
+					//replicate the meta data in the last instance of the HyperOp corresponding to the last HyperOp in the cycle
+					list<list<pair<Function*, CallInst*> > > cyclesContainingCall = getCyclesContainingHyperOpInstance(callSite.back(), cyclesInCallGraph);
+					list<list<CallInst*> > callChainList;
+
+					for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
+						list<CallInst*> callChain;
+						std::copy(callSite.begin(), callSite.end(), std::back_inserter(callChain));
+						list<pair<Function*, CallInst*> > cycle = *cycleItr;
+						if (cycle.front().first == producerFunction) {
+							callChain.pop_back();
+							for (list<pair<Function*, CallInst*> >::iterator cycleItr = cycle.begin(); cycleItr != cycle.end(); cycleItr++) {
+								callChain.push_back(cycleItr->second);
+							}
+							callChainList.push_back(callChain);
+							continue;
 						}
+					}
+
+					for (list<list<CallInst*> >::iterator callChainListItr = callChainList.begin(); callChainListItr != callChainList.end(); callChainListItr++) {
+						list<CallInst*> callChain = *callChainListItr;
+						//Find the function corresponding to the callChain
+						Instruction* clonedInstInstance = getClonedArgument(unconditionalBranchInstr, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+						clonedInstructionsToBeLabeled.push_back(clonedInstInstance);
+					}
+				}
+				for (list<Instruction*>::iterator clonedInstItr = clonedInstructionsToBeLabeled.begin(); clonedInstItr != clonedInstructionsToBeLabeled.end(); clonedInstItr++) {
+					Instruction* clonedInstr = *clonedInstItr;
+					//Update the unconditional branch instruction's first operand
+					vector<Value*> metadataList;
+					//Since the temporary does not have a memory location associated with it, add an alloca and a store instruction after the argument and label the alloca instruction with metadata
+					MDNode* newPredicateMetadata;
+					//TODO this isn't enough for nested recursion cycles
+					errs() << "added new md for control with producer type " << isProducerStatic << " and consumer type " << isStaticHyperOp << "\n";
+					if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
+						Value * values[2];
+						values[0] = funcAnnotation;
+						values[1] = MDString::get(ctxt, StringRef("1"));
+						newPredicateMetadata = MDNode::get(ctxt, values);
+					} else {
+						Value * values[3];
+						values[0] = funcAnnotation;
+						values[1] = MDString::get(ctxt, StringRef("1"));
+						if (isProducerStatic && !isStaticHyperOp) {
+							list<unsigned> tagId = createdHyperOpAndUniqueId[createdFunction];
+							//Create a new dynamic tag
+							string tag = "<id,";
+							for (list<unsigned>::iterator tagItr = tagId.begin(); tagItr != tagId.end(); tagItr++) {
+								tag.append(itostr(*tagItr));
+								if (*tagItr != tagId.back()) {
+									tag.append(",");
+								}
+							}
+							tag.append(">");
+							values[2] = MDString::get(ctxt, tag);
+						} else {
+							values[2] = MDString::get(ctxt, "<prefixId>");
+						}
+						newPredicateMetadata = MDNode::get(ctxt, values);
+					}
+					AllocaInst* ai = new AllocaInst(Type::getInt1Ty(ctxt));
+					ai->setAlignment(4);
+					ai->insertBefore(clonedInstr->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
+					StoreInst* storeInst = new StoreInst(ConstantInt::get(ctxt, APInt(1, 1)), ai);
+					storeInst->setAlignment(4);
+					storeInst->insertAfter(ai);
+
+					metadataList.push_back(newPredicateMetadata);
+					MDNode * predicatesRelation = MDNode::get(ctxt, metadataList);
+					ai->setMetadata(HYPEROP_CONTROLS, predicatesRelation);
+					Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
+
+					if (isProducerStatic) {
+						if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), clonedInstr->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
+							addedParentsToCurrentHyperOp.push_back(clonedInstr->getParent()->getParent());
+						}
+					}
+					if (find(predicateProducers.begin(), predicateProducers.end(), clonedInstr->getParent()->getParent()) == predicateProducers.end()) {
+						predicateProducers.push_back(clonedInstr->getParent()->getParent());
+					}
+
+					if (isa<BranchInst>(clonedInstr)) {
+						//Update the branch instruction to jump to the return basic block
+						clonedInstr->setOperand(0, retInstOfProducer->getParent());
 					}
 				}
 			}
+//			}
 
 			DEBUG(dbgs() << "\n----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------\n");
 
