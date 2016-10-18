@@ -106,20 +106,16 @@ struct HyperOpCreationPass: public ModulePass {
 		for (pred_iterator predecessorItr = pred_begin(targetBB); predecessorItr != pred_end(targetBB); predecessorItr++) {
 			BasicBlock* predecessor = *predecessorItr;
 			for (unsigned i = 0; i < predecessor->getTerminator()->getNumSuccessors(); i++) {
-				unsigned successorId = i;
-				if (predecessor->getTerminator()->getNumSuccessors() == 1) {
-					successorId = -1;
-				}
 				if (predecessor->getTerminator()->getSuccessor(i) == targetBB) {
 					list<list<pair<BasicBlock*, unsigned> > > predicateToPredecessor = reachingPredicateChain(predecessor);
 					if (predicateToPredecessor.empty()) {
 						list<pair<BasicBlock*, unsigned> > predicateChainToPredecessor;
-						predicateChainToPredecessor.push_back(make_pair(predecessor, successorId));
+						predicateChainToPredecessor.push_back(make_pair(predecessor, i));
 						predicateChains.push_back(predicateChainToPredecessor);
 					} else {
 						for (list<list<pair<BasicBlock*, unsigned> > >::iterator predecessorPredItr = predicateToPredecessor.begin(); predecessorPredItr != predicateToPredecessor.end(); predecessorPredItr++) {
 							list<pair<BasicBlock*, unsigned> > predicateChainToPredecessor = *predecessorPredItr;
-							predicateChainToPredecessor.push_back(make_pair(predecessor, successorId));
+							predicateChainToPredecessor.push_back(make_pair(predecessor, i));
 							predicateChains.push_back(predicateChainToPredecessor);
 						}
 					}
@@ -1412,13 +1408,13 @@ struct HyperOpCreationPass: public ModulePass {
 								conditionalBranchSources[terminator] = successorBBList;
 							} else {
 								list<list<pair<BasicBlock*, unsigned> > > reachingPred = reachingPredicateChain(originalBB);
-								errs()<<"why would I face printing problems?\n";
 								for (list<list<pair<BasicBlock*, unsigned> > >::iterator reachingPredItr = reachingPred.begin(); reachingPredItr != reachingPred.end(); reachingPredItr++) {
 									errs() << "\nreaching pred chain :";
 									for (list<pair<BasicBlock*, unsigned> >::iterator predItr = reachingPredItr->begin(); predItr != reachingPredItr->end(); predItr++) {
 										errs() << predItr->first->getName() << "(" << predItr->second << ")->";
 									}
 								}
+								errs()<<"\n";
 							}
 							unconditionalBranchSources.push_back(terminator);
 						} else {
