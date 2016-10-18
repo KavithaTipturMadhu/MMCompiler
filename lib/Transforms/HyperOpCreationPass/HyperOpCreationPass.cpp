@@ -105,35 +105,35 @@ struct HyperOpCreationPass: public ModulePass {
 		list<list<pair<BasicBlock*, unsigned> > > predicateChains;
 		for (pred_iterator predecessorItr = pred_begin(targetBB); predecessorItr != pred_end(targetBB); predecessorItr++) {
 			BasicBlock* predecessor = *predecessorItr;
-			errs()<<"pred:"<<predecessor->getName()<<" with successors:"<<predecessor->getTerminator()->getNumSuccessors()<<"\n";
-			if (predecessor->getTerminator()->getNumSuccessors() > 1) {
-				for (unsigned i = 0; i < predecessor->getTerminator()->getNumSuccessors(); i++) {
-					if (predecessor->getTerminator()->getSuccessor(i) == targetBB) {
-						list<list<pair<BasicBlock*, unsigned> > > predicateToPredecessor = reachingPredicateChain(predecessor);
-						if (predicateToPredecessor.empty()) {
-							errs()<<"predicate chain from "<<predecessor->getName()<<" is empty\n";
-							list<pair<BasicBlock*, unsigned> > predicateChainToPredecessor;
-							predicateChainToPredecessor.push_back(make_pair(predecessor, i));
+			for (unsigned i = 0; i < predecessor->getTerminator()->getNumSuccessors(); i++) {
+				unsigned successorId = i;
+				if (predecessor->getTerminator()->getNumSuccessors() == 1) {
+					successorId = -1;
+				}
+				if (predecessor->getTerminator()->getSuccessor(i) == targetBB) {
+					list<list<pair<BasicBlock*, unsigned> > > predicateToPredecessor = reachingPredicateChain(predecessor);
+					if (predicateToPredecessor.empty()) {
+						list<pair<BasicBlock*, unsigned> > predicateChainToPredecessor;
+						predicateChainToPredecessor.push_back(make_pair(predecessor, successorId));
+						predicateChains.push_back(predicateChainToPredecessor);
+					} else {
+						for (list<list<pair<BasicBlock*, unsigned> > >::iterator predecessorPredItr = predicateToPredecessor.begin(); predecessorPredItr != predicateToPredecessor.end(); predecessorPredItr++) {
+							list<pair<BasicBlock*, unsigned> > predicateChainToPredecessor = *predecessorPredItr;
+							predicateChainToPredecessor.push_back(make_pair(predecessor, successorId));
 							predicateChains.push_back(predicateChainToPredecessor);
-						} else {
-							for (list<list<pair<BasicBlock*, unsigned> > >::iterator predecessorPredItr = predicateToPredecessor.begin(); predecessorPredItr != predicateToPredecessor.end(); predecessorItr++) {
-								list<pair<BasicBlock*, unsigned> > predicateChainToPredecessor = *predecessorPredItr;
-								predicateChainToPredecessor.push_back(make_pair(predecessor, i));
-								predicateChains.push_back(predicateChainToPredecessor);
-							}
 						}
 					}
 				}
 			}
 		}
 
-		errs() << "how can there not be any chain that reaches here?" << predicateChains.size() << "\n";
 		bool change = true;
 		//Reduce the predicates to match mutually exclusive paths and identify the longest predicate
 		while (change) {
 			change = false;
 			list<list<pair<BasicBlock*, unsigned> > > removalList;
 			list<list<pair<BasicBlock*, unsigned> > > additionList;
+			errs()<<"reducing mutually exclusive paths!\n";
 			for (list<list<pair<BasicBlock*, unsigned> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++) {
 				if (*predicateChainItr != predicateChains.back()) {
 					list<list<pair<BasicBlock*, unsigned> > >::iterator secondPredicateChainItr = predicateChainItr;
@@ -177,7 +177,7 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 			}
 
-			//		errs() << "current size:" << predicateChains.size() << ", removal list size:" << removalList.size() << "\n";
+			errs() << "current size:" << predicateChains.size() << ", removal list size:" << removalList.size() << "\n";
 
 			for (list<list<pair<BasicBlock*, unsigned> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
 				predicateChains.remove(*removalItr);
@@ -216,6 +216,7 @@ struct HyperOpCreationPass: public ModulePass {
 			//			}
 			//		}
 
+//			errs()<<"reducing copies of exclusive paths with size of predicate chains:"<<predicateChains.size()<<"\n";
 			int i = 0;
 			for (list<list<pair<BasicBlock*, unsigned> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++, i++) {
 				if (*predicateChainItr != predicateChains.back()) {
@@ -243,7 +244,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 			}
-			//		errs() << "how many predicates need to be removed?" << removalList.size() << "\n";
+
 			for (list<list<pair<BasicBlock*, unsigned> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
 				//Remove only the first instance of the predicate and not all instances that are equal t
 				predicateChains.remove(*removalItr);
@@ -1409,12 +1410,13 @@ struct HyperOpCreationPass: public ModulePass {
 								TerminatorInst* terminator = ((TerminatorInst*) conditionalBranchInstr);
 								successorBBList.push_back(make_pair(((BranchInst*) originalUnconditionalBranchInstr)->getSuccessor(0), -1));
 								conditionalBranchSources[terminator] = successorBBList;
-							}else{
+							} else {
 								list<list<pair<BasicBlock*, unsigned> > > reachingPred = reachingPredicateChain(originalBB);
-								for(list<list<pair<BasicBlock*, unsigned> > >::iterator reachingPredItr =reachingPred.begin();reachingPredItr!=reachingPred.end();reachingPredItr++){
-									errs()<<"\nreaching pred chain :";
-									for(list<pair<BasicBlock*, unsigned> >::iterator predItr = reachingPredItr->begin();predItr!=reachingPredItr->end();predItr++){
-										errs()<<predItr->first->getName()<<"("<<predItr->second<<")->";
+								errs()<<"why would I face printing problems?\n";
+								for (list<list<pair<BasicBlock*, unsigned> > >::iterator reachingPredItr = reachingPred.begin(); reachingPredItr != reachingPred.end(); reachingPredItr++) {
+									errs() << "\nreaching pred chain :";
+									for (list<pair<BasicBlock*, unsigned> >::iterator predItr = reachingPredItr->begin(); predItr != reachingPredItr->end(); predItr++) {
+										errs() << predItr->first->getName() << "(" << predItr->second << ")->";
 									}
 								}
 							}
