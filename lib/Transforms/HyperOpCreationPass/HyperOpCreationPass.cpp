@@ -129,7 +129,7 @@ struct HyperOpCreationPass: public ModulePass {
 			change = false;
 			list<list<pair<BasicBlock*, unsigned> > > removalList;
 			list<list<pair<BasicBlock*, unsigned> > > additionList;
-			errs()<<"reducing mutually exclusive paths!\n";
+			errs() << "reducing mutually exclusive paths!\n";
 			for (list<list<pair<BasicBlock*, unsigned> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++) {
 				if (*predicateChainItr != predicateChains.back()) {
 					list<list<pair<BasicBlock*, unsigned> > >::iterator secondPredicateChainItr = predicateChainItr;
@@ -1414,7 +1414,32 @@ struct HyperOpCreationPass: public ModulePass {
 										errs() << predItr->first->getName() << "(" << predItr->second << ")->";
 									}
 								}
-								errs()<<"\n";
+								//Take the last conditional predicate in the chain
+								for (list<list<pair<BasicBlock*, unsigned> > >::iterator reachingPredItr = reachingPred.begin(); reachingPredItr != reachingPred.end(); reachingPredItr++) {
+									list<pair<BasicBlock*, unsigned> > reachingPredChain = *reachingPredItr;
+									pair<BasicBlock*, unsigned> predicate;
+									bool conditionalPredicateDelivered = false;
+									for (list<pair<BasicBlock*, unsigned> >::reverse_iterator predicateItr = reachingPredChain.rbegin(); predicateItr != reachingPredChain.rend(); predicateItr++) {
+										if (predicateItr->first->getTerminator()->getNumSuccessors() > 1) {
+											predicate = *predicateItr;
+											conditionalPredicateDelivered = true;
+											break;
+										}
+									}
+
+									if (conditionalPredicateDelivered) {
+										vector<pair<BasicBlock*, int> > predecessorBBList;
+										TerminatorInst* terminator = ((TerminatorInst*)  predicate.first->getTerminator());
+										unsigned successorId = predicate.second;
+										predecessorBBList.push_back(make_pair(((BranchInst*) originalUnconditionalBranchInstr)->getSuccessor(0),successorId));
+										errs()<<"\nadded as conditional jump source :";
+										terminator->dump();
+										conditionalBranchSources[terminator] = predecessorBBList;
+									}
+
+								}
+
+								errs() << "\n";
 							}
 							unconditionalBranchSources.push_back(terminator);
 						} else {
@@ -2060,6 +2085,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 			DEBUG(dbgs() << "\n----------Dealing with conditional branches from other HyperOps----------\n");
 			//Find out if there exist any branch instructions leading to the HyperOp, add metadata to the instruction
+			errs()<<"number of conditional branches:"<<conditionalBranchSources.size()<<"\n";
 			for (map<Instruction*, vector<pair<BasicBlock*, int> > >::iterator conditionalBranchSourceItr = conditionalBranchSources.begin(); conditionalBranchSourceItr != conditionalBranchSources.end(); conditionalBranchSourceItr++) {
 				Instruction* conditionalBranchInst = conditionalBranchSourceItr->first;
 				errs() << "conditional branch:";
@@ -2406,57 +2432,57 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 				for (list<Instruction*>::iterator clonedInstItr = clonedInstructionsToBeLabeled.begin(); clonedInstItr != clonedInstructionsToBeLabeled.end(); clonedInstItr++) {
 					Instruction* clonedInstr = *clonedInstItr;
-					if (find(predicateProducers.begin(), predicateProducers.end(), clonedInstr->getParent()->getParent()) == predicateProducers.end()) {
-						//Update the unconditional branch instruction's first operand
-						vector<Value*> metadataList;
-						//Since the temporary does not have a memory location associated with it, add an alloca and a store instruction after the argument and label the alloca instruction with metadata
-						MDNode* newPredicateMetadata;
-						//TODO this isn't enough for nested recursion cycles
-						if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
-							Value * values[2];
-							values[0] = funcAnnotation;
-							values[1] = MDString::get(ctxt, StringRef("1"));
-							newPredicateMetadata = MDNode::get(ctxt, values);
-						} else {
-							Value * values[3];
-							values[0] = funcAnnotation;
-							values[1] = MDString::get(ctxt, StringRef("1"));
-							if (isProducerStatic && !isStaticHyperOp) {
-								list<unsigned> tagId = createdHyperOpAndUniqueId[createdFunction];
-								//Create a new dynamic tag
-								string tag = "<id,";
-								for (list<unsigned>::iterator tagItr = tagId.begin(); tagItr != tagId.end(); tagItr++) {
-									tag.append(itostr(*tagItr));
-									if (*tagItr != tagId.back()) {
-										tag.append(",");
-									}
-								}
-								tag.append(">");
-								values[2] = MDString::get(ctxt, tag);
-							} else {
-								values[2] = MDString::get(ctxt, "<prefixId>");
-							}
-							newPredicateMetadata = MDNode::get(ctxt, values);
-						}
-						AllocaInst* ai = new AllocaInst(Type::getInt1Ty(ctxt));
-						ai->setAlignment(4);
-						ai->insertBefore(clonedInstr->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
-						StoreInst* storeInst = new StoreInst(ConstantInt::get(ctxt, APInt(1, 1)), ai);
-						storeInst->setAlignment(4);
-						storeInst->insertAfter(ai);
-
-						metadataList.push_back(newPredicateMetadata);
-						MDNode * predicatesRelation = MDNode::get(ctxt, metadataList);
-						ai->setMetadata(HYPEROP_CONTROLS, predicatesRelation);
-						if (isProducerStatic) {
-							if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), clonedInstr->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
-								addedParentsToCurrentHyperOp.push_back(clonedInstr->getParent()->getParent());
-							}
-						}
-						if (find(predicateProducers.begin(), predicateProducers.end(), clonedInstr->getParent()->getParent()) == predicateProducers.end()) {
-							predicateProducers.push_back(clonedInstr->getParent()->getParent());
-						}
-					}
+//					if (find(predicateProducers.begin(), predicateProducers.end(), clonedInstr->getParent()->getParent()) == predicateProducers.end()) {
+//						//Update the unconditional branch instruction's first operand
+//						vector<Value*> metadataList;
+//						//Since the temporary does not have a memory location associated with it, add an alloca and a store instruction after the argument and label the alloca instruction with metadata
+//						MDNode* newPredicateMetadata;
+//						//TODO this isn't enough for nested recursion cycles
+//						if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
+//							Value * values[2];
+//							values[0] = funcAnnotation;
+//							values[1] = MDString::get(ctxt, StringRef("1"));
+//							newPredicateMetadata = MDNode::get(ctxt, values);
+//						} else {
+//							Value * values[3];
+//							values[0] = funcAnnotation;
+//							values[1] = MDString::get(ctxt, StringRef("1"));
+//							if (isProducerStatic && !isStaticHyperOp) {
+//								list<unsigned> tagId = createdHyperOpAndUniqueId[createdFunction];
+//								//Create a new dynamic tag
+//								string tag = "<id,";
+//								for (list<unsigned>::iterator tagItr = tagId.begin(); tagItr != tagId.end(); tagItr++) {
+//									tag.append(itostr(*tagItr));
+//									if (*tagItr != tagId.back()) {
+//										tag.append(",");
+//									}
+//								}
+//								tag.append(">");
+//								values[2] = MDString::get(ctxt, tag);
+//							} else {
+//								values[2] = MDString::get(ctxt, "<prefixId>");
+//							}
+//							newPredicateMetadata = MDNode::get(ctxt, values);
+//						}
+//						AllocaInst* ai = new AllocaInst(Type::getInt1Ty(ctxt));
+//						ai->setAlignment(4);
+//						ai->insertBefore(clonedInstr->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
+//						StoreInst* storeInst = new StoreInst(ConstantInt::get(ctxt, APInt(1, 1)), ai);
+//						storeInst->setAlignment(4);
+//						storeInst->insertAfter(ai);
+//
+//						metadataList.push_back(newPredicateMetadata);
+//						MDNode * predicatesRelation = MDNode::get(ctxt, metadataList);
+//						ai->setMetadata(HYPEROP_CONTROLS, predicatesRelation);
+//						if (isProducerStatic) {
+//							if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), clonedInstr->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
+//								addedParentsToCurrentHyperOp.push_back(clonedInstr->getParent()->getParent());
+//							}
+//						}
+//						if (find(predicateProducers.begin(), predicateProducers.end(), clonedInstr->getParent()->getParent()) == predicateProducers.end()) {
+//							predicateProducers.push_back(clonedInstr->getParent()->getParent());
+//						}
+//					}
 					Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
 
 					if (isa<BranchInst>(clonedInstr)) {
