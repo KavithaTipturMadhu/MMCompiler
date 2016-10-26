@@ -2395,7 +2395,7 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 	HyperOp* dummyHyperOp = 0;
 	pair<HyperOpEdge*, HyperOp*> returnPredicate = make_pair(dummyEdge, dummyHyperOp);
 	list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains = getReachingPredicateChain(currentHyperOp, currentHyperOp->getImmediateDominator());
-	errs()<<"initial set of predicate chains:\n";
+	errs() << "initial set of predicate chains:\n";
 	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
 		errs() << "\neach chain:";
 		for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
@@ -2434,9 +2434,21 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 
 						if (restOfChainMatches) {
 							if (find(removalList.begin(), removalList.end(), *predicateChainItr) == removalList.end()) {
+								errs() << "marked for removal, first:";
+								for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = predicateChainItr->begin(); printItr != predicateChainItr->end(); printItr++) {
+									errs() << printItr->second->asString() << "(";
+									printItr->first->getValue()->print(errs());
+									errs() << printItr->first->getPredicateValue() << ")->";
+								}
 								removalList.push_back(*predicateChainItr);
 							}
 							if (find(removalList.begin(), removalList.end(), *secondPredicateChainItr) == removalList.end()) {
+								errs() << "marked for removal, second:";
+								for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = secondPredicateChainItr->begin(); printItr != secondPredicateChainItr->end(); printItr++) {
+									errs() << printItr->second->asString() << "(";
+									printItr->first->getValue()->print(errs());
+									errs() << printItr->first->getPredicateValue() << ")->";
+								}
 								removalList.push_back(*secondPredicateChainItr);
 							}
 
@@ -2528,6 +2540,16 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 
 		if (!removalList.empty()) {
 			change = true;
+		}
+	}
+
+	errs() << "final  set of predicate chains:\n";
+	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
+		errs() << "\neach chain:";
+		for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
+			errs() << printItr->second->asString() << "(";
+			printItr->first->getValue()->print(errs());
+			errs() << printItr->first->getPredicateValue() << ")->";
 		}
 	}
 
