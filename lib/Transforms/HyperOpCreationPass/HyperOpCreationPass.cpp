@@ -109,14 +109,16 @@ struct HyperOpCreationPass: public ModulePass {
 				for (unsigned i = 0; i < predecessor->getTerminator()->getNumSuccessors(); i++) {
 					if (predecessor->getTerminator()->getSuccessor(i) == targetBB) {
 						list<list<pair<BasicBlock*, unsigned> > > predicateToPredecessor = reachingPredicateChain(predecessor);
-						if (predicateToPredecessor.empty()) {
+						if (predicateToPredecessor.empty() && predecessor->getTerminator()->getNumSuccessors() > 1) {
 							list<pair<BasicBlock*, unsigned> > predicateChainToPredecessor;
 							predicateChainToPredecessor.push_back(make_pair(predecessor, i));
 							predicateChains.push_back(predicateChainToPredecessor);
 						} else {
 							for (list<list<pair<BasicBlock*, unsigned> > >::iterator predecessorPredItr = predicateToPredecessor.begin(); predecessorPredItr != predicateToPredecessor.end(); predecessorPredItr++) {
 								list<pair<BasicBlock*, unsigned> > predicateChainToPredecessor = *predecessorPredItr;
-								predicateChainToPredecessor.push_back(make_pair(predecessor, i));
+								if (predecessor->getTerminator()->getNumSuccessors() > 1) {
+									predicateChainToPredecessor.push_back(make_pair(predecessor, i));
+								}
 								predicateChains.push_back(predicateChainToPredecessor);
 							}
 						}
@@ -1431,7 +1433,7 @@ struct HyperOpCreationPass: public ModulePass {
 										vector<pair<BasicBlock*, int> > successorBBList;
 										TerminatorInst* terminator = ((TerminatorInst*) predicateItr->first->getTerminator());
 										successorBBList.push_back(make_pair(((BranchInst*) originalUnconditionalBranchInstr)->getSuccessor(0), -1));
-										errs() << "\nadded as reaching conditional jump source from bb " << terminator->getParent()->getName() << " :";
+										errs() << "\nadded as reaching conditional jump source from bb " << terminator->getParent()->getName() << " from parent " << terminator->getParent()->getParent()->getName() << ":";
 										terminator->dump();
 //										conditionalBranchSources.insert(make_pair(terminator, successorBBList));
 										conditionalBranchSources[terminator] = successorBBList;

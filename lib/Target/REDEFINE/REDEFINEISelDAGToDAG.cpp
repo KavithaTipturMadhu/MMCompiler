@@ -240,8 +240,6 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 		((REDEFINETargetMachine&) TM).HIG->setNumContextFrames((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getCfCount());
 		((REDEFINETargetMachine&) TM).HIG->setMaxContextFrameSize((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getCfSize());
 		((REDEFINETargetMachine&) TM).HIG->computeDominatorInfo();
-		errs() << "after clustering:";
-		((REDEFINETargetMachine&) TM).HIG->print(dbgs());
 		((REDEFINETargetMachine&) TM).HIG->clusterNodes();
 		((REDEFINETargetMachine&) TM).HIG->mapClustersToComputeResources();
 		((REDEFINETargetMachine&) TM).HIG->associateStaticContextFrames();
