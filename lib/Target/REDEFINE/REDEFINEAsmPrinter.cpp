@@ -58,7 +58,7 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 	int ceCount = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
 	// Emit target-specific gunk before the function body.
 	EmitFunctionBodyStart();
-	errs()<<"whats in function?";
+	errs() << "whats in function?";
 	MF->dump();
 	const MachineInstr *LastMI = 0;
 	vector<list<const MachineInstr*> > pHyperOpInstructions(ceCount);
@@ -75,10 +75,10 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 		}
 	}
 
-	int pHyperOpIndex ;
-	errs()<<"instr count:"<<pHyperOpInstructions.size()<<"\n";
-	for(pHyperOpIndex = 0;pHyperOpIndex<pHyperOpInstructions.size();pHyperOpIndex++){
-		errs()<<"phop index:"<<pHyperOpIndex<<"\n";
+	int pHyperOpIndex;
+	errs() << "instr count:" << pHyperOpInstructions.size() << "\n";
+	for (pHyperOpIndex = 0; pHyperOpIndex < pHyperOpInstructions.size(); pHyperOpIndex++) {
+		errs() << "phop index:" << pHyperOpIndex << "\n";
 		list<const MachineInstr*> pHyperOpItr = pHyperOpInstructions[pHyperOpIndex];
 //	for (vector<list<const MachineInstr*> >::iterator pHyperOpItr = pHyperOpInstructions.begin(); pHyperOpItr != pHyperOpInstructions.end(); pHyperOpItr++, pHyperOpIndex++) {
 		string codeSegmentStart = ".PHYOP#";
@@ -86,7 +86,7 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 		OutStreamer.EmitRawText(StringRef(codeSegmentStart));
 
 		for (list<const MachineInstr*>::iterator mcItr = pHyperOpItr.begin(); mcItr != pHyperOpItr.end(); mcItr++) {
-			if (!startOfBBInPHyperOp[pHyperOpIndex].empty()&&startOfBBInPHyperOp[pHyperOpIndex].front() == *mcItr) {
+			if (!startOfBBInPHyperOp[pHyperOpIndex].empty() && startOfBBInPHyperOp[pHyperOpIndex].front() == *mcItr) {
 				MCSymbol *label = (*mcItr)->getParent()->getSymbol();
 				label->setUndefined();
 				OutStreamer.EmitLabel(label);
@@ -130,8 +130,8 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		}
 
 		//Add context frame addresses and ordering edges also
-		for(map<HyperOpEdge*, HyperOp*>::iterator parentMapItr = hyperOp->ParentMap.begin(); parentMapItr!=hyperOp->ParentMap.end();parentMapItr++){
-			if(parentMapItr->first->getType()==HyperOpEdge::CONTEXT_FRAME_ADDRESS){
+		for (map<HyperOpEdge*, HyperOp*>::iterator parentMapItr = hyperOp->ParentMap.begin(); parentMapItr != hyperOp->ParentMap.end(); parentMapItr++) {
+			if (parentMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
 				argCount++;
 			}
 		}
@@ -189,7 +189,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 
 	//TODO couldn't find any method that gets invoked that could insert topology details
 	if (firstFunctionBeingProcessed) {
-		int maxXInTopology = 0, maxYInTopology = 0;
+		int maxXInTopology = 0, maxYInTopology = 0, minXInTopology = -1, minYInTopology = -1;
 		int fabricRowCount = (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getM();
 		int fabricColumnCount = (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getN();
 		for (list<HyperOp*>::iterator hyperOpItr = HIG->Vertices.begin(); hyperOpItr != HIG->Vertices.end(); hyperOpItr++) {
@@ -202,10 +202,16 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 			if (mappedToX > maxXInTopology) {
 				maxXInTopology = mappedToX;
 			}
+			if (minXInTopology == -1 || mappedToX < minXInTopology) {
+				minXInTopology = mappedToX;
+			}
 			if (mappedToY > maxYInTopology) {
 				maxYInTopology = mappedToY;
 			}
 
+			if (minYInTopology == -1 || mappedToY < minYInTopology) {
+				minYInTopology = mappedToY;
+			}
 		}
 
 		long int maxGlobalSize = 0;
@@ -213,7 +219,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 			maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalArgItr->getType());
 		}
 
-		while (maxGlobalSize > ((maxXInTopology + 1) * (maxYInTopology + 1) * dgmSize)) {
+		while (maxGlobalSize > ((maxXInTopology - minXInTopology + 1) * (maxYInTopology - minYInTopology + 1) * dgmSize)) {
 			if (maxXInTopology < maxYInTopology) {
 				maxXInTopology++;
 			} else {
@@ -222,7 +228,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		}
 
 		string topology(".topology");
-		topology.append("\t").append(itostr(maxXInTopology)).append("\t").append(itostr(maxYInTopology)).append("\n");
+		topology.append("\t").append(itostr(maxXInTopology - minXInTopology)).append("\t").append(itostr(maxYInTopology - minYInTopology)).append("\n");
 		OutStreamer.EmitRawText(StringRef(topology));
 		firstFunctionBeingProcessed = false;
 

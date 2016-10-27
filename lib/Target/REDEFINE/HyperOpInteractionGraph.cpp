@@ -1300,6 +1300,7 @@ pair<list<unsigned int>, list<pair<list<HyperOp*>, unsigned int> > > mergeNodesA
 				stateChangedEdges.merge(stateChangedEdgeList);
 			}
 		}
+
 		//Ignore all the edges from the target to the same cluster
 		for (list<HyperOp*>::iterator nodeBelowTargetItr = nodesBelowTarget.begin(); nodeBelowTargetItr != nodesBelowTarget.end(); nodeBelowTargetItr++) {
 			HyperOp* nodeBelowTarget = *nodeBelowTargetItr;
@@ -1354,9 +1355,11 @@ pair<list<unsigned int>, list<pair<list<HyperOp*>, unsigned int> > > mergeNodesA
 			(*addedEdgeIterator).second.first->removeChildEdge((*addedEdgeIterator).first);
 			(*addedEdgeIterator).second.second->removeParentEdge((*addedEdgeIterator).first);
 		}
+
 		for (list<HyperOpEdge*>::iterator ignoreEdgeIterator = stateChangedEdges.begin(); ignoreEdgeIterator != stateChangedEdges.end(); ignoreEdgeIterator++) {
 			(*ignoreEdgeIterator)->setIsEdgeIgnored(false);
 		}
+
 	}
 	return std::make_pair(computedDominantSequencePair.second, clusterList);
 }
@@ -1370,8 +1373,6 @@ void printDS(list<HyperOp*> dominantSequence) {
 }
 
 void HyperOpInteractionGraph::clusterNodes() {
-	errs() << "clustering nodes of graph:";
-	this->print(dbgs());
 	list<pair<list<HyperOp*>, unsigned int> > computeClusterList;
 	HyperOp* startHyperOp;
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
@@ -1403,8 +1404,6 @@ void HyperOpInteractionGraph::clusterNodes() {
 		HyperOp* source;
 		HyperOp* target;
 		bool noEdgeToExamine = true;
-		errs() << "start of loop ds:";
-		printDS(dominantSequence);
 		for (list<HyperOp*>::iterator dominantSequenceEdgeItr = dominantSequence.begin(); dominantSequenceEdgeItr != --dominantSequence.end();) {
 			source = *dominantSequenceEdgeItr;
 			target = *(++dominantSequenceEdgeItr);
@@ -1447,7 +1446,6 @@ void HyperOpInteractionGraph::clusterNodes() {
 		std::copy(computeClusterList.begin(), computeClusterList.end(), std::back_inserter(tempClusterList));
 
 		//Zero out the edges between source and target nodes
-		errs() << "zeroed out the edges between " << source->asString() << "and " << target->asString() << "\n";
 		source->zeroOutChildEdge(target, true);
 
 		list<HyperOpEdge*> stateChangedEdgeList;
@@ -1602,19 +1600,14 @@ void HyperOpInteractionGraph::clusterNodes() {
 				(*ignoreEdgeIterator)->setIsEdgeIgnored(false);
 			}
 			source->zeroOutChildEdge(target, false);
-			errs() << "reverted zeroed out the edges between " << source->asString() << "and " << target->asString() << "\n";
 //			excludeList.push_back(dominantSequencePair.first);
 		}
-		errs() << "examined edges between " << source->asString() << " and " << target->asString() << "\n";
 		//Add the edge to examined list;
 		examinedEdges.push_back(std::make_pair(source, target));
 
-		errs() << "end of loop ds:";
-		printDS(dominantSequence);
+//		printDS(dominantSequence);
 	}
 
-	errs() << "before merging clusters:";
-	this->print(dbgs());
 	//Merge clusters till the number of compute resources matches the number of clusters created
 	while (computeClusterList.size() > (this->rowCount * this->columnCount)) {
 		//Find all pairs of clusters and merge the one that leads to the least execution time
@@ -1628,12 +1621,16 @@ void HyperOpInteractionGraph::clusterNodes() {
 		list<unsigned int> minimumExecutionTime;
 		bool first = true;
 		for (list<pair<list<HyperOp*>, unsigned int> >::iterator sourceClusterItr = computeClusterList.begin(); sourceClusterItr != computeClusterList.end(); sourceClusterItr++) {
-			list<HyperOp*> sourceCluster = sourceClusterItr->first;
-			for (list<pair<list<HyperOp*>, unsigned int> >::iterator targetClusterItr = computeClusterList.begin(); targetClusterItr != computeClusterList.end(); targetClusterItr++) {
-				if (targetClusterItr != sourceClusterItr) {
+			if (*sourceClusterItr != computeClusterList.back()) {
+				list<HyperOp*> sourceCluster = sourceClusterItr->first;
+				list<pair<list<HyperOp*>, unsigned int> >::iterator targetClusterItr = sourceClusterItr;
+				targetClusterItr++;
+				for (; targetClusterItr != computeClusterList.end(); targetClusterItr++) {
 					pair<list<unsigned int>, list<pair<list<HyperOp*>, unsigned int> > > returnValue = mergeNodesAndReturnExecutionTime(startHyperOp, *sourceClusterItr, *targetClusterItr, computeClusterList, true);
+					errs()<<"attempting a merge\n";
 					list<unsigned int> newExecutionTime = returnValue.first;
 					if (first || compareHierarchicalVolume(minimumExecutionTime, newExecutionTime) >= 0) {
+						errs()<<"merged\n";
 						minimumExecutionTime = newExecutionTime;
 						sourceClusterPair = *sourceClusterItr;
 						sourceCluster = sourceClusterPair.first;
@@ -1647,20 +1644,19 @@ void HyperOpInteractionGraph::clusterNodes() {
 
 		pair<list<unsigned int>, list<pair<list<HyperOp*>, unsigned int> > > returnValue = mergeNodesAndReturnExecutionTime(startHyperOp, sourceClusterPair, targetClusterPair, computeClusterList, false);
 		computeClusterList = returnValue.second;
+		errs() << "merging clusters " << computeClusterList.size() << "\n";
 	}
 
-	errs() << "number of clusters:" << computeClusterList.size() << "\n";
+	errs()<<"whats in each cluster?\n";
 	for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterItr = computeClusterList.begin(); clusterItr != computeClusterList.end(); clusterItr++) {
-		errs() << "cluster contains:";
-		for (list<HyperOp*>::iterator clusterInstItr = clusterItr->first.begin(); clusterInstItr != clusterItr->first.end(); clusterInstItr++) {
-			errs() << (*clusterInstItr)->asString() << "->";
-		}
-		errs() << "\n";
 		clusterList.push_back(clusterItr->first);
+		errs()<<"each cluster:\n";
+		for(list<HyperOp*>::iterator printItr = clusterItr->first.begin();printItr!=clusterItr->first.end();printItr++){
+			errs()<<(*printItr)->asString()<<",";
+		}
+		errs()<<"\n";
 	}
 
-	errs() << "after clustering:";
-	this->print(dbgs());
 }
 
 int linearizeTime(list<unsigned int> time) {
@@ -1708,7 +1704,6 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 
 //First pair is <source cluster index, target cluster index> tuple and second entry indicates <weight of communication, start time> tuple
 //This map is used to ensure that the source and target clusters are placed closest to each other
-//I wish tuple could be used here, but unfortunately, tuple is c++11 and boost tuple is the best I can do. If anyone ever touches this snippet ever and tuple is supported then, please use it.
 	list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > > communicationMap;
 	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
 		HyperOp* vertex = *vertexItr;
@@ -1754,6 +1749,8 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 	lprec *lp;
 	int *colno = NULL;
 	REAL *row = NULL;
+//	errs()<<"number of clusters:"<<clusterList.size()<<" being mapped to "<<rowCount<<" and "<<columnCount<<"\n";
+
 //First set of columns are the actual x and y coordinates being computed
 //Second set of columns are to ensure that the <x,y> pair for each cluster is unique
 //Third set of columns corresponds to boolean variables being used to compute |x1-x2| and them assigned to a scalar value d1=|xj-xk| whose lower bound is 0; b1,d1 correspond to boolean variable and scalar being used for |x| followed by similar set for |y|
@@ -1845,6 +1842,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 //Constraints for communicating edges
 	j = 0;
 	for (list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > >::iterator communicationItr = communicationMap.begin(); communicationItr != communicationMap.end(); communicationItr++) {
+//		errs()<<"added mapping constraint\n";
 		int sourcex = communicationItr->first.first + 1;
 		int sourcey = sourcex + 1;
 
@@ -2016,6 +2014,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 	set_obj_fnex(lp, diffVariableCount, minimizationRow, minimizationColumn);
 	set_minim(lp);
 	set_verbose(lp, IMPORTANT);
+//	print_lp(lp);
 	ret = solve(lp);
 	if (ret == OPTIMAL)
 		ret = 0;
@@ -2395,113 +2394,12 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 	HyperOp* dummyHyperOp = 0;
 	pair<HyperOpEdge*, HyperOp*> returnPredicate = make_pair(dummyEdge, dummyHyperOp);
 	list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains = getReachingPredicateChain(currentHyperOp, currentHyperOp->getImmediateDominator());
-	errs() << "initial set of predicate chains:\n";
-	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
-		errs() << "\neach chain:";
-		for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
-			errs() << printItr->second->asString() << "(";
-			printItr->first->getValue()->print(errs());
-			errs() << printItr->first->getPredicateValue() << ")->";
-		}
-	}
+
 	bool change = true;
 	while (change) {
 		change = false;
 		list<list<pair<HyperOpEdge*, HyperOp*> > > removalList;
 		list<list<pair<HyperOpEdge*, HyperOp*> > > additionList;
-		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++) {
-			if (*predicateChainItr != predicateChains.back()) {
-				list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator secondPredicateChainItr = predicateChainItr;
-				secondPredicateChainItr++;
-				for (; secondPredicateChainItr != predicateChains.end(); secondPredicateChainItr++) {
-					if (predicateChainItr->size() == secondPredicateChainItr->size()) {
-						//Check if the predicate chains are mutually exclusive
-						if (!(predicateChainItr->front().first->getValue() == secondPredicateChainItr->front().first->getValue() && predicateChainItr->front().first->getPredicateValue() != secondPredicateChainItr->front().first->getPredicateValue())) {
-							continue;
-						}
-						bool restOfChainMatches = true;
-						//Check if the rest of the predicate chain matches
-						list<pair<HyperOpEdge*, HyperOp*> >::iterator secondChainItr = predicateChainItr->begin();
-						for (list<pair<HyperOpEdge*, HyperOp*> >::iterator firstChainItr = predicateChainItr->begin(); firstChainItr != predicateChainItr->end() && secondChainItr != predicateChainItr->end(); firstChainItr++, secondChainItr++) {
-							if (*firstChainItr == predicateChainItr->front() && *secondChainItr == predicateChainItr->front()) {
-								continue;
-							}
-							if (!(firstChainItr->first->getValue() == secondChainItr->first->getValue() && firstChainItr->first->getPredicateValue() == secondChainItr->first->getPredicateValue())) {
-								restOfChainMatches = false;
-								break;
-							}
-						}
-
-						if (restOfChainMatches) {
-							if (find(removalList.begin(), removalList.end(), *predicateChainItr) == removalList.end()) {
-								errs() << "marked for removal, first:";
-								for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = predicateChainItr->begin(); printItr != predicateChainItr->end(); printItr++) {
-									errs() << printItr->second->asString() << "(";
-									printItr->first->getValue()->print(errs());
-									errs() << printItr->first->getPredicateValue() << ")->";
-								}
-								removalList.push_back(*predicateChainItr);
-							}
-							if (find(removalList.begin(), removalList.end(), *secondPredicateChainItr) == removalList.end()) {
-								errs() << "marked for removal, second:";
-								for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = secondPredicateChainItr->begin(); printItr != secondPredicateChainItr->end(); printItr++) {
-									errs() << printItr->second->asString() << "(";
-									printItr->first->getValue()->print(errs());
-									errs() << printItr->first->getPredicateValue() << ")->";
-								}
-								removalList.push_back(*secondPredicateChainItr);
-							}
-
-							//Create a new predicate chain that is one short of the chains in consideration
-							list<pair<HyperOpEdge*, HyperOp*> > prefixPredicate = *predicateChainItr;
-							prefixPredicate.pop_front();
-							if (find(additionList.begin(), additionList.end(), prefixPredicate) == additionList.end()) {
-								additionList.push_back(prefixPredicate);
-							}
-						}
-					}
-				}
-			}
-		}
-
-//		errs() << "current size:" << predicateChains.size() << ", removal list size:" << removalList.size() << "\n";
-
-		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
-			predicateChains.remove(*removalItr);
-		}
-
-//		errs() << "size after removal:" << predicateChains.size() << "\n";
-//
-//		errs() << "after removal, what is in predicate chains list?";
-//		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
-//			errs() << "\neach chain:";
-//			for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
-//				errs() << printItr->second->asString() << "(";
-//				printItr->first->getValue()->print(errs());
-//				errs() << printItr->first->getPredicateValue() << ")->";
-//			}
-//		}
-
-		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator additionItr = additionList.begin(); additionItr != additionList.end(); additionItr++) {
-			predicateChains.push_back(*additionItr);
-		}
-//		errs() << "size after addition:" << predicateChains.size() << "\n";
-
-		//Check if there are duplicates and remove them
-		if (!removalList.empty()) {
-			change = true;
-		}
-
-		removalList.clear();
-//		errs() << "after addition, what is in predicate chains list?";
-//		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
-//			errs() << "\neach chain:";
-//			for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
-//				errs() << printItr->second->asString() << "(";
-//				printItr->first->getValue()->print(errs());
-//				errs() << printItr->first->getPredicateValue() << ")->";
-//			}
-//		}
 
 		int i = 0;
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++, i++) {
@@ -2516,9 +2414,9 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 					//Check if the predicate chains are the same and mark duplicates for removal
 					bool chainMatches = true;
 					//Check if the rest of the predicate chain matches
-					list<pair<HyperOpEdge*, HyperOp*> >::iterator secondChainItr = predicateChainItr->begin();
-					for (list<pair<HyperOpEdge*, HyperOp*> >::iterator firstChainItr = predicateChainItr->begin(); firstChainItr != predicateChainItr->end() && secondChainItr != predicateChainItr->end(); firstChainItr++, secondChainItr++) {
-						if (!(firstChainItr->first->getValue() == secondChainItr->first->getValue() && firstChainItr->first->getPredicateValue() == secondChainItr->first->getPredicateValue())) {
+					list<pair<HyperOpEdge*, HyperOp*> >::iterator secondChainItr = secondPredicateChainItr->begin();
+					for (list<pair<HyperOpEdge*, HyperOp*> >::iterator firstChainItr = predicateChainItr->begin(); firstChainItr != predicateChainItr->end() && secondChainItr != secondPredicateChainItr->end(); firstChainItr++, secondChainItr++) {
+						if (firstChainItr->first->getValue() != secondChainItr->first->getValue() || firstChainItr->first->getPredicateValue() != secondChainItr->first->getPredicateValue()) {
 							chainMatches = false;
 							break;
 						}
@@ -2530,30 +2428,92 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
 				}
 			}
 		}
-//		errs() << "how many predicates need to be removed?" << removalList.size() << "\n";
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
 			//Remove only the first instance of the predicate and not all instances that are equal t
 			predicateChains.remove(*removalItr);
 		}
 
-//		errs() << "size after duplicate removal:" << predicateChains.size() << "\n";
-
 		if (!removalList.empty()) {
 			change = true;
 		}
-	}
+		removalList.clear();
 
-	errs() << "final  set of predicate chains:\n";
-	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
-		errs() << "\neach chain:";
-		for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
-			errs() << printItr->second->asString() << "(";
-			printItr->first->getValue()->print(errs());
-			errs() << printItr->first->getPredicateValue() << ")->";
+		list<pair<HyperOpEdge*, HyperOp*> > firstLongestMatchingPred;
+		list<pair<HyperOpEdge*, HyperOp*> > secondLongestMatchingPred;
+		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++) {
+			if (*predicateChainItr != predicateChains.back()) {
+				list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator secondPredicateChainItr = predicateChainItr;
+				secondPredicateChainItr++;
+				for (; secondPredicateChainItr != predicateChains.end(); secondPredicateChainItr++) {
+					if (predicateChainItr->size() == secondPredicateChainItr->size()) {
+						//Check if the predicate chains are mutually exclusive
+						if (!(predicateChainItr->front().first->getValue() == secondPredicateChainItr->front().first->getValue() && predicateChainItr->front().first->getPredicateValue() != secondPredicateChainItr->front().first->getPredicateValue())) {
+							continue;
+						}
+						bool restOfChainMatches = true;
+						//Check if the rest of the predicate chain matches
+						list<pair<HyperOpEdge*, HyperOp*> >::iterator secondChainItr = secondPredicateChainItr->begin();
+						for (list<pair<HyperOpEdge*, HyperOp*> >::iterator firstChainItr = predicateChainItr->begin(); firstChainItr != predicateChainItr->end() && secondChainItr != secondPredicateChainItr->end(); firstChainItr++, secondChainItr++) {
+							if (*firstChainItr == predicateChainItr->front() && *secondChainItr == secondPredicateChainItr->front()) {
+								continue;
+							}
+							if (firstChainItr->first->getValue() != secondChainItr->first->getValue() || firstChainItr->first->getPredicateValue() != secondChainItr->first->getPredicateValue()) {
+								restOfChainMatches = false;
+								break;
+							}
+						}
+
+						if (restOfChainMatches && (firstLongestMatchingPred.empty() || firstLongestMatchingPred.size() < predicateChainItr->size())) {
+							firstLongestMatchingPred = *predicateChainItr;
+							secondLongestMatchingPred = *secondPredicateChainItr;
+						}
+					}
+				}
+			}
 		}
+
+		if (!firstLongestMatchingPred.empty() && find(removalList.begin(), removalList.end(), firstLongestMatchingPred) == removalList.end()) {
+			removalList.push_back(firstLongestMatchingPred);
+		}
+
+		if (!secondLongestMatchingPred.empty() && find(removalList.begin(), removalList.end(), secondLongestMatchingPred) == removalList.end()) {
+			removalList.push_back(secondLongestMatchingPred);
+		}
+
+		//Create a new predicate chain that is one short of the chains in consideration
+		list<pair<HyperOpEdge*, HyperOp*> > prefixPredicate = secondLongestMatchingPred;
+		if (!prefixPredicate.empty()) {
+			prefixPredicate.pop_front();
+			if (!prefixPredicate.empty() && find(additionList.begin(), additionList.end(), prefixPredicate) == additionList.end()) {
+				additionList.push_back(prefixPredicate);
+			}
+		}
+
+		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
+			predicateChains.remove(*removalItr);
+		}
+
+//		errs() << "after removal, what is in predicate chains list?";
+//		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
+//			errs() << "\neach chain:";
+//			for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
+//				errs() << printItr->second->asString() << "(";
+//				printItr->first->getValue()->print(errs());
+//				errs() << printItr->first->getPredicateValue() << ")->";
+//			}
+//		}
+
+		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator additionItr = additionList.begin(); additionItr != additionList.end(); additionItr++) {
+			predicateChains.push_back(*additionItr);
+		}
+
+		//Check if there are duplicates and remove them
+		if (!removalList.empty()) {
+			change = true;
+		}
+
 	}
 
-//	errs() << "now it has reduced to:" << predicateChains.size() << "\n";
 	//Now we find the shortest predicate chain
 	list<pair<HyperOpEdge*, HyperOp*> > longestChain;
 	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++) {
@@ -2601,9 +2561,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		}
 	}
 
-	errs() << "before adding predicate decr count:";
-	this->print(dbgs());
-
 	map<HyperOp*, pair<HyperOpEdge*, HyperOp*> > lastPredicateCache;
 //	Add predicate delivery edges to HyperOps that are on non taken paths but may have data coming from a HyperOp that precedes the HyperOp producing the predicate
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
@@ -2628,7 +2585,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 				unsigned decByValue = 0;
 				//Count number of inputs coming from other parent nodes which are also predicated by the same HyperOp
 				for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
-					if (parentItr->first->getType() == HyperOpEdge::SCALAR && parentItr->second != immediateDominator && pathExistsInHIG(parentProducingPredicate, parentItr->second)) {
+					if ((parentItr->first->getType() == HyperOpEdge::SCALAR||parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) && parentItr->second != immediateDominator && pathExistsInHIG(parentProducingPredicate, parentItr->second)) {
 						decByValue++;
 					}
 				}

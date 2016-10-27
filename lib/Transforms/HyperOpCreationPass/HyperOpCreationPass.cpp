@@ -101,14 +101,14 @@ struct HyperOpCreationPass: public ModulePass {
 	}
 
 	//TODO replace this with a forward flow problem ASAP
-	list<list<pair<BasicBlock*, unsigned> > > reachingPredicateChain(BasicBlock* targetBB) {
+	list<list<pair<BasicBlock*, unsigned> > > reachingPredicateChain(BasicBlock* targetBB, list<BasicBlock*> acquiredBasicBlocks) {
 		list<list<pair<BasicBlock*, unsigned> > > predicateChains;
 		for (pred_iterator predecessorItr = pred_begin(targetBB); predecessorItr != pred_end(targetBB); predecessorItr++) {
 			BasicBlock* predecessor = *predecessorItr;
-			if (predecessor->getParent() == targetBB->getParent()) {
+			if (predecessor->getParent() == targetBB->getParent() || find(acquiredBasicBlocks.begin(), acquiredBasicBlocks.end(), predecessor) != acquiredBasicBlocks.end()) {
 				for (unsigned i = 0; i < predecessor->getTerminator()->getNumSuccessors(); i++) {
 					if (predecessor->getTerminator()->getSuccessor(i) == targetBB) {
-						list<list<pair<BasicBlock*, unsigned> > > predicateToPredecessor = reachingPredicateChain(predecessor);
+						list<list<pair<BasicBlock*, unsigned> > > predicateToPredecessor = reachingPredicateChain(predecessor, acquiredBasicBlocks);
 						if (predicateToPredecessor.empty() && predecessor->getTerminator()->getNumSuccessors() > 1) {
 							list<pair<BasicBlock*, unsigned> > predicateChainToPredecessor;
 							predicateChainToPredecessor.push_back(make_pair(predecessor, i));
@@ -133,90 +133,7 @@ struct HyperOpCreationPass: public ModulePass {
 			change = false;
 			list<list<pair<BasicBlock*, unsigned> > > removalList;
 			list<list<pair<BasicBlock*, unsigned> > > additionList;
-//			errs() << "reducing mutually exclusive paths!\n";
-			for (list<list<pair<BasicBlock*, unsigned> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++) {
-				if (*predicateChainItr != predicateChains.back()) {
-					list<list<pair<BasicBlock*, unsigned> > >::iterator secondPredicateChainItr = predicateChainItr;
-					secondPredicateChainItr++;
-					for (; secondPredicateChainItr != predicateChains.end(); secondPredicateChainItr++) {
-						if (predicateChainItr->size() == secondPredicateChainItr->size()) {
-							//Check if the predicate chains are mutually exclusive
-							if (!(predicateChainItr->front().first == secondPredicateChainItr->front().first && predicateChainItr->front().second != secondPredicateChainItr->front().second)) {
-								continue;
-							}
-							bool restOfChainMatches = true;
-							//Check if the rest of the predicate chain matches
-							list<pair<BasicBlock*, unsigned> >::iterator secondChainItr = predicateChainItr->begin();
-							for (list<pair<BasicBlock*, unsigned> >::iterator firstChainItr = predicateChainItr->begin(); firstChainItr != predicateChainItr->end() && secondChainItr != predicateChainItr->end(); firstChainItr++, secondChainItr++) {
-								if (*firstChainItr == predicateChainItr->front() && *secondChainItr == predicateChainItr->front()) {
-									continue;
-								}
-								if (!(firstChainItr->first == secondChainItr->first && firstChainItr->second == secondChainItr->second)) {
-									restOfChainMatches = false;
-									break;
-								}
-							}
 
-							if (restOfChainMatches) {
-								if (find(removalList.begin(), removalList.end(), *predicateChainItr) == removalList.end()) {
-									removalList.push_back(*predicateChainItr);
-								}
-								if (find(removalList.begin(), removalList.end(), *secondPredicateChainItr) == removalList.end()) {
-									removalList.push_back(*secondPredicateChainItr);
-								}
-
-								//Create a new predicate chain that is one short of the chains in consideration
-								list<pair<BasicBlock*, unsigned> > prefixPredicate = *predicateChainItr;
-								prefixPredicate.pop_front();
-								if (find(additionList.begin(), additionList.end(), prefixPredicate) == additionList.end()) {
-									additionList.push_back(prefixPredicate);
-								}
-							}
-						}
-					}
-				}
-			}
-
-//			errs() << "current size:" << predicateChains.size() << ", removal list size:" << removalList.size() << "\n";
-
-			for (list<list<pair<BasicBlock*, unsigned> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
-				predicateChains.remove(*removalItr);
-			}
-
-			//		errs() << "size after removal:" << predicateChains.size() << "\n";
-			//
-			//		errs() << "after removal, what is in predicate chains list?";
-			//		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
-			//			errs() << "\neach chain:";
-			//			for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
-			//				errs() << printItr->second->asString() << "(";
-			//				printItr->first->getValue()->print(errs());
-			//				errs() << printItr->first->getPredicateValue() << ")->";
-			//			}
-			//		}
-
-			for (list<list<pair<BasicBlock*, unsigned> > >::iterator additionItr = additionList.begin(); additionItr != additionList.end(); additionItr++) {
-				predicateChains.push_back(*additionItr);
-			}
-			//		errs() << "size after addition:" << predicateChains.size() << "\n";
-
-			//Check if there are duplicates and remove them
-			if (!removalList.empty()) {
-				change = true;
-			}
-
-			removalList.clear();
-			//		errs() << "after addition, what is in predicate chains list?";
-			//		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
-			//			errs() << "\neach chain:";
-			//			for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
-			//				errs() << printItr->second->asString() << "(";
-			//				printItr->first->getValue()->print(errs());
-			//				errs() << printItr->first->getPredicateValue() << ")->";
-			//			}
-			//		}
-
-//			errs()<<"reducing copies of exclusive paths with size of predicate chains:"<<predicateChains.size()<<"\n";
 			int i = 0;
 			for (list<list<pair<BasicBlock*, unsigned> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++, i++) {
 				if (*predicateChainItr != predicateChains.back()) {
@@ -230,9 +147,9 @@ struct HyperOpCreationPass: public ModulePass {
 						//Check if the predicate chains are the same and mark duplicates for removal
 						bool chainMatches = true;
 						//Check if the rest of the predicate chain matches
-						list<pair<BasicBlock*, unsigned> >::iterator secondChainItr = predicateChainItr->begin();
-						for (list<pair<BasicBlock*, unsigned> >::iterator firstChainItr = predicateChainItr->begin(); firstChainItr != predicateChainItr->end() && secondChainItr != predicateChainItr->end(); firstChainItr++, secondChainItr++) {
-							if (!(firstChainItr->first == secondChainItr->first && firstChainItr->second == secondChainItr->second)) {
+						list<pair<BasicBlock*, unsigned> >::iterator secondChainItr = secondPredicateChainItr->begin();
+						for (list<pair<BasicBlock*, unsigned> >::iterator firstChainItr = predicateChainItr->begin(); firstChainItr != predicateChainItr->end() && secondChainItr != secondPredicateChainItr->end(); firstChainItr++, secondChainItr++) {
+							if (firstChainItr->first != secondChainItr->first || firstChainItr->second != secondChainItr->second) {
 								chainMatches = false;
 								break;
 							}
@@ -244,7 +161,6 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 			}
-
 			for (list<list<pair<BasicBlock*, unsigned> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
 				//Remove only the first instance of the predicate and not all instances that are equal t
 				predicateChains.remove(*removalItr);
@@ -253,8 +169,91 @@ struct HyperOpCreationPass: public ModulePass {
 			if (!removalList.empty()) {
 				change = true;
 			}
+			removalList.clear();
+
+			list<pair<BasicBlock*, unsigned> > firstLongestMatchingPred;
+			list<pair<BasicBlock*, unsigned> > secondLongestMatchingPred;
+			for (list<list<pair<BasicBlock*, unsigned> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++) {
+				if (*predicateChainItr != predicateChains.back()) {
+					list<list<pair<BasicBlock*, unsigned> > >::iterator secondPredicateChainItr = predicateChainItr;
+					secondPredicateChainItr++;
+					for (; secondPredicateChainItr != predicateChains.end(); secondPredicateChainItr++) {
+						if (predicateChainItr->size() == secondPredicateChainItr->size()) {
+							//Check if the predicate chains are mutually exclusive
+							if (!(predicateChainItr->front().first == secondPredicateChainItr->front().first && predicateChainItr->front().second != secondPredicateChainItr->front().second)) {
+								continue;
+							}
+							bool restOfChainMatches = true;
+							//Check if the rest of the predicate chain matches
+							list<pair<BasicBlock*, unsigned> >::iterator secondChainItr = secondPredicateChainItr->begin();
+							for (list<pair<BasicBlock*, unsigned> >::iterator firstChainItr = predicateChainItr->begin(); firstChainItr != predicateChainItr->end() && secondChainItr != secondPredicateChainItr->end(); firstChainItr++, secondChainItr++) {
+								if (*firstChainItr == predicateChainItr->front() && *secondChainItr == secondPredicateChainItr->front()) {
+									continue;
+								}
+								if (firstChainItr->first != secondChainItr->first || firstChainItr->second != secondChainItr->second) {
+									restOfChainMatches = false;
+									break;
+								}
+							}
+
+							if (restOfChainMatches && (firstLongestMatchingPred.empty() || firstLongestMatchingPred.size() < predicateChainItr->size())) {
+								firstLongestMatchingPred = *predicateChainItr;
+								secondLongestMatchingPred = *secondPredicateChainItr;
+							}
+						}
+					}
+				}
+			}
+
+			if (!firstLongestMatchingPred.empty() && find(removalList.begin(), removalList.end(), firstLongestMatchingPred) == removalList.end()) {
+				removalList.push_back(firstLongestMatchingPred);
+			}
+
+			if (!secondLongestMatchingPred.empty() && find(removalList.begin(), removalList.end(), secondLongestMatchingPred) == removalList.end()) {
+				removalList.push_back(secondLongestMatchingPred);
+			}
+
+			//Create a new predicate chain that is one short of the chains in consideration
+			list<pair<BasicBlock*, unsigned> > prefixPredicate = secondLongestMatchingPred;
+			if (!prefixPredicate.empty()) {
+				prefixPredicate.pop_front();
+				if (!prefixPredicate.empty() && find(additionList.begin(), additionList.end(), prefixPredicate) == additionList.end()) {
+					additionList.push_back(prefixPredicate);
+				}
+			}
+
+			for (list<list<pair<BasicBlock*, unsigned> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
+				predicateChains.remove(*removalItr);
+			}
+
+			//		errs() << "after removal, what is in predicate chains list?";
+			//		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
+			//			errs() << "\neach chain:";
+			//			for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
+			//				errs() << printItr->second->asString() << "(";
+			//				printItr->first->getValue()->print(errs());
+			//				errs() << printItr->first->getPredicateValue() << ")->";
+			//			}
+			//		}
+
+			for (list<list<pair<BasicBlock*, unsigned> > >::iterator additionItr = additionList.begin(); additionItr != additionList.end(); additionItr++) {
+				predicateChains.push_back(*additionItr);
+			}
+			//Check if there are duplicates and remove them
+			if (!removalList.empty()) {
+				change = true;
+			}
 		}
 
+		errs() << "finally, what is in predicate chains list?";
+		for (list<list<pair<BasicBlock*, unsigned> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
+			errs() << "\neach chain:";
+			for (list<pair<BasicBlock*, unsigned> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
+				errs() << printItr->first->getName() << "(" << printItr->first->getParent()->getName()<<","<<printItr->second << ")" << "->";
+			}
+		}
+
+		errs()<<"\n";
 		return predicateChains;
 	}
 
@@ -1410,7 +1409,7 @@ struct HyperOpCreationPass: public ModulePass {
 								conditionalBranchSources.insert(make_pair(terminator, successorBBList));
 							} else {
 								errs() << "finding reaching predicates to " << originalBB->getName() << " of function " << originalBB->getParent()->getName() << ":";
-								list<list<pair<BasicBlock*, unsigned> > > reachingPred = reachingPredicateChain(originalBB);
+								list<list<pair<BasicBlock*, unsigned> > > reachingPred = reachingPredicateChain(originalBB, newlyAcquiredBBList);
 								for (list<list<pair<BasicBlock*, unsigned> > >::iterator reachingPredItr = reachingPred.begin(); reachingPredItr != reachingPred.end(); reachingPredItr++) {
 									errs() << "\nreaching pred chain :";
 									for (list<pair<BasicBlock*, unsigned> >::iterator predItr = reachingPredItr->begin(); predItr != reachingPredItr->end(); predItr++) {

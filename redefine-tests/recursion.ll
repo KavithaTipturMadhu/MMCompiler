@@ -35,7 +35,7 @@ return:                                           ; preds = %if.else, %if.then
 ; Function Attrs: nounwind
 define void @redefine_start() #0 {
 entry:
-  %call = call i32 @factorial(i32 2)
+  %call = call i32 @factorial(i32 4)
   store i32 %call, i32* @redefine_out_val, align 4
   ret void
 }
