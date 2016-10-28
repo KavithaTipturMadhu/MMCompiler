@@ -20,11 +20,11 @@ def FeatureCECount4 : SubtargetFeature<"has4ce", "CECount", "4",
                                 "Supports 4 CEs per CR, default is 1">;
 def FeatureFabricMDim4 : SubtargetFeature<"has4rows", "M", "4",
                                 "Supports 4 CRs along each row, default is 1">;      
-def FeatureFabricNDim4 : SubtargetFeature<"has4cols", "N", "4",
+def FeatureFabricNDim4 : SubtargetFeature<"has4columns", "N", "4",
                                 "Supports 4 columns of CRs, default is 1">;        
 def FeatureFabricMDim3 : SubtargetFeature<"has3rows", "M", "3",
                                 "Supports 3 CRs along each row, default is 1">;      
-def FeatureFabricNDim3 : SubtargetFeature<"has3cols", "N", "3",
+def FeatureFabricNDim3 : SubtargetFeature<"has3columns", "N", "3",
                                 "Supports 3 columns of CRs, default is 1">;        
 
                                 

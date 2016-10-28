@@ -197,7 +197,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 //			if (!hyperOp->isStaticHyperOp()) {
 //				continue;
 //			}
-			int mappedToX = hyperOp->getTargetResource() / fabricRowCount;
+			int mappedToX = hyperOp->getTargetResource() / fabricColumnCount;
 			int mappedToY = hyperOp->getTargetResource() % fabricColumnCount;
 			if (mappedToX > maxXInTopology) {
 				maxXInTopology = mappedToX;
@@ -213,6 +213,8 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 				minYInTopology = mappedToY;
 			}
 		}
+		errs()<<"max x:"<<maxXInTopology<<", min x:"<<minXInTopology<<"\n";
+		errs()<<"max y:"<<maxYInTopology<<", min y:"<<minYInTopology<<"\n";
 
 		long int maxGlobalSize = 0;
 		for (Module::const_global_iterator globalArgItr = MF->getFunction()->getParent()->global_begin(); globalArgItr != MF->getFunction()->getParent()->global_end(); globalArgItr++) {

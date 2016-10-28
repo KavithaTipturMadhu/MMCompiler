@@ -558,7 +558,7 @@ HyperOpInteractionGraph::HyperOpInteractionGraph() {
 HyperOpInteractionGraph::~HyperOpInteractionGraph() {
 }
 
-void HyperOpInteractionGraph::setDimensions(unsigned int columnCount, unsigned int rowCount) {
+void HyperOpInteractionGraph::setDimensions(unsigned int rowCount, unsigned int columnCount) {
 	this->rowCount = rowCount;
 	this->columnCount = columnCount;
 }
@@ -1373,6 +1373,7 @@ void printDS(list<HyperOp*> dominantSequence) {
 }
 
 void HyperOpInteractionGraph::clusterNodes() {
+	errs() << "rowcount:" << this->rowCount << " and column count:" << columnCount << "\n";
 	list<pair<list<HyperOp*>, unsigned int> > computeClusterList;
 	HyperOp* startHyperOp;
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
@@ -1608,6 +1609,8 @@ void HyperOpInteractionGraph::clusterNodes() {
 //		printDS(dominantSequence);
 	}
 
+	errs() << "before merging, num of clusters:" << computeClusterList.size() << "\n";
+//TODO uncomment the following
 	//Merge clusters till the number of compute resources matches the number of clusters created
 	while (computeClusterList.size() > (this->rowCount * this->columnCount)) {
 		//Find all pairs of clusters and merge the one that leads to the least execution time
@@ -1627,10 +1630,9 @@ void HyperOpInteractionGraph::clusterNodes() {
 				targetClusterItr++;
 				for (; targetClusterItr != computeClusterList.end(); targetClusterItr++) {
 					pair<list<unsigned int>, list<pair<list<HyperOp*>, unsigned int> > > returnValue = mergeNodesAndReturnExecutionTime(startHyperOp, *sourceClusterItr, *targetClusterItr, computeClusterList, true);
-					errs()<<"attempting a merge\n";
+//					errs()<<"attempting a merge\n";
 					list<unsigned int> newExecutionTime = returnValue.first;
 					if (first || compareHierarchicalVolume(minimumExecutionTime, newExecutionTime) >= 0) {
-						errs()<<"merged\n";
 						minimumExecutionTime = newExecutionTime;
 						sourceClusterPair = *sourceClusterItr;
 						sourceCluster = sourceClusterPair.first;
@@ -1642,9 +1644,9 @@ void HyperOpInteractionGraph::clusterNodes() {
 			}
 		}
 
+		errs()<<"merged clusters:"<<computeClusterList.size()<<"\n";
 		pair<list<unsigned int>, list<pair<list<HyperOp*>, unsigned int> > > returnValue = mergeNodesAndReturnExecutionTime(startHyperOp, sourceClusterPair, targetClusterPair, computeClusterList, false);
 		computeClusterList = returnValue.second;
-		errs() << "merging clusters " << computeClusterList.size() << "\n";
 	}
 
 	errs()<<"whats in each cluster?\n";
@@ -1656,6 +1658,19 @@ void HyperOpInteractionGraph::clusterNodes() {
 		}
 		errs()<<"\n";
 	}
+
+//	//TODO: temp fix since the previous snippet is taking forever
+//	unsigned distributionIntoCR = 0;
+//	unsigned numberOfResources = this->rowCount * this->columnCount;
+//	for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterItr = computeClusterList.begin(); clusterItr != computeClusterList.end(); clusterItr++) {
+//		clusterList.push_back(clusterItr->first);
+//		errs() << "each cluster:\n";
+//		for (list<HyperOp*>::iterator printItr = clusterItr->first.begin(); printItr != clusterItr->first.end(); printItr++) {
+//			errs() << (*printItr)->asString() << ",";
+//		}
+//		distributionIntoCR = (distributionIntoCR + 1) % numberOfResources;
+//		errs() << "\n";
+//	}
 
 }
 
@@ -1721,6 +1736,8 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 		}
 	}
 
+	errs() << "num of clusters:" << clusterList.size() << "\n";
+
 //A conflict between edges is defined as edges that execute concurrently across clusters and don't share the same source or target cluster
 //	list<pair<pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> > > conflictingEdges;
 //	for (list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > >::iterator edgeItr = communicationMap.begin(); edgeItr != communicationMap.end(); edgeItr++) {
@@ -1741,8 +1758,8 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 
 //Create the linear programming problem
 	int Ncol = clusterList.size() * 2;
-	int maxDimM = columnCount;
-	int maxDimN = rowCount;
+	int maxDimM = rowCount;
+	int maxDimN = columnCount;
 	int ret = 0;
 	int combinationVariables = 4 * combination(clusterList.size(), 2);
 
@@ -1775,6 +1792,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 
 	colno = (int *) malloc(5 * sizeof(*colno));
 	row = (REAL *) malloc(5 * sizeof(*row));
+	unsigned numRows = 0;
 //This is to ensure that two clusters don't get mapped to the same compute resource
 	for (i = 1; i <= Ncol - 2; i += 2) {
 		for (j = i + 2; j <= Ncol; j += 2) {
@@ -1788,6 +1806,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 			colno[3] = addedVariableIndex + 1;
 			row[3] = -1;
 			add_constraintex(lp, 4, row, colno, GE, 0);
+			numRows++;
 
 			colno[0] = i;
 			row[0] = 1;
@@ -1800,6 +1819,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 			add_constraintex(lp, 4, row, colno, LE, maxDimM + 1);
 			set_binary(lp, addedVariableIndex, 1);
 			set_lowbo(lp, addedVariableIndex + 1, 0);
+			numRows++;
 
 			addedVariableIndex = addedVariableIndex + 2;
 			//Add boolean constraints for |y1-y2|>=d2
@@ -1812,6 +1832,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 			colno[3] = addedVariableIndex + 1;
 			row[3] = -1;
 			add_constraintex(lp, 4, row, colno, GE, 0);
+			numRows++;
 
 			colno[0] = i + 1;
 			row[0] = 1;
@@ -1824,6 +1845,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 			add_constraintex(lp, 4, row, colno, LE, maxDimN + 1);
 			set_binary(lp, addedVariableIndex, 1);
 			set_lowbo(lp, addedVariableIndex + 1, 0);
+			numRows++;
 
 			//Add a constraint to ensure that the added variables sum up to >=1
 			colno[0] = addedVariableIndex - 1;
@@ -1832,6 +1854,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 			row[1] = 1;
 			add_constraintex(lp, 2, row, colno, GE, 1);
 			addedVariableIndex = addedVariableIndex + 2;
+			numRows++;
 		}
 	}
 
@@ -1857,6 +1880,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 		colno[2] = addedVariableIndex;
 		row[2] = -1;
 		add_constraintex(lp, 3, row, colno, LE, 0);
+		numRows++;
 
 		colno[0] = sourcex;
 		row[0] = -1;
@@ -1865,6 +1889,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 		colno[2] = addedVariableIndex;
 		row[2] = -1;
 		add_constraintex(lp, 3, row, colno, LE, 0);
+		numRows++;
 
 		set_int(lp, addedVariableIndex, 1);
 		set_lowbo(lp, addedVariableIndex, 0);
@@ -1882,6 +1907,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 		colno[2] = addedVariableIndex + 1;
 		row[2] = -1;
 		add_constraintex(lp, 3, row, colno, LE, 0);
+		numRows++;
 
 		colno[0] = sourcey;
 		row[0] = -1;
@@ -1890,6 +1916,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 		colno[2] = addedVariableIndex + 1;
 		row[2] = -1;
 		add_constraintex(lp, 3, row, colno, LE, 0);
+		numRows++;
 
 		//Associate weightage
 		minimizationColumn[j] = addedVariableIndex + 1;
@@ -2014,7 +2041,8 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 	set_obj_fnex(lp, diffVariableCount, minimizationRow, minimizationColumn);
 	set_minim(lp);
 	set_verbose(lp, IMPORTANT);
-//	print_lp(lp);
+	errs() << "num constraints:" << numRows << "\n";
+	print_lp(lp);
 	ret = solve(lp);
 	if (ret == OPTIMAL)
 		ret = 0;
@@ -2038,7 +2066,6 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 	if (lp != NULL) {
 		delete_lp(lp);
 	}
-
 }
 
 //void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrames) {
@@ -2585,7 +2612,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 				unsigned decByValue = 0;
 				//Count number of inputs coming from other parent nodes which are also predicated by the same HyperOp
 				for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
-					if ((parentItr->first->getType() == HyperOpEdge::SCALAR||parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) && parentItr->second != immediateDominator && pathExistsInHIG(parentProducingPredicate, parentItr->second)) {
+					if ((parentItr->first->getType() == HyperOpEdge::SCALAR || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) && parentItr->second != immediateDominator && pathExistsInHIG(parentProducingPredicate, parentItr->second)) {
 						decByValue++;
 					}
 				}
