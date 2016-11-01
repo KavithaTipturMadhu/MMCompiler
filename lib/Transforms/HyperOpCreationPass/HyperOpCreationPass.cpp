@@ -23,6 +23,7 @@ using namespace std;
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Transforms/IPO/InlinerPass.h"
+//#include "llvm/Analysis/Dominators.h"
 //#include "llvm/Analysis/CallGraphSCCPass.h";
 using namespace llvm;
 
@@ -61,6 +62,8 @@ struct HyperOpCreationPass: public ModulePass {
 		AU.addRequired<UnifyFunctionExitNodes>();
 		AU.addRequired<DependenceAnalysis>();
 		AU.addRequired<AliasAnalysis>();
+//		AU.addRequired<DominatorTree>();
+		AU.addRequired<LoopInfo>();
 	}
 
 	bool pathExistsInCFG(BasicBlock* source, BasicBlock* target, list<BasicBlock*> visitedBasicBlocks) {
@@ -108,6 +111,7 @@ struct HyperOpCreationPass: public ModulePass {
 			if (predecessor->getParent() == targetBB->getParent() || find(acquiredBasicBlocks.begin(), acquiredBasicBlocks.end(), predecessor) != acquiredBasicBlocks.end()) {
 				for (unsigned i = 0; i < predecessor->getTerminator()->getNumSuccessors(); i++) {
 					if (predecessor->getTerminator()->getSuccessor(i) == targetBB) {
+						errs() << "inspecting parent " << predecessor->getName() << "\n";
 						list<list<pair<BasicBlock*, unsigned> > > predicateToPredecessor = reachingPredicateChain(predecessor, acquiredBasicBlocks);
 						if (predicateToPredecessor.empty() && predecessor->getTerminator()->getNumSuccessors() > 1) {
 							list<pair<BasicBlock*, unsigned> > predicateChainToPredecessor;
@@ -127,6 +131,7 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 		}
 
+		errs() << "whats the problem?";
 		bool change = true;
 		//Reduce the predicates to match mutually exclusive paths and identify the longest predicate
 		while (change) {
@@ -249,11 +254,11 @@ struct HyperOpCreationPass: public ModulePass {
 		for (list<list<pair<BasicBlock*, unsigned> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
 			errs() << "\neach chain:";
 			for (list<pair<BasicBlock*, unsigned> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
-				errs() << printItr->first->getName() << "(" << printItr->first->getParent()->getName()<<","<<printItr->second << ")" << "->";
+				errs() << printItr->first->getName() << "(" << printItr->first->getParent()->getName() << "," << printItr->second << ")" << "->";
 			}
 		}
 
-		errs()<<"\n";
+		errs() << "\n";
 		return predicateChains;
 	}
 
@@ -687,6 +692,11 @@ struct HyperOpCreationPass: public ModulePass {
 	}
 
 	virtual bool runOnModule(Module &M) {
+//		for (auto func = M.begin(); func != M.end(); func++) {
+//			errs() << "loops in func:" << func->getName() << "\n";
+//			LoopInfo& LI = getAnalysis<LoopInfo>(*func);
+//			LI.dump();
+//		}
 		LLVMContext & ctxt = M.getContext();
 		//Top level annotation corresponding to all annotations REDEFINE
 		NamedMDNode * redefineAnnotationsNode = M.getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
@@ -1142,6 +1152,8 @@ struct HyperOpCreationPass: public ModulePass {
 			originalFunctionToHyperOpBBListMap[function] = hyperOpBBAndArgs;
 		}
 
+		errs() << "before creating hops, whats in module:";
+		M.dump();
 		//Done partitioning basic blocks of all functions into multiple HyperOps
 		DEBUG(dbgs() << "-----------Creating HyperOps from partitioned functions-----------\n");
 		list<pair<pair<list<BasicBlock*>, HyperOpArgumentList>, list<CallInst*> > > traversalList;
@@ -2794,5 +2806,11 @@ private:
 }
 ;
 char HyperOpCreationPass::ID = 2;
+//INITIALIZE_PASS_BEGIN(Foo, "foo", "foo bar", true, true)
+//INITIALIZE_PASS_DEPENDENCY(LoopInfo)
+//INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+//INITIALIZE_PASS_END(Foo, "foo", "foo bar", true, true)
+
+
 char* HyperOpCreationPass::NEW_NAME = "newName";
 static RegisterPass<HyperOpCreationPass> X("HyperOpCreationPass", "Pass to create HyperOps");
