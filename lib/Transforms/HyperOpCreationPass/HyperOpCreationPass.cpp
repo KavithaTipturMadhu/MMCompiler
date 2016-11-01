@@ -63,7 +63,7 @@ struct HyperOpCreationPass: public ModulePass {
 		AU.addRequired<DependenceAnalysis>();
 		AU.addRequired<AliasAnalysis>();
 //		AU.addRequired<DominatorTree>();
-		AU.addRequired<LoopInfo>();
+//		AU.addRequired<LoopInfo>();
 	}
 
 	bool pathExistsInCFG(BasicBlock* source, BasicBlock* target, list<BasicBlock*> visitedBasicBlocks) {
