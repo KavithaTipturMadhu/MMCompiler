@@ -19,11 +19,11 @@ using namespace std;
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
 #include "llvm/Analysis/DependenceAnalysis.h"
+#include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Transforms/IPO/InlinerPass.h"
-//#include "llvm/Analysis/Dominators.h"
 //#include "llvm/Analysis/CallGraphSCCPass.h";
 using namespace llvm;
 
