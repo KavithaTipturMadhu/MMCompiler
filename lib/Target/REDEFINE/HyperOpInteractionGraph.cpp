@@ -1610,51 +1610,66 @@ void HyperOpInteractionGraph::clusterNodes() {
 	}
 
 	errs() << "before merging, num of clusters:" << computeClusterList.size() << "\n";
+
 //TODO uncomment the following
 	//Merge clusters till the number of compute resources matches the number of clusters created
-	while (computeClusterList.size() > (this->rowCount * this->columnCount)) {
-		//Find all pairs of clusters and merge the one that leads to the least execution time
-		//This is expensive but still cheaper when operating on clusters since the number of clusters is way smaller than the number of nodes in the original graph
-		pair<list<HyperOp*>, unsigned int> sourceClusterPair;
-		pair<list<HyperOp*>, unsigned int> targetClusterPair;
-		list<HyperOp*> sourceCluster;
-		list<HyperOp*> targetCluster;
-		list<pair<list<HyperOp*>, unsigned int> > tempClusterList;
+//	while (computeClusterList.size() > (this->rowCount * this->columnCount)) {
+//		//Find all pairs of clusters and merge the one that leads to the least execution time
+//		//This is expensive but still cheaper when operating on clusters since the number of clusters is way smaller than the number of nodes in the original graph
+//		pair<list<HyperOp*>, unsigned int> sourceClusterPair;
+//		pair<list<HyperOp*>, unsigned int> targetClusterPair;
+//		list<HyperOp*> sourceCluster;
+//		list<HyperOp*> targetCluster;
+//		list<pair<list<HyperOp*>, unsigned int> > tempClusterList;
+//
+//		list<unsigned int> minimumExecutionTime;
+//		bool first = true;
+//		for (list<pair<list<HyperOp*>, unsigned int> >::iterator sourceClusterItr = computeClusterList.begin(); sourceClusterItr != computeClusterList.end(); sourceClusterItr++) {
+//			if (*sourceClusterItr != computeClusterList.back()) {
+//				list<HyperOp*> sourceCluster = sourceClusterItr->first;
+//				list<pair<list<HyperOp*>, unsigned int> >::iterator targetClusterItr = sourceClusterItr;
+//				targetClusterItr++;
+//				for (; targetClusterItr != computeClusterList.end(); targetClusterItr++) {
+//					pair<list<unsigned int>, list<pair<list<HyperOp*>, unsigned int> > > returnValue = mergeNodesAndReturnExecutionTime(startHyperOp, *sourceClusterItr, *targetClusterItr, computeClusterList, true);
+////					errs()<<"attempting a merge\n";
+//					list<unsigned int> newExecutionTime = returnValue.first;
+//					if (first || compareHierarchicalVolume(minimumExecutionTime, newExecutionTime) >= 0) {
+//						minimumExecutionTime = newExecutionTime;
+//						sourceClusterPair = *sourceClusterItr;
+//						sourceCluster = sourceClusterPair.first;
+//						targetClusterPair = *targetClusterItr;
+//						targetCluster = targetClusterPair.first;
+//						first = false;
+//					}
+//				}
+//			}
+//		}
+//
+//		errs()<<"merged clusters:"<<computeClusterList.size()<<"\n";
+//		pair<list<unsigned int>, list<pair<list<HyperOp*>, unsigned int> > > returnValue = mergeNodesAndReturnExecutionTime(startHyperOp, sourceClusterPair, targetClusterPair, computeClusterList, false);
+//		computeClusterList = returnValue.second;
+//	}
 
-		list<unsigned int> minimumExecutionTime;
-		bool first = true;
-		for (list<pair<list<HyperOp*>, unsigned int> >::iterator sourceClusterItr = computeClusterList.begin(); sourceClusterItr != computeClusterList.end(); sourceClusterItr++) {
-			if (*sourceClusterItr != computeClusterList.back()) {
-				list<HyperOp*> sourceCluster = sourceClusterItr->first;
-				list<pair<list<HyperOp*>, unsigned int> >::iterator targetClusterItr = sourceClusterItr;
-				targetClusterItr++;
-				for (; targetClusterItr != computeClusterList.end(); targetClusterItr++) {
-					pair<list<unsigned int>, list<pair<list<HyperOp*>, unsigned int> > > returnValue = mergeNodesAndReturnExecutionTime(startHyperOp, *sourceClusterItr, *targetClusterItr, computeClusterList, true);
-//					errs()<<"attempting a merge\n";
-					list<unsigned int> newExecutionTime = returnValue.first;
-					if (first || compareHierarchicalVolume(minimumExecutionTime, newExecutionTime) >= 0) {
-						minimumExecutionTime = newExecutionTime;
-						sourceClusterPair = *sourceClusterItr;
-						sourceCluster = sourceClusterPair.first;
-						targetClusterPair = *targetClusterItr;
-						targetCluster = targetClusterPair.first;
-						first = false;
-					}
-				}
-			}
+	map<unsigned, list<HyperOp*> > roundRobinClusterDist;
+//	roundRobinClusterDist.reserve(this->rowCount*this->columnCount);
+	unsigned crId=0;
+	for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterItr = computeClusterList.begin(); clusterItr != computeClusterList.end(); clusterItr++) {
+		if(roundRobinClusterDist.find(crId)==roundRobinClusterDist.end()){
+			list<HyperOp*> newList;
+			roundRobinClusterDist.insert(make_pair(crId, newList));
 		}
-
-		errs()<<"merged clusters:"<<computeClusterList.size()<<"\n";
-		pair<list<unsigned int>, list<pair<list<HyperOp*>, unsigned int> > > returnValue = mergeNodesAndReturnExecutionTime(startHyperOp, sourceClusterPair, targetClusterPair, computeClusterList, false);
-		computeClusterList = returnValue.second;
+		for(list<HyperOp*>::iterator printItr = clusterItr->first.begin();printItr!=clusterItr->first.end();printItr++){
+			roundRobinClusterDist[crId].push_back(*printItr);
+		}
+		crId = (crId+1)%(this->rowCount*this->columnCount);
 	}
 
-	errs()<<"whats in each cluster?\n";
-	for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterItr = computeClusterList.begin(); clusterItr != computeClusterList.end(); clusterItr++) {
-		clusterList.push_back(clusterItr->first);
+	for (map<unsigned, list<HyperOp*> >::iterator clusterItr = roundRobinClusterDist.begin(); clusterItr != roundRobinClusterDist.end(); clusterItr++) {
+		clusterList.push_back(clusterItr->second);
 		errs()<<"each cluster:\n";
-		for(list<HyperOp*>::iterator printItr = clusterItr->first.begin();printItr!=clusterItr->first.end();printItr++){
+		for(list<HyperOp*>::iterator printItr = clusterItr->second.begin();printItr!= clusterItr->second.end();printItr++){
 			errs()<<(*printItr)->asString()<<",";
+//			clusterList.push_back()
 		}
 		errs()<<"\n";
 	}

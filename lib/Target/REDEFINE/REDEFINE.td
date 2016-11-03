@@ -25,7 +25,12 @@ def FeatureFabricNDim4 : SubtargetFeature<"has4columns", "N", "4",
 def FeatureFabricMDim3 : SubtargetFeature<"has3rows", "M", "3",
                                 "Supports 3 CRs along each row, default is 1">;      
 def FeatureFabricNDim3 : SubtargetFeature<"has3columns", "N", "3",
-                                "Supports 3 columns of CRs, default is 1">;        
+                                "Supports 3 columns of CRs, default is 1">;    
+                                
+def FeatureFabricMDim2 : SubtargetFeature<"has2rows", "M", "2",
+                                "Supports 2 CRs along each row, default is 1">;      
+def FeatureFabricNDim2 : SubtargetFeature<"has2columns", "N", "2",
+                                "Supports 2 columns of CRs, default is 1">;       
 
                                 
 class Proc<string Name, list<SubtargetFeature> Features>
