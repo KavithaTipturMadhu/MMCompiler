@@ -19,11 +19,12 @@ using namespace std;
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
 #include "llvm/Analysis/DependenceAnalysis.h"
-#include "llvm/Analysis/Dominators.h"
-#include "llvm/Analysis/LoopInfo.h"
+//#include "llvm/Analysis/Dominators.h"
+//#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Transforms/IPO/InlinerPass.h"
+//#include "llvm/PassSupport.h"
 //#include "llvm/Analysis/CallGraphSCCPass.h";
 using namespace llvm;
 
@@ -111,7 +112,6 @@ struct HyperOpCreationPass: public ModulePass {
 			if (predecessor->getParent() == targetBB->getParent() || find(acquiredBasicBlocks.begin(), acquiredBasicBlocks.end(), predecessor) != acquiredBasicBlocks.end()) {
 				for (unsigned i = 0; i < predecessor->getTerminator()->getNumSuccessors(); i++) {
 					if (predecessor->getTerminator()->getSuccessor(i) == targetBB) {
-						errs() << "inspecting parent " << predecessor->getName() << "\n";
 						list<list<pair<BasicBlock*, unsigned> > > predicateToPredecessor = reachingPredicateChain(predecessor, acquiredBasicBlocks);
 						if (predicateToPredecessor.empty() && predecessor->getTerminator()->getNumSuccessors() > 1) {
 							list<pair<BasicBlock*, unsigned> > predicateChainToPredecessor;
@@ -131,7 +131,6 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 		}
 
-		errs() << "whats the problem?";
 		bool change = true;
 		//Reduce the predicates to match mutually exclusive paths and identify the longest predicate
 		while (change) {
@@ -1855,7 +1854,9 @@ struct HyperOpCreationPass: public ModulePass {
 								list<CallInst*> callChain = *callChainListItr;
 								//Find the function corresponding to the callChain
 								Instruction* clonedInstInstance = getClonedArgument(clonedReachingDefItr->second, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
-								clonedInstructionsToBeLabeled.push_back(clonedInstInstance);
+								if (find(clonedInstructionsToBeLabeled.begin(), clonedInstructionsToBeLabeled.end(), clonedInstInstance) == clonedInstructionsToBeLabeled.end()) {
+									clonedInstructionsToBeLabeled.push_back(clonedInstInstance);
+								}
 							}
 
 						}
@@ -2027,9 +2028,10 @@ struct HyperOpCreationPass: public ModulePass {
 								for (list<list<CallInst*> >::iterator callChainListItr = callChainList.begin(); callChainListItr != callChainList.end(); callChainListItr++) {
 									list<CallInst*> callChain = *callChainListItr;
 									//Find the function corresponding to the callChain
-									//Find the function corresponding to the callChain
 									Instruction* clonedInstInstance = getClonedArgument(reachingDefInstr, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
-									clonedInstructionsToBeLabeled.push_back(clonedInstInstance);
+									if (find(clonedInstructionsToBeLabeled.begin(), clonedInstructionsToBeLabeled.end(), clonedInstInstance) == clonedInstructionsToBeLabeled.end()) {
+										clonedInstructionsToBeLabeled.push_back(clonedInstInstance);
+									}
 								}
 
 							}
@@ -2226,11 +2228,15 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
+					list<Value*> clonedInstInstanceCache;
 					for (list<list<CallInst*> >::iterator callChainListItr = callChainList.begin(); callChainListItr != callChainList.end(); callChainListItr++) {
 						list<CallInst*> callChain = *callChainListItr;
 						Value* clonedPredicateOperand = getClonedArgument(predicateOperand, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
 						Instruction* clonedInstInstance = getClonedArgument(conditionalBranchInst, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
-						clonedInstructionsToBeLabeled.push_back(make_pair(clonedInstInstance, clonedPredicateOperand));
+						if (find(clonedInstInstanceCache.begin(), clonedInstInstanceCache.end(), clonedInstInstance) == clonedInstInstanceCache.end()) {
+							clonedInstructionsToBeLabeled.push_back(make_pair(clonedInstInstance, clonedPredicateOperand));
+							clonedInstInstanceCache.push_back(clonedInstInstance);
+						}
 					}
 				}
 
@@ -2806,11 +2812,10 @@ private:
 }
 ;
 char HyperOpCreationPass::ID = 2;
-//INITIALIZE_PASS_BEGIN(Foo, "foo", "foo bar", true, true)
+//INITIALIZE_PASS_BEGIN(HyperOpCreationPass, "HyperOpCreationPass", "Pass to create HyperOps", false, false)
 //INITIALIZE_PASS_DEPENDENCY(LoopInfo)
 //INITIALIZE_PASS_DEPENDENCY(DominatorTree)
-//INITIALIZE_PASS_END(Foo, "foo", "foo bar", true, true)
-
-
+//INITIALIZE_PASS_END(HyperOpCreationPass, "HyperOpCreationPass", "Pass to create HyperOps", false, false)
+//
 char* HyperOpCreationPass::NEW_NAME = "newName";
 static RegisterPass<HyperOpCreationPass> X("HyperOpCreationPass", "Pass to create HyperOps");
