@@ -1316,7 +1316,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 	map<HyperOp*, unsigned> regContainingMemFrameBaseAddress;
 
-	DEBUG(dbgs() << "Adding falloc, writecm(for sync instructions) and fbind instructions\n");
+	DEBUG(dbgs() << "Adding falloc first to avoid stalls due to sequential fallocs and fbinds\n");
 	map<HyperOp*, pair<unsigned, unsigned> > registerContainingHyperOpFrameAddressAndCEWithFalloc;
 	unsigned currentCE = 0;
 	for (list<HyperOp*>::iterator childHyperOpItr = graph->Vertices.begin(); childHyperOpItr != graph->Vertices.end(); childHyperOpItr++) {
@@ -1346,9 +1346,19 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 					registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(*childHyperOpItr, make_pair(registerContainingConsumerFrameAddr, currentCE)));
 				}
+
+				currentCE = (currentCE + 1) % ceCount;
 			}
+		}
+	}
+
+	DEBUG(dbgs() << "Adding writecm(for sync instructions) and fbind instructions\n");
+	for (list<HyperOp*>::iterator childHyperOpItr = graph->Vertices.begin(); childHyperOpItr != graph->Vertices.end(); childHyperOpItr++) {
+		//Among the HyperOps immediately dominated by the hyperOp, add fbind for those HyperOps that require it
+		if ((*childHyperOpItr)->getImmediateDominator() == hyperOp) {
 			if (!(*childHyperOpItr)->isStaticHyperOp()) {
 				unsigned registerContainingConsumerFrameAddr = registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr)->second.first;
+				unsigned ceContainingFalloc = registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr)->second.second;
 				int hyperOpId = (*childHyperOpItr)->getHyperOpId();
 				//Fbind instruction added to the immediate dominator of the HyperOp
 				MachineInstrBuilder fbind = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FBIND));
@@ -1358,12 +1368,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				hyperOpIDString.append(itostr(hyperOpId));
 				MCSymbol* symbol = fbind.operator ->()->getParent()->getParent()->getContext().GetOrCreateSymbol(StringRef(hyperOpIDString));
 				fbind.addSym(symbol);
-				if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
-					firstInstructionOfpHyperOpInRegion[currentCE] = fbind.operator llvm::MachineInstr *();
-				}
-				allInstructionsOfRegion.push_back(make_pair(fbind.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+				allInstructionsOfRegion.push_back(make_pair(fbind.operator llvm::MachineInstr *(), make_pair(ceContainingFalloc, insertPosition++)));
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(fbind.operator llvm::MachineInstr *());
-				currentCE = (currentCE + 1) % ceCount;
 			}
 			if ((*childHyperOpItr)->isBarrierHyperOp()) {
 				unsigned registerContainingConsumerFrameAddr = registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr)->second.first;
@@ -2189,9 +2195,9 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							LIS->computeLiveInRegUnits();
 						} else {
 							registerContainingConsumerBase = MF.getRegInfo().getLiveInVirtReg(physicalReg);
-							errs()<<"phys reg was added as livein before\n";
+							errs() << "phys reg was added as livein before\n";
 						}
-						errs()<<"whats target ce?"<<targetCE<<"\n";
+						errs() << "whats target ce?" << targetCE << "\n";
 						if (targetCE != 0) {
 							//Add writepm-dreadpm pair
 							unsigned sourceCEContainingFrameAddress = 0;
@@ -2266,7 +2272,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			} else if (registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].second != targetCE) {
 //					&& (consumer->isStaticHyperOp() || consumer->getImmediateDominator() == hyperOp)) {
 				unsigned sourceCEContainingFrameAddress = registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].second;
-				errs()<<"I came here with register containing frame address instruction in  "<<sourceCEContainingFrameAddress<<"\n";
+				errs() << "I came here with register containing frame address instruction in  " << sourceCEContainingFrameAddress << "\n";
 				//Load the base scratchpad address to a register in the producer CE for the first time
 				if (registerContainingBaseAddress[sourceCEContainingFrameAddress][targetCE] == -1) {
 					MachineInstrBuilder sourceLui = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::LUI));

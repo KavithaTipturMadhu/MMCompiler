@@ -110,6 +110,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					hyperOp->setInstanceId(parseInstanceId(instanceTag));
 				}
 				graph->addHyperOp(hyperOp);
+				errs()<<"new hyop#"<<hyperOp->getHyperOpId()<<":"<<hyperOp->asString()<<"\n";
 				hyperOpMetadataMap.insert(std::make_pair(hyperOpMDNode, hyperOp));
 				functionMetadataMap.insert(std::make_pair(function, hyperOpMDNode));
 			}
