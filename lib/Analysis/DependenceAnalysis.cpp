@@ -179,7 +179,7 @@ void dumpExampleDependence(raw_ostream &OS, Function *F,
 
 
 void DependenceAnalysis::print(raw_ostream &OS, const Module*) const {
-  dumpExampleDependence(OS, F, const_cast<DependenceAnalysis *>(this));
+  dumpExampleDependence(errs(), F, const_cast<DependenceAnalysis *>(this));
 }
 
 //===----------------------------------------------------------------------===//
@@ -3211,6 +3211,7 @@ Dependence *DependenceAnalysis::depends(Instruction *Src,
     return new Dependence(Src, Dst);
   }
 
+
   Value *SrcPtr = getPointerOperand(Src);
   Value *DstPtr = getPointerOperand(Dst);
 
@@ -3219,6 +3220,7 @@ Dependence *DependenceAnalysis::depends(Instruction *Src,
   case AliasAnalysis::PartialAlias:
     // cannot analyse objects if we don't understand their aliasing.
     DEBUG(dbgs() << "can't analyze may or partial alias\n");
+    errs()<<"have we returned with partial analysis?\n";
     return new Dependence(Src, Dst);
   case AliasAnalysis::NoAlias:
     // If the objects noalias, they are distinct, accesses are independent.

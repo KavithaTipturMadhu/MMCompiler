@@ -20,8 +20,8 @@ using namespace std;
 #include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
 #include "llvm/Analysis/DependenceAnalysis.h"
 //#include "llvm/Analysis/Dominators.h"
-//#include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/LoopInfo.h"
+//#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Transforms/IPO/InlinerPass.h"
 //#include "llvm/PassSupport.h"
@@ -62,8 +62,9 @@ struct HyperOpCreationPass: public ModulePass {
 		//Mandatory merge return to be invoked on each function
 		AU.addRequired<UnifyFunctionExitNodes>();
 		AU.addRequired<DependenceAnalysis>();
-		AU.addRequired<AliasAnalysis>();
+
 //		AU.addRequired<DominatorTree>();
+//		AU.addRequired<AliasAnalysis>();
 //		AU.addRequired<LoopInfo>();
 	}
 
@@ -691,11 +692,6 @@ struct HyperOpCreationPass: public ModulePass {
 	}
 
 	virtual bool runOnModule(Module &M) {
-//		for (auto func = M.begin(); func != M.end(); func++) {
-//			errs() << "loops in func:" << func->getName() << "\n";
-//			LoopInfo& LI = getAnalysis<LoopInfo>(*func);
-//			LI.dump();
-//		}
 		LLVMContext & ctxt = M.getContext();
 		//Top level annotation corresponding to all annotations REDEFINE
 		NamedMDNode * redefineAnnotationsNode = M.getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
@@ -790,19 +786,48 @@ struct HyperOpCreationPass: public ModulePass {
 			return false;
 		}
 
+		//TODO replace the following with callgraph analysis
 		list<pair<Function*, CallInst*> > traversedFunctions;
 		CallInst* callInstToMain = 0;
 		traversedFunctions.push_back(make_pair(mainFunction, callInstToMain));
 		list<list<pair<Function*, CallInst*> > > cyclesInCallGraph = getCyclesInCallGraph(traversedFunctions, calledFunctionMap);
-		errs() << "found cycles?" << cyclesInCallGraph.size() << "\n";
+		DEBUG(dbgs() << "Found cycles?" << cyclesInCallGraph.size() << "\n");
 		for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
-			errs() << "cycle:";
+			DEBUG(dbgs() << "cycle:");
 			for (list<pair<Function*, CallInst*> >::iterator funcItr = cycleItr->begin(); funcItr != cycleItr->end(); funcItr++) {
 				errs() << funcItr->first->getName() << "(";
 				funcItr->second->dump();
-				errs() << ")\n";
+				DEBUG(dbgs() << ")\n");
 			}
-			errs() << "\n";
+			DEBUG(dbgs() << "\n");
+		}
+
+		for (Module::iterator func = M.begin(); func != M.end(); func++) {
+			errs() << "finding dependences of func:" << func->getName() << "\n";
+			if (!func->isIntrinsic()) {
+				DependenceAnalysis& depAnalysis = getAnalysis<DependenceAnalysis>(*func);
+				LoopInfo& LI = getAnalysis<LoopInfo>(*func);
+				//Lets check if there are loop carried dependences
+				for (LoopInfo::iterator loopItr = LI.begin(); loopItr != LI.end(); loopItr++) {
+					Loop* loop = *loopItr;
+					loop->dump();
+					vector<BasicBlock*> basicBlocksList = loop->getBlocks();
+					for (auto bbItr = basicBlocksList.begin(); bbItr != basicBlocksList.end(); bbItr++) {
+						BasicBlock* basicBlock = *bbItr;
+						for (BasicBlock::iterator instItr = basicBlock->begin(); instItr != basicBlock->end(); instItr++) {
+							Instruction* source = instItr;
+							//Check if the instruction depends on its next instance
+							errs() << "does instr depend on itself next?";
+							source->dump();
+							Dependence* dependence = depAnalysis.depends(source, source, false);
+							if (dependence != 0) {
+								errs() << "dependence:" << !dependence->isConfused() << "\n";
+							}
+						}
+					}
+				}
+
+			}
 		}
 
 		while (!functionList.empty()) {
