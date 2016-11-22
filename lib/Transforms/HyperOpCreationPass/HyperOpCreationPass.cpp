@@ -21,7 +21,7 @@ using namespace std;
 #include "llvm/Analysis/DependenceAnalysis.h"
 //#include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopInfo.h"
-//#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Transforms/IPO/InlinerPass.h"
 //#include "llvm/PassSupport.h"
@@ -46,6 +46,9 @@ struct HyperOpCreationPass: public ModulePass {
 	const string LOCAL_REFERENCE_ARGUMENT = "LocalReference";
 
 	const unsigned int FRAME_SIZE = 16;
+	//TODO Hard coded numbers as per target, needs to be modified later such that target specific details are used
+	unsigned numRows = 4;
+	unsigned numColumns = 4;
 
 	enum HyperOpArgumentType {
 		SCALAR, LOCAL_REFERENCE, GLOBAL_REFERENCE, ADDRESS
@@ -60,9 +63,8 @@ struct HyperOpCreationPass: public ModulePass {
 
 	virtual void getAnalysisUsage(AnalysisUsage &AU) const {
 		//Mandatory merge return to be invoked on each function
-		AU.addRequired<UnifyFunctionExitNodes>();
 		AU.addRequired<DependenceAnalysis>();
-
+		AU.addPreserved<AliasAnalysis>();
 //		AU.addRequired<DominatorTree>();
 //		AU.addRequired<AliasAnalysis>();
 //		AU.addRequired<LoopInfo>();
@@ -817,11 +819,9 @@ struct HyperOpCreationPass: public ModulePass {
 						for (BasicBlock::iterator instItr = basicBlock->begin(); instItr != basicBlock->end(); instItr++) {
 							Instruction* source = instItr;
 							//Check if the instruction depends on its next instance
-							errs() << "does instr depend on itself next?";
-							source->dump();
 							Dependence* dependence = depAnalysis.depends(source, source, false);
 							if (dependence != 0) {
-								errs() << "dependence:" << !dependence->isConfused() << "\n";
+								errs() << "dependence distance:" << dependence->getDistance(1) << "\n";
 							}
 						}
 					}
