@@ -1652,26 +1652,26 @@ void HyperOpInteractionGraph::clusterNodes() {
 
 	map<unsigned, list<HyperOp*> > roundRobinClusterDist;
 //	roundRobinClusterDist.reserve(this->rowCount*this->columnCount);
-	unsigned crId=0;
+	unsigned crId = 0;
 	for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterItr = computeClusterList.begin(); clusterItr != computeClusterList.end(); clusterItr++) {
-		if(roundRobinClusterDist.find(crId)==roundRobinClusterDist.end()){
+		if (roundRobinClusterDist.find(crId) == roundRobinClusterDist.end()) {
 			list<HyperOp*> newList;
 			roundRobinClusterDist.insert(make_pair(crId, newList));
 		}
-		for(list<HyperOp*>::iterator printItr = clusterItr->first.begin();printItr!=clusterItr->first.end();printItr++){
+		for (list<HyperOp*>::iterator printItr = clusterItr->first.begin(); printItr != clusterItr->first.end(); printItr++) {
 			roundRobinClusterDist[crId].push_back(*printItr);
 		}
-		crId = (crId+1)%(this->rowCount*this->columnCount);
+		crId = (crId + 1) % (this->rowCount * this->columnCount);
 	}
 
 	for (map<unsigned, list<HyperOp*> >::iterator clusterItr = roundRobinClusterDist.begin(); clusterItr != roundRobinClusterDist.end(); clusterItr++) {
 		clusterList.push_back(clusterItr->second);
-		errs()<<"each cluster:\n";
-		for(list<HyperOp*>::iterator printItr = clusterItr->second.begin();printItr!= clusterItr->second.end();printItr++){
-			errs()<<(*printItr)->asString()<<",";
+		errs() << "each cluster:\n";
+		for (list<HyperOp*>::iterator printItr = clusterItr->second.begin(); printItr != clusterItr->second.end(); printItr++) {
+			errs() << (*printItr)->asString() << ",";
 //			clusterList.push_back()
 		}
-		errs()<<"\n";
+		errs() << "\n";
 	}
 
 //	//TODO: temp fix since the previous snippet is taking forever
@@ -2723,8 +2723,36 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		}
 	}
 
-	errs() << "after minimizing cluster, graph:";
-	this->print(errs());
+	DEBUG(dbgs() << "If the producer and consumer are mapped to different CRs, treat them as localrefs only instead of scalars to avoid reconciles\n");
+	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
+		HyperOp* hyperOp = *hopItr;
+		list<HyperOp*> children = hyperOp->getChildList();
+		for (list<HyperOp*>::iterator childHopItr = children.begin(); childHopItr != children.end(); childHopItr++) {
+			HyperOp* childHyperOp = *childHopItr;
+			if (childHyperOp->getTargetResource() != hyperOp->getTargetResource()) {
+				list<HyperOpEdge*> scalarEdgesForConversion;
+				for (map<HyperOpEdge*, HyperOp*>::iterator childMapItr = hyperOp->ChildMap.begin(); childMapItr != hyperOp->ChildMap.end(); childMapItr++) {
+					if (childMapItr->second == childHyperOp && childMapItr->first->getType() == HyperOpEdge::SCALAR) {
+						scalarEdgesForConversion.push_back(childMapItr->first);
+					}
+				}
+
+				if (scalarEdgesForConversion.size() > 1) {
+					if (childHyperOp->isPredicatedHyperOp() || childHyperOp->isBarrierHyperOp()) {
+						scalarEdgesForConversion.pop_front();
+					}
+					for (list<HyperOpEdge*>::iterator edgeItr = scalarEdgesForConversion.begin(); edgeItr != scalarEdgesForConversion.end(); edgeItr++) {
+						HyperOpEdge* scalarEdgeForConversion = *edgeItr;
+						scalarEdgeForConversion->setType(HyperOpEdge::LOCAL_REFERENCE);
+					}
+				}
+			}
+		}
+	}
+
+	DEBUG(dbgs() << "after minimizing cluster and converting scalar edges to local refs, graph:");
+	this->print(dbgs());
+
 }
 
 HyperOp * HyperOpInteractionGraph::getHyperOp(Function * F) {
