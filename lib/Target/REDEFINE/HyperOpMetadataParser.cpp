@@ -17,15 +17,19 @@ HyperOpMetadataParser::~HyperOpMetadataParser() {
 
 AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Instruction* sourceInstr, MDNode* sourceMDNode, map<Function*, MDNode*> functionMetadataMap) {
 	if (isa<AllocaInst>(sourceInstr)) {
+		errs()<<"and the match was from ";
+		sourceInstr->dump();
 		return (AllocaInst*) sourceInstr;
 	}
 	if (isa<LoadInst>(sourceInstr)) {
+		errs()<<"load instr whose alloc needs looking up:";
+		sourceInstr->dump();
 		unsigned argIndex = 0;
 		Function* parentFunction = sourceInstr->getParent()->getParent();
 		for (Function::arg_iterator argItr = parentFunction->arg_begin(); argItr != parentFunction->arg_end(); argItr++, argIndex++) {
 			if (argItr == sourceInstr->getOperand(0)) {
 				//Find the function that contains the consumed by annotation
-				for (Module::iterator funcItr = M.begin(); funcItr != M.end(); funcItr) {
+				for (Module::iterator funcItr = M.begin(); funcItr != M.end(); funcItr++) {
 					if (&*funcItr != parentFunction) {
 						for (Function::iterator bbItr = funcItr->begin(); bbItr != funcItr->end(); bbItr++) {
 							for (BasicBlock::iterator instrItr = bbItr->begin(); instrItr != bbItr->end(); instrItr++) {
@@ -35,6 +39,7 @@ AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Instruction* sourceIns
 										for (unsigned i = 0; i < consumedByMDNode->getNumOperands(); i++) {
 											MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(i);
 											if (((MDNode*) consumerMDNode->getOperand(0)) == sourceMDNode && ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue() == argIndex) {
+												errs()<<"there was a match...\n";
 												return getAllocInstrForLocalReferenceData(M, instrItr, functionMetadataMap[funcItr], functionMetadataMap);
 											}
 										}
@@ -80,11 +85,12 @@ list<unsigned> parseInstanceId(StringRef instanceTag) {
 	return parsedIntegerList;
 }
 
+//Take care of unrolling here so that unrolling is performed in a target aware manner instead of at the front end which doesn't know what the target params are
 HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 	HyperOpInteractionGraph* graph = new HyperOpInteractionGraph();
 	NamedMDNode * RedefineAnnotations = M->getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
 	map<MDNode*, HyperOp*> hyperOpMetadataMap;
-	//Since bijective map isnt available
+	//Since bijective map isn't available
 	map<Function*, MDNode*> functionMetadataMap;
 	HyperOp* entryHyperOp;
 	HyperOp* exitHyperOp;
@@ -97,6 +103,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 			if (type.compare(HYPEROP) == 0) {
 				Function* function = (Function *) hyperOpMDNode->getOperand(1);
 				HyperOp *hyperOp = new HyperOp(function);
+				errs() << "new hop:" << hyperOp->getFunction()->getName() << "\n";
 				hyperOp->setHyperOpId(hyperOpId++);
 				StringRef hyperOpType = ((MDString*) hyperOpMDNode->getOperand(2))->getName();
 				if (hyperOpType.equals("Static")) {
@@ -110,7 +117,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					hyperOp->setInstanceId(parseInstanceId(instanceTag));
 				}
 				graph->addHyperOp(hyperOp);
-				errs()<<"new hyop#"<<hyperOp->getHyperOpId()<<":"<<hyperOp->asString()<<"\n";
+				errs() << "new hyop#" << hyperOp->getHyperOpId() << ":" << hyperOp->asString() << "\n";
 				hyperOpMetadataMap.insert(std::make_pair(hyperOpMDNode, hyperOp));
 				functionMetadataMap.insert(std::make_pair(function, hyperOpMDNode));
 			}
@@ -150,7 +157,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 	while (!hyperOpTraversalList.empty()) {
 		//Traverse through instructions of the module
 		HyperOp* sourceHyperOp = hyperOpTraversalList.front();
-		errs()<<"source hop:"<<sourceHyperOp->asString()<<"\n";
+		errs() << "source hop:" << sourceHyperOp->asString() << "\n";
 		hyperOpTraversalList.pop_front();
 		traversedList.push_back(sourceHyperOp);
 		Function* sourceFunction;
@@ -229,10 +236,12 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 									edge->Type = HyperOpEdge::LOCAL_REFERENCE;
 									list<unsigned> volumeOfCommunication;
 									Function* consumerFunction = consumerHyperOp->getFunction();
-									AllocaInst* allocInst = getAllocInstrForLocalReferenceData(*M, instr, consumedByMDNode, functionMetadataMap);
-									if (!isa<AllocaInst>(instr)) {
+									AllocaInst* allocInst = getAllocInstrForLocalReferenceData(*M, instr, (MDNode*) consumerMDNode->getOperand(0), functionMetadataMap);
+									if (isa<LoadInst>(instr)) {
 										//TODO TERRIBLE CODE, CHECK IF THIS CAN BE CLEANED
-										consumerHyperOp->loadInstrAndAllocaMap[instr] = allocInst;
+										errs()<<"added alloc to map of " <<sourceHyperOp->asString()<<" with key ";
+										instr->dump();
+										sourceHyperOp->loadInstrAndAllocaMap[instr] = allocInst;
 									}
 									unsigned volume = REDEFINEUtils::getSizeOfType(allocInst->getType()) / 4;
 									volumeOfCommunication.push_back(volume);
@@ -400,20 +409,21 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 	while (true) {
 		bool updatedGraph = false;
 		for (list<HyperOp*>::iterator vertexItr = graph->Vertices.begin(); vertexItr != graph->Vertices.end(); vertexItr++) {
-			errs() << "\n----\ntraversing hanging node " << (*vertexItr)->asString() << "\n";
 			if (!(*vertexItr)->isEndHyperOp() && (*vertexItr)->ChildMap.empty()) {
+				(*vertexItr)->getFunction()->eraseFromParent();
 				graph->removeHyperOp(*vertexItr);
 				updatedGraph = true;
 				break;
 			}
 
 			if (!(*vertexItr)->isStartHyperOp() && (*vertexItr)->ParentMap.empty()) {
+				(*vertexItr)->getFunction()->eraseFromParent();
 				graph->removeHyperOp(*vertexItr);
 				updatedGraph = true;
 				break;
 			}
 		}
-		if(!updatedGraph){
+		if (!updatedGraph) {
 			break;
 		}
 	}

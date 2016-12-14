@@ -1008,11 +1008,13 @@ struct HyperOpCreationPass: public ModulePass {
 										list<Value*> newArg;
 										newArg.push_back(*newArgItr);
 										HyperOpArgumentType type;
-										if (isa<StoreInst>(instItr) && ((StoreInst*) &*instItr)->getOperand(1) == newArg.front()) {
-											type = ADDRESS;
-										} else {
+//										if (isa<StoreInst>(instItr) && ((StoreInst*) &*instItr)->getOperand(1) == newArg.front()) {
+//											errs()<<"arg with type store:";
+//											instItr->dump();
+//											type = ADDRESS;
+//										} else {
 											type = supportedArgType(*newArgItr, M);
-										}
+//										}
 										//local references needn't be accounted for when counting context frame args since they are passed through memory directly and not through context frame
 										if (type != GLOBAL_REFERENCE && type != LOCAL_REFERENCE) {
 											hyperOpArgCount++;
@@ -1239,6 +1241,8 @@ struct HyperOpCreationPass: public ModulePass {
 					break;
 				case ADDRESS:
 					filteredAddressArgs.push_back(argIndex);
+					argIndex++;
+					break;
 				default:
 					argIndex++;
 					break;
@@ -1333,7 +1337,7 @@ struct HyperOpCreationPass: public ModulePass {
 												for (Function::arg_iterator argItr = newFunction->arg_begin(); argItr != newFunction->arg_end(); argItr++) {
 													errs() << "func arg with index :" << (*argItr).getArgNo() << ":";
 													(*argItr).dump();
-													if ((*argItr).getArgNo() + 1 == hyperOpArgIndex) {
+													if ((*argItr).getArgNo() == hyperOpArgIndex) {
 														clonedInst->setOperand(operandIndex, argItr);
 														errs() << "instruction updated to ";
 														clonedInst->dump();

@@ -231,8 +231,6 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 	static unsigned firstFunction = 0;
 	//Add instructions to write to context frames if the function is the first one being dealt with
 	if (firstFunction == 0) {
-		errs() << "Whats in module?";
-		Fn->getParent()->dump();
 		//Parse the HIG metadata the first time, subsequent HyperOps can use the graph
 		HyperOpMetadataParser parser;
 		((REDEFINETargetMachine&) TM).HIG = parser.parseMetadata(const_cast<Module*>(Fn->getParent()));
