@@ -13,7 +13,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-
+#include "llvm/IR/Module.h"
 #include "lpsolve/lp_lib.h"
 #include "lpsolve/lp_types.h"
 
@@ -98,13 +98,6 @@ void HyperOpEdge::setValue(Value* value) {
 }
 Value* HyperOpEdge::getValue() {
 	return variable;
-}
-
-const list<HyperOp*>& HyperOp::getCreateFrameList() const {
-	return CreateFrameList;
-}
-void HyperOp::setCreateFrameList(const list<HyperOp*>& createFrameList) {
-	CreateFrameList = createFrameList;
 }
 
 unsigned int HyperOp::getContextFrame() const {
@@ -2576,7 +2569,7 @@ pair<HyperOpEdge*, HyperOp*> lastPredicateInput(HyperOp* currentHyperOp) {
  * 3. Decrement sync count of a barrier HyperOp that has incoming sync edges from mutually exclusive paths
  */
 void HyperOpInteractionGraph::minimizeControlEdges() {
-	DEBUG(dbgs() << "Minimizing control edges\n");
+	DEBUG(dbgs() << "Minimizing ordering edges\n");
 	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
 		HyperOp* vertex = *vertexItr;
 		list<HyperOp*> children = vertex->getChildList();
@@ -2603,6 +2596,137 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		}
 	}
 
+	DEBUG(dbgs() << "Computing whether there is a control/scalar path between a pair of HyperOps communicating via memory and adding sync edges if there is no control path");
+	unsigned numVertices = this->Vertices.size();
+	bool transitiveClosure[numVertices][numVertices];
+	map<HyperOp*, unsigned> hyperOpAndIndexMap;
+	unsigned indexMap = 0;
+	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++, indexMap++) {
+		hyperOpAndIndexMap[*hopItr] = indexMap;
+		for (unsigned i = 0; i < this->Vertices.size(); i++) {
+			transitiveClosure[indexMap][i] = 0;
+		}
+	}
+	//Populate adjacency matrix
+	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
+		list<HyperOp*> children = (*hopItr)->getChildList();
+		unsigned producerIndex = hyperOpAndIndexMap[*hopItr];
+		for (map<HyperOpEdge*, HyperOp*>::iterator childEdgeItr = (*hopItr)->ChildMap.begin(); childEdgeItr != (*hopItr)->ChildMap.end(); childEdgeItr++) {
+			HyperOpEdge::EdgeType edgeType = childEdgeItr->first->getType();
+			unsigned consumerIndex = hyperOpAndIndexMap[childEdgeItr->second];
+			if (transitiveClosure[producerIndex][consumerIndex] == 0 && (edgeType == HyperOpEdge::SCALAR || edgeType == HyperOpEdge::PREDICATE || edgeType == HyperOpEdge::ORDERING || edgeType == HyperOpEdge::SYNC)) {
+				transitiveClosure[producerIndex][consumerIndex] = 1;
+			}
+		}
+	}
+
+	//Compute transitive closure
+	for (unsigned k = 0; k < numVertices; k++) {
+		for (unsigned i = 0; i < numVertices; i++) {
+			for (unsigned j = 0; j < numVertices; j++) {
+				transitiveClosure[i][j] = transitiveClosure[i][j] || (transitiveClosure[i][k] && transitiveClosure[k][j]);
+			}
+		}
+	}
+
+	for (list<HyperOp*>::iterator firstHopItr = this->Vertices.begin(); firstHopItr != this->Vertices.end(); firstHopItr++) {
+		HyperOp* producerHyperOp = *firstHopItr;
+		unsigned producerIndex = hyperOpAndIndexMap[*firstHopItr];
+		list<HyperOp*> previouslyUpdatedChildren;
+		map<HyperOp*, HyperOp*> syncBarrierHyperOpMap;
+
+		for (map<HyperOpEdge*, HyperOp*>::iterator childEdgeItr = (*firstHopItr)->ChildMap.begin(); childEdgeItr != (*firstHopItr)->ChildMap.end(); childEdgeItr++) {
+			HyperOp* consumerHyperOp = childEdgeItr->second;
+			HyperOpEdge::EdgeType edgeType = childEdgeItr->first->getType();
+			unsigned consumerIndex = hyperOpAndIndexMap[childEdgeItr->second];
+			if (transitiveClosure[producerIndex][consumerIndex] == 0 && edgeType == HyperOpEdge::LOCAL_REFERENCE) {
+				//Add a sync edge between producer and consumer since there is no control path between them
+				if (!consumerHyperOp->isPredicatedHyperOp()) {
+					DEBUG(dbgs() << "adding a sync edge between " << producerHyperOp->asString() << " and " << consumerHyperOp->asString() << "\n");
+					//Add a sync edge between the source and the consumer
+					HyperOpEdge* syncEdge = new HyperOpEdge();
+					syncEdge->Type = HyperOpEdge::SYNC;
+					producerHyperOp->addChildEdge(syncEdge, consumerHyperOp);
+					consumerHyperOp->addParentEdge(syncEdge, producerHyperOp);
+					consumerHyperOp->setBarrierHyperOp();
+					consumerHyperOp->incrementIncomingSyncCount();
+				} else if (consumerHyperOp->getFunction()->getNumOperands() < this->getMaxMemFrameSize()) {
+					DEBUG(dbgs() << "adding sync via context frame from " << producerHyperOp->asString() << " to " << consumerHyperOp->asString() << "\n");
+
+					list<Argument*> scalarArgs;
+					list<Argument*> localRefArgs;
+					int position = -1;
+
+					for (Function::arg_iterator argItr = consumerHyperOp->getFunction()->arg_begin(); argItr != consumerHyperOp->getFunction()->arg_end(); argItr++) {
+						if (!consumerHyperOp->getFunction()->getAttributes().hasAttribute(argItr->getArgNo() + 1, Attribute::InReg)) {
+							localRefArgs.push_back(argItr);
+							continue;
+						}
+						if (position < argItr->getArgNo()) {
+							position = argItr->getArgNo();
+						}
+						scalarArgs.push_back(argItr);
+					}
+
+					if (position == -1) {
+						position++;
+					}
+
+					list<Argument*> coalescedList;
+					unsigned numScalarArgs = 0;
+					for (list<Argument*>::iterator scalarArgItr = scalarArgs.begin(); scalarArgItr != scalarArgs.end(); scalarArgItr++) {
+						coalescedList.push_back(*scalarArgItr);
+					}
+					Argument *newArgument = new Argument(Type::getInt32Ty(consumerHyperOp->getFunction()->getContext()));
+					coalescedList.push_back(newArgument);
+					numScalarArgs = scalarArgs.size() + 1;
+
+					for (list<Argument*>::iterator localRefArgItr = localRefArgs.begin(); localRefArgItr != localRefArgs.end(); localRefArgItr++) {
+						coalescedList.push_back(*localRefArgItr);
+					}
+
+					FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()), coalescedList, false);
+					Function *newFunction = Function::Create(FT, Function::ExternalLinkage, consumerHyperOp->getFunction()->getName(), consumerHyperOp->getFunction()->getParent());
+
+					for (unsigned i = 1; i <= numScalarArgs; i++) {
+						newFunction->addAttribute(i, Attribute::InReg);
+					}
+
+					//Copy contents of consumer hyperOp to the new HyperOp, including metadata
+
+
+
+					HyperOpEdge* writecmEdge = new HyperOpEdge();
+					writecmEdge->Type = HyperOpEdge::SCALAR;
+
+					consumerHyperOp->getFunction()->addAttribute(position, Attribute::InReg);
+					writecmEdge->setPositionOfContextSlot(position);
+					consumerHyperOp->getFunction()->getArgumentList().addNodeToList(newArgument);
+					writecmEdge->setValue(newArgument);
+
+					errs() << "did the module get updated?\n";
+					consumerHyperOp->getFunction()->getParent()->dump();
+					producerHyperOp->addChildEdge(writecmEdge, consumerHyperOp);
+					consumerHyperOp->addParentEdge(writecmEdge, producerHyperOp);
+					consumerHyperOp->setPredicatedHyperOp();
+				} else {
+					//TODO add a new HyperOp that behaves as a synchronization barrier and direct the output from there to the
+				}
+
+				//Update the transitive closure matrix and recompute transitive closure
+				transitiveClosure[producerIndex][consumerIndex] = 1;
+				for (unsigned k = 0; k < numVertices; k++) {
+					for (unsigned i = 0; i < numVertices; i++) {
+						for (unsigned j = 0; j < numVertices; j++) {
+							transitiveClosure[i][j] = transitiveClosure[i][j] || (transitiveClosure[i][k] && transitiveClosure[k][j]);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	DEBUG(dbgs() << "Delivering reaching predicate with decrement count in case operands to be delivered are on the non taken path\n");
 	map<HyperOp*, pair<HyperOpEdge*, HyperOp*> > lastPredicateCache;
 //	Add predicate delivery edges to HyperOps that are on non taken paths but may have data coming from a HyperOp that precedes the HyperOp producing the predicate
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
