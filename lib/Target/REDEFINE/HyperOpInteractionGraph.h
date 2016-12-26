@@ -93,7 +93,6 @@ class HyperOp {
 	HyperOp* ImmediateDominator;
 	HyperOp* ImmediatePostDominator;
 	list<HyperOp*> DominanceFrontier;
-	list<HyperOp*> CreateFrameList;
 	bool IsBarrier;
 	bool IsStart;
 	bool IsEnd;
@@ -157,8 +156,6 @@ public:
 	map<HyperOp*, list<unsigned int> > getParentNodeEdgeWeights();
 	list<unsigned int> getTopLevel();
 	void setTopLevel(list<unsigned int> topLevel);
-	const list<HyperOp*>& getCreateFrameList() const;
-	void setCreateFrameList(const list<HyperOp*>& createFrameList);
 	unsigned getHyperOpId() const;
 	void setHyperOpId(unsigned hyperOpId);
 
@@ -187,6 +184,7 @@ public:
 	string asString();
 	bool isUnrolledInstance();
 	void setIsUnrolledInstance(bool isUnrolledInstance);
+	void setFunction(Function* function);
 };
 
 class HyperOpInteractionGraph {
