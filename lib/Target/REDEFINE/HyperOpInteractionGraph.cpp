@@ -2663,6 +2663,8 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					list<Argument*> localRefArgs;
 					int position = -1;
 
+					map<unsigned, unsigned> originalToReplicatedArgIndexMap;
+					map<unsigned, Argument*> replicatedArgIndexMap;
 					for (Function::arg_iterator argItr = consumerFunction->arg_begin(); argItr != consumerFunction->arg_end(); argItr++) {
 						if (!consumerFunction->getAttributes().hasAttribute(argItr->getArgNo() + 1, Attribute::InReg)) {
 							localRefArgs.push_back(argItr);
@@ -2680,20 +2682,28 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 
 					vector<Type*> coalescedList;
 					unsigned numScalarArgs = 0;
-					for (list<Argument*>::iterator scalarArgItr = scalarArgs.begin(); scalarArgItr != scalarArgs.end(); scalarArgItr++) {
+					unsigned argIndex = 0;
+					for (list<Argument*>::iterator scalarArgItr = scalarArgs.begin(); scalarArgItr != scalarArgs.end(); scalarArgItr++, argIndex++) {
 						coalescedList.push_back((*scalarArgItr)->getType());
+						originalToReplicatedArgIndexMap[argIndex] = argIndex;
 					}
 					Argument *newArgument = new Argument(Type::getInt32Ty(consumerFunction->getContext()));
 					coalescedList.push_back(newArgument->getType());
 					numScalarArgs = scalarArgs.size() + 1;
 
-					for (list<Argument*>::iterator localRefArgItr = localRefArgs.begin(); localRefArgItr != localRefArgs.end(); localRefArgItr++) {
+					for (list<Argument*>::iterator localRefArgItr = localRefArgs.begin(); localRefArgItr != localRefArgs.end(); localRefArgItr++, argIndex++) {
 						coalescedList.push_back((*localRefArgItr)->getType());
+						originalToReplicatedArgIndexMap[argIndex] = argIndex + 1;
 					}
 
 					FunctionType *FT = FunctionType::get(Type::getVoidTy(consumerFunction->getParent()->getContext()), coalescedList, false);
 					Function *replacementFunction = Function::Create(FT, Function::ExternalLinkage, consumerFunction->getName(), consumerHyperOp->getFunction()->getParent());
 					originalAndReplacementFunctionMap[consumerFunction] = replacementFunction;
+
+					unsigned replicatedArgIndex = 0;
+					for(Function::arg_iterator replicatedArgItr = replacementFunction->arg_begin();replicatedArgItr!=replacementFunction->arg_end(); replicatedArgItr++, replicatedArgIndex++){
+						replicatedArgIndexMap[replicatedArgIndex] = replicatedArgItr;
+					}
 
 					for (unsigned i = 1; i <= numScalarArgs; i++) {
 						replacementFunction->addAttribute(i, Attribute::InReg);
@@ -2705,11 +2715,12 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 							originalInstAndCloneMap[instItr] = clonedInst;
 							newBB->getInstList().insert(newBB->end(), clonedInst);
 							unsigned operatorIndex = 0;
-							for(Instruction::op_iterator opItr = instItr->op_begin();opItr!=instItr->op_end();opItr++, operatorIndex++){
+							for (Instruction::op_iterator opItr = instItr->op_begin(); opItr != instItr->op_end(); opItr++, operatorIndex++) {
 								unsigned argIndex = 0;
 								for (Function::arg_iterator argItr = consumerFunction->arg_begin(); argItr != consumerFunction->arg_end(); argItr++, argIndex++) {
-									if(opItr==argItr){
-//										clonedInst->setOperand(operatorIndex, replacementFunction->getA);
+									if (opItr->get() == argItr) {
+										Argument* replacementArg = replicatedArgIndexMap[originalToReplicatedArgIndexMap[argIndex]];
+										clonedInst->setOperand(operatorIndex, replacementArg);
 									}
 								}
 
@@ -2729,9 +2740,9 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					consumerHyperOp->addParentEdge(writecmEdge, producerHyperOp);
 					consumerHyperOp->setPredicatedHyperOp();
 					originalAndReplacementFunctionMap[consumerFunction] = replacementFunction;
-					errs()<<"created replacement function:";
+					errs() << "created replacement function:";
 					replacementFunction->dump();
-					errs()<<"while original function:";
+					errs() << "while original function:";
 					consumerFunction->dump();
 				} else {
 					//TODO add a new HyperOp that behaves as a synchronization barrier and direct the output from there to the predicated HyperOp
@@ -2771,7 +2782,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		functionsForDeletion.push_back(replacementFunctionItr->first);
 	}
 
-	for(list<Function*>::iterator deleteItr = functionsForDeletion.begin();deleteItr!=functionsForDeletion.end();deleteItr++){
+	for (list<Function*>::iterator deleteItr = functionsForDeletion.begin(); deleteItr != functionsForDeletion.end(); deleteItr++) {
 		(*deleteItr)->eraseFromParent();
 	}
 
