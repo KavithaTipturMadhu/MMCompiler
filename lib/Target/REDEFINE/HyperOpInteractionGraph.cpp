@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Instructions.h"
 #include "lpsolve/lp_lib.h"
 #include "lpsolve/lp_types.h"
 
@@ -2634,6 +2635,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 
 	map<Function*, Function*> originalAndReplacementFunctionMap;
 	map<Instruction*, Instruction*> originalInstAndCloneMap;
+	list<Function*> functionsForDeletion;
 	for (list<HyperOp*>::iterator firstHopItr = this->Vertices.begin(); firstHopItr != this->Vertices.end(); firstHopItr++) {
 		HyperOp* producerHyperOp = *firstHopItr;
 		unsigned producerIndex = hyperOpAndIndexMap[*firstHopItr];
@@ -2655,8 +2657,14 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					consumerHyperOp->addParentEdge(syncEdge, producerHyperOp);
 					consumerHyperOp->setBarrierHyperOp();
 					consumerHyperOp->incrementIncomingSyncCount();
-				} else if (consumerHyperOp->getFunction()->getNumOperands() < this->getMaxMemFrameSize()) {
-					Function * consumerFunction = consumerHyperOp->getFunction();
+				} else if ((originalAndReplacementFunctionMap.find(consumerHyperOp->getFunction()) == originalAndReplacementFunctionMap.end() && consumerHyperOp->getFunction()->getNumOperands() < this->getMaxMemFrameSize())
+						|| originalAndReplacementFunctionMap[consumerHyperOp->getFunction()]->getNumOperands() < this->getMaxContextFrameSize()) {
+					Function * consumerFunction;
+					if (originalAndReplacementFunctionMap.find(consumerHyperOp->getFunction()) == originalAndReplacementFunctionMap.end()) {
+						consumerFunction = consumerHyperOp->getFunction();
+					} else {
+						consumerFunction = originalAndReplacementFunctionMap[consumerHyperOp->getFunction()];
+					}
 					DEBUG(dbgs() << "adding sync via context frame from " << producerHyperOp->asString() << " to " << consumerHyperOp->asString() << "\n");
 
 					list<Argument*> scalarArgs;
@@ -2698,32 +2706,45 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 
 					FunctionType *FT = FunctionType::get(Type::getVoidTy(consumerFunction->getParent()->getContext()), coalescedList, false);
 					Function *replacementFunction = Function::Create(FT, Function::ExternalLinkage, consumerFunction->getName(), consumerHyperOp->getFunction()->getParent());
-					originalAndReplacementFunctionMap[consumerFunction] = replacementFunction;
 
 					unsigned replicatedArgIndex = 0;
-					for(Function::arg_iterator replicatedArgItr = replacementFunction->arg_begin();replicatedArgItr!=replacementFunction->arg_end(); replicatedArgItr++, replicatedArgIndex++){
+					for (Function::arg_iterator replicatedArgItr = replacementFunction->arg_begin(); replicatedArgItr != replacementFunction->arg_end(); replicatedArgItr++, replicatedArgIndex++) {
 						replicatedArgIndexMap[replicatedArgIndex] = replicatedArgItr;
 					}
 
 					for (unsigned i = 1; i <= numScalarArgs; i++) {
 						replacementFunction->addAttribute(i, Attribute::InReg);
 					}
+					map<BasicBlock*, BasicBlock*> originalAndReplicatedBBMap;
 					for (Function::iterator bbItr = consumerFunction->begin(); bbItr != consumerFunction->end(); bbItr++) {
-						BasicBlock *newBB = BasicBlock::Create(consumerFunction->getParent()->getContext(), bbItr->getName(), replacementFunction);
+						BasicBlock *newBB = BasicBlock::Create(consumerFunction->getParent()->getContext(), replacementFunction->getName().str().append(bbItr->getName()), replacementFunction);
+						originalAndReplicatedBBMap[bbItr] = newBB;
 						for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
 							Instruction* clonedInst = instItr->clone();
 							originalInstAndCloneMap[instItr] = clonedInst;
 							newBB->getInstList().insert(newBB->end(), clonedInst);
+						}
+					}
+
+					for (Function::iterator bbItr = replacementFunction->begin(); bbItr != replacementFunction->end(); bbItr++) {
+						for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
 							unsigned operatorIndex = 0;
 							for (Instruction::op_iterator opItr = instItr->op_begin(); opItr != instItr->op_end(); opItr++, operatorIndex++) {
 								unsigned argIndex = 0;
+								bool argReplaced = false;
 								for (Function::arg_iterator argItr = consumerFunction->arg_begin(); argItr != consumerFunction->arg_end(); argItr++, argIndex++) {
 									if (opItr->get() == argItr) {
 										Argument* replacementArg = replicatedArgIndexMap[originalToReplicatedArgIndexMap[argIndex]];
-										clonedInst->setOperand(operatorIndex, replacementArg);
+										instItr->setOperand(operatorIndex, replacementArg);
+										argReplaced = true;
+										break;
 									}
 								}
-
+								if (!argReplaced && !isa<BranchInst>(opItr->get()) && originalInstAndCloneMap.find((Instruction*) opItr->get()) != originalInstAndCloneMap.end()) {
+									instItr->setOperand(operatorIndex, originalInstAndCloneMap[(Instruction*) opItr->get()]);
+								} else if (originalAndReplicatedBBMap.find((BasicBlock*) opItr->get()) != originalAndReplicatedBBMap.end()) {
+									instItr->setOperand(operatorIndex, originalAndReplicatedBBMap[(BasicBlock*) opItr->get()]);
+								}
 							}
 						}
 					}
@@ -2739,7 +2760,11 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					producerHyperOp->addChildEdge(writecmEdge, consumerHyperOp);
 					consumerHyperOp->addParentEdge(writecmEdge, producerHyperOp);
 					consumerHyperOp->setPredicatedHyperOp();
-					originalAndReplacementFunctionMap[consumerFunction] = replacementFunction;
+					if (originalAndReplacementFunctionMap.find(consumerHyperOp->getFunction()) != originalAndReplacementFunctionMap.end()) {
+						functionsForDeletion.push_back(originalAndReplacementFunctionMap[consumerHyperOp->getFunction()]);
+						originalAndReplacementFunctionMap.erase(consumerHyperOp->getFunction());
+					}
+					originalAndReplacementFunctionMap[consumerHyperOp->getFunction()] = replacementFunction;
 					errs() << "created replacement function:";
 					replacementFunction->dump();
 					errs() << "while original function:";
@@ -2762,7 +2787,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 	}
 
 //Update the HyperOps with newly created functions and delete the old ones
-	list<Function*> functionsForDeletion;
 	for (map<Function*, Function*>::iterator replacementFunctionItr = originalAndReplacementFunctionMap.begin(); replacementFunctionItr != originalAndReplacementFunctionMap.end(); replacementFunctionItr++) {
 		HyperOp* hyperOpForUpdate = this->getHyperOp(replacementFunctionItr->first);
 		//Replace the load and alloc map
@@ -2776,13 +2800,14 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					newLoadInstrAndAllocaMap[originalInstAndCloneMap[loadItr->first]] = loadItr->second;
 				}
 			}
-
+			hyperOpForUpdate->loadInstrAndAllocaMap = newLoadInstrAndAllocaMap;
 		}
 		hyperOpForUpdate->setFunction(replacementFunctionItr->second);
 		functionsForDeletion.push_back(replacementFunctionItr->first);
 	}
 
 	for (list<Function*>::iterator deleteItr = functionsForDeletion.begin(); deleteItr != functionsForDeletion.end(); deleteItr++) {
+		errs() << "deleting function:" << (*deleteItr)->getName() << "\n";
 		(*deleteItr)->eraseFromParent();
 	}
 
