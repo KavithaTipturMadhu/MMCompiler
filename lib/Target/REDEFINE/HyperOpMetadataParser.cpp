@@ -17,12 +17,12 @@ HyperOpMetadataParser::~HyperOpMetadataParser() {
 
 AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Instruction* sourceInstr, MDNode* sourceMDNode, map<Function*, MDNode*> functionMetadataMap) {
 	if (isa<AllocaInst>(sourceInstr)) {
-		errs()<<"and the match was from ";
+		errs() << "and the match was from ";
 		sourceInstr->dump();
 		return (AllocaInst*) sourceInstr;
 	}
 	if (isa<LoadInst>(sourceInstr)) {
-		errs()<<"load instr whose alloc needs looking up:";
+		errs() << "load instr whose alloc needs looking up:";
 		sourceInstr->dump();
 		unsigned argIndex = 0;
 		Function* parentFunction = sourceInstr->getParent()->getParent();
@@ -39,7 +39,7 @@ AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Instruction* sourceIns
 										for (unsigned i = 0; i < consumedByMDNode->getNumOperands(); i++) {
 											MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(i);
 											if (((MDNode*) consumerMDNode->getOperand(0)) == sourceMDNode && ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue() == argIndex) {
-												errs()<<"there was a match...\n";
+												errs() << "there was a match...\n";
 												return getAllocInstrForLocalReferenceData(M, instrItr, functionMetadataMap[funcItr], functionMetadataMap);
 											}
 										}
@@ -239,7 +239,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 									AllocaInst* allocInst = getAllocInstrForLocalReferenceData(*M, instr, (MDNode*) consumerMDNode->getOperand(0), functionMetadataMap);
 									if (isa<LoadInst>(instr)) {
 										//TODO TERRIBLE CODE, CHECK IF THIS CAN BE CLEANED
-										errs()<<"added alloc to map of " <<sourceHyperOp->asString()<<" with key ";
+										errs() << "added alloc to map of " << sourceHyperOp->asString() << " with key ";
 										instr->dump();
 										sourceHyperOp->loadInstrAndAllocaMap[instr] = allocInst;
 									}
@@ -251,7 +251,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								edge->setValue((Value*) instr);
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
-
 								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)) {
 									//						&& !sourceHyperOp->isUnrolledInstance()) {
 									hyperOpTraversalList.push_back(consumerHyperOp);
@@ -407,17 +406,23 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 
 	//This had to be written as follows because removal of one node may cause other nodes to go hanging
 	while (true) {
+		errs() << "whats the issue?";
 		bool updatedGraph = false;
-		for (list<HyperOp*>::iterator vertexItr = graph->Vertices.begin(); vertexItr != graph->Vertices.end(); vertexItr++) {
+		list<HyperOp*> vertices = graph->Vertices;
+		for (list<HyperOp*>::iterator vertexItr = vertices.begin(); vertexItr != vertices.end(); vertexItr++) {
 			if (!(*vertexItr)->isEndHyperOp() && (*vertexItr)->ChildMap.empty()) {
-				(*vertexItr)->getFunction()->eraseFromParent();
+				if (!(*vertexItr)->isUnrolledInstance()) {
+					(*vertexItr)->getFunction()->eraseFromParent();
+				}
 				graph->removeHyperOp(*vertexItr);
 				updatedGraph = true;
 				break;
 			}
 
-			if (!(*vertexItr)->isStartHyperOp() && (*vertexItr)->ParentMap.empty()) {
-				(*vertexItr)->getFunction()->eraseFromParent();
+			else if (!(*vertexItr)->isStartHyperOp() && (*vertexItr)->ParentMap.empty()) {
+				if (!(*vertexItr)->isUnrolledInstance()) {
+					(*vertexItr)->getFunction()->eraseFromParent();
+				}
 				graph->removeHyperOp(*vertexItr);
 				updatedGraph = true;
 				break;

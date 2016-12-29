@@ -2689,7 +2689,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					}
 
 					vector<Type*> coalescedList;
-					unsigned numScalarArgs = 0;
 					unsigned argIndex = 0;
 					for (list<Argument*>::iterator scalarArgItr = scalarArgs.begin(); scalarArgItr != scalarArgs.end(); scalarArgItr++, argIndex++) {
 						coalescedList.push_back((*scalarArgItr)->getType());
@@ -2697,7 +2696,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					}
 					Argument *newArgument = new Argument(Type::getInt32Ty(consumerFunction->getContext()));
 					coalescedList.push_back(newArgument->getType());
-					numScalarArgs = scalarArgs.size() + 1;
+					unsigned numScalarArgs = scalarArgs.size() + 1;
 
 					for (list<Argument*>::iterator localRefArgItr = localRefArgs.begin(); localRefArgItr != localRefArgs.end(); localRefArgItr++, argIndex++) {
 						coalescedList.push_back((*localRefArgItr)->getType());
@@ -2712,9 +2711,11 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 						replicatedArgIndexMap[replicatedArgIndex] = replicatedArgItr;
 					}
 
+
 					for (unsigned i = 1; i <= numScalarArgs; i++) {
 						replacementFunction->addAttribute(i, Attribute::InReg);
 					}
+
 					map<BasicBlock*, BasicBlock*> originalAndReplicatedBBMap;
 					for (Function::iterator bbItr = consumerFunction->begin(); bbItr != consumerFunction->end(); bbItr++) {
 						BasicBlock *newBB = BasicBlock::Create(consumerFunction->getParent()->getContext(), replacementFunction->getName().str().append(bbItr->getName()), replacementFunction);
@@ -2754,9 +2755,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					writecmEdge->setPositionOfContextSlot(position);
 					writecmEdge->setValue(newArgument);
 
-					replacementFunction->addAttribute(position, Attribute::InReg);
-					replacementFunction->getArgumentList().addNodeToList(newArgument);
-
 					producerHyperOp->addChildEdge(writecmEdge, consumerHyperOp);
 					consumerHyperOp->addParentEdge(writecmEdge, producerHyperOp);
 					consumerHyperOp->setPredicatedHyperOp();
@@ -2765,7 +2763,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 						originalAndReplacementFunctionMap.erase(consumerHyperOp->getFunction());
 					}
 					originalAndReplacementFunctionMap[consumerHyperOp->getFunction()] = replacementFunction;
-					errs() << "created replacement function:";
+					errs() << "created replacement function :";
 					replacementFunction->dump();
 					errs() << "while original function:";
 					consumerFunction->dump();
