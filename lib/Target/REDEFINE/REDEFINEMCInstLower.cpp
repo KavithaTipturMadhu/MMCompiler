@@ -113,8 +113,12 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 					currentObjectOffset += REDEFINEUtils::getSizeOfType(frameInfo->getObjectAllocation(i)->getType());
 				}
 			}
-			for (int i = -1; i > MO.getIndex(); i--) {
-				currentObjectOffset += REDEFINEUtils::getSizeOfType(frameInfo->getObjectAllocation(i)->getType());
+			const Function* parentFunction = MO.getParent()->getParent()->getParent()->getFunction();
+			unsigned argIndex = 1;
+			for (Function::const_arg_iterator argItr = parentFunction->arg_begin(); argItr != parentFunction->arg_end(); argItr++, argIndex++) {
+				if (!parentFunction->getAttributes().hasAttribute(argIndex, Attribute::InReg)) {
+					currentObjectOffset += REDEFINEUtils::getSizeOfType(argItr->getType());
+				}
 			}
 		} else {
 			for (int i = 0; i < MO.getIndex(); i++) {

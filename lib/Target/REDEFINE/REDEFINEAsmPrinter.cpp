@@ -75,25 +75,24 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 		}
 	}
 
-	int pHyperOpIndex;
 	errs() << "instr count:" << pHyperOpInstructions.size() << "\n";
-	for (pHyperOpIndex = 0; pHyperOpIndex < pHyperOpInstructions.size(); pHyperOpIndex++) {
-		errs() << "phop index:" << pHyperOpIndex << "\n";
+	for (int pHyperOpIndex = 0; pHyperOpIndex < pHyperOpInstructions.size(); pHyperOpIndex++) {
 		list<const MachineInstr*> pHyperOpItr = pHyperOpInstructions[pHyperOpIndex];
+		errs() << "phop index:" << pHyperOpIndex << " with phops:"<<pHyperOpItr.size()<<"\n";
 //	for (vector<list<const MachineInstr*> >::iterator pHyperOpItr = pHyperOpInstructions.begin(); pHyperOpItr != pHyperOpInstructions.end(); pHyperOpItr++, pHyperOpIndex++) {
 		string codeSegmentStart = ".PHYOP#";
 		codeSegmentStart.append(itostr(pHyperOpIndex)).append("\n");
 		OutStreamer.EmitRawText(StringRef(codeSegmentStart));
 
 		for (list<const MachineInstr*>::iterator mcItr = pHyperOpItr.begin(); mcItr != pHyperOpItr.end(); mcItr++) {
+			errs()<<"problem when printing instr:";
 			if (!startOfBBInPHyperOp[pHyperOpIndex].empty() && startOfBBInPHyperOp[pHyperOpIndex].front() == *mcItr) {
 				MCSymbol *label = (*mcItr)->getParent()->getSymbol();
 				label->setUndefined();
 				OutStreamer.EmitLabel(label);
 				startOfBBInPHyperOp[pHyperOpIndex].pop_front();
 			}
-//			errs()<<"printing:";
-//			(*mcItr)->dump();
+			(*mcItr)->dump();
 			EmitInstruction(*mcItr);
 		}
 		OutStreamer.EmitRawText(StringRef(".PHYOP_END\n"));

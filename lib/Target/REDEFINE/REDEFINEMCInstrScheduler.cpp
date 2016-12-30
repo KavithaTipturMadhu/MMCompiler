@@ -1621,8 +1621,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				//Find the alloca instruction that allocates the memory location in the first place
 				unsigned argIndex = 0;
 				LoadInst* sourceInstr = (LoadInst*) edge->getValue();
-				errs() << "source instr screwing me over where source is " << hyperOp->asString() << "\n";
-				sourceInstr->dump();
 				allocInstr = (AllocaInst*) hyperOp->loadInstrAndAllocaMap[sourceInstr];
 				dataType = allocInstr->getType();
 				//Get the location of the stack allocated object in the basic block containing the load instruction and not the alloca instruction because alloca might belong

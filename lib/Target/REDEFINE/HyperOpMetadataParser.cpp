@@ -406,7 +406,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 
 	//This had to be written as follows because removal of one node may cause other nodes to go hanging
 	while (true) {
-		errs() << "whats the issue?";
 		bool updatedGraph = false;
 		list<HyperOp*> vertices = graph->Vertices;
 		for (list<HyperOp*>::iterator vertexItr = vertices.begin(); vertexItr != vertices.end(); vertexItr++) {
