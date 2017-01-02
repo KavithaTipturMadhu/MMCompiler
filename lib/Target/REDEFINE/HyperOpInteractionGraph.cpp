@@ -2711,18 +2711,33 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 						replicatedArgIndexMap[replicatedArgIndex] = replicatedArgItr;
 					}
 
-
 					for (unsigned i = 1; i <= numScalarArgs; i++) {
 						replacementFunction->addAttribute(i, Attribute::InReg);
 					}
 
 					map<BasicBlock*, BasicBlock*> originalAndReplicatedBBMap;
+					map<Instruction*, Instruction*> localInstCloneMap;
 					for (Function::iterator bbItr = consumerFunction->begin(); bbItr != consumerFunction->end(); bbItr++) {
 						BasicBlock *newBB = BasicBlock::Create(consumerFunction->getParent()->getContext(), replacementFunction->getName().str().append(bbItr->getName()), replacementFunction);
 						originalAndReplicatedBBMap[bbItr] = newBB;
 						for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
 							Instruction* clonedInst = instItr->clone();
-							originalInstAndCloneMap[instItr] = clonedInst;
+							Instruction* key = 0;
+							//Check if the instruction has been inserted previously as a clone of some other instruction
+							for (map<Instruction*, Instruction*>::iterator cloneMapItr = originalInstAndCloneMap.begin(); cloneMapItr != originalInstAndCloneMap.end(); cloneMapItr++) {
+								if (cloneMapItr->second == instItr) {
+									key = cloneMapItr->first;
+									break;
+								}
+							}
+
+							if (key != 0) {
+								originalInstAndCloneMap.erase(key);
+							} else {
+								key = instItr;
+							}
+							originalInstAndCloneMap[key] = clonedInst;
+							localInstCloneMap[instItr] = clonedInst;
 							newBB->getInstList().insert(newBB->end(), clonedInst);
 						}
 					}
@@ -2741,8 +2756,8 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 										break;
 									}
 								}
-								if (!argReplaced && !isa<BranchInst>(opItr->get()) && originalInstAndCloneMap.find((Instruction*) opItr->get()) != originalInstAndCloneMap.end()) {
-									instItr->setOperand(operatorIndex, originalInstAndCloneMap[(Instruction*) opItr->get()]);
+								if (!argReplaced && !isa<BranchInst>(opItr->get()) && localInstCloneMap.find((Instruction*) opItr->get()) != localInstCloneMap.end()) {
+									instItr->setOperand(operatorIndex, localInstCloneMap[(Instruction*) opItr->get()]);
 								} else if (originalAndReplicatedBBMap.find((BasicBlock*) opItr->get()) != originalAndReplicatedBBMap.end()) {
 									instItr->setOperand(operatorIndex, originalAndReplicatedBBMap[(BasicBlock*) opItr->get()]);
 								}
@@ -2762,6 +2777,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 						functionsForDeletion.push_back(originalAndReplacementFunctionMap[consumerHyperOp->getFunction()]);
 						originalAndReplacementFunctionMap.erase(consumerHyperOp->getFunction());
 					}
+
 					originalAndReplacementFunctionMap[consumerHyperOp->getFunction()] = replacementFunction;
 					errs() << "created replacement function :";
 					replacementFunction->dump();
@@ -2798,9 +2814,23 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					newLoadInstrAndAllocaMap[originalInstAndCloneMap[loadItr->first]] = loadItr->second;
 				}
 			}
-			hyperOpForUpdate->loadInstrAndAllocaMap = newLoadInstrAndAllocaMap;
+
+			hyperOpForUpdate->loadInstrAndAllocaMap.clear();
+			for (map<Instruction*, Instruction*>::iterator updatedMapItr = newLoadInstrAndAllocaMap.begin(); updatedMapItr != newLoadInstrAndAllocaMap.end(); updatedMapItr++) {
+				hyperOpForUpdate->loadInstrAndAllocaMap.insert(make_pair(updatedMapItr->first, updatedMapItr->second));
+			}
 		}
 		hyperOpForUpdate->setFunction(replacementFunctionItr->second);
+
+		//Update the edges of outgoing edges of consumer hyperOp
+		for (map<HyperOpEdge*, HyperOp*>::iterator edgeItr = hyperOpForUpdate->ChildMap.begin(); edgeItr != hyperOpForUpdate->ChildMap.end(); edgeItr++) {
+			if (edgeItr->first->getValue() != NULL) {
+				errs() << "edge whose type is " << edgeItr->first->getType() << ", updated edge to contain value from " << ((Instruction*) edgeItr->first->getValue())->getParent()->getParent()->getName() << "\n";
+				edgeItr->first->setValue(originalInstAndCloneMap[(Instruction*) edgeItr->first->getValue()]);
+				errs() << "to instead contain value from " << ((Instruction*) edgeItr->first->getValue())->getParent()->getParent()->getName() << "\n";
+			}
+		}
+
 		functionsForDeletion.push_back(replacementFunctionItr->first);
 	}
 
