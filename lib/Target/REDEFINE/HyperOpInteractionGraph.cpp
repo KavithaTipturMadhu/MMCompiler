@@ -2455,23 +2455,24 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 		change = false;
 		list<list<pair<HyperOpEdge*, HyperOp*> > > removalList;
 		list<list<pair<HyperOpEdge*, HyperOp*> > > additionList;
-//		errs() << "num chains before :" << predicateChains.size() << "\n";
-		int i = 0;
+		errs() << "\n======\nnum chains before :" << predicateChains.size() << "\n";
 		//remove duplicate predicate chains
+		errs() << "Removing duplicate predicate chains\n";
+		int i = 0;
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++, i++) {
 			if (*predicateChainItr != predicateChains.back()) {
 				int j = i + 1;
 				list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator secondPredicateChainItr = predicateChainItr;
 				secondPredicateChainItr++;
+				//Check if the predicate chains are the same and mark duplicates for removal
 				for (; secondPredicateChainItr != predicateChains.end(); secondPredicateChainItr++, j++) {
 					if (predicateChainItr->size() != secondPredicateChainItr->size()) {
 						continue;
 					}
-					//Check if the predicate chains are the same and mark duplicates for removal
-					bool chainMatches = true;
 					//Check if the rest of the predicate chain matches
-					list<pair<HyperOpEdge*, HyperOp*> >::iterator secondChainItr = secondPredicateChainItr->begin();
-					for (list<pair<HyperOpEdge*, HyperOp*> >::iterator firstChainItr = predicateChainItr->begin(); firstChainItr != predicateChainItr->end() && secondChainItr != secondPredicateChainItr->end(); firstChainItr++, secondChainItr++) {
+					list<pair<HyperOpEdge*, HyperOp*> >::reverse_iterator secondChainItr = secondPredicateChainItr->rbegin();
+					bool chainMatches = true;
+					for (list<pair<HyperOpEdge*, HyperOp*> >::reverse_iterator firstChainItr = predicateChainItr->rbegin(); firstChainItr != predicateChainItr->rend() && secondChainItr != secondPredicateChainItr->rend(); firstChainItr++, secondChainItr++) {
 						if (firstChainItr->first->getValue() != secondChainItr->first->getValue() || firstChainItr->first->getPredicateValue() != secondChainItr->first->getPredicateValue()) {
 							chainMatches = false;
 							break;
@@ -2484,6 +2485,7 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 				}
 			}
 		}
+		unsigned previousPredChainSize = predicateChains.size();
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
 			predicateChains.remove(*removalItr);
 		}
@@ -2493,17 +2495,66 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 		}
 		removalList.clear();
 
-		errs() << "after eliminating duplicate predicate chains,\n";
-		unsigned chainCount = 0;
-		for (auto chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++, chainCount++) {
-			errs() << "\nchain " << chainCount << ":";
-			for (auto chainContentsItr = chainItr->rbegin(); chainContentsItr != chainItr->rend(); chainContentsItr++) {
-				errs() << chainContentsItr->second->asString() << "(";
-				chainContentsItr->first->getValue()->print(errs());
-				errs() << ":" << chainContentsItr->first->getPredicateValue() << ")->";
+		errs() << "predicates now:" << predicateChains.size() << "\n";
+		errs() << "Removing redundant chains that are prefixes of longer chains\n";
+		i = 0;
+		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++, i++) {
+			if (*predicateChainItr != predicateChains.back()) {
+				int j = i + 1;
+				list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator secondPredicateChainItr = predicateChainItr;
+				secondPredicateChainItr++;
+				for (; secondPredicateChainItr != predicateChains.end(); secondPredicateChainItr++, j++) {
+					//Check if the predicate chains match
+					list<pair<HyperOpEdge*, HyperOp*> > shorterChain;
+					list<pair<HyperOpEdge*, HyperOp*> >::reverse_iterator secondChainItr = secondPredicateChainItr->rbegin();
+					for (list<pair<HyperOpEdge*, HyperOp*> >::reverse_iterator firstChainItr = predicateChainItr->rbegin(); firstChainItr != predicateChainItr->rend() && secondChainItr != secondPredicateChainItr->rend();) {
+						if (*firstChainItr == predicateChainItr->front()) {
+							shorterChain = *predicateChainItr;
+							break;
+						}
+						if (*secondChainItr == secondPredicateChainItr->front()) {
+							shorterChain = *secondPredicateChainItr;
+							break;
+						}
+						if (firstChainItr->first->getValue() != secondChainItr->first->getValue() || firstChainItr->first->getPredicateValue() != secondChainItr->first->getPredicateValue()) {
+							break;
+						}
+						firstChainItr++;
+						secondChainItr++;
+					}
+					if (!shorterChain.empty() && find(removalList.begin(), removalList.end(), shorterChain) == removalList.end()) {
+						removalList.push_back(shorterChain);
+					}
+				}
+
 			}
-			errs() << "\n---------------------------------------------------------------------------------------------------------\n";
 		}
+
+		previousPredChainSize = predicateChains.size();
+		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
+			predicateChains.remove(*removalItr);
+		}
+
+		if (!removalList.empty()) {
+			change = true;
+		}
+		removalList.clear();
+
+		errs() << "predicates now:" << predicateChains.size() << "\n";
+//		unsigned chainCount = 0;
+//		for (auto chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++, chainCount++) {
+//			errs() << "\nchain " << chainCount << ":";
+//			for (auto chainContentsItr = chainItr->rbegin(); chainContentsItr != chainItr->rend(); chainContentsItr++) {
+//				errs() << chainContentsItr->second->asString() << "(";
+//				chainContentsItr->first->getValue()->print(errs());
+//				errs() << ":" << chainContentsItr->first->getPredicateValue() << ")->";
+//			}
+//			errs() << "\n---------------------------------------------------------------------------------------------------------\n";
+//		}
+
+		assert(predicateChains.size() <= previousPredChainSize && "Removal of duplicate chains resulted in inconsistent number of chains remaining\n");
+
+		errs() << "Removing predicate chains that are mutually exclusive\n";
 
 //		errs() << "number of chains before finding prefixes:" << predicateChains.size() << "\n";
 		//Check if the predicate chains are mutually exclusive
@@ -2527,8 +2578,7 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 						if (firstPredItr->first->getType() == HyperOpEdge::PREDICATE || secondPredItr->first->getType() == HyperOpEdge::PREDICATE) {
 							atleastOneControlEdgeInChains = true;
 						}
-
-						if (firstPredItr->second == secondPredItr->second && (firstPredItr->first->getType() == HyperOpEdge::PREDICATE && secondPredItr->first->getType() == HyperOpEdge::PREDICATE && firstPredItr->first->getValue() == secondPredItr->first->getValue())) {
+						if (firstPredItr->first->getType() == HyperOpEdge::PREDICATE && secondPredItr->first->getType() == HyperOpEdge::PREDICATE && firstPredItr->first->getValue() == secondPredItr->first->getValue()) {
 							if (firstPredItr->first->getPredicateValue() != secondPredItr->first->getPredicateValue()) {
 								divergentPaths = true;
 								break;
@@ -2560,7 +2610,6 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 							prefixChain.push_front(*tempItr);
 						}
 						if (find(additionList.begin(), additionList.end(), prefixChain) == additionList.end() && !prefixChain.empty()) {
-							errs() << "merging paths for indices " << one << "and " << two << " to a new predicate chain of size :"<<prefixChain.size()<<"\n";
 							additionList.push_back(prefixChain);
 						}
 						if (find(removalList.begin(), removalList.end(), *firstPredicateChainItr) == removalList.end()) {
@@ -2575,6 +2624,7 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 		}
 
 //		errs() << "num chains after pairwise compare:" << predicateChains.size() << ", num removal:" << removalList.size() << ", num addition:" << additionList.size() << "\n";
+		previousPredChainSize = predicateChains.size();
 
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
 			predicateChains.remove(*removalItr);
@@ -2597,6 +2647,9 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 		if (!removalList.empty()) {
 			change = true;
 		}
+
+		errs() << "predicates now:" << predicateChains.size() << "\n";
+		assert(predicateChains.size() <= previousPredChainSize && "Merge of mutually exclusive chains resulted in inconsistent number of chains remaining\n");
 	}
 
 	errs() << "num chains in the end:" << predicateChains.size() << "\n";
@@ -2614,6 +2667,11 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 		errs() << "\n";
 	}
 
+	errs() << "\nreturning the longest chain\n";
+	if (predicateChains.empty()) {
+		list<pair<HyperOpEdge*, HyperOp*> > emptyChain;
+		return emptyChain;
+	}
 	//Now we find the shortest predicate chain
 	list<pair<HyperOpEdge*, HyperOp*> > longestChain;
 	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++) {
@@ -2621,7 +2679,6 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 			longestChain = *predicateChainItr;
 		}
 	}
-	errs() << "\n returning the longest chain\n";
 	return longestChain;
 }
 
