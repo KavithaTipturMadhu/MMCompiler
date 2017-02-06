@@ -1015,7 +1015,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 		}
 	}
 
-	//Shuffle the address fwd slots for dynamic instances
+	//Shuffle the address forward slots for dynamic instances
 	map<HyperOp*, list<HyperOpEdge*> > incomingContextAddressFwdEdgeAndSlotMapForDynamicInstances;
 	map<HyperOp*, list<HyperOpEdge*> > incomingContextAddressFwdEdgeAndSlotMapForUnrolledInstances;
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
@@ -2384,7 +2384,6 @@ list<list<pair<HyperOpEdge*, HyperOp*> > > getReachingPredicateChain(HyperOp* cu
 //	if (currentHyperOp != immediateDominatorHyperOp) {
 	if (!currentHyperOp->isStartHyperOp()) {
 //		errs()<<"traversing "<<currentHyperOp->asString()<<"\n";
-//	errs() << "getting reaching predicate chain for " << currentHyperOp->asString() << "\n";
 		map<HyperOpEdge*, HyperOp*> traversalMap;
 		list<HyperOp*> parentList = currentHyperOp->getParentList();
 		for (list<HyperOp*>::iterator parentItr = parentList.begin(); parentItr != parentList.end(); parentItr++) {
@@ -2394,8 +2393,10 @@ list<list<pair<HyperOpEdge*, HyperOp*> > > getReachingPredicateChain(HyperOp* cu
 				if (edgeItr->second == *parentItr) {
 					if (edgeItr->first->getType() == HyperOpEdge::PREDICATE) {
 						predicateEdge = edgeItr->first;
+						break;
+					} else if (firstEdge == 0) {
+						firstEdge = edgeItr->first;
 					}
-					firstEdge = edgeItr->first;
 				}
 			}
 
@@ -2412,11 +2413,9 @@ list<list<pair<HyperOpEdge*, HyperOp*> > > getReachingPredicateChain(HyperOp* cu
 			if (!parentItr->second->isUnrolledInstance() || !currentHyperOp->isUnrolledInstance()) {
 				if (!reachingPredicates.empty()) {
 					for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator reachingPredItr = reachingPredicates.begin(); reachingPredItr != reachingPredicates.end(); reachingPredItr++) {
-						if (parentItr->first->getType() == HyperOpEdge::PREDICATE) {
-							reachingPredItr->push_front(make_pair(parentItr->first, parentItr->second));
-						}
+						reachingPredItr->push_front(make_pair(parentItr->first, parentItr->second));
 					}
-				} else if (parentItr->first->getType() == HyperOpEdge::PREDICATE) {
+				} else {
 					list<pair<HyperOpEdge*, HyperOp*> > predPair;
 					predPair.push_front(make_pair(parentItr->first, parentItr->second));
 					reachingPredicates.push_back(predPair);
@@ -2432,23 +2431,7 @@ list<list<pair<HyperOpEdge*, HyperOp*> > > getReachingPredicateChain(HyperOp* cu
 	return predicateChains;
 }
 
-//Returns predicate from start hyperop
-list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) {
-	list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains = getReachingPredicateChain(currentHyperOp, currentHyperOp->getImmediateDominator());
-	errs() << "printing predicate chains\n";
-	unsigned chainCount = 0;
-	for (auto chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++, chainCount++) {
-		errs() << "\nchain " << chainCount << ":";
-		for (auto chainContentsItr = chainItr->rbegin(); chainContentsItr != chainItr->rend(); chainContentsItr++) {
-			errs() << chainContentsItr->second->asString() << "(";
-			chainContentsItr->first->getValue()->print(errs());
-			errs() << ":" << chainContentsItr->first->getPredicateValue() << ")->";
-		}
-		errs() << "\n---------------------------------------------------------------------------------------------------------\n";
-	}
-
-	errs() << "\n---\nhyperop:" << currentHyperOp->asString() << ", number of chains before merging:" << predicateChains.size() << "\n";
-
+list<list<pair<HyperOpEdge*, HyperOp*> > > mergePredicateChains(list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains) {
 	//Start merging edges
 	bool change = true;
 	while (change) {
@@ -2508,11 +2491,11 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 					list<pair<HyperOpEdge*, HyperOp*> > shorterChain;
 					list<pair<HyperOpEdge*, HyperOp*> >::reverse_iterator secondChainItr = secondPredicateChainItr->rbegin();
 					for (list<pair<HyperOpEdge*, HyperOp*> >::reverse_iterator firstChainItr = predicateChainItr->rbegin(); firstChainItr != predicateChainItr->rend() && secondChainItr != secondPredicateChainItr->rend();) {
-						if (*firstChainItr == predicateChainItr->front()) {
+						if (*firstChainItr == predicateChainItr->front() && *secondChainItr != secondPredicateChainItr->front()) {
 							shorterChain = *predicateChainItr;
 							break;
 						}
-						if (*secondChainItr == secondPredicateChainItr->front()) {
+						if (*secondChainItr == secondPredicateChainItr->front() && *firstChainItr != predicateChainItr->front()) {
 							shorterChain = *secondPredicateChainItr;
 							break;
 						}
@@ -2541,22 +2524,22 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 		removalList.clear();
 
 		errs() << "predicates now:" << predicateChains.size() << "\n";
-//		unsigned chainCount = 0;
-//		for (auto chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++, chainCount++) {
-//			errs() << "\nchain " << chainCount << ":";
-//			for (auto chainContentsItr = chainItr->rbegin(); chainContentsItr != chainItr->rend(); chainContentsItr++) {
-//				errs() << chainContentsItr->second->asString() << "(";
-//				chainContentsItr->first->getValue()->print(errs());
-//				errs() << ":" << chainContentsItr->first->getPredicateValue() << ")->";
-//			}
-//			errs() << "\n---------------------------------------------------------------------------------------------------------\n";
-//		}
+		//		unsigned chainCount = 0;
+		//		for (auto chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++, chainCount++) {
+		//			errs() << "\nchain " << chainCount << ":";
+		//			for (auto chainContentsItr = chainItr->rbegin(); chainContentsItr != chainItr->rend(); chainContentsItr++) {
+		//				errs() << chainContentsItr->second->asString() << "(";
+		//				chainContentsItr->first->getValue()->print(errs());
+		//				errs() << ":" << chainContentsItr->first->getPredicateValue() << ")->";
+		//			}
+		//			errs() << "\n---------------------------------------------------------------------------------------------------------\n";
+		//		}
 
 		assert(predicateChains.size() <= previousPredChainSize && "Removal of duplicate chains resulted in inconsistent number of chains remaining\n");
 
 		errs() << "Removing predicate chains that are mutually exclusive\n";
 
-//		errs() << "number of chains before finding prefixes:" << predicateChains.size() << "\n";
+		//		errs() << "number of chains before finding prefixes:" << predicateChains.size() << "\n";
 		//Check if the predicate chains are mutually exclusive
 		unsigned one = 0;
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator firstPredicateChainItr = predicateChains.begin(); firstPredicateChainItr != predicateChains.end(); firstPredicateChainItr++, one++) {
@@ -2569,12 +2552,7 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 					auto firstPredItr = firstPredicateChainItr->rbegin();
 					bool divergentPaths = false;
 					bool atleastOneControlEdgeInChains = false;
-//					errs() << "\n===new comparison====\n";
 					for (; firstPredItr != firstPredicateChainItr->rend() && secondPredItr != secondPredicateChainItr->rend();) {
-//						errs() << "comparing data from sources " << firstPredItr->second->asString() << " and " << secondPredItr->second->asString() << " with type " << firstPredItr->first->getType() << " and " << secondPredItr->first->getType() << " and values:";
-//						firstPredItr->first->getValue()->print(errs());
-//						secondPredItr->first->getValue()->print(errs());
-//						errs() << "\n";
 						if (firstPredItr->first->getType() == HyperOpEdge::PREDICATE || secondPredItr->first->getType() == HyperOpEdge::PREDICATE) {
 							atleastOneControlEdgeInChains = true;
 						}
@@ -2623,22 +2601,22 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 			}
 		}
 
-//		errs() << "num chains after pairwise compare:" << predicateChains.size() << ", num removal:" << removalList.size() << ", num addition:" << additionList.size() << "\n";
+		//		errs() << "num chains after pairwise compare:" << predicateChains.size() << ", num removal:" << removalList.size() << ", num addition:" << additionList.size() << "\n";
 		previousPredChainSize = predicateChains.size();
 
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
 			predicateChains.remove(*removalItr);
 		}
 
-//		errs() << "after removal, what is in predicate chains list?";
-//		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
-//			errs() << "\neach chain:";
-//			for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
-//				errs() << printItr->second->asString() << "(";
-//				printItr->first->getValue()->print(errs());
-//				errs() << printItr->first->getPredicateValue() << ")->";
-//			}
-//		}
+		//		errs() << "after removal, what is in predicate chains list?";
+		//		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
+		//			errs() << "\neach chain:";
+		//			for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
+		//				errs() << printItr->second->asString() << "(";
+		//				printItr->first->getValue()->print(errs());
+		//				errs() << printItr->first->getPredicateValue() << ")->";
+		//			}
+		//		}
 
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator additionItr = additionList.begin(); additionItr != additionList.end(); additionItr++) {
 			predicateChains.push_back(*additionItr);
@@ -2651,23 +2629,32 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 		errs() << "predicates now:" << predicateChains.size() << "\n";
 		assert(predicateChains.size() <= previousPredChainSize && "Merge of mutually exclusive chains resulted in inconsistent number of chains remaining\n");
 	}
+	return predicateChains;
+}
 
-	errs() << "num chains in the end:" << predicateChains.size() << "\n";
-	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
-		errs() << "\neach chain:";
-		if (chainItr->empty()) {
-			errs() << "empty chain\n";
-		} else {
-			for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
-				errs() << printItr->second->asString() << "(";
-				printItr->first->getValue()->print(errs());
-				errs() << printItr->first->getPredicateValue() << ")->";
-			}
-		}
-		errs() << "\n";
-	}
-
-	errs() << "\nreturning the longest chain\n";
+//Returns predicate from start hyperop
+list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) {
+	list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains = getReachingPredicateChain(currentHyperOp, currentHyperOp->getImmediateDominator());
+	predicateChains = mergePredicateChains(predicateChains);
+//	errs() << "\n---\nhyperop:" << currentHyperOp->asString() << ", number of chains before merging:" << predicateChains.size() << "\n";
+//
+//	errs() << "num chains in the end:" << predicateChains.size() << "\n";
+//	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
+//		errs() << "\neach chain:";
+//		if (chainItr->empty()) {
+//			errs() << "empty chain\n";
+//		} else {
+//			for (list<pair<HyperOpEdge*, HyperOp*> >::reverse_iterator printItr = chainItr->rbegin(); printItr != chainItr->rend(); printItr++) {
+//				errs() << printItr->second->asString() << "(";
+//				printItr->first->getValue()->print(errs());
+//				errs() << printItr->first->getPredicateValue() << ")->";
+//			}
+//		}
+//		errs() << "\n";
+//	}
+//
+//	assert(predicateChains.size() <= 1 && "moar predicates\n");
+//	errs() << "\nreturning the longest chain\n";
 	if (predicateChains.empty()) {
 		list<pair<HyperOpEdge*, HyperOp*> > emptyChain;
 		return emptyChain;
@@ -2682,35 +2669,94 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 	return longestChain;
 }
 
-bool mutuallyExclusiveHyperOps(HyperOp* firstHyperOp, HyperOp* secondHyperOp) {
-	list<pair<HyperOpEdge*, HyperOp*> > firstPredicateChain = lastPredicateInput(firstHyperOp);
-	list<pair<HyperOpEdge*, HyperOp*> > secondPredicateChain = lastPredicateInput(secondHyperOp);
+//Returns control flow graph from the cdfg we use, this graph is used to compute mutual exclusion etc
+pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > getCFG(HyperOpInteractionGraph* dfg) {
+	HyperOpInteractionGraph* cfg = new HyperOpInteractionGraph();
+	map<HyperOp*, HyperOp*> originalToClonedNodesMap;
+	for (list<HyperOp*>::iterator vertexItr = dfg->Vertices.begin(); vertexItr != dfg->Vertices.end(); vertexItr++) {
+		//Create a new Vertex for each original
+		HyperOp* newVertex = new HyperOp((*vertexItr)->getFunction());
+		newVertex->setStaticHyperOp((*vertexItr)->isStaticHyperOp());
+		newVertex->setInstanceof((*vertexItr)->getInstanceof());
+		newVertex->setHyperOpId((*vertexItr)->getHyperOpId());
+		newVertex->setInstanceId((*vertexItr)->getInstanceId());
+		if ((*vertexItr)->isPredicatedHyperOp()) {
+			newVertex->setPredicatedHyperOp();
+		}
+		if ((*vertexItr)->isBarrierHyperOp()) {
+			newVertex->setBarrierHyperOp();
+		}
+		if ((*vertexItr)->isStartHyperOp()) {
+			newVertex->setStartHyperOp();
+		}
+		if ((*vertexItr)->isEndHyperOp()) {
+			newVertex->setEndHyperOp();
+		}
+		cfg->addHyperOp(newVertex);
+		originalToClonedNodesMap[*vertexItr] = newVertex;
+	}
 
-	list<pair<HyperOpEdge*, HyperOp*> >::reverse_iterator secondPredicateChainItr = secondPredicateChain.rbegin();
-	for (list<pair<HyperOpEdge*, HyperOp*> >::reverse_iterator firstPredicateChainItr = firstPredicateChain.rbegin(); firstPredicateChainItr != firstPredicateChain.rend() && secondPredicateChainItr != secondPredicateChain.rend();) {
-		if (firstPredicateChainItr->second == secondPredicateChainItr->second
-				&& (firstPredicateChainItr->first->getType() == HyperOpEdge::PREDICATE && secondPredicateChainItr->first->getType() == HyperOpEdge::PREDICATE && firstPredicateChainItr->first->getValue() == secondPredicateChainItr->first->getValue())) {
-			if (firstPredicateChainItr->first->getPredicateValue() != secondPredicateChainItr->first->getPredicateValue()) {
-				return true;
-			}
-			if (*firstPredicateChainItr == firstPredicateChain.front() || *secondPredicateChainItr == secondPredicateChain.front()) {
-				break;
-			}
-			firstPredicateChainItr++;
-			secondPredicateChainItr++;
-		} else {
-			if (*firstPredicateChainItr == firstPredicateChain.front() || *secondPredicateChainItr == secondPredicateChain.front()) {
-				break;
-			}
-			if (firstPredicateChainItr->first->getType() != HyperOpEdge::PREDICATE) {
-				firstPredicateChainItr++;
-			}
-			if (secondPredicateChainItr->first->getType() != HyperOpEdge::PREDICATE) {
-				secondPredicateChainItr++;
+	//Copy only predicate and sync edges
+	for (list<HyperOp*>::iterator vertexItr = dfg->Vertices.begin(); vertexItr != dfg->Vertices.end(); vertexItr++) {
+		HyperOp* targetHop = originalToClonedNodesMap[*vertexItr];
+		for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = (*vertexItr)->ParentMap.begin(); parentItr != (*vertexItr)->ParentMap.end(); parentItr++) {
+			HyperOp* sourceHop = originalToClonedNodesMap[parentItr->second];
+			if (parentItr->first->getType() == HyperOpEdge::PREDICATE || parentItr->first->getType() == HyperOpEdge::SYNC) {
+				HyperOpEdge* edge = new HyperOpEdge();
+				edge->Type = parentItr->first->getType();
+				edge->setVolume(parentItr->first->getVolume());
+				edge->setValue(parentItr->first->getValue());
+				edge->setPredicateValue(parentItr->first->getPredicateValue());
+				targetHop->addParentEdge(edge, sourceHop);
+				sourceHop->addChildEdge(edge, targetHop);
 			}
 		}
 	}
-	return false;
+
+	//Check if there are hanging hyperops
+	for (list<HyperOp*>::iterator vertexItr = dfg->Vertices.begin(); vertexItr != dfg->Vertices.end(); vertexItr++) {
+		HyperOp* targetHop = originalToClonedNodesMap[*vertexItr];
+		if (!targetHop->isStartHyperOp() && targetHop->ParentMap.empty()) {
+			auto parentItr = (*vertexItr)->ParentMap.begin();
+			HyperOp* sourceHop = originalToClonedNodesMap[parentItr->second];
+			HyperOpEdge* edge = new HyperOpEdge();
+			edge->Type = parentItr->first->getType();
+			edge->setVolume(parentItr->first->getVolume());
+			edge->setValue(parentItr->first->getValue());
+			edge->setPredicateValue(parentItr->first->getPredicateValue());
+			targetHop->addParentEdge(edge, sourceHop);
+			sourceHop->addChildEdge(edge, targetHop);
+		}
+	}
+	return make_pair(cfg, originalToClonedNodesMap);
+}
+
+bool mutuallyExclusiveHyperOps(HyperOp* firstHyperOp, HyperOp* secondHyperOp) {
+	list<HyperOp*> firstHyperOpDomf = firstHyperOp->getDominanceFrontier();
+	list<HyperOp*> secondHyperOpDomf = firstHyperOp->getDominanceFrontier();
+	if (firstHyperOp->getImmediateDominator() == secondHyperOp->getImmediateDominator()) {
+		if (find(firstHyperOpDomf.begin(), firstHyperOpDomf.end(), secondHyperOp) == firstHyperOpDomf.end() && find(secondHyperOpDomf.begin(), secondHyperOpDomf.end(), firstHyperOp) == secondHyperOpDomf.end()) {
+			//HyperOps are on different paths
+			//Check if the HyperOps are on mutually exclusive predicates at all
+			list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains;
+			auto firstHyperOpPredicateChain = lastPredicateInput(firstHyperOp);
+			auto secondHyperOpPredicateChain = lastPredicateInput(secondHyperOp);
+			predicateChains.push_back(firstHyperOpPredicateChain);
+			predicateChains.push_back(secondHyperOpPredicateChain);
+			predicateChains = mergePredicateChains(predicateChains);
+			if(predicateChains.size()>1){
+				return false;
+			}
+			return true;
+		}
+		return false;
+	} else if (firstHyperOp->getImmediateDominator() == secondHyperOp || secondHyperOp->getImmediateDominator() == firstHyperOp) {
+		if (find(firstHyperOpDomf.begin(), firstHyperOpDomf.end(), secondHyperOp) != firstHyperOpDomf.end() || find(secondHyperOpDomf.begin(), secondHyperOpDomf.end(), firstHyperOp) != secondHyperOpDomf.end()) {
+			return true;
+		}
+		return false;
+	}
+	return mutuallyExclusiveHyperOps(firstHyperOp->getImmediateDominator(), secondHyperOp->getImmediateDominator());
 }
 
 /*
@@ -2984,7 +3030,39 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		(*deleteItr)->eraseFromParent();
 	}
 
+	DEBUG(dbgs() << "If the producer and consumer are mapped to different CRs, treat them as localrefs only instead of scalars to avoid reconciles\n");
+	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
+		HyperOp* hyperOp = *hopItr;
+		list<HyperOp*> children = hyperOp->getChildList();
+		for (list<HyperOp*>::iterator childHopItr = children.begin(); childHopItr != children.end(); childHopItr++) {
+			HyperOp* childHyperOp = *childHopItr;
+			if (childHyperOp->getTargetResource() != hyperOp->getTargetResource()) {
+				list<HyperOpEdge*> scalarEdgesForConversion;
+				for (map<HyperOpEdge*, HyperOp*>::iterator childMapItr = hyperOp->ChildMap.begin(); childMapItr != hyperOp->ChildMap.end(); childMapItr++) {
+					if (childMapItr->second == childHyperOp && childMapItr->first->getType() == HyperOpEdge::SCALAR) {
+						scalarEdgesForConversion.push_back(childMapItr->first);
+					}
+				}
+
+				if (scalarEdgesForConversion.size() > 1) {
+					if (childHyperOp->isPredicatedHyperOp() || childHyperOp->isBarrierHyperOp()) {
+						scalarEdgesForConversion.pop_front();
+					}
+					for (list<HyperOpEdge*>::iterator edgeItr = scalarEdgesForConversion.begin(); edgeItr != scalarEdgesForConversion.end(); edgeItr++) {
+						HyperOpEdge* scalarEdgeForConversion = *edgeItr;
+						scalarEdgeForConversion->setType(HyperOpEdge::LOCAL_REFERENCE);
+					}
+				}
+			}
+		}
+	}
+
+	pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > controlFlowGraphAndOriginalHopMap = getCFG(this);
+	HyperOpInteractionGraph* cfg = controlFlowGraphAndOriginalHopMap.first;
+	cfg->computeDominatorInfo();
+
 	DEBUG(dbgs() << "Delivering reaching predicate with decrement count in case operands to be delivered are on the non taken path\n");
+	this->print(errs());
 //	Add predicate delivery edges to HyperOps that are on non taken paths but may have data coming from a HyperOp that precedes the HyperOp producing the predicate
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hyperOp = *hopItr;
@@ -3037,6 +3115,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		}
 	}
 
+	DEBUG(dbgs() << "Decrementing sync count for ");
 //Update the sync count of nodes with sync edges incoming from mutually exclusive paths
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hyperOp = *hopItr;
@@ -3056,40 +3135,14 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					secondSyncSourceItr++;
 					for (; secondSyncSourceItr != syncSourceList.end(); secondSyncSourceItr++) {
 						//Check if predicates are mutually exclusive
-						if (mutuallyExclusiveHyperOps(*syncSourceItr, *secondSyncSourceItr)) {
+						if (mutuallyExclusiveHyperOps(controlFlowGraphAndOriginalHopMap.second[*syncSourceItr], controlFlowGraphAndOriginalHopMap.second[*secondSyncSourceItr])) {
+//							TODO moar: sync count on mutually exclusive paths need not be equal
 							hyperOp->decrementIncomingSyncCount();
 							errs() << "decremented sync count of " << hyperOp->asString() << "\n";
 						}
 					}
 				}
 
-			}
-		}
-	}
-
-	DEBUG(dbgs() << "If the producer and consumer are mapped to different CRs, treat them as localrefs only instead of scalars to avoid reconciles\n");
-	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
-		HyperOp* hyperOp = *hopItr;
-		list<HyperOp*> children = hyperOp->getChildList();
-		for (list<HyperOp*>::iterator childHopItr = children.begin(); childHopItr != children.end(); childHopItr++) {
-			HyperOp* childHyperOp = *childHopItr;
-			if (childHyperOp->getTargetResource() != hyperOp->getTargetResource()) {
-				list<HyperOpEdge*> scalarEdgesForConversion;
-				for (map<HyperOpEdge*, HyperOp*>::iterator childMapItr = hyperOp->ChildMap.begin(); childMapItr != hyperOp->ChildMap.end(); childMapItr++) {
-					if (childMapItr->second == childHyperOp && childMapItr->first->getType() == HyperOpEdge::SCALAR) {
-						scalarEdgesForConversion.push_back(childMapItr->first);
-					}
-				}
-
-				if (scalarEdgesForConversion.size() > 1) {
-					if (childHyperOp->isPredicatedHyperOp() || childHyperOp->isBarrierHyperOp()) {
-						scalarEdgesForConversion.pop_front();
-					}
-					for (list<HyperOpEdge*>::iterator edgeItr = scalarEdgesForConversion.begin(); edgeItr != scalarEdgesForConversion.end(); edgeItr++) {
-						HyperOpEdge* scalarEdgeForConversion = *edgeItr;
-						scalarEdgeForConversion->setType(HyperOpEdge::LOCAL_REFERENCE);
-					}
-				}
 			}
 		}
 	}
