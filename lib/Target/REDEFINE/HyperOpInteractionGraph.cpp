@@ -2726,8 +2726,20 @@ pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > getCFG(HyperOpInteracti
 			edge->setPredicateValue(parentItr->first->getPredicateValue());
 			targetHop->addParentEdge(edge, sourceHop);
 			sourceHop->addChildEdge(edge, targetHop);
+		} else if (!targetHop->isEndHyperOp() && targetHop->ChildMap.empty()){
+			auto childItr = (*vertexItr)->ChildMap.begin();
+			HyperOp* sourceHop = originalToClonedNodesMap[childItr->second];
+			HyperOpEdge* edge = new HyperOpEdge();
+			edge->Type = childItr->first->getType();
+			edge->setVolume(childItr->first->getVolume());
+			edge->setValue(childItr->first->getValue());
+			edge->setPredicateValue(childItr->first->getPredicateValue());
+			sourceHop->addParentEdge(edge, targetHop);
+			targetHop->addChildEdge(edge, sourceHop);
 		}
 	}
+	errs() << "generated cfg:";
+	cfg->print(errs());
 	return make_pair(cfg, originalToClonedNodesMap);
 }
 
@@ -2744,7 +2756,7 @@ bool mutuallyExclusiveHyperOps(HyperOp* firstHyperOp, HyperOp* secondHyperOp) {
 			predicateChains.push_back(firstHyperOpPredicateChain);
 			predicateChains.push_back(secondHyperOpPredicateChain);
 			predicateChains = mergePredicateChains(predicateChains);
-			if(predicateChains.size()>1){
+			if (predicateChains.size() > 1) {
 				return false;
 			}
 			return true;
