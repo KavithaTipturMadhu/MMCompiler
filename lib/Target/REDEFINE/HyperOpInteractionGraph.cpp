@@ -2378,58 +2378,58 @@ bool pathExistsInHIGExcludingOrderingEdges(HyperOp* source, HyperOp* target) {
 	return false;
 }
 
-list<list<pair<HyperOpEdge*, HyperOp*> > > getReachingPredicateChain(HyperOp* currentHyperOp, HyperOp* immediateDominatorHyperOp) {
-	list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains;
-	//Deliberately commented out for now, testing
-//	if (currentHyperOp != immediateDominatorHyperOp) {
-	if (!currentHyperOp->isStartHyperOp()) {
-//		errs()<<"traversing "<<currentHyperOp->asString()<<"\n";
-		map<HyperOpEdge*, HyperOp*> traversalMap;
-		list<HyperOp*> parentList = currentHyperOp->getParentList();
-		for (list<HyperOp*>::iterator parentItr = parentList.begin(); parentItr != parentList.end(); parentItr++) {
-			HyperOpEdge* predicateEdge = 0;
-			HyperOpEdge* firstEdge = 0;
-			for (map<HyperOpEdge*, HyperOp*>::iterator edgeItr = currentHyperOp->ParentMap.begin(); edgeItr != currentHyperOp->ParentMap.end(); edgeItr++) {
-				if (edgeItr->second == *parentItr) {
-					if (edgeItr->first->getType() == HyperOpEdge::PREDICATE) {
-						predicateEdge = edgeItr->first;
-						break;
-					} else if (firstEdge == 0) {
-						firstEdge = edgeItr->first;
-					}
-				}
-			}
-
-			if (predicateEdge != 0) {
-				traversalMap.insert(make_pair(predicateEdge, *parentItr));
-			} else if (firstEdge != 0) {
-				traversalMap.insert(make_pair(firstEdge, *parentItr));
-			}
-		}
-
-		for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = traversalMap.begin(); parentItr != traversalMap.end(); parentItr++) {
-//		errs() << "considering parent " << parentItr->second->asString() << " for current HyperOp " << currentHyperOp->asString() << "\n";
-			list<list<pair<HyperOpEdge*, HyperOp*> > > reachingPredicates = getReachingPredicateChain(parentItr->second, immediateDominatorHyperOp);
-			if (!parentItr->second->isUnrolledInstance() || !currentHyperOp->isUnrolledInstance()) {
-				if (!reachingPredicates.empty()) {
-					for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator reachingPredItr = reachingPredicates.begin(); reachingPredItr != reachingPredicates.end(); reachingPredItr++) {
-						reachingPredItr->push_front(make_pair(parentItr->first, parentItr->second));
-					}
-				} else {
-					list<pair<HyperOpEdge*, HyperOp*> > predPair;
-					predPair.push_front(make_pair(parentItr->first, parentItr->second));
-					reachingPredicates.push_back(predPair);
-				}
-			}
-			for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator reachingPredItr = reachingPredicates.begin(); reachingPredItr != reachingPredicates.end(); reachingPredItr++) {
-				if ((!reachingPredItr->empty()) && find(predicateChains.begin(), predicateChains.end(), *reachingPredItr) == predicateChains.end()) {
-					predicateChains.push_back(*reachingPredItr);
-				}
-			}
-		}
-	}
-	return predicateChains;
-}
+//list<list<pair<HyperOpEdge*, HyperOp*> > > getReachingPredicateChain(HyperOp* currentHyperOp, HyperOp* immediateDominatorHyperOp) {
+//	list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains;
+//	//Deliberately commented out for now, testing
+////	if (currentHyperOp != immediateDominatorHyperOp) {
+//	if (!currentHyperOp->isStartHyperOp()) {
+////		errs()<<"traversing "<<currentHyperOp->asString()<<"\n";
+//		map<HyperOpEdge*, HyperOp*> traversalMap;
+//		list<HyperOp*> parentList = currentHyperOp->getParentList();
+//		for (list<HyperOp*>::iterator parentItr = parentList.begin(); parentItr != parentList.end(); parentItr++) {
+//			HyperOpEdge* predicateEdge = 0;
+//			HyperOpEdge* firstEdge = 0;
+//			for (map<HyperOpEdge*, HyperOp*>::iterator edgeItr = currentHyperOp->ParentMap.begin(); edgeItr != currentHyperOp->ParentMap.end(); edgeItr++) {
+//				if (edgeItr->second == *parentItr) {
+//					if (edgeItr->first->getType() == HyperOpEdge::PREDICATE) {
+//						predicateEdge = edgeItr->first;
+//						break;
+//					} else if (firstEdge == 0) {
+//						firstEdge = edgeItr->first;
+//					}
+//				}
+//			}
+//
+//			if (predicateEdge != 0) {
+//				traversalMap.insert(make_pair(predicateEdge, *parentItr));
+//			} else if (firstEdge != 0) {
+//				traversalMap.insert(make_pair(firstEdge, *parentItr));
+//			}
+//		}
+//
+//		for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = traversalMap.begin(); parentItr != traversalMap.end(); parentItr++) {
+////		errs() << "considering parent " << parentItr->second->asString() << " for current HyperOp " << currentHyperOp->asString() << "\n";
+//			list<list<pair<HyperOpEdge*, HyperOp*> > > reachingPredicates = getReachingPredicateChain(parentItr->second, immediateDominatorHyperOp);
+//			if (!parentItr->second->isUnrolledInstance() || !currentHyperOp->isUnrolledInstance()) {
+//				if (!reachingPredicates.empty()) {
+//					for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator reachingPredItr = reachingPredicates.begin(); reachingPredItr != reachingPredicates.end(); reachingPredItr++) {
+//						reachingPredItr->push_front(make_pair(parentItr->first, parentItr->second));
+//					}
+//				} else {
+//					list<pair<HyperOpEdge*, HyperOp*> > predPair;
+//					predPair.push_front(make_pair(parentItr->first, parentItr->second));
+//					reachingPredicates.push_back(predPair);
+//				}
+//			}
+//			for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator reachingPredItr = reachingPredicates.begin(); reachingPredItr != reachingPredicates.end(); reachingPredItr++) {
+//				if ((!reachingPredItr->empty()) && find(predicateChains.begin(), predicateChains.end(), *reachingPredItr) == predicateChains.end()) {
+//					predicateChains.push_back(*reachingPredItr);
+//				}
+//			}
+//		}
+//	}
+//	return predicateChains;
+//}
 
 list<list<pair<HyperOpEdge*, HyperOp*> > > mergePredicateChains(list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains) {
 	//Start merging edges
@@ -2608,15 +2608,15 @@ list<list<pair<HyperOpEdge*, HyperOp*> > > mergePredicateChains(list<list<pair<H
 			predicateChains.remove(*removalItr);
 		}
 
-		//		errs() << "after removal, what is in predicate chains list?";
-		//		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
-		//			errs() << "\neach chain:";
-		//			for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
-		//				errs() << printItr->second->asString() << "(";
-		//				printItr->first->getValue()->print(errs());
-		//				errs() << printItr->first->getPredicateValue() << ")->";
-		//			}
-		//		}
+		errs() << "after merging mutually exclusive stuff, what is in predicate chains list?";
+		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
+			errs() << "\neach chain:";
+			for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
+				errs() << printItr->second->asString() << "(";
+				printItr->first->getValue()->print(errs());
+				errs() << printItr->first->getPredicateValue() << ")->";
+			}
+		}
 
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator additionItr = additionList.begin(); additionItr != additionList.end(); additionItr++) {
 			predicateChains.push_back(*additionItr);
@@ -2634,9 +2634,9 @@ list<list<pair<HyperOpEdge*, HyperOp*> > > mergePredicateChains(list<list<pair<H
 
 //Returns predicate from start hyperop
 list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) {
-	list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains = getReachingPredicateChain(currentHyperOp, currentHyperOp->getImmediateDominator());
-	predicateChains = mergePredicateChains(predicateChains);
-//	errs() << "\n---\nhyperop:" << currentHyperOp->asString() << ", number of chains before merging:" << predicateChains.size() << "\n";
+//	list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains = getReachingPredicateChain(currentHyperOp, currentHyperOp->getImmediateDominator());
+//	errs() << "\n---\ncomputing last predicate to hyperop:" << currentHyperOp->asString() << "\n";
+//	predicateChains = mergePredicateChains(predicateChains);
 //
 //	errs() << "num chains in the end:" << predicateChains.size() << "\n";
 //	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
@@ -2653,20 +2653,37 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 //		errs() << "\n";
 //	}
 //
-//	assert(predicateChains.size() <= 1 && "moar predicates\n");
-//	errs() << "\nreturning the longest chain\n";
-	if (predicateChains.empty()) {
-		list<pair<HyperOpEdge*, HyperOp*> > emptyChain;
-		return emptyChain;
-	}
+////	assert(predicateChains.size() <= 1 && "moar predicates\n");
+//	if (predicateChains.empty()) {
+//		list<pair<HyperOpEdge*, HyperOp*> > emptyChain;
+//		return emptyChain;
+//	}
+
+//	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++) {
+//		if (!predicateChainItr->empty() && longestChain.size() < predicateChainItr->size()) {
+//			longestChain = *predicateChainItr;
+//		}
+//	}
+
 	//Now we find the shortest predicate chain
-	list<pair<HyperOpEdge*, HyperOp*> > longestChain;
-	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++) {
-		if (!predicateChainItr->empty() && longestChain.size() < predicateChainItr->size()) {
-			longestChain = *predicateChainItr;
+	list<pair<HyperOpEdge*, HyperOp*> > reachingPredicateChain;
+	while (!currentHyperOp->isStartHyperOp()) {
+		HyperOp* immediateDominator = currentHyperOp->getImmediateDominator();
+		//Check if the current HyperOp is an immediate child of the immediateDom HyperOp
+		HyperOpEdge* parentEdge = 0;
+		for (auto childItr = immediateDominator->ChildMap.begin(); childItr != immediateDominator->ChildMap.end(); childItr++) {
+			if (childItr->second == currentHyperOp) {
+				parentEdge = childItr->first;
+			}
 		}
+
+		if (parentEdge != 0 && parentEdge->getType() == HyperOpEdge::PREDICATE) {
+			reachingPredicateChain.push_back(make_pair(parentEdge, immediateDominator));
+		}
+		currentHyperOp = immediateDominator;
 	}
-	return longestChain;
+
+	return reachingPredicateChain;
 }
 
 //Returns control flow graph from the cdfg we use, this graph is used to compute mutual exclusion etc
@@ -2726,7 +2743,7 @@ pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > getCFG(HyperOpInteracti
 			edge->setPredicateValue(parentItr->first->getPredicateValue());
 			targetHop->addParentEdge(edge, sourceHop);
 			sourceHop->addChildEdge(edge, targetHop);
-		} else if (!targetHop->isEndHyperOp() && targetHop->ChildMap.empty()){
+		} else if (!targetHop->isEndHyperOp() && targetHop->ChildMap.empty()) {
 			auto childItr = (*vertexItr)->ChildMap.begin();
 			HyperOp* sourceHop = originalToClonedNodesMap[childItr->second];
 			HyperOpEdge* edge = new HyperOpEdge();
@@ -2744,6 +2761,7 @@ pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > getCFG(HyperOpInteracti
 }
 
 bool mutuallyExclusiveHyperOps(HyperOp* firstHyperOp, HyperOp* secondHyperOp) {
+	errs() << "finding mutually exclusive paths\n";
 	list<HyperOp*> firstHyperOpDomf = firstHyperOp->getDominanceFrontier();
 	list<HyperOp*> secondHyperOpDomf = firstHyperOp->getDominanceFrontier();
 	if (firstHyperOp->getImmediateDominator() == secondHyperOp->getImmediateDominator()) {
@@ -2753,6 +2771,7 @@ bool mutuallyExclusiveHyperOps(HyperOp* firstHyperOp, HyperOp* secondHyperOp) {
 			list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains;
 			auto firstHyperOpPredicateChain = lastPredicateInput(firstHyperOp);
 			auto secondHyperOpPredicateChain = lastPredicateInput(secondHyperOp);
+
 			predicateChains.push_back(firstHyperOpPredicateChain);
 			predicateChains.push_back(secondHyperOpPredicateChain);
 			predicateChains = mergePredicateChains(predicateChains);
@@ -3074,35 +3093,44 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 	cfg->computeDominatorInfo();
 
 	DEBUG(dbgs() << "Delivering reaching predicate with decrement count in case operands to be delivered are on the non taken path\n");
-	this->print(errs());
 //	Add predicate delivery edges to HyperOps that are on non taken paths but may have data coming from a HyperOp that precedes the HyperOp producing the predicate
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hyperOp = *hopItr;
-		if (!hyperOp->isBarrierHyperOp()) {
+		if (hyperOp->isPredicatedHyperOp()) {
 			HyperOp* immediateDominator = hyperOp->getImmediateDominator();
-			list<pair<HyperOpEdge*, HyperOp*> > parentPredicateChain = lastPredicateInput(hyperOp);
-			pair<HyperOpEdge*, HyperOp*> parentPredicate = make_pair((HyperOpEdge*) 0, (HyperOp*) 0);
-			if (!parentPredicateChain.empty()) {
-				parentPredicate = parentPredicateChain.front();
-				errs() << parentPredicate.second->asString() << "\n";
-//				parentPredicate.first->getValue()->dump();
-			} else {
+			errs() << "finding the last predicate input to " << hyperOp->asString() << "\n";
+			list<pair<HyperOpEdge*, HyperOp*> > parentPredicateChain = lastPredicateInput(controlFlowGraphAndOriginalHopMap.second[hyperOp]);
+			errs()<<"computed predicate length "<<parentPredicateChain.size()<<"\n";
+			pair<HyperOpEdge*, HyperOp*> parentPredicate;
+			if (parentPredicateChain.empty()) {
 				errs() << "empty predicate\n";
+				continue;
+			} else {
+				parentPredicate = parentPredicateChain.front();
+				errs() << "Reaching Predicate:" << parentPredicate.second->asString() << " with value :";
+				parentPredicate.first->getValue()->dump();
 			}
 
-			if (parentPredicate.first != NULL) {
-				list<HyperOp*> parentList = hyperOp->getParentList();
+			list<HyperOp*> parentList = hyperOp->getParentList();
 //				if (immediateDominator == parentPredicate.second || pathExistsInHIG(immediateDominator, parentPredicate.second)) {
-				//Add a predicate edge from the predicate parent to the current HyperOp
-				HyperOp* parentProducingPredicate = parentPredicate.second;
-				unsigned decByValue = 0;
-				//Count number of inputs coming from other parent nodes which are also predicated by the same HyperOp
-				for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
-					if ((parentItr->first->getType() == HyperOpEdge::SCALAR || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) && parentItr->second != immediateDominator && pathExistsInHIG(parentProducingPredicate, parentItr->second)) {
-						decByValue++;
-					}
+			//Add a predicate edge from the predicate parent to the current HyperOp
+			HyperOp* parentProducingPredicate;
+			for(auto mapItr= controlFlowGraphAndOriginalHopMap.second.begin();mapItr!=controlFlowGraphAndOriginalHopMap.second.end();mapItr++){
+				if(mapItr->second==parentPredicate.second){
+					parentProducingPredicate = mapItr->first;
+					break;
 				}
-
+			}
+			unsigned decByValue = 0;
+			//Count number of inputs coming from other parent nodes which are also predicated by the same HyperOp
+			for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
+				errs()<<"considering parent of the HyperOp "<<parentItr->second->asString()<<"\n";
+				if ((parentItr->first->getType() == HyperOpEdge::SCALAR || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) && parentItr->second != immediateDominator && pathExistsInHIG(parentProducingPredicate, parentItr->second)) {
+					decByValue++;
+				}
+			}
+			errs() << "decrement value of writecmp " << decByValue << " for HyperOp " << hyperOp->asString() << "\n";
+			if (decByValue > 0) {
 				HyperOpEdge* predicateEdge;
 				if (find(parentList.begin(), parentList.end(), parentProducingPredicate) == parentList.end()) {
 					//	Add the edge delivering the reaching predicate
@@ -3119,10 +3147,11 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 						}
 					}
 				}
+
+				errs()<<"setting predicate edge decrement count to "<<decByValue<<" and the edge is between "<<parentPredicate.second->asString()<<" and "<<hyperOp->asString()<<"\n";
 				predicateEdge->setDecrementOperandCount(decByValue);
 				hyperOp->setPredicatedHyperOp();
 				this->addEdge(parentPredicate.second, hyperOp, predicateEdge);
-//				}
 			}
 		}
 	}
@@ -3148,9 +3177,14 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					for (; secondSyncSourceItr != syncSourceList.end(); secondSyncSourceItr++) {
 						//Check if predicates are mutually exclusive
 						if (mutuallyExclusiveHyperOps(controlFlowGraphAndOriginalHopMap.second[*syncSourceItr], controlFlowGraphAndOriginalHopMap.second[*secondSyncSourceItr])) {
+							errs() << "checking for mutual exclusion of " << (*syncSourceItr)->asString() << " and " << (*secondSyncSourceItr)->asString() << "\n";
+							errs() << "they are exclusive!\n";
 //							TODO moar: sync count on mutually exclusive paths need not be equal
 							hyperOp->decrementIncomingSyncCount();
 							errs() << "decremented sync count of " << hyperOp->asString() << "\n";
+						} else {
+							errs() << "checking for mutual exclusion of " << (*syncSourceItr)->asString() << " and " << (*secondSyncSourceItr)->asString() << "\n";
+							errs() << "they are not exclusive!\n";
 						}
 					}
 				}
@@ -3217,7 +3251,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 				os << vertex->asString() << "->" << childItr->second->asString() << "[label=";
 				HyperOpEdge* edge = (*childItr).first;
 				if (edge->Type == HyperOpEdge::SCALAR) {
-					os << "scalar";
+					os << "scalar"<<edge->getPositionOfContextSlot();
 //					edge->getValue()->print(os);
 				} else if (edge->Type == HyperOpEdge::LOCAL_REFERENCE) {
 					os << "localref";

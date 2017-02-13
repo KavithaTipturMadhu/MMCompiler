@@ -96,8 +96,6 @@ void REDEFINEInstPrinter::printRegName(raw_ostream &O, unsigned RegNo) const {
 
 void REDEFINEInstPrinter::printMemOperand(const MCInst *MI, int opNum, raw_ostream &OS) {
 	//TODO terrible terrible TERRIBLE hack; Bad bad Kavitha
-	errs()<<"printing mi ";
-	MI->dump();
 	static bool firstOperand=true;
 	//First operand
 	if(firstOperand){
