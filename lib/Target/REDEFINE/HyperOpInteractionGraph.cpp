@@ -902,7 +902,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 			if (dominanceFrontierHyperOp != vertex) {
 				HyperOp* immediateDominator = vertex->getImmediateDominator();
 				HyperOpEdge* contextFrameEdge = new HyperOpEdge();
-				contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS);
+				contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR);
 				contextFrameEdge->setContextFrameAddress(dominanceFrontierHyperOp);
 
 				int freeContextSlot;
@@ -911,7 +911,8 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 				if (dominanceFrontierHyperOp->getImmediateDominator() == vertex->getImmediateDominator()) {
 					bool edgeAddedPreviously = false;
 					for (map<HyperOpEdge*, HyperOp*>::iterator childMapItr = immediateDominator->ChildMap.begin(); childMapItr != immediateDominator->ChildMap.end(); childMapItr++) {
-						if (childMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && childMapItr->first->getContextFrameAddress() == dominanceFrontierHyperOp && childMapItr->second == vertex) {
+						//Ensure that up until now, local ref context frame edges haven't been used
+						if (childMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR && childMapItr->first->getContextFrameAddress() == dominanceFrontierHyperOp && childMapItr->second == vertex) {
 							edgeAddedPreviously = true;
 							break;
 						}
@@ -920,34 +921,135 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						this->addEdge(immediateDominator, vertex, (HyperOpEdge*) contextFrameEdge);
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = vertex->ParentMap.begin(); parentEdgeItr != vertex->ParentMap.end(); parentEdgeItr++) {
 							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
-							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
+							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
 								max = previouslyAddedEdge->getPositionOfContextSlot();
 							} else if (previouslyAddedEdge->getType() == HyperOpEdge::SYNC) {
 								maxAvailableContextSlots = maxContextFrameSize - 1;
 							}
 						}
 						freeContextSlot = max + 1;
-						errs() << "free slot:" << freeContextSlot << " and max slots:" << maxAvailableContextSlots << ", max frame size:" << maxContextFrameSize << "\n";
-						if (freeContextSlot < maxAvailableContextSlots) {
-							contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
-						} else {
-							//TODO: Set the address to be passed as local reference
-						}
-					}
+						if (freeContextSlot >= maxAvailableContextSlots) {
+							//TODO test this
+							//Set the address to be passed as local reference
+							list<Argument*> scalarArgs;
+							list<Argument*> localRefArgs;
+							int position = -1;
+							Function* consumerFunction = vertex->getFunction();
+							map<unsigned, Argument*> replicatedArgIndexMap;
+							for (Function::arg_iterator argItr = consumerFunction->arg_begin(); argItr != consumerFunction->arg_end(); argItr++) {
+								if (!consumerFunction->getAttributes().hasAttribute(argItr->getArgNo() + 1, Attribute::InReg)) {
+									localRefArgs.push_back(argItr);
+									continue;
+								}
+								if (position < argItr->getArgNo()) {
+									position = argItr->getArgNo();
+								}
+								scalarArgs.push_back(argItr);
+							}
 
+							if (position == -1) {
+								position++;
+							}
+
+							vector<Type*> coalescedList;
+							map<unsigned, unsigned> originalToReplicatedArgIndexMap;
+
+							unsigned argIndex = 0;
+							for (list<Argument*>::iterator scalarArgItr = scalarArgs.begin(); scalarArgItr != scalarArgs.end(); scalarArgItr++, argIndex++) {
+								coalescedList.push_back((*scalarArgItr)->getType());
+								originalToReplicatedArgIndexMap[argIndex] = argIndex;
+							}
+							Argument *newArgument = new Argument(Type::getInt32Ty(consumerFunction->getContext()));
+							coalescedList.push_back(newArgument->getType());
+							unsigned numScalarArgs = scalarArgs.size();
+
+							for (list<Argument*>::iterator localRefArgItr = localRefArgs.begin(); localRefArgItr != localRefArgs.end(); localRefArgItr++, argIndex++) {
+								coalescedList.push_back((*localRefArgItr)->getType());
+								originalToReplicatedArgIndexMap[argIndex] = argIndex + 1;
+							}
+
+							FunctionType *FT = FunctionType::get(Type::getVoidTy(consumerFunction->getParent()->getContext()), coalescedList, false);
+							Function *replacementFunction = Function::Create(FT, Function::ExternalLinkage, consumerFunction->getName(), consumerFunction->getParent());
+
+							unsigned replicatedArgIndex = 0;
+							for (Function::arg_iterator replicatedArgItr = replacementFunction->arg_begin(); replicatedArgItr != replacementFunction->arg_end(); replicatedArgItr++, replicatedArgIndex++) {
+								replicatedArgIndexMap[replicatedArgIndex] = replicatedArgItr;
+							}
+
+							for (unsigned i = 1; i <= numScalarArgs; i++) {
+								replacementFunction->addAttribute(i, Attribute::InReg);
+							}
+
+							map<BasicBlock*, BasicBlock*> originalAndReplicatedBBMap;
+							map<Instruction*, Instruction*> localInstCloneMap;
+							map<Instruction*, Instruction*> originalInstAndCloneMap;
+							for (Function::iterator bbItr = consumerFunction->begin(); bbItr != consumerFunction->end(); bbItr++) {
+								BasicBlock *newBB = BasicBlock::Create(consumerFunction->getParent()->getContext(), replacementFunction->getName().str().append(bbItr->getName()), replacementFunction);
+								originalAndReplicatedBBMap[bbItr] = newBB;
+								for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
+									Instruction* clonedInst = instItr->clone();
+									Instruction* key = 0;
+									//Check if the instruction has been inserted previously as a clone of some other instruction
+									for (map<Instruction*, Instruction*>::iterator cloneMapItr = originalInstAndCloneMap.begin(); cloneMapItr != originalInstAndCloneMap.end(); cloneMapItr++) {
+										if (cloneMapItr->second == instItr) {
+											key = cloneMapItr->first;
+											break;
+										}
+									}
+
+									if (key != 0) {
+										originalInstAndCloneMap.erase(key);
+									} else {
+										key = instItr;
+									}
+									originalInstAndCloneMap[key] = clonedInst;
+									localInstCloneMap[instItr] = clonedInst;
+									newBB->getInstList().insert(newBB->end(), clonedInst);
+								}
+							}
+
+							for (Function::iterator bbItr = replacementFunction->begin(); bbItr != replacementFunction->end(); bbItr++) {
+								for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
+									unsigned operatorIndex = 0;
+									for (Instruction::op_iterator opItr = instItr->op_begin(); opItr != instItr->op_end(); opItr++, operatorIndex++) {
+										unsigned argIndex = 0;
+										bool argReplaced = false;
+										for (Function::arg_iterator argItr = consumerFunction->arg_begin(); argItr != consumerFunction->arg_end(); argItr++, argIndex++) {
+											if (opItr->get() == argItr) {
+												Argument* replacementArg = replicatedArgIndexMap[originalToReplicatedArgIndexMap[argIndex]];
+												instItr->setOperand(operatorIndex, replacementArg);
+												argReplaced = true;
+												break;
+											}
+										}
+										if (!argReplaced && !isa<BranchInst>(opItr->get()) && localInstCloneMap.find((Instruction*) opItr->get()) != localInstCloneMap.end()) {
+											instItr->setOperand(operatorIndex, localInstCloneMap[(Instruction*) opItr->get()]);
+										} else if (originalAndReplicatedBBMap.find((BasicBlock*) opItr->get()) != originalAndReplicatedBBMap.end()) {
+											instItr->setOperand(operatorIndex, originalAndReplicatedBBMap[(BasicBlock*) opItr->get()]);
+										}
+									}
+								}
+							}
+							//Add a store in source HyperOp function
+							contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF);
+							vertex->setFunction(replacementFunction);
+							consumerFunction->eraseFromParent();
+						}
+						contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
+					}
 				} else {
 					list<HyperOp*> immediateDominatorDominanceFrontier = immediateDominator->getDominanceFrontier();
 					HyperOp* prevVertex = vertex;
 					while (immediateDominator != 0 && !immediateDominatorDominanceFrontier.empty() && std::find(immediateDominatorDominanceFrontier.begin(), immediateDominatorDominanceFrontier.end(), dominanceFrontierHyperOp) != immediateDominatorDominanceFrontier.end()) {
 						HyperOpEdge* frameForwardChainEdge = new HyperOpEdge();
-						frameForwardChainEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS);
+						frameForwardChainEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR);
 						frameForwardChainEdge->setContextFrameAddress(dominanceFrontierHyperOp);
 						//Find the last free context slot at consumer
 						int freeContextSlot;
 						int max = -1, maxAvailableContextSlots = maxContextFrameSize;
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = prevVertex->ParentMap.begin(); parentEdgeItr != prevVertex->ParentMap.end(); parentEdgeItr++) {
 							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
-							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
+							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
 								max = previouslyAddedEdge->getPositionOfContextSlot();
 							} else if (previouslyAddedEdge->getType() == HyperOpEdge::SYNC) {
 								maxAvailableContextSlots = maxContextFrameSize - 1;
@@ -964,7 +1066,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 
 						bool edgeAddedPreviously = false;
 						for (map<HyperOpEdge*, HyperOp*>::iterator childMapItr = immediateDominator->ChildMap.begin(); childMapItr != immediateDominator->ChildMap.end(); childMapItr++) {
-							if (childMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && childMapItr->first->getContextFrameAddress() == dominanceFrontierHyperOp && childMapItr->second == prevVertex) {
+							if (childMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR && childMapItr->first->getContextFrameAddress() == dominanceFrontierHyperOp && childMapItr->second == prevVertex) {
 								edgeAddedPreviously = true;
 								break;
 							}
@@ -982,7 +1084,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 
 					bool edgeAddedPreviously = false;
 					for (map<HyperOpEdge*, HyperOp*>::iterator childMapItr = immediateDominator->ChildMap.begin(); childMapItr != immediateDominator->ChildMap.end(); childMapItr++) {
-						if (childMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && childMapItr->first->getContextFrameAddress() == dominanceFrontierHyperOp && childMapItr->second == prevVertex) {
+						if (childMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR && childMapItr->first->getContextFrameAddress() == dominanceFrontierHyperOp && childMapItr->second == prevVertex) {
 							edgeAddedPreviously = true;
 							break;
 						}
@@ -995,7 +1097,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						errs() << "\n---\ncomputing incoming edges to " << vertex->asString() << ", its parentmap size:" << prevVertex->ParentMap.size() << "\n";
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = prevVertex->ParentMap.begin(); parentEdgeItr != prevVertex->ParentMap.end(); parentEdgeItr++) {
 							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
-							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
+							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
 								max = previouslyAddedEdge->getPositionOfContextSlot();
 							} else if (previouslyAddedEdge->getType() == HyperOpEdge::SYNC) {
 								maxAvailableContextSlots = maxContextFrameSize - 1;
@@ -1007,6 +1109,8 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 							contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
 						} else {
 							//TODO: Set the address to be passed as local reference
+							//Step 1: Modify the function to take an argument extra and set its context slot
+
 						}
 					}
 
@@ -1022,7 +1126,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 		list<HyperOpEdge*> incomingContextEdgeSlotMap;
 		if (!(*vertexIterator)->isStaticHyperOp()) {
 			for (map<HyperOpEdge*, HyperOp*>::iterator parentMapItr = (*vertexIterator)->ParentMap.begin(); parentMapItr != (*vertexIterator)->ParentMap.end(); parentMapItr++) {
-				if (parentMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS && !(parentMapItr->second->isUnrolledInstance() && (*vertexIterator)->isUnrolledInstance())) {
+				if (parentMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR && !(parentMapItr->second->isUnrolledInstance() && (*vertexIterator)->isUnrolledInstance())) {
 					incomingContextEdgeSlotMap.push_back(parentMapItr->first);
 				}
 			}
@@ -2634,37 +2738,6 @@ list<list<pair<HyperOpEdge*, HyperOp*> > > mergePredicateChains(list<list<pair<H
 
 //Returns predicate from start hyperop
 list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) {
-//	list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains = getReachingPredicateChain(currentHyperOp, currentHyperOp->getImmediateDominator());
-//	errs() << "\n---\ncomputing last predicate to hyperop:" << currentHyperOp->asString() << "\n";
-//	predicateChains = mergePredicateChains(predicateChains);
-//
-//	errs() << "num chains in the end:" << predicateChains.size() << "\n";
-//	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
-//		errs() << "\neach chain:";
-//		if (chainItr->empty()) {
-//			errs() << "empty chain\n";
-//		} else {
-//			for (list<pair<HyperOpEdge*, HyperOp*> >::reverse_iterator printItr = chainItr->rbegin(); printItr != chainItr->rend(); printItr++) {
-//				errs() << printItr->second->asString() << "(";
-//				printItr->first->getValue()->print(errs());
-//				errs() << printItr->first->getPredicateValue() << ")->";
-//			}
-//		}
-//		errs() << "\n";
-//	}
-//
-////	assert(predicateChains.size() <= 1 && "moar predicates\n");
-//	if (predicateChains.empty()) {
-//		list<pair<HyperOpEdge*, HyperOp*> > emptyChain;
-//		return emptyChain;
-//	}
-
-//	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++) {
-//		if (!predicateChainItr->empty() && longestChain.size() < predicateChainItr->size()) {
-//			longestChain = *predicateChainItr;
-//		}
-//	}
-
 	//Now we find the shortest predicate chain
 	list<pair<HyperOpEdge*, HyperOp*> > reachingPredicateChain;
 	while (!currentHyperOp->isStartHyperOp()) {
@@ -3047,9 +3120,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 //Update the edges of outgoing edges of consumer hyperOp
 		for (map<HyperOpEdge*, HyperOp*>::iterator edgeItr = hyperOpForUpdate->ChildMap.begin(); edgeItr != hyperOpForUpdate->ChildMap.end(); edgeItr++) {
 			if (edgeItr->first->getValue() != NULL) {
-				errs() << "edge whose type is " << edgeItr->first->getType() << ", updated edge to contain value from " << ((Instruction*) edgeItr->first->getValue())->getParent()->getParent()->getName() << "\n";
 				edgeItr->first->setValue(originalInstAndCloneMap[(Instruction*) edgeItr->first->getValue()]);
-				errs() << "to instead contain value from " << ((Instruction*) edgeItr->first->getValue())->getParent()->getParent()->getName() << "\n";
 			}
 		}
 
@@ -3057,7 +3128,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 	}
 
 	for (list<Function*>::iterator deleteItr = functionsForDeletion.begin(); deleteItr != functionsForDeletion.end(); deleteItr++) {
-		errs() << "deleting function:" << (*deleteItr)->getName() << "\n";
 		(*deleteItr)->eraseFromParent();
 	}
 
@@ -3098,9 +3168,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		HyperOp* hyperOp = *hopItr;
 		if (hyperOp->isPredicatedHyperOp()) {
 			HyperOp* immediateDominator = hyperOp->getImmediateDominator();
-			errs() << "finding the last predicate input to " << hyperOp->asString() << "\n";
 			list<pair<HyperOpEdge*, HyperOp*> > parentPredicateChain = lastPredicateInput(controlFlowGraphAndOriginalHopMap.second[hyperOp]);
-			errs()<<"computed predicate length "<<parentPredicateChain.size()<<"\n";
 			pair<HyperOpEdge*, HyperOp*> parentPredicate;
 			if (parentPredicateChain.empty()) {
 				errs() << "empty predicate\n";
@@ -3115,8 +3183,8 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 //				if (immediateDominator == parentPredicate.second || pathExistsInHIG(immediateDominator, parentPredicate.second)) {
 			//Add a predicate edge from the predicate parent to the current HyperOp
 			HyperOp* parentProducingPredicate;
-			for(auto mapItr= controlFlowGraphAndOriginalHopMap.second.begin();mapItr!=controlFlowGraphAndOriginalHopMap.second.end();mapItr++){
-				if(mapItr->second==parentPredicate.second){
+			for (auto mapItr = controlFlowGraphAndOriginalHopMap.second.begin(); mapItr != controlFlowGraphAndOriginalHopMap.second.end(); mapItr++) {
+				if (mapItr->second == parentPredicate.second) {
 					parentProducingPredicate = mapItr->first;
 					break;
 				}
@@ -3124,12 +3192,10 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			unsigned decByValue = 0;
 			//Count number of inputs coming from other parent nodes which are also predicated by the same HyperOp
 			for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
-				errs()<<"considering parent of the HyperOp "<<parentItr->second->asString()<<"\n";
-				if ((parentItr->first->getType() == HyperOpEdge::SCALAR || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) && parentItr->second != immediateDominator && pathExistsInHIG(parentProducingPredicate, parentItr->second)) {
+				if ((parentItr->first->getType() == HyperOpEdge::SCALAR || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) && parentItr->second != immediateDominator && pathExistsInHIG(parentProducingPredicate, parentItr->second)) {
 					decByValue++;
 				}
 			}
-			errs() << "decrement value of writecmp " << decByValue << " for HyperOp " << hyperOp->asString() << "\n";
 			if (decByValue > 0) {
 				HyperOpEdge* predicateEdge;
 				if (find(parentList.begin(), parentList.end(), parentProducingPredicate) == parentList.end()) {
@@ -3148,7 +3214,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					}
 				}
 
-				errs()<<"setting predicate edge decrement count to "<<decByValue<<" and the edge is between "<<parentPredicate.second->asString()<<" and "<<hyperOp->asString()<<"\n";
 				predicateEdge->setDecrementOperandCount(decByValue);
 				hyperOp->setPredicatedHyperOp();
 				this->addEdge(parentPredicate.second, hyperOp, predicateEdge);
@@ -3156,12 +3221,11 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		}
 	}
 
-	DEBUG(dbgs() << "Decrementing sync count for ");
+	DEBUG(dbgs() << "Decrementing sync count in case syncs originate from mutually exclusive paths to a HyperOp\n");
 //Update the sync count of nodes with sync edges incoming from mutually exclusive paths
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hyperOp = *hopItr;
 		if (hyperOp->isBarrierHyperOp()) {
-			errs() << "updating node with incoming sync edges " << hyperOp->asString() << "\n";
 			list<HyperOp*> syncSourceList;
 			for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
 				if (parentItr->first->getType() == HyperOpEdge::SYNC && find(syncSourceList.begin(), syncSourceList.end(), parentItr->second) == syncSourceList.end()) {
@@ -3169,22 +3233,21 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 				}
 			}
 
-			//Find out if there are predicates complimentary to each other
+			//Find out if there are predicates complementary to each other
+			map<unsigned, unsigned> syncCountOnPredicates;
 			for (list<HyperOp*>::iterator syncSourceItr = syncSourceList.begin(); syncSourceItr != syncSourceList.end(); syncSourceItr++) {
 				if (*syncSourceItr != syncSourceList.back()) {
 					list<HyperOp*>::iterator secondSyncSourceItr = syncSourceItr;
 					secondSyncSourceItr++;
 					for (; secondSyncSourceItr != syncSourceList.end(); secondSyncSourceItr++) {
+						list<pair<HyperOpEdge*, HyperOp*> > firstParentPredicateChain = lastPredicateInput(controlFlowGraphAndOriginalHopMap.second[*syncSourceItr]);
+						list<pair<HyperOpEdge*, HyperOp*> > secondParentPredicateChain = lastPredicateInput(controlFlowGraphAndOriginalHopMap.second[*secondSyncSourceItr]);
+						HyperOpEdge* firstParentPredicate;
+						HyperOpEdge* secondParentPredicate;
 						//Check if predicates are mutually exclusive
 						if (mutuallyExclusiveHyperOps(controlFlowGraphAndOriginalHopMap.second[*syncSourceItr], controlFlowGraphAndOriginalHopMap.second[*secondSyncSourceItr])) {
-							errs() << "checking for mutual exclusion of " << (*syncSourceItr)->asString() << " and " << (*secondSyncSourceItr)->asString() << "\n";
-							errs() << "they are exclusive!\n";
-//							TODO moar: sync count on mutually exclusive paths need not be equal
+							//Sync decrement count is set to the maximum of sync sources on mutually exclusive paths
 							hyperOp->decrementIncomingSyncCount();
-							errs() << "decremented sync count of " << hyperOp->asString() << "\n";
-						} else {
-							errs() << "checking for mutual exclusion of " << (*syncSourceItr)->asString() << " and " << (*secondSyncSourceItr)->asString() << "\n";
-							errs() << "they are not exclusive!\n";
 						}
 					}
 				}
@@ -3251,12 +3314,12 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 				os << vertex->asString() << "->" << childItr->second->asString() << "[label=";
 				HyperOpEdge* edge = (*childItr).first;
 				if (edge->Type == HyperOpEdge::SCALAR) {
-					os << "scalar"<<edge->getPositionOfContextSlot();
+					os << "scalar" << edge->getPositionOfContextSlot();
 //					edge->getValue()->print(os);
 				} else if (edge->Type == HyperOpEdge::LOCAL_REFERENCE) {
 					os << "localref";
 //					edge->getValue()->print(os);
-				} else if (edge->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
+				} else if (edge->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) {
 					os << "frameAddress" << edge->getPositionOfContextSlot() << edge->getContextFrameAddress()->asString();
 				} else if (edge->Type == HyperOpEdge::PREDICATE) {
 					os << "control" << edge->getPredicateValue() << edge->getDecrementOperandCount();

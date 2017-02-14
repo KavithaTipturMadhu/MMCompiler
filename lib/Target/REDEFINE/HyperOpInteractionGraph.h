@@ -57,12 +57,17 @@ public:
 		//Data that cannot be passed as a scalar is passed as reference instead through memory
 		LOCAL_REFERENCE,
 		PREDICATE,
-		CONTEXT_FRAME_ADDRESS,
-		//Edge used for ordering HyperOps such that
+		CONTEXT_FRAME_ADDRESS_SCALAR,
+		CONTEXT_FRAME_ADDRESS_LOCALREF,
+		//Edge used for ordering HyperOps to maintain partial order
 		ORDERING,
 		//Edge to ensure completion of the hyperOp by inserting equivalent delay instruction in the end HyperOp
 		SYNC,
 	} Type;
+
+	enum EdgeDataType{
+
+	};
 	HyperOpEdge();
 	virtual ~HyperOpEdge();
 	list<unsigned int> getVolume();
@@ -120,6 +125,7 @@ public:
 	map<Instruction*, Instruction*> loadInstrAndAllocaMap;
 	map<HyperOpEdge*, HyperOp*> ParentMap;
 	map<HyperOpEdge*, HyperOp*> ChildMap;
+	map<unsigned, unsigned> syncCountOnPredicates;
 	HyperOp(Function* function);
 	void addParentEdge(HyperOpEdge*, HyperOp *);
 	void addChildEdge(HyperOpEdge*, HyperOp*);

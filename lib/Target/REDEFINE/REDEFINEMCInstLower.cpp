@@ -114,9 +114,13 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 				}
 			}
 			const Function* parentFunction = MO.getParent()->getParent()->getParent()->getFunction();
-			unsigned argIndex = 1;
-			for (Function::const_arg_iterator argItr = parentFunction->arg_begin(); argItr != parentFunction->arg_end(); argItr++, argIndex++) {
-				if (!parentFunction->getAttributes().hasAttribute(argIndex, Attribute::InReg)) {
+			int argIndex = -1;
+			int argItrIndex = 1;
+			for (Function::const_arg_iterator argItr = parentFunction->arg_begin(); argItr != parentFunction->arg_end(); argItr++, argIndex--, argItrIndex++) {
+				if (argIndex == MO.getIndex()) {
+					break;
+				}
+				if (!parentFunction->getAttributes().hasAttribute(argItrIndex, Attribute::InReg)) {
 					currentObjectOffset += REDEFINEUtils::getSizeOfType(argItr->getType());
 				}
 			}
@@ -126,6 +130,7 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 			}
 		}
 		MCOperand retVal = MCOperand::CreateImm(currentObjectOffset);
+		errs() << "lowering frame index for func " << MO.getParent()->getParent()->getParent()->getFunction()->getName() << ":" << MO.getIndex() << " TO VAL:" << currentObjectOffset << "\n";
 		return retVal;
 	}
 
