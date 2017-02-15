@@ -1888,8 +1888,17 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							MachineInstrBuilder copy = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::LW));
 							copy.addReg(registerContainingConsumerBase, RegState::Define);
 							copy.addReg(REDEFINE::t5);
-							//TODO
-							copy.addFrameIndex();
+							unsigned argCount = 0;
+							int frameIndex = -1;
+							for (auto argItr = MF.getFunction()->arg_begin(); argItr != MF.getFunction()->arg_end(); argItr++, argCount++) {
+								if (argCount == edge->getPositionOfContextSlot()) {
+									break;
+								}
+								if (!MF.getFunction()->getAttributes().hasAttribute(argCount, Attribute::InReg)) {
+									frameIndex--;
+								}
+							}
+							copy.addFrameIndex(frameIndex);
 							copy.addReg(registerContainingConsumerBase);
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
 							allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
@@ -2040,8 +2049,16 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 								MachineInstrBuilder copy = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::LW));
 								copy.addReg(registerContainingData, RegState::Define);
 								copy.addReg(REDEFINE::t5);
+								unsigned argCount = 0;
 								int frameIndex = -1;
-
+								for (auto argItr = MF.getFunction()->arg_begin(); argItr != MF.getFunction()->arg_end(); argItr++, argCount++) {
+									if (argCount == edge->getPositionOfContextSlot()) {
+										break;
+									}
+									if (!MF.getFunction()->getAttributes().hasAttribute(argCount, Attribute::InReg)) {
+										frameIndex--;
+									}
+								}
 								copy.addFrameIndex(frameIndex);
 								LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
 								allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
@@ -2108,7 +2125,140 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				MachineInstrBuilder writeToContextFrame;
 				if (edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) {
 					writeToContextFrame = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SW));
-					//todo
+					writeToContextFrame.addReg(registerContainingData);
+					if (regContainingMemFrameBaseAddress.find(consumer) == regContainingMemFrameBaseAddress.end()) {
+						//TODO clean up this mess
+						unsigned maxGlobalSize = 0;
+						if (!parentModule->getGlobalList().empty()) {
+							for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
+								const GlobalVariable *globalVar = &*globalArgItr;
+								maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
+							}
+						}
+						string globalAddressString = "\"ga";
+						globalAddressString.append("#").append(itostr(maxGlobalSize)).append("\"");
+
+						unsigned registerForTopBits = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder lui = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(registerForTopBits, RegState::Define);
+						string hiGlobalAddrString = string("%hi(").append(globalAddressString).append(")");
+						MCSymbol* hiSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(hiGlobalAddrString));
+						lui.addSym(hiSymbol);
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(lui.operator ->());
+						allInstructionsOfRegion.push_back(make_pair(lui.operator->(), make_pair(targetCE, insertPosition++)));
+
+						unsigned registerForBottomBitsLui = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder addiMacroLui = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(registerForBottomBitsLui, RegState::Define);
+						string lowGlobalAddrString = string("%lo(").append(globalAddressString).append(")");
+						MCSymbol* loSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(lowGlobalAddrString));
+						addiMacroLui.addSym(loSymbol);
+						allInstructionsOfRegion.push_back(make_pair(addiMacroLui.operator->(), make_pair(targetCE, insertPosition++)));
+
+						unsigned registerForBottomBitsSrli = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder addiMacroSrli = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(registerForBottomBitsSrli, RegState::Define).addReg(registerForBottomBitsLui).addImm(12);
+						allInstructionsOfRegion.push_back(make_pair(addiMacroSrli.operator->(), make_pair(targetCE, insertPosition++)));
+
+						unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder add = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForGlobalAddr, RegState::Define).addReg(registerForTopBits).addReg(registerForBottomBitsSrli);
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator ->());
+						allInstructionsOfRegion.push_back(make_pair(add.operator->(), make_pair(targetCE, insertPosition++)));
+
+						unsigned registerForMulOperand = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder addiForMul = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addImm(graph->getMaxMemFrameSize());
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(addiForMul.operator ->());
+						allInstructionsOfRegion.push_back(make_pair(addiForMul.operator->(), make_pair(targetCE, insertPosition++)));
+
+						unsigned crId = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder shiftForCRId = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(crId, RegState::Define).addReg(registerContainingConsumerBase).addImm(SHIFT_FOR_CRID);
+
+						allInstructionsOfRegion.push_back(make_pair(shiftForCRId.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftForCRId.operator llvm::MachineInstr *());
+
+						if (firstInstructionOfpHyperOpInRegion[targetCE] == 0) {
+							firstInstructionOfpHyperOpInRegion[targetCE] = shiftForCRId.operator llvm::MachineInstr *();
+						}
+						unsigned shiftedPageNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder shiftForPageNumber = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedPageNumber, RegState::Define).addReg(registerContainingConsumerBase).addImm(SHIFT_FOR_PAGENUMBER);
+						allInstructionsOfRegion.push_back(make_pair(shiftForPageNumber.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftForPageNumber.operator llvm::MachineInstr *());
+						unsigned pageNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder bitmaskForPageNumber = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ANDI)).addReg(pageNumber, RegState::Define).addReg(shiftedPageNumber).addImm(PAGE_NUMBER_MASK);
+						allInstructionsOfRegion.push_back(make_pair(bitmaskForPageNumber.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(bitmaskForPageNumber.operator llvm::MachineInstr *());
+
+						unsigned shiftedFrameNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder shiftForFrameNumber = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedFrameNumber, RegState::Define).addReg(registerContainingConsumerBase).addImm(SHIFT_FOR_FRAMENUMBER);
+						allInstructionsOfRegion.push_back(make_pair(shiftForFrameNumber.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftForFrameNumber.operator llvm::MachineInstr *());
+						unsigned frameNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder bitmaskForFrameNumber = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ANDI)).addReg(frameNumber, RegState::Define).addReg(shiftedFrameNumber).addImm(FRAME_NUMBER_MASK);
+						allInstructionsOfRegion.push_back(make_pair(bitmaskForFrameNumber.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(bitmaskForFrameNumber.operator llvm::MachineInstr *());
+
+						unsigned loadImmInReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder mulOperandForCRBase = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(loadImmInReg, RegState::Define).addReg(REDEFINE::zero).addImm(FRAMES_PER_CR);
+						allInstructionsOfRegion.push_back(make_pair(mulOperandForCRBase.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(mulOperandForCRBase.operator llvm::MachineInstr *());
+
+						unsigned crBase = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder mulForCRBase = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::MUL)).addReg(crBase, RegState::Define).addReg(crId).addReg(loadImmInReg);
+						allInstructionsOfRegion.push_back(make_pair(mulForCRBase.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(mulForCRBase.operator llvm::MachineInstr *());
+
+						unsigned loadPageImmInReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder mulOperandForPageBase = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(loadPageImmInReg, RegState::Define).addReg(REDEFINE::zero).addImm(FRAMES_PER_PAGE);
+						allInstructionsOfRegion.push_back(make_pair(mulOperandForPageBase.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(mulOperandForPageBase.operator llvm::MachineInstr *());
+
+						unsigned pageBase = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder mulForPageBase = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::MUL)).addReg(pageBase, RegState::Define).addReg(pageNumber).addReg(loadPageImmInReg);
+						allInstructionsOfRegion.push_back(make_pair(mulForPageBase.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(mulForPageBase.operator llvm::MachineInstr *());
+
+						unsigned frameBase = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder addForFrameBase = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(frameBase, RegState::Define).addReg(pageBase).addReg(frameNumber);
+						allInstructionsOfRegion.push_back(make_pair(addForFrameBase.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(addForFrameBase.operator llvm::MachineInstr *());
+
+						unsigned crIdBase = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder addForCRBase = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(crIdBase, RegState::Define).addReg(frameBase).addReg(crBase);
+						allInstructionsOfRegion.push_back(make_pair(addForCRBase.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(addForCRBase.operator llvm::MachineInstr *());
+
+						unsigned mulFrameSize = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder mulFrameSizeInstr = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::MUL)).addReg(mulFrameSize, RegState::Define).addReg(crIdBase).addReg(registerForMulOperand);
+						allInstructionsOfRegion.push_back(make_pair(mulFrameSizeInstr.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(mulFrameSizeInstr.operator llvm::MachineInstr *());
+
+						unsigned addFrameSize = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder addFrameSizeInstr = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(addFrameSize, RegState::Define).addReg(mulFrameSize).addReg(registerForGlobalAddr);
+						allInstructionsOfRegion.push_back(make_pair(addFrameSizeInstr.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(addFrameSizeInstr.operator llvm::MachineInstr *());
+						regContainingMemFrameBaseAddress[consumer] = addFrameSize;
+					}
+
+					unsigned registerContainingMemBase = regContainingMemFrameBaseAddress[consumer];
+					writeToContextFrame.addReg(registerContainingMemBase);
+					unsigned offsetInMemory = 0;
+					//Add locals in consumer function to offsetInMemory
+					for (Function::iterator funcItr = consumer->getFunction()->begin(); funcItr != consumer->getFunction()->end(); funcItr++) {
+						for (BasicBlock::iterator bbItr = funcItr->begin(); bbItr != funcItr->end(); bbItr++) {
+							if (isa<AllocaInst>(bbItr)) {
+								AllocaInst* targetAllocaInst = cast<AllocaInst>(bbItr);
+								offsetInMemory += REDEFINEUtils::getSizeOfType(targetAllocaInst->getAllocatedType());
+							}
+						}
+					}
+					unsigned argCount = 0;
+					for (auto argItr = consumer->getFunction()->arg_begin(); argItr != consumer->getFunction()->arg_end(); argItr++, argCount++) {
+						if (argCount == edge->getPositionOfContextSlot()) {
+							break;
+						}
+						if (!MF.getFunction()->getAttributes().hasAttribute(argCount, Attribute::InReg)) {
+							offsetInMemory += REDEFINEUtils::getAlignedSizeOfType(argItr->getType());
+						}
+					}
+					writeToContextFrame.addImm(offsetInMemory);
+
 				} else {
 					writeToContextFrame = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::WRITECM));
 					writeToContextFrame.addReg(registerContainingConsumerBase);
