@@ -65,7 +65,7 @@ public:
 		SYNC,
 	} Type;
 
-	enum EdgeDataType{
+	enum EdgeDataType {
 
 	};
 	HyperOpEdge();
@@ -194,16 +194,16 @@ public:
 };
 
 class HyperOpInteractionGraph {
-	unsigned int numContextFrames;
-	unsigned int rowCount;
-	unsigned int columnCount;
-	unsigned int maxMemFrameSize;
-	unsigned int maxContextFrameSize;
 	//list of clusters, each cluster is identified as a list of HyperOps
 	list<list<HyperOp*> > clusterList;
 	void computeImmediateDominatorInfo();
 	void computePostImmediateDominatorInfo();
 public:
+	unsigned int numContextFrames;
+	unsigned int rowCount;
+	unsigned int columnCount;
+	unsigned int maxMemFrameSize;
+	unsigned int maxContextFrameSize;
 	list<HyperOp*> Vertices;
 
 	HyperOpInteractionGraph();
