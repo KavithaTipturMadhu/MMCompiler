@@ -58,8 +58,10 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 	int ceCount = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
 	// Emit target-specific gunk before the function body.
 	EmitFunctionBodyStart();
-	errs() << "whats in function?";
-	MF->dump();
+	string name = ";";
+	name.append(MF->getFunction()->getName());
+	OutStreamer.EmitRawText(StringRef(name));
+
 	const MachineInstr *LastMI = 0;
 	vector<list<const MachineInstr*> > pHyperOpInstructions(ceCount);
 	vector<list<const MachineInstr*> > startOfBBInPHyperOp(ceCount);
@@ -75,24 +77,20 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 		}
 	}
 
-	errs() << "instr count:" << pHyperOpInstructions.size() << "\n";
 	for (int pHyperOpIndex = 0; pHyperOpIndex < pHyperOpInstructions.size(); pHyperOpIndex++) {
 		list<const MachineInstr*> pHyperOpItr = pHyperOpInstructions[pHyperOpIndex];
-		errs() << "phop index:" << pHyperOpIndex << " with phops:"<<pHyperOpItr.size()<<"\n";
 //	for (vector<list<const MachineInstr*> >::iterator pHyperOpItr = pHyperOpInstructions.begin(); pHyperOpItr != pHyperOpInstructions.end(); pHyperOpItr++, pHyperOpIndex++) {
 		string codeSegmentStart = ".PHYOP#";
 		codeSegmentStart.append(itostr(pHyperOpIndex)).append("\n");
 		OutStreamer.EmitRawText(StringRef(codeSegmentStart));
 
 		for (list<const MachineInstr*>::iterator mcItr = pHyperOpItr.begin(); mcItr != pHyperOpItr.end(); mcItr++) {
-			errs()<<"problem when printing instr:";
 			if (!startOfBBInPHyperOp[pHyperOpIndex].empty() && startOfBBInPHyperOp[pHyperOpIndex].front() == *mcItr) {
 				MCSymbol *label = (*mcItr)->getParent()->getSymbol();
 				label->setUndefined();
 				OutStreamer.EmitLabel(label);
 				startOfBBInPHyperOp[pHyperOpIndex].pop_front();
 			}
-			(*mcItr)->dump();
 			EmitInstruction(*mcItr);
 		}
 		OutStreamer.EmitRawText(StringRef(".PHYOP_END\n"));
@@ -123,14 +121,14 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		unsigned i = 1;
 		unsigned argCount = 0;
 		for (Function::const_arg_iterator argItr = MF->getFunction()->arg_begin(); argItr != MF->getFunction()->arg_end(); argItr++, i++) {
-			if (attributes.hasAttribute(1, Attribute::InReg) && !argItr->getType()->isPointerTy()) {
+			if (attributes.hasAttribute(i, Attribute::InReg) && !argItr->getType()->isPointerTy()) {
 				argCount++;
 			}
 		}
 
 		//Add context frame addresses and ordering edges also
 		for (map<HyperOpEdge*, HyperOp*>::iterator parentMapItr = hyperOp->ParentMap.begin(); parentMapItr != hyperOp->ParentMap.end(); parentMapItr++) {
-			if (parentMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
+			if (parentMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) {
 				argCount++;
 			}
 		}
