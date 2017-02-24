@@ -908,6 +908,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 			HyperOp* dominanceFrontierHyperOp = *dominanceFrontierIterator;
 			errs()<<"coming to dominance frontier hop "<<dominanceFrontierHyperOp->asString()<<"\n";
 			if (dominanceFrontierHyperOp != vertex) {
+				errs()<<"i should add a few edges\n";
 				HyperOp* immediateDominator = vertex->getImmediateDominator();
 				HyperOpEdge* contextFrameEdge = new HyperOpEdge();
 				contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR);
@@ -915,16 +916,19 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 
 				int freeContextSlot;
 				int max = -1, maxAvailableContextSlots = maxContextFrameSize;
-				errs() << "\n---\ncomputing incoming edges to " << vertex->getFunction()->getName() << ", its parentmap size:" << vertex->ParentMap.size() << "\n";
-				errs() << "module's contents:";
-				parentModule->dump();
-				errs() << "the function has contents:";
-				vertex->getFunction()->dump();
+//				errs() << "\n---\ncomputing incoming edges to " << vertex->getFunction()->getName() << ", its parentmap size:" << vertex->ParentMap.size() << "\n";
+//				errs() << "module's contents:";
+//				parentModule->dump();
+//				errs() << "the function has contents:";
+//				vertex->getFunction()->dump();
 				bool lastVertexLeft = false;
 				if (dominanceFrontierHyperOp->getImmediateDominator() != immediateDominator) {
+					errs()<<"like a bunch in immediate dom:"<<immediateDominator->asString()<<"\n";
 					list<HyperOp*> immediateDominatorDominanceFrontier = immediateDominator->getDominanceFrontier();
 					HyperOp* prevVertex = vertex;
+					errs()<<"how many in immediatedom domf?"<<immediateDominatorDominanceFrontier.size()<<"\n";
 					while (immediateDominator != 0 && !immediateDominatorDominanceFrontier.empty() && std::find(immediateDominatorDominanceFrontier.begin(), immediateDominatorDominanceFrontier.end(), dominanceFrontierHyperOp) != immediateDominatorDominanceFrontier.end()) {
+						errs()<<"lets see hw many now\n";
 						HyperOpEdge* frameForwardChainEdge = new HyperOpEdge();
 						frameForwardChainEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR);
 						frameForwardChainEdge->setContextFrameAddress(dominanceFrontierHyperOp);
@@ -1084,10 +1088,12 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 					}
 
 					if (prevVertex != 0) {
-						vertex = prevVertex;
+						immediateDominator = prevVertex;
 						lastVertexLeft = true;
 					}
-				} else if (dominanceFrontierHyperOp->getImmediateDominator() == vertex->getImmediateDominator() || lastVertexLeft) {
+				}
+				if (dominanceFrontierHyperOp->getImmediateDominator() == vertex->getImmediateDominator() || lastVertexLeft) {
+					errs()<<"atleast one\n";
 					bool edgeAddedPreviously = false;
 					for (map<HyperOpEdge*, HyperOp*>::iterator childMapItr = immediateDominator->ChildMap.begin(); childMapItr != immediateDominator->ChildMap.end(); childMapItr++) {
 						//Ensure that up until now, local ref context frame edges haven't been used
