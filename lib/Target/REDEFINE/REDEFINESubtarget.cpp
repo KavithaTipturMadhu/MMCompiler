@@ -22,16 +22,21 @@ REDEFINESubtarget::REDEFINESubtarget(const std::string &TT,
                                    const std::string &CPU,
                                    const std::string &FS)
   : REDEFINEGenSubtargetInfo(TT, CPU, FS), TargetTriple(TT),
-    REDEFINEArchVersion(REDEFINE32), CECount(1), M(1), N(1),DGM(65536),L1(32),CFCount(52),CFSize(16){
-  std::string CPUName = CPU;
-  if (CPUName.empty()){
-    //TODO:generate cpu name?
-    CPUName = "";
-  }
-
+    REDEFINEArchVersion(REDEFINE32), CECount(1), M(1), N(1),DGM(65536),L1(32),CFCount(52),CFSize(16)
+{
   // Parse features string.
+  std::string CPUName = CPU;
+  if (CPUName.empty())
+    CPUName = "REDEFINE";
   ParseSubtargetFeatures(CPUName, FS);
 
+  // Only use instruction scheduling if the selected CPU has an instruction
+  // itinerary (the default CPU is the only one that doesn't).
+  HasItin = CPUName != "REDEFINE";
+  DEBUG(dbgs() << "CPU " << CPUName << "(" << HasItin << ")\n");
+
+  // Initialize scheduling itinerary for the specified CPU.
+  InstrItins = getInstrItineraryForCPU(CPUName);
 }
 
 // Return true if GV binds locally under reloc model RM.

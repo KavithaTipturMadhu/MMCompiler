@@ -37,6 +37,7 @@ class REDEFINETargetMachine: public LLVMTargetMachine {
 	REDEFINETargetLowering TLInfo;
 	TargetSelectionDAGInfo TSInfo;
 	REDEFINEFrameLowering FrameLowering;
+	InstrItineraryData     InstrItins;
 
 public:
 	HyperOpInteractionGraph * HIG;
@@ -52,6 +53,10 @@ public:
 	virtual const REDEFINEInstrInfo *getInstrInfo() const LLVM_OVERRIDE {
 		return &InstrInfo;
 	}
+
+	virtual const InstrItineraryData *getInstrItineraryData() const
+	{  return &Subtarget.getInstrItineraryData(); }
+
 	virtual const REDEFINESubtarget *getSubtargetImpl() const LLVM_OVERRIDE {
 		return &Subtarget;
 	}

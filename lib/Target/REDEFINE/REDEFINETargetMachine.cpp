@@ -10,7 +10,7 @@
 #include "REDEFINETargetMachine.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/Passes.h"
-
+#include "WCETAnalyser.cpp"
 #include "llvm/Support/TargetRegistry.h"
 
 using namespace llvm;
@@ -72,7 +72,8 @@ public:
 		return getTM<REDEFINETargetMachine>();
 	}
 
-	virtual bool addInstSelector();
+        virtual bool addInstSelector();
+        virtual void addMachineLateOptimization();
 
 };
 } // end anonymous namespace
@@ -85,3 +86,11 @@ bool REDEFINEPassConfig::addInstSelector() {
 TargetPassConfig *REDEFINETargetMachine::createPassConfig(PassManagerBase &PM) {
 	return new REDEFINEPassConfig(this, PM);
 }
+
+void REDEFINEPassConfig::addMachineLateOptimization() {
+
+//CUSTOM PASS ADDED HERE TARUN SINGLA 
+  addPass(createWcetAnalyzer());
+        //return false;
+}
+

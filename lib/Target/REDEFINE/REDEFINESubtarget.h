@@ -47,6 +47,8 @@ protected:
 	int L1;
 	int M;
 	int N;
+  	bool HasItin;
+	InstrItineraryData InstrItins;
 
 public:
 	REDEFINESubtarget(const std::string &TT, const std::string &CPU, const std::string &FS);
@@ -65,7 +67,11 @@ public:
 
 
 	virtual bool enableMachineScheduler() const;
+	
+	  /// getInstrItins - Return the instruction itineraies based on subtarget.
+	  const InstrItineraryData &getInstrItineraryData() const { return InstrItins; }
 
+	
 	bool isTargetELF() const {
 		return false;
 	}
@@ -96,6 +102,9 @@ public:
 
 	int getN() const {
 		return N;
+	}
+  	bool hasItin()   const {
+		 return HasItin; 
 	}
 };
 } // end namespace llvm
