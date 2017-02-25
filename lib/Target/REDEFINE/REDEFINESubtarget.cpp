@@ -22,7 +22,7 @@ REDEFINESubtarget::REDEFINESubtarget(const std::string &TT,
                                    const std::string &CPU,
                                    const std::string &FS)
   : REDEFINEGenSubtargetInfo(TT, CPU, FS), TargetTriple(TT),
-    REDEFINEArchVersion(REDEFINE32), CECount(1), M(1), N(1),DGM(65536),L1(32),CFCount(52),CFSize(16)
+    REDEFINEArchVersion(REDEFINE32), CECount(1), M(1), N(1),DGM(65536),L1(32),CFCount(52),CFSize(16), runWCET(false)
 {
   // Parse features string.
   std::string CPUName = CPU;
@@ -30,13 +30,15 @@ REDEFINESubtarget::REDEFINESubtarget(const std::string &TT,
     CPUName = "REDEFINE";
   ParseSubtargetFeatures(CPUName, FS);
 
-  // Only use instruction scheduling if the selected CPU has an instruction
-  // itinerary (the default CPU is the only one that doesn't).
-  HasItin = CPUName != "REDEFINE";
-  DEBUG(dbgs() << "CPU " << CPUName << "(" << HasItin << ")\n");
-
+  //WCET is added as a feature to REDEFINE target instead of enabling it in a different subtarget
+//  // Only use instruction scheduling if the selected CPU has an instruction
+//  // itinerary (the default CPU is the only one that doesn't).
+//  HasItin = CPUName != "REDEFINE";
+//  DEBUG(dbgs() << "CPU " << CPUName << "(" << HasItin << ")\n");
+//  errs()<<"num of ces:"<<CECount<<"\n";
   // Initialize scheduling itinerary for the specified CPU.
   InstrItins = getInstrItineraryForCPU(CPUName);
+  errs()<<"num ce:"<<CECount<<", WCET:"<<runWCET<<"\n";
 }
 
 // Return true if GV binds locally under reloc model RM.
