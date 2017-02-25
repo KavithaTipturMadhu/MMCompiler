@@ -143,32 +143,32 @@ def : Pat<(select (i32 (seteq GR32:$lhs, 0)), GR32:$T, GR32:$F),
 REDEFINE specific instructions
 **/
 //REDEFINE I instructions 
-def CALL: InstIREDEFINE<"call", 0b0000100, 0b000       , add, GR32, GR32, imm32sx12>;
-def CREATEINST: InstIREDEFINE<"createinst", 0b0000100, 0b001       , add, GR32, GR32, imm32sx12>;
-def READPM: InstIREDEFINE<"readpm", 0b0000000, 0b010       , add, GR32, GR32, imm32sx12>;
-def DREADPM: InstIREDEFINE<"dreadpm", 0b0000001, 0b010       , add, GR32, GR32, imm32sx12>;
-
-def FALLOC: InstREDEFINE<4, (outs GR32:$dst), (ins imm32sx12:$src), 
-                "falloc\t$dst, $src", 
-                []> {
-  field bits<32> Inst;
-
-  bits<5> RD;
-  bits<5> RS1;
-  bits<12> IMM;
-
-  let Inst{31-20} = IMM{11-0};
-  let Inst{19-15} = 0b00000;
-  let Inst{14-12} = 0b010;
-  let Inst{11 - 7} = RD;
-  let Inst{6 - 0} = 0b0000100;
+def CALL: InstIREDEFINE<"call", 0b0000100, 0b000       , add, GR32, GR32, imm32sx12>
+{
+ let Itinerary   = REDEFINEORC;
+}
+def CREATEINST: InstIREDEFINE<"createinst", 0b0000100, 0b001       , add, GR32, GR32, imm32sx12>
+{
+ let Itinerary   = REDEFINEORC;
+}
+def FALLOC: InstIREDEFINE<"falloc", 0b0000100, 0b010       , add, GR32, GR32, imm32sx12>
+{
+ let Itinerary   = REDEFINEORC;
+}
+def READPM: InstIREDEFINE<"readpm", 0b0000000, 0b010       , add, GR32, GR32, imm32sx12>
+{
+ let Itinerary   = REDEFINESPM;
+}
+def DREADPM: InstIREDEFINE<"dreadpm", 0b0000001, 0b010       , add, GR32, GR32, imm32sx12>
+{
+ let Itinerary   = REDEFINESPM;
 }
 
 //REDEFINE S instructions
 
 def END: InstREDEFINE<4, (outs), (ins imm32sx12:$src), 
                 "end \t$src", 
-                []> {
+                [],REDEFINEALU> {
   field bits<32> Inst;
 
   bits<5> RS1;
@@ -183,13 +183,29 @@ def END: InstREDEFINE<4, (outs), (ins imm32sx12:$src),
   let Inst{6 - 0} = 0b0000000;
 }
 
-def TRET : InstSREDEFINE<"tret" , 0b0100100, 0b001, add , GR32, GR32, imm32sx12>;
-def SYNC : InstSREDEFINE<"sync" , 0b0100100, 0b011, add , GR32, GR32, imm32sx12>;
-def FBIND : InstSREDEFINE<"fbind" , 0b0000100, 0b011, add , GR32, GR32, imm32sx12>;
-
+def WRITECM : InstSREDEFINE<"writecm" , 0b0100100, 0b000, add , GR32, GR32, imm32sx12>
+{
+ let Itinerary   = REDEFINEORC;
+}
+def WRITECMP : InstSREDEFINE<"writecmp" , 0b0100100, 0b010 , add , GR32, GR32, imm32sx12>
+{
+ let Itinerary   = REDEFINEORC;
+}
+def TRET : InstSREDEFINE<"tret" , 0b0100100, 0b001, add , GR32, GR32, imm32sx12>
+{
+ let Itinerary   = REDEFINEORC;
+}
+def SYNC : InstSREDEFINE<"sync" , 0b0100100, 0b011, add , GR32, GR32, imm32sx12>
+{
+ let Itinerary   = REDEFINEORC;
+}
+def FBIND : InstSREDEFINE<"fbind" , 0b0000100, 0b011, add , GR32, GR32, imm32sx12>
+{
+ let Itinerary   = REDEFINEORC;
+}
 def FDELETE: InstREDEFINE<4, (outs), (ins GR32:$id, imm32sx12:$imm), 
                 "fdelete \t$id, $imm", 
-                []> {
+                [],REDEFINEORC> {
   field bits<32> Inst;
 
   bits<5> RS1;
@@ -203,9 +219,11 @@ def FDELETE: InstREDEFINE<4, (outs), (ins GR32:$id, imm32sx12:$imm),
   let Inst{7 - 11} = IMM{4-0};
   let Inst{6 - 0} = 0b0000100;
 }
-def WRITECM : InstSREDEFINE<"writecm" , 0b0100100, 0b000, add , GR32, GR32, imm32sx12>;
-def WRITECMP : InstSREDEFINE<"writecmp" , 0b0100100, 0b010 , add , GR32, GR32, imm32sx12>;
-def WRITEPM : InstSREDEFINE<"writepm" , 0b0100000, 0b010, add , GR32, GR32, imm32sx12>;
+
+def WRITEPM : InstSREDEFINE<"writepm" , 0b0100000, 0b010, add , GR32, GR32, imm32sx12>
+{
+ let Itinerary   = REDEFINESPM;
+}
 /*
 def DIV   : InstR<"div"  , 0b0110011, 0b0000001100, sdiv  , GR32, GR32>;
 def DIVU  : InstR<"divu" , 0b0110011, 0b0000001101, udiv  , GR32, GR32>;
@@ -298,17 +316,25 @@ def :Pat<(fpimm0), (FCVT_S_W_RDY zero)>;
   
               
 //REDEFINE specific floating point instructions
-def FWRITEPM : InstSREDEFINE<"fwritepm" , 0b0100000, 0b010, add , FP32, GR32,  imm32sx12>;
-def FREADPM: InstIREDEFINE<"freadpm", 0b0000000, 0b010, add, FP32, GR32, imm32sx12>;
-def FDREADPM: InstIREDEFINE<"fdreadpm", 0b0000000, 0b010, add, FP32, GR32, imm32sx12>;
+def FWRITEPM : InstSREDEFINE<"fwritepm" , 0b0100000, 0b010, add , GR32, FP32,  imm32sx12>
+{
+ let Itinerary   = REDEFINESPM;
+}
+def FREADPM: InstIREDEFINE<"freadpm", 0b0000000, 0b010, add, FP32, GR32, imm32sx12>
+{
+ let Itinerary   = REDEFINESPM;
+}
+def FDREADPM: InstIREDEFINE<"fdreadpm", 0b0000000, 0b010, add, FP32, GR32, imm32sx12>
+{
+ let Itinerary   = REDEFINESPM;
+}
   
 //fmadd etc with rounding mode RNE
 def FMADD:InstR4<"fmadd.s", 0b1000011, 0b000, fmul, fadd, FP32, FP32>;
 def FMSUB:InstR4<"fmsub.s", 0b1000011, 0b000, fmul, fsub, FP32, FP32>;
 
 def FNMSUB:InstREDEFINE<4, (outs FP32:$dst), (ins FP32:$src3, FP32:$src2, FP32:$src1), 
-                "fnmsub.s $dst, $src1, $src2, $src3", 
-                [(set FP32:$dst, (fneg (fsub (fmul FP32:$src1, FP32:$src2), FP32:$src3)))]>{
+                "fnmsub.s $dst, $src1, $src2, $src3",[],REDEFINEFPA>{
   field bits<32> Inst;
 
   bits<5> RD;
@@ -327,7 +353,7 @@ def FNMSUB:InstREDEFINE<4, (outs FP32:$dst), (ins FP32:$src3, FP32:$src2, FP32:$
 
 def FNMADD:InstREDEFINE<4, (outs FP32:$dst), (ins FP32:$src3, FP32:$src2, FP32:$src1), 
               	"fnmadd.s $dst, $src1, $src2, $src3", 
-                [(set FP32:$dst, (fneg (fadd (fmul FP32:$src1, FP32:$src2), FP32:$src3)))]>{
+                [(set FP32:$dst, (fneg (fadd (fmul FP32:$src1, FP32:$src2), FP32:$src3)))],REDEFINEFPA>{
   field bits<32> Inst;
 
   bits<5> RD;

@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 class InstREDEFINE<int size, dag outs, dag ins, string asmstr,
-                  list<dag> pattern> : Instruction {
+                  list<dag> pattern,InstrItinClass redpipe> : Instruction {
   let Namespace = "REDEFINE";
 
   dag OutOperandList = outs;
@@ -20,7 +20,7 @@ class InstREDEFINE<int size, dag outs, dag ins, string asmstr,
   let Size = size;
   let Pattern = pattern;
   let AsmString = asmstr;
-
+  let Itinerary   = redpipe;
   let AddedComplexity = 1;
 
   // Used to identify a group of related instructions, such as ST and STY.
@@ -43,7 +43,7 @@ class InstREDEFINE<int size, dag outs, dag ins, string asmstr,
 }
 
 class PsuedoInst<dag outs, dag ins, list<dag> pattern>
-  : InstREDEFINE<4, outs, ins,"PSEUDO", pattern> {
+  : InstREDEFINE<4, outs, ins,"PSEUDO", pattern,REDEFINEALU> {
   let isPseudo = 1;
   let isCodeGenOnly = 1;
 }
@@ -58,7 +58,7 @@ class InstR<string mnemonic, bits<7> op, bits<10> funct10,
             RegisterOperand cls2>
   : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src2, cls2:$src1), 
                 mnemonic#"\t$dst, $src1, $src2", 
-                [(set cls1:$dst, (operator cls2:$src1, cls2:$src2))]> {
+                [(set cls1:$dst, (operator cls2:$src1, cls2:$src2))],REDEFINEALU> {
   field bits<32> Inst;
 
   bits<5> RD;
@@ -78,7 +78,7 @@ class InstR64<string mnemonic, bits<7> op, bits<10> funct10,
             RegisterOperand cls2>
   : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src2, cls2:$src1), 
                 mnemonic#"\t$dst, $src1, $src2", 
-                [(set cls1:$dst, (sext (operator cls2:$src1, cls2:$src2)))]> {
+                [(set cls1:$dst, (sext (operator cls2:$src1, cls2:$src2)))],REDEFINEALU> {
   field bits<32> Inst;
 
   bits<5> RD;
@@ -98,7 +98,7 @@ class InstA<string mnemonic, bits<7> op, bits<5> funct5, bits<3> funct3,
             Operand cls2>
   : InstREDEFINE<4, (outs cls1:$dst), (ins cls1:$src1, cls2:$src2), 
                 mnemonic#"\t$dst, $src1, $src2", 
-                [(set cls1:$dst, (operator regaddr:$src2, cls1:$src1))]> {
+                [(set cls1:$dst, (operator regaddr:$src2, cls1:$src1))],REDEFINEALU> {
   field bits<32> Inst;
 
   bits<5> RD;
@@ -121,7 +121,7 @@ class InstR4<string mnemonic, bits<7> op, bits<5> funct5,
             RegisterOperand cls1, RegisterOperand cls2>
   : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src3, cls2:$src2, cls2:$src1), 
                 mnemonic#"\t$dst, $src1, $src2, $src3", 
-                [(set cls1:$dst, (operator2 (operator1 cls2:$src1, cls2:$src2), cls2:$src3))]> {
+                [(set cls1:$dst, (operator2 (operator1 cls2:$src1, cls2:$src2), cls2:$src3))],REDEFINEALU> {
   field bits<32> Inst;
 
   bits<5> RD;
@@ -144,7 +144,7 @@ class InstLoad<string mnemonic, bits<7> op, bits<3> funct3,
             Operand memOp>
   : InstREDEFINE<4, (outs cls1:$dst), (ins memOp:$addr), 
                 mnemonic#"\t$dst, $addr, $addr", 
-                [(set cls1:$dst, (opNode addr:$addr))]> {
+                [(set cls1:$dst, (opNode addr:$addr))],REDEFINELD> {
   field bits<32> Inst;
 
   bits<5> RD;
@@ -164,7 +164,7 @@ class InstStore<string mnemonic, bits<7> op, bits<3> funct3,
                 RegisterOperand cls1>
   : InstREDEFINE<4, (outs), (ins cls1:$src, mem:$mem),
               mnemonic#"\t$mem, $src, $mem", 
-              [(opNode cls1:$src, addr:$mem)]> {
+              [(opNode cls1:$src, addr:$mem)],REDEFINEST> {
   field bits<32> Inst;
 
   bits<5> RS2;
@@ -185,7 +185,7 @@ class InstI<string mnemonic, bits<7> op, bits<3> funct3,
             Immediate imm>
   : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src1, imm:$src2), 
                 mnemonic#"\t$dst, $src1, $src2", 
-                [(set cls1:$dst, (operator cls2:$src1, imm:$src2))]> {
+                [(set cls1:$dst, (operator cls2:$src1, imm:$src2))],REDEFINEALU> {
   field bits<32> Inst;
 
   bits<5> RD;
@@ -206,7 +206,7 @@ class InstIREDEFINE<string mnemonic, bits<7> op, bits<3> funct3,
             Immediate imm>
   : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src1, imm:$src2), 
                 mnemonic#"\t$dst, $src1, $src2", 
-                []> {
+                [],REDEFINEALU> {
   field bits<32> Inst;
 
   bits<5> RD;
@@ -228,7 +228,7 @@ class InstSREDEFINE<string mnemonic, bits<7> op, bits<3> funct3,
             Immediate imm>
   : InstREDEFINE<4, (outs), (ins cls1:$dst1, cls2:$src1, imm:$dst2), 
                 mnemonic#"\t$dst1, $src1, $dst2", 
-                []> {
+                [],REDEFINEALU> {
   field bits<32> Inst;
 
   bits<5> RS1;
@@ -243,9 +243,9 @@ class InstSREDEFINE<string mnemonic, bits<7> op, bits<3> funct3,
   let Inst{6 - 0} = op;
 }
 
-//B-Type, too different to consolidate further
+//B-Type, too different to consolidate further//TODO
 class InstB<bits<7> op, bits<3> funct3, dag outs, dag ins, string asmstr, list<dag> pattern>
-  : InstREDEFINE<4, outs, ins, asmstr, pattern> {
+  : InstREDEFINE<4, outs, ins, asmstr, pattern,REDEFINEALU> {
   field bits<32> Inst;
 
   bits<5> RS1;
@@ -262,7 +262,7 @@ class InstB<bits<7> op, bits<3> funct3, dag outs, dag ins, string asmstr, list<d
 
 //U-Type, only two instructions fit here so no further condensation
 class InstU<bits<7> op, dag outs, dag ins, string asmstr, list<dag> pattern>
-  : InstREDEFINE<4, outs, ins, asmstr, pattern> {
+  : InstREDEFINE<4, outs, ins, asmstr, pattern,REDEFINEALU> {
   field bits<32> Inst;
 
   bits<5> RD;
@@ -275,7 +275,7 @@ class InstU<bits<7> op, dag outs, dag ins, string asmstr, list<dag> pattern>
 
 //J-Type, only 2 instructions no further consolidation
 class InstJ<bits<7> op, dag outs, dag ins, string asmstr, list<dag> pattern>
-  : InstREDEFINE<4, outs, ins, asmstr, pattern> {
+  : InstREDEFINE<4, outs, ins, asmstr, pattern,REDEFINEBR> {
   field bits<32> Inst;
 
   bits<25> IMM;
@@ -290,7 +290,7 @@ class InstConv<string mnemonic, string rmstr, bits<7> op, bits<5> funct5, bits<2
                RegisterOperand cls2>
   : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src1), 
                 mnemonic#"\t$dst, $src1"#rmstr, 
-                [(set cls1:$dst, (operator cls2:$src1))]> {
+                [(set cls1:$dst, (operator cls2:$src1))],REDEFINEALU> {
   field bits<32> Inst;
 
   bits<5> RD;
@@ -316,7 +316,7 @@ class InstConv<string mnemonic, string rmstr, bits<7> op, bits<5> funct5, bits<2
 //===----------------------------------------------------------------------===//
 
 class Pseudo<dag outs, dag ins, list<dag> pattern>
-  : InstREDEFINE<0, outs, ins, "", pattern> {
+  : InstREDEFINE<0, outs, ins, "", pattern,REDEFINEALU> {
   let isPseudo = 1;
   let isCodeGenOnly = 1;
 }
@@ -345,7 +345,7 @@ class InstSign<string mnemonic, bits<7> op, bits<5> funct5, bits<2> fmt, bits<3>
                RegisterOperand cls2>
   : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src2, cls2:$src1), 
                 mnemonic#"\t$dst, $src1, $src2", 
-                [(set cls1:$dst, (operator cls2:$src1, cls2:$src2))]> {
+                [(set cls1:$dst, (operator cls2:$src1, cls2:$src2))],REDEFINEALU> {
   field bits<32> Inst;
 
   bits<5> RD;
@@ -366,7 +366,7 @@ class InstFP<string mnemonic, bits<7>op,  bits<5>func3, bits<5>rs2, bits<7>func7
                RegisterOperand cls2>
 	:InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src),
 				mnemonic#"\t$dst, $src", 
-                [(set cls1:$dst, (operator cls2:$src))]> {
+                [(set cls1:$dst, (operator cls2:$src))],REDEFINEFPA> {
   field bits<32> Inst;
 
   bits<5> RD;
