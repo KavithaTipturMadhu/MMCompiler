@@ -86,9 +86,9 @@ struct WcetAnalyzer: public MachineFunctionPass {
 
 			//USE MF to GET Target Machine
 			TM = &MF.getTarget();
-
 			//CALL getInstrItineraryData() to instruction Info
-			InstrItins = TM->getInstrItineraryData();
+			//InstrItins = TM->getInstrItineraryData();
+			InstrItins = ((const REDEFINETargetMachine&)TM).getInstrItineraryData();
 			if (InstrItins && !InstrItins->isEmpty()) {
 				const InstrStage *IS = InstrItins->beginStage(IItr->getDesc().getSchedClass());
 				const InstrStage *E = InstrItins->endStage(IItr->getDesc().getSchedClass());
