@@ -72,8 +72,8 @@ public:
 		return getTM<REDEFINETargetMachine>();
 	}
 
-        virtual bool addInstSelector();
-        virtual void addMachineLateOptimization();
+	virtual bool addInstSelector();
+	virtual void addMachineLateOptimization();
 
 };
 } // end anonymous namespace
@@ -90,7 +90,9 @@ TargetPassConfig *REDEFINETargetMachine::createPassConfig(PassManagerBase &PM) {
 void REDEFINEPassConfig::addMachineLateOptimization() {
 
 //CUSTOM PASS ADDED HERE TARUN SINGLA 
-  addPass(createWcetAnalyzer());
-        //return false;
+	if (((REDEFINESubtarget*) TM->getSubtargetImpl())->enableWCET()) {
+		addPass(createWcetAnalyzer());
+	}
+	//return false;
 }
 

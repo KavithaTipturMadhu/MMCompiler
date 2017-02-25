@@ -31,8 +31,8 @@ def FeatureFabricMDim2 : SubtargetFeature<"has2rows", "M", "2",
                                 "Supports 2 CRs along each row, default is 1">;      
 def FeatureFabricNDim2 : SubtargetFeature<"has2columns", "N", "2",
                                 "Supports 2 columns of CRs, default is 1">; 
-def FeatureCECount1 : SubtargetFeature<"has1ce", "CECount", "1",
-                                "Supports 1 CE per CR">;
+def FeatureWCET : SubtargetFeature<"wcet", "runWCET", "true",
+                                "Run WCET analysis on generated code">;                                 
 
 //
                                 
@@ -59,12 +59,8 @@ include "REDEFINEInstrInfo.td"
 
 def REDEFINEInstrInfo : InstrInfo {}
 
-//CREATED TWO Processor REDEFINE and REDEFINE5
-
-def : Processor<"REDEFINE",  NoItineraries, [FeatureCECount1, FeatureCECount4, FeatureFabricMDim4, FeatureFabricNDim4, FeatureFabricMDim3, FeatureFabricNDim3, FeatureFabricMDim2, FeatureFabricNDim2]>;
-
-
-def : Processor<"REDEFINE5", REDEFINEItineraries, [FeatureCECount1, FeatureCECount4, FeatureFabricMDim4, FeatureFabricNDim4, FeatureFabricMDim3, FeatureFabricNDim3, FeatureFabricMDim2, FeatureFabricNDim2]>;
+//def : Processor<"REDEFINE",  REDEFINEItineraries, [FeatureWCET, FeatureCECount4, FeatureFabricMDim4, FeatureFabricNDim4, FeatureFabricMDim3, FeatureFabricNDim3, FeatureFabricMDim2, FeatureFabricNDim2]>;
+def : Processor<"REDEFINE",  REDEFINEItineraries, []>;
 
 
 //===----------------------------------------------------------------------===//

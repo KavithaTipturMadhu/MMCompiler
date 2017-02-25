@@ -47,7 +47,7 @@ protected:
 	int L1;
 	int M;
 	int N;
-  	bool HasItin;
+  	bool runWCET;
 	InstrItineraryData InstrItins;
 
 public:
@@ -103,8 +103,8 @@ public:
 	int getN() const {
 		return N;
 	}
-  	bool hasItin()   const {
-		 return HasItin; 
+  	bool enableWCET()   const {
+		 return runWCET;
 	}
 };
 } // end namespace llvm

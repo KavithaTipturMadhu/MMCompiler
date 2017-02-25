@@ -37,7 +37,6 @@ class REDEFINETargetMachine: public LLVMTargetMachine {
 	REDEFINETargetLowering TLInfo;
 	TargetSelectionDAGInfo TSInfo;
 	REDEFINEFrameLowering FrameLowering;
-	InstrItineraryData     InstrItins;
 
 public:
 	HyperOpInteractionGraph * HIG;
