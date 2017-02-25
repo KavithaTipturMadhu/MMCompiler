@@ -38,7 +38,6 @@ REDEFINESubtarget::REDEFINESubtarget(const std::string &TT,
 //  errs()<<"num of ces:"<<CECount<<"\n";
   // Initialize scheduling itinerary for the specified CPU.
   InstrItins = getInstrItineraryForCPU(CPUName);
-  errs()<<"num ce:"<<CECount<<", WCET:"<<runWCET<<"\n";
 }
 
 // Return true if GV binds locally under reloc model RM.
