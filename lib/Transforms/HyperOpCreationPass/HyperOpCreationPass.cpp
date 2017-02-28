@@ -405,7 +405,11 @@ struct HyperOpCreationPass: public ModulePass {
 		return reachingDefinitions;
 	}
 
-	HyperOpArgumentType supportedArgType(Value* argument, Module &m) {
+	HyperOpArgumentType supportedArgType(Value* argument, Module &m, Instruction* parentInstruction) {
+		//Memory location needs to be passed as a different type since all its uses need to be replaced with a different type, but it won't see realization in metadata
+		if(isa<StoreInst>(parentInstruction)&&((StoreInst*) parentInstruction)->getOperand(1)==argument){
+			return ADDRESS;
+		}
 		if (argument->getType()->isAggregateType() || argument->getType()->getTypeID() == Type::FloatTyID || argument->getType()->getTypeID() == Type::PointerTyID) {
 			return LOCAL_REFERENCE;
 		}
@@ -923,7 +927,7 @@ struct HyperOpCreationPass: public ModulePass {
 								} else if (isa<InvokeInst>(instItr)) {
 									calledFunction = ((InvokeInst*) ((Instruction*) instItr))->getCalledFunction();
 								}
-								//An intrinsic function translates to an instruction in the backend, don't treat it like a function call
+								//An intrinsic function translates to an instruction in the back end, don't treat it like a function call
 								//Otherwise, create a function boundary as follows
 								if (!calledFunction->isIntrinsic()) {
 									//call is not the first instruction in the basic block
@@ -948,7 +952,7 @@ struct HyperOpCreationPass: public ModulePass {
 											list<Value*> argumentList;
 											argumentList.push_back(argument);
 											//Find out if the argument is stored into in a predecessor HyperOp
-											HyperOpArgumentType argType = supportedArgType(argument, M);
+											HyperOpArgumentType argType = supportedArgType(argument, M, instItr);
 											if (argType != GLOBAL_REFERENCE) {
 												hyperOpArgCount++;
 											}
@@ -1007,14 +1011,7 @@ struct HyperOpCreationPass: public ModulePass {
 									for (list<Value*>::iterator newArgItr = newHyperOpArguments.begin(); newArgItr != newHyperOpArguments.end(); newArgItr++) {
 										list<Value*> newArg;
 										newArg.push_back(*newArgItr);
-										HyperOpArgumentType type;
-//										if (isa<StoreInst>(instItr) && ((StoreInst*) &*instItr)->getOperand(1) == newArg.front()) {
-//											errs()<<"arg with type store:";
-//											instItr->dump();
-//											type = ADDRESS;
-//										} else {
-											type = supportedArgType(*newArgItr, M);
-//										}
+										HyperOpArgumentType type = supportedArgType(*newArgItr, M, instItr);
 										//local references needn't be accounted for when counting context frame args since they are passed through memory directly and not through context frame
 										if (type != GLOBAL_REFERENCE && type != LOCAL_REFERENCE) {
 											hyperOpArgCount++;
@@ -1023,7 +1020,7 @@ struct HyperOpCreationPass: public ModulePass {
 									}
 								} else {
 									//Phi instruction's arguments correspond to only one argument to a HyperOp
-									hyperOpArguments.push_back(make_pair(newHyperOpArguments, supportedArgType(newHyperOpArguments.front(), M)));
+									hyperOpArguments.push_back(make_pair(newHyperOpArguments, supportedArgType(newHyperOpArguments.front(), M, instItr)));
 								}
 							}
 						}
@@ -1313,7 +1310,6 @@ struct HyperOpCreationPass: public ModulePass {
 							unsigned hyperOpArgIndex = 0;
 							bool argUpdated = false;
 							for (HyperOpArgumentList::iterator argumentItr = hyperOpArguments.begin(); argumentItr != hyperOpArguments.end(); argumentItr++, hyperOpArgIndex++) {
-								//If the argument is a scalar or a local reference
 								if (argumentItr->second != GLOBAL_REFERENCE) {
 									list<Value*> individualArguments = argumentItr->first;
 									if (argumentItr->second == ADDRESS && find(filteredAddressArgs.begin(), filteredAddressArgs.end(), hyperOpArgIndex) != filteredAddressArgs.end() && individualArguments.front() == operandToBeReplaced) {
@@ -1494,7 +1490,7 @@ struct HyperOpCreationPass: public ModulePass {
 						} else {
 							//Get the first operand of terminator instruction corresponding to a branch
 							vector<pair<BasicBlock*, int> > successorBBList;
-							for (int i = 0; i < terminator->getNumSuccessors(); i++) {
+							for (unsigned i = 0; i < terminator->getNumSuccessors(); i++) {
 								if (terminator->getSuccessor(i) == originalBB) {
 									//Add only those successors that correspond to a basic block in the current HyperOp
 									successorBBList.push_back(make_pair(terminator->getSuccessor(i), i));
@@ -1857,7 +1853,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
-				if (hyperOpArgItr->second != GLOBAL_REFERENCE) {
+				if (hyperOpArgItr->second != GLOBAL_REFERENCE&&hyperOpArgItr->second!=ADDRESS) {
 					for (map<Instruction*, Value*>::iterator clonedReachingDefItr = replacementArg.begin(); clonedReachingDefItr != replacementArg.end(); clonedReachingDefItr++) {
 						Instruction* clonedReachingDefInst = clonedReachingDefItr->first;
 						list<Instruction*> clonedInstructionsToBeLabeled;
@@ -2000,7 +1996,7 @@ struct HyperOpCreationPass: public ModulePass {
 							MDNode* newMDNode = MDNode::get(ctxt, mdNodeArrayRef);
 
 							metadataHost->setMetadata(HYPEROP_CONSUMED_BY, newMDNode);
-							errs() << "added metadata on instruction that belongs to parent " << metadataHost->getParent()->getParent()->getName() << " and is mapped to slot " << hyperOpArgumentIndex << " when the function has " << createdFunction->getArgumentList().size() << ":";
+							errs() << "added metadata on instruction that belongs to parent " << metadataHost->getParent()->getParent()->getName() << " and is mapped to slot " << hyperOpArgumentIndex << " when the function has " << createdFunction->getArgumentList().size() << " and is of type:"<<hyperOpArgItr->second<<":";
 							metadataHost->dump();
 							//Parent function buffered to ensure that unnecessary control dependences need not exist
 							if (isProducerStatic && find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), metadataHost->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
@@ -2613,31 +2609,6 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 			}
 
-//			DEBUG(dbgs() << "\n----------Adding sync edges to HyperOps that only take local reference inputs----------\n");
-//			for (list<Function*>::iterator localRefItr = localReferenceArgProducers.begin(); localRefItr != localReferenceArgProducers.end(); localRefItr++) {
-//				Function* localRefProducer = *localRefItr;
-//				if ((predicateProducers.empty() || find(predicateProducers.begin(), predicateProducers.end(), localRefProducer) == predicateProducers.end()) && (scalarProducers.empty() || find(scalarProducers.begin(), scalarProducers.end(), localRefProducer) == scalarProducers.end())) {
-//					//Add a sync edge from local ref producer and the consumer HyperOp
-//					Value* values[1];
-//					values[0] = hyperOpAndAnnotationMap[createdFunction];
-//					MDNode* newPredicateMetadata = MDNode::get(ctxt, values);
-//					Instruction* metadataHost = &(localRefProducer->begin()->front());
-//					MDNode* currentMetadataOfInstruction = metadataHost->getMetadata(HYPEROP_SYNC);
-//					vector<Value*> newMDNodeValues;
-//					//Same data maybe required by multiple HyperOps
-//					if (currentMetadataOfInstruction != 0) {
-//						for (unsigned i = 0; i < currentMetadataOfInstruction->getNumOperands(); i++) {
-//							newMDNodeValues.push_back(currentMetadataOfInstruction->getOperand(i));
-//						}
-//					}
-//					newMDNodeValues.push_back(newPredicateMetadata);
-//					MDNode* mdNode = MDNode::get(ctxt, newMDNodeValues);
-//					//Create a sync edge between the current HyperOp and the last HyperOp
-//					//We use sync edge here because adding a predicate to the end hyperop will increase the number of predicates
-//					metadataHost->setMetadata(HYPEROP_SYNC, mdNode);
-//					syncMDNodeList.push_back(newPredicateMetadata);
-//				}
-//			}
 			errs() << "after patching function " << createdFunction->getName() << ", module:";
 			M.dump();
 		}
