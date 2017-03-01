@@ -119,6 +119,7 @@ class HyperOp {
 	unsigned hyperOpId;
 	vector<unsigned> numInputsPerCE;
 	unsigned int numIncomingSyncEdges;
+	multimap<MachineInstr*,MachineInstr*> pHopDependenceMap;
 
 public:
 	//Map to cache local reference objects that have an alloc instruction in a different HyperOp

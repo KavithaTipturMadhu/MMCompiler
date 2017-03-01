@@ -70,7 +70,7 @@ struct HyperOpCreationPass: public ModulePass {
 	bool pathExistsInCFG(BasicBlock* source, BasicBlock* target, list<BasicBlock*> visitedBasicBlocks) {
 		if (source->getParent() == target->getParent()) {
 			visitedBasicBlocks.push_back(source);
-			for (int i = 0; i < source->getTerminator()->getNumSuccessors(); i++) {
+			for (unsigned i = 0; i < source->getTerminator()->getNumSuccessors(); i++) {
 				BasicBlock* succBB = source->getTerminator()->getSuccessor(i);
 				if (find(visitedBasicBlocks.begin(), visitedBasicBlocks.end(), succBB) == visitedBasicBlocks.end()) {
 					if (succBB == target) {
