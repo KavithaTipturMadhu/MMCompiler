@@ -626,14 +626,21 @@ list<TileCoordinates> HyperOpInteractionGraph::getEdgePathOnNetwork(HyperOp* sou
 	TileCoordinates targetCoordinates = make_pair(source->getTargetResource() / columnCount, source->getTargetResource() % columnCount);
 	//Set path along column
 	unsigned col;
-	for (col = sourceCoordinates.second; col <= targetCoordinates.second; col = (col + 1) % columnCount) {
+//	errs() << "col from " << sourceCoordinates.second << " to " << targetCoordinates.second << "\n";
+	for (col = sourceCoordinates.second; col <= targetCoordinates.second;) {
 		path.push_back(make_pair(sourceCoordinates.first, col));
+		if (columnCount > 1) {
+			col = (col + 1) % columnCount;
+		}else{
+			break;
+		}
 	}
-
-	for (unsigned row = sourceCoordinates.first; row <= targetCoordinates.first; row = (row + 1) % rowCount) {
-		path.push_back(make_pair(row, col));
+	if (rowCount > 1) {
+//		errs() << "row from " << sourceCoordinates.first << " to " << targetCoordinates.first << "\n";
+		for (unsigned row = sourceCoordinates.first; row <= targetCoordinates.first; row = (row + 1) % rowCount) {
+			path.push_back(make_pair(row, col));
+		}
 	}
-
 	return path;
 }
 
@@ -3032,7 +3039,7 @@ list<list<pair<HyperOpEdge*, HyperOp*> > > mergePredicateChains(list<list<pair<H
 }
 
 //Returns predicate from start hyperop
-list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) {
+list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp * currentHyperOp) {
 //	list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains = getReachingPredicateChain(currentHyperOp, currentHyperOp->getImmediateDominator());
 //	errs() << "\n---\ncomputing last predicate to hyperop:" << currentHyperOp->asString() << "\n";
 //	predicateChains = mergePredicateChains(predicateChains);
@@ -3086,7 +3093,7 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp* currentHyperOp) 
 }
 
 //Returns control flow graph from the cdfg we use, this graph is used to compute mutual exclusion etc
-pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > getCFG(HyperOpInteractionGraph* dfg) {
+pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > getCFG(HyperOpInteractionGraph * dfg) {
 	HyperOpInteractionGraph* cfg = new HyperOpInteractionGraph();
 	cfg->setDimensions(dfg->rowCount, dfg->columnCount);
 	map<HyperOp*, HyperOp*> originalToClonedNodesMap;
