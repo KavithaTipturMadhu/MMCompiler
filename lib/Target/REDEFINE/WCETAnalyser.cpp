@@ -81,11 +81,11 @@ struct WcetAnalyzer: public MachineFunctionPass {
 		unsigned int i = 0;
 		for (MachineBasicBlock::instr_iterator IItr = B->instr_begin(); IItr != B->instr_end(); IItr++) {
 			//DEFINE VARS
-			const TargetMachine *TM;
+//			const TargetMachine *TM;
 			const InstrItineraryData *InstrItins;
 
 			//USE MF to GET Target Machine
-			TM = &MF.getTarget();
+			const TargetMachine &TM = MF.getTarget();
 			//CALL getInstrItineraryData() to instruction Info
 			//InstrItins = TM->getInstrItineraryData();
 			InstrItins = ((const REDEFINETargetMachine&)TM).getInstrItineraryData();
@@ -282,13 +282,20 @@ bool WcetAnalyzer::runOnMachineFunction(MachineFunction &MF) {
 //TargetMachine &TM;
 	const TargetMachine &TM = MF.getTarget();
 	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
-//HIG->Vertices;
-	for (list<HyperOp*>::iterator HyperItr = HIG->Vertices.begin(); HyperItr != HIG->Vertices.end(); ++HyperItr) {
-		errs() << "HyperOp: " << (*HyperItr)->getFunction()->getName() << "\n";
-		list<HyperOp*> childs = (*HyperItr)->getChildList();
-		for (list<HyperOp*>::iterator chItr = childs.begin(); chItr != childs.end(); ++chItr) {
-			errs() << "ChildHyperOp: " << (*chItr)->getFunction()->getName() << "\n";
-			H.add_Edge(*HyperItr, *chItr, 0);
+	for (list<HyperOp*>::iterator HyperopItr = HIG->Vertices.begin(); HyperopItr != HIG->Vertices.end(); ++HyperopItr)
+	{
+//		list<HyperOp*> children = (*HyperItr)->getChildList();
+//		for (list<HyperOp*>::iterator childItr = children.begin(); childItr != children.end(); ++childItr) {
+//			H.add_Edge(*HyperItr, *childItr, 0);
+//		}
+
+		for(auto childMapItr = (*HyperopItr)->ChildMap.begin();childMapItr!=(*HyperopItr)->ChildMap.end();childMapItr++)
+		{
+			HyperOpEdge* childEdge = childMapItr->first;
+			MachineInstr* edgeSourceInstr=  childEdge->getEdgeSource();
+			list<TileCoordinates> edgePath = HIG->getEdgePathOnNetwork((*HyperopItr), childMapItr->second);
+			TileCoordinates sourceTile = edgePath.front();
+			TileCoordinates targetTile = edgePath.back();
 		}
 	}
 	H.xdot();

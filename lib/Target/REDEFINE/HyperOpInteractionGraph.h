@@ -40,12 +40,16 @@ static string LOCAL_REFERENCE = "LocalReference";
 
 class HyperOp;
 
+//(X,Y) coordinates of Tile
+typedef  pair<unsigned, unsigned> TileCoordinates;
+
 class HyperOpEdge {
 	bool isZeroedOut;
 	bool isIgnoredEdge;
 	int positionOfContextSlot;
 	unsigned predicateValue;
 	unsigned decrementOperandCount;
+	MachineInstr* edgeSource;
 
 protected:
 	Value* variable;
@@ -88,6 +92,8 @@ public:
 	void setPredicateValue(unsigned predicateValue);
 	unsigned getDecrementOperandCount();
 	void setDecrementOperandCount(unsigned decrementOperandCount);
+	void setEdgeSource(MachineInstr* edgeSource);
+	MachineInstr* getEdgeSource();
 };
 
 class HyperOp {
@@ -119,7 +125,8 @@ class HyperOp {
 	unsigned hyperOpId;
 	vector<unsigned> numInputsPerCE;
 	unsigned int numIncomingSyncEdges;
-	multimap<MachineInstr*,MachineInstr*> pHopDependenceMap;
+	//Map of source instruction in a CE and the first consumer instruction in a different CE
+	map<MachineInstr*,MachineInstr*> pHopDependenceMap;
 
 public:
 	//Map to cache local reference objects that have an alloc instruction in a different HyperOp
@@ -268,6 +275,9 @@ public:
 	void setMaxContextFrameSize(unsigned int maxFrameSize);
 
 	HyperOp* getOrCreateHyperOpInstance(Function* function, Function* instanceOf, list<unsigned> instanceId);
+
+	//Returns source-destination tile coordinates for an edge
+	list<TileCoordinates> getEdgePathOnNetwork(HyperOp* source, HyperOp* target);
 
 };
 #endif /* LIB_TARGET_RISCV_HYPEROPINTERACTIONGRAPH_H_ */

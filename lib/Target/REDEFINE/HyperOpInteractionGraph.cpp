@@ -87,6 +87,14 @@ void HyperOpEdge::setDecrementOperandCount(unsigned decrementOperandCount) {
 	this->decrementOperandCount = decrementOperandCount;
 }
 
+void HyperOpEdge::setEdgeSource(MachineInstr* edgeSource) {
+	this->edgeSource = edgeSource;
+}
+
+MachineInstr* HyperOpEdge::getEdgeSource() {
+	return edgeSource;
+}
+
 int HyperOpEdge::getPositionOfContextSlot() {
 	return positionOfContextSlot;
 }
@@ -610,6 +618,23 @@ HyperOp* HyperOpInteractionGraph::getOrCreateHyperOpInstance(Function* function,
 	newHyperOp->setIsUnrolledInstance(true);
 	this->addHyperOp(newHyperOp);
 	return newHyperOp;
+}
+
+list<TileCoordinates> HyperOpInteractionGraph::getEdgePathOnNetwork(HyperOp* source, HyperOp* target) {
+	list<TileCoordinates> path;
+	TileCoordinates sourceCoordinates = make_pair(source->getTargetResource() / columnCount, source->getTargetResource() % columnCount);
+	TileCoordinates targetCoordinates = make_pair(source->getTargetResource() / columnCount, source->getTargetResource() % columnCount);
+	//Set path along column
+	unsigned col;
+	for (col = sourceCoordinates.second; col <= targetCoordinates.second; col = (col + 1) % columnCount) {
+		path.push_back(make_pair(sourceCoordinates.first, col));
+	}
+
+	for (unsigned row = sourceCoordinates.first; row <= targetCoordinates.first; row = (row + 1) % rowCount) {
+		path.push_back(make_pair(row, col));
+	}
+
+	return path;
 }
 
 void HyperOpInteractionGraph::addHyperOp(HyperOp *Vertex) {
