@@ -627,18 +627,35 @@ list<TileCoordinates> HyperOpInteractionGraph::getEdgePathOnNetwork(HyperOp* sou
 	//Set path along column
 	unsigned col;
 //	errs() << "col from " << sourceCoordinates.second << " to " << targetCoordinates.second << "\n";
-	for (col = sourceCoordinates.second; col <= targetCoordinates.second;) {
-		path.push_back(make_pair(sourceCoordinates.first, col));
-		if (columnCount > 1) {
-			col = (col + 1) % columnCount;
-		}else{
-			break;
+	if (columnCount == 1) {
+		path.push_back(make_pair(sourceCoordinates.first, 0));
+	} else {
+		if (abs(sourceCoordinates.second - targetCoordinates.second) < columnCount / 2) {
+			for (col = sourceCoordinates.second; col != (targetCoordinates.second + 1); col = (col + 1) % columnCount) {
+				path.push_back(make_pair(sourceCoordinates.first, col));
+			}
+		} else {
+			for (col = sourceCoordinates.second; col != (targetCoordinates.second - 1); col = (col - 1) % columnCount) {
+				path.push_back(make_pair(sourceCoordinates.first, col));
+				if (col == 0) {
+					col = col + columnCount;
+				}
+			}
 		}
 	}
 	if (rowCount > 1) {
 //		errs() << "row from " << sourceCoordinates.first << " to " << targetCoordinates.first << "\n";
-		for (unsigned row = sourceCoordinates.first; row <= targetCoordinates.first; row = (row + 1) % rowCount) {
-			path.push_back(make_pair(row, col));
+		if (abs(sourceCoordinates.first - targetCoordinates.first) < columnCount / 2) {
+			for (unsigned row = sourceCoordinates.first; row != (targetCoordinates.first + 1); row = (row + 1) % rowCount) {
+				path.push_back(make_pair(row, col));
+			}
+		} else {
+			for (unsigned row = sourceCoordinates.first; row != (targetCoordinates.first - 1); row = (row - 1) % rowCount) {
+				path.push_back(make_pair(row, col));
+				if (row == 0) {
+					row = row + rowCount;
+				}
+			}
 		}
 	}
 	return path;
