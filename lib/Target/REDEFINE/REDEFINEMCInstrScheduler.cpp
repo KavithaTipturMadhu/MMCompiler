@@ -148,79 +148,122 @@ void REDEFINEMCInstrScheduler::schedule() {
 //	METIS TODO : map<SUnit*, idx_t> traversedSUnitsWithIndex;
 
 	//Since map doesn't maintain the order of insertion, using a list
-	unsigned ceIndex = 0;
+	//Create a phop tree with SUnits
+	//Map of each SUnit and its parents
+	list<SUnit*> leafNodes;
+	list<SUnit*> orderOfTraversal;
 	while (SUnit *SU = SchedImpl->pickNode(IsTopNode)) {
 		scheduleMI(SU, IsTopNode);
-//		METIS TODO: traversedSUnitsWithIndex[SU] = numVertices;
-//		METIS TODO:  numVertices++;
+		if (SU->Succs.empty()) {
+			leafNodes.push_back(SU);
+		}
+		orderOfTraversal.push_back(SU);
+		updateQueues(SU, IsTopNode);
+	}
+
+	unsigned ceIndex = 0;
+	list<SUnit*> previouslyScheduledList;
+	map<SUnit*, unsigned> instructionAndCEMap;
+	//Traverse the tree depth first
+	while (!leafNodes.empty()) {
+		SUnit* SU = leafNodes.front();
+		leafNodes.pop_front();
+		//		METIS TODO: traversedSUnitsWithIndex[SU] = numVertices;
+		//		METIS TODO:  numVertices++;
 		if (ceCount == 1) {
-			instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, 0));
+			instructionAndCEMap[SU] = 0;
 		} else {
-			errs() << "scheduling instr:";
-			SU->getInstr()->dump();
 			list<unsigned> sourceCEList;
-			if (SU->getInstr()->mayLoad() || SU->getInstr()->mayStore()) {
-				for (SmallVector<SDep, 4>::iterator predecessorItr = SU->Preds.begin(); predecessorItr != SU->Preds.end(); predecessorItr++) {
-					SDep dependence = *predecessorItr;
-					if (dependence.isNormalMemory()) {
-						//There cannot be multiple memory dependences
-						for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndPHyperOpMapForRegion.begin(); ScheduledInstrItr != instructionAndPHyperOpMapForRegion.end(); ScheduledInstrItr++) {
-							if (ScheduledInstrItr->first == dependence.getSUnit()) {
-//								errs()<<"dependence on instr that belongs to ce "<<ScheduledInstrItr->second<<":";
-								ScheduledInstrItr->first->getInstr()->dump();
-								sourceCEList.push_back(ScheduledInstrItr->second);
-								break;
-							}
-						}
-					}
-				}
-			}
-//			errs() << "source ce dependence list:" << sourceCEList.size() << "\n";
-			assert((sourceCEList.size() == 0 || sourceCEList.size() == 1) && "Multiple memory dependences shouldn't exist to a memory operation since it accesses only one memory location!");
-			if (sourceCEList.empty()) {
+			list<SUnit*> parentInstructions;
+			list<SUnit*> childInstructions;
+			int sunitCEIndex = -1;
+			if (instructionAndCEMap.find(SU) != instructionAndCEMap.end()) {
+				sunitCEIndex = instructionAndCEMap[SU];
+			} else {
 				if (SU->getInstr()->mayLoad() || SU->getInstr()->mayStore()) {
-					//first instruction to access the location in the basic block, check if the same location has been accessed before by another CE
-					//There can only be one memory operand in riscv instr set
-					list<unsigned> predecessorCEList;
-					for (MachineInstr::mmo_iterator mmoItr = SU->getInstr()->memoperands_begin(); mmoItr != SU->getInstr()->memoperands_end(); mmoItr++) {
-						MachineMemOperand * memOperand = *mmoItr;
-						unsigned previousDefOfMemOperand = -1;
-						for (unsigned i = 0; i < ceCount; i++) {
-							//TODO will it suffice to compare Value pointers? should I be using exact locations?
-							if (find(memoryLocationsAccessedInCE[i].begin(), memoryLocationsAccessedInCE[i].end(), memOperand->getValue()) != memoryLocationsAccessedInCE[i].end()) {
-								previousDefOfMemOperand = i;
-								break;
+					//Check if any parent or child is already assigned a CE
+					for (auto succItr = SU->Succs.begin(); succItr != SU->Succs.end(); succItr++) {
+						SDep dependence = *succItr;
+						if (dependence.isNormalMemory()) {
+							unsigned childCE = instructionAndCEMap[dependence.getSUnit()];
+							if (find(sourceCEList.begin(), sourceCEList.end(), childCE) == sourceCEList.end()) {
+								sourceCEList.push_back(childCE);
+								childInstructions.push_back(dependence.getSUnit());
 							}
-						}
-
-						if (previousDefOfMemOperand == -1) {
-							//This memory location is accessed the first time
-							memoryLocationsAccessedInCE[ceIndex].push_back(memOperand->getValue());
-						} else {
-							predecessorCEList.push_back(previousDefOfMemOperand);
 						}
 					}
 
-					if (predecessorCEList.empty()) {
-						instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, ceIndex));
-						ceIndex = (ceIndex + 1) % ceCount;
+					for (auto predItr = SU->Preds.begin(); predItr != SU->Preds.end(); predItr++) {
+						SDep dependence = *predItr;
+						if (dependence.isNormalMemory()) {
+							unsigned parentCE = instructionAndCEMap[dependence.getSUnit()];
+							if (find(sourceCEList.begin(), sourceCEList.end(), parentCE) == sourceCEList.end()) {
+								sourceCEList.push_back(parentCE);
+								parentInstructions.push_back(dependence.getSUnit());
+							}
+						}
+					}
+				} else if (SU->getInstr()->isCopy() && TRI->isPhysicalRegister(SU->getInstr()->getOperand(1).getReg())) {
+					//All physical regs contain args to hyperop that are mapped to the register set of the first pHyperOp
+					sourceCEList.push_back(0);
+				}
+				assert((sourceCEList.size() == 0 || sourceCEList.size() == 1) && "Conflicting CE assignments possible to an instruction");
+				if (sourceCEList.empty()) {
+					if (SU->getInstr()->mayLoad() || SU->getInstr()->mayStore()) {
+						//first instruction to access the location in the basic block, check if the same location has been accessed before by another CE
+						//There can only be one memory operand in riscv instr set
+						list<unsigned> sourceCEList;
+						for (MachineInstr::mmo_iterator mmoItr = SU->getInstr()->memoperands_begin(); mmoItr != SU->getInstr()->memoperands_end(); mmoItr++) {
+							MachineMemOperand * memOperand = *mmoItr;
+							unsigned previousDefOfMemOperand = -1;
+							for (unsigned i = 0; i < ceCount; i++) {
+								//TODO will it suffice to compare Value pointers? should I be using exact locations?
+								if (find(memoryLocationsAccessedInCE[i].begin(), memoryLocationsAccessedInCE[i].end(), memOperand->getValue()) != memoryLocationsAccessedInCE[i].end()) {
+									previousDefOfMemOperand = i;
+									break;
+								}
+							}
+
+							if (previousDefOfMemOperand != -1) {
+								//This memory location is accessed the first time
+								sunitCEIndex = ceIndex;
+								memoryLocationsAccessedInCE[sunitCEIndex].push_back(memOperand->getValue());
+								ceIndex = (ceIndex + 1) % ceCount;
+							} else {
+								sourceCEList.push_back(previousDefOfMemOperand);
+							}
+						}
+					} else if (SU->getInstr()->isCopy() && TRI->isPhysicalRegister(SU->getInstr()->getOperand(1).getReg())) {
+						sunitCEIndex = 0;
 					} else {
-						assert(predecessorCEList.size() == 1 && "There cannot be more than one memory operands to an instruction in REDEFINE ISA");
-						instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, predecessorCEList.front()));
+						sunitCEIndex = ceIndex;
+						ceIndex = (ceIndex + 1) % ceCount;
 					}
 				} else {
-					if (SU->getInstr()->isCopy() && TRI->isPhysicalRegister(SU->getInstr()->getOperand(1).getReg())) {
-						instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, 0));
-					} else {
-						instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, ceIndex));
-						ceIndex = (ceIndex + 1) % ceCount;
-					}
+					sunitCEIndex = sourceCEList.front();
 				}
-			} else {
-				instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, (*sourceCEList.begin())));
+			}
+
+			instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, sunitCEIndex));
+			//Mark all parent and child instructions that depend on the current SU for memory as belonging to the same ce
+			for (auto parentItr = parentInstructions.begin(); parentItr != parentInstructions.end(); parentItr++) {
+				if (instructionAndCEMap.find(*parentItr) == instructionAndCEMap.end()) {
+					instructionAndCEMap[*parentItr] =  sunitCEIndex;
+					leafNodes.push_back(*parentItr);
+				}
+			}
+
+			for (auto childItr = childInstructions.begin(); childItr != childInstructions.end(); childItr++) {
+				if (instructionAndCEMap.find(*childItr) == instructionAndCEMap.end()) {
+					instructionAndCEMap[*childItr]= sunitCEIndex;
+					leafNodes.push_back(*childItr);
+				}
 			}
 		}
-		updateQueues(SU, IsTopNode);
+	}
+
+	for (auto suItr = orderOfTraversal.begin(); suItr != orderOfTraversal.end(); suItr++) {
+		instructionAndPHyperOpMapForRegion.push_back(make_pair(*suItr, instructionAndCEMap[*suItr]));
 	}
 
 // METIS TODO:
@@ -265,7 +308,6 @@ void REDEFINEMCInstrScheduler::schedule() {
 
 	assert(CurrentTop == CurrentBottom && "Nonempty unscheduled zone.");
 	placeDebugValues();
-
 	DEBUG( {
 		unsigned BBNum = begin()->getParent()->getNumber();
 		dbgs() << "*** Final schedule for BB#" << BBNum << " ***\n"
@@ -1576,7 +1618,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						break;
 					}
 				}
-			} else if (registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].second != targetCE&&regContainingMemFrameBaseAddress.find(consumer) == regContainingMemFrameBaseAddress.end()) {
+			} else if (registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].second != targetCE && regContainingMemFrameBaseAddress.find(consumer) == regContainingMemFrameBaseAddress.end()) {
 				unsigned sourceCEContainingFrameAddress = registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].second;
 				//Load the base scratchpad address to a register in the producer CE for the first time
 				if (registerContainingBaseAddress[sourceCEContainingFrameAddress][targetCE] == -1) {
@@ -1623,7 +1665,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				readpm.addReg(registerContainingBaseAddress[targetCE][targetCE]);
 				readpm.addImm(faninOfHyperOp[targetCE]);
 
-				errs()<<"first readpm added for ";
+				errs() << "first readpm added for ";
 				readpm.operator ->()->dump();
 				allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
@@ -1879,14 +1921,14 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					}
 				}
 
-				errs()<<"before adding readpm:";
+				errs() << "before adding readpm:";
 				BB->dump();
 				unsigned addFrameSize = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 				MachineInstrBuilder readpm = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::DREADPM));
 				readpm.addReg(addFrameSize, RegState::Define);
 				readpm.addReg(registerContainingBaseAddress[targetCE][targetCE]);
 				readpm.addImm(faninOfHyperOp[targetCE]);
-				errs()<<"added new dreadpm:";
+				errs() << "added new dreadpm:";
 				readpm.operator ->()->dump();
 				allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());

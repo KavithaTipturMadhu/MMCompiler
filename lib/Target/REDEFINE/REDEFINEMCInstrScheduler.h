@@ -39,6 +39,7 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	map<unsigned, unsigned> registerAndFrameLocation;
 
 	//Instruction and the pHyperOp it belongs to
+	//Not a map because I want to maintain the order of traversal
 	list<pair<SUnit*, unsigned> > instructionAndPHyperOpMapForRegion;
 
 	/* Memory locations accessed in a ce are cached as alloca or getelementptr instructions(in Value* form) to ensure that memory accesses are chained across basic blocks.
