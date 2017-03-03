@@ -190,6 +190,11 @@ void HyperOp::setIsUnrolledInstance(bool isUnrolledInstance) {
 void HyperOp::setFunction(Function* function) {
 	this->function = function;
 }
+
+PHyperOpInteractionGraph HyperOp::getpHyperOpDependenceMap() {
+	return this->pHopDependenceMap;
+}
+
 void HyperOp::setHyperOpId(unsigned hyperOpId) {
 	this->hyperOpId = hyperOpId;
 }

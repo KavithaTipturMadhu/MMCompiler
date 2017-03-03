@@ -30,13 +30,15 @@ using namespace std;
 using namespace WCET;
 using namespace llvm;
 
-namespace llvm {
-MachineFunctionPass *createWcetAnalyzer();
-void initializeWcetAnalyzerPass(PassRegistry&);
+namespace llvm
+{
+	MachineFunctionPass *createWcetAnalyzer();
+	void initializeWcetAnalyzerPass(PassRegistry&);
 }
-namespace {
-
-struct WcetAnalyzer: public MachineFunctionPass {
+namespace
+{
+struct WcetAnalyzer: public MachineFunctionPass
+{
 	static char ID; // Pass identification, replacement for typeid
 
 	WcetAnalyzer() :
@@ -62,7 +64,8 @@ struct WcetAnalyzer: public MachineFunctionPass {
 
 	}
 
-	void countBlocksInLoop(MachineLoop *L, unsigned nest) {
+	void countBlocksInLoop(MachineLoop *L, unsigned nest)
+	{
 		unsigned num_Blocks = 0;
 		MachineLoop::block_iterator bb;
 		L->getTopBlock()->dump();
@@ -76,7 +79,8 @@ struct WcetAnalyzer: public MachineFunctionPass {
 		for (j = subLoops.begin(), f = subLoops.end(); j != f; ++j)
 			countBlocksInLoop(*j, nest + 1);
 	}
-	int get_BasicBlockWcet(MachineBasicBlock *B, MachineFunction &MF, bool XDOT) {
+	int get_BasicBlockWcet(MachineBasicBlock *B, MachineFunction &MF, bool XDOT)
+	{
 		WCET::DWAGraph<unsigned int> FUG;
 		unsigned int i = 0;
 		for (MachineBasicBlock::instr_iterator IItr = B->instr_begin(); IItr != B->instr_end(); IItr++) {
@@ -129,9 +133,10 @@ MachineFunctionPass *llvm::createWcetAnalyzer() {
 	return new WcetAnalyzer();
 }
 
-bool WcetAnalyzer::runOnMachineFunction(MachineFunction &MF) {
+bool WcetAnalyzer::runOnMachineFunction(MachineFunction &MF)
+{
 	errs() << "###################################################################################################" << "\n";
-	errs() << "###################################################################################################" << "\n";
+	errs() << "########################################Start WCET#################################################" << "\n";
 	errs() << "###################################################################################################" << "\n";
 
 	errs() << "---------------------------------------------------------------------------------------------------\n";
@@ -172,7 +177,8 @@ bool WcetAnalyzer::runOnMachineFunction(MachineFunction &MF) {
 	errs() << "-------------------------------------------LOOP ALGO-----------------------------------------------\n";
 	errs() << "---------------------------------------------------------------------------------------------------\n";
 	MachineLoopInfo &LI = getAnalysis<MachineLoopInfo>();
-	for (MachineLoopInfo::iterator LIT = LI.begin(); LIT != LI.end(); ++LIT) {
+	for (MachineLoopInfo::iterator LIT = LI.begin(); LIT != LI.end(); ++LIT)
+	{
 		MachineLoop* ll = *LIT;
 		errs() << "Loop: \n";
 		ll->dump();
@@ -189,8 +195,8 @@ bool WcetAnalyzer::runOnMachineFunction(MachineFunction &MF) {
 	errs() << "---------------------------------------------------------------------------------------------------\n";
 	errs() << "-------------------------------------------MEMORY ALGO---------------------------------------------\n";
 	errs() << "---------------------------------------------------------------------------------------------------\n";
-//MemoryDependenceAnalysis &MDA = getAnalysis<MemoryDependenceAnalysis>();
-//MDA.dump();
+	//MemoryDependenceAnalysis &MDA = getAnalysis<MemoryDependenceAnalysis>();
+	//MDA.dump();
 
 	errs() << "---------------------------------------------------------------------------------------------------\n";
 	errs() << "----------------------------------------DOMINATOR TREE---------------------------------------------\n";
@@ -203,7 +209,6 @@ bool WcetAnalyzer::runOnMachineFunction(MachineFunction &MF) {
 	errs() << "=============================--------------------------------\n";
 	for (auto& B : MF) {
 		errs() << "Basic block:" << B.getNumber() << "\n";
-//	errs()<<"Number of Successor: "<<B.succ_size()<<"\n";
 		for (MachineBasicBlock::succ_iterator succItr = B.succ_begin(); succItr != B.succ_end(); succItr++) {
 			errs() << "Successor: " << (*succItr)->getNumber() << "\n";
 		}
@@ -217,91 +222,102 @@ bool WcetAnalyzer::runOnMachineFunction(MachineFunction &MF) {
 //SOURCE
 	g.add_Vertex(DT.getRoot()->getBasicBlock());
 
-	for (auto& B : MF) {
+	for (auto& B : MF)
+	{
 		g.add_Vertex(B.getBasicBlock());
 	}
 	g.add_Vertex((const BasicBlock *) 0);
 	int num = 1;
-	for (auto& B : MF) {
-		for (MachineBasicBlock::succ_iterator succItr = B.succ_begin(); succItr != B.succ_end(); succItr++) {
+	for (auto& B : MF)
+	{
+		for (MachineBasicBlock::succ_iterator succItr = B.succ_begin(); succItr != B.succ_end(); succItr++)
+		{
 			g.add_Edge(B.getBasicBlock(), (*succItr)->getBasicBlock(), get_BasicBlockWcet(&B, MF, 0));
 		}
-		if (B.succ_empty()) {
+		if (B.succ_empty())
+		{
 			g.add_Edge(B.getBasicBlock(), (const BasicBlock *) 0, get_BasicBlockWcet(&B, MF, 0));
 		}
 	}
-	g.xdot_CriticalPath();
-	errs() << "\nCritical Path Graph Generated!" << "\n";
+	//pHyperOp Map
+
+	//g.dump();
+	g.xdot();
+	errs()<<"HyperOp graph generated\n";
+	//g.xdot_CriticalPath();
+	//errs() << "\nCritical Path Graph Generated!" << "\n";
 //g.GraphProfile();
 //g.xdot_DFS();
+
+
 	errs() << "---------------------------------------------------------------------------------------------------\n";
 	errs() << "----------------------------------------HyperOp Graph----------------------------------------------\n";
 	errs() << "---------------------------------------------------------------------------------------------------\n";
-	typedef std::pair<int, unsigned long int> UID;
 	typedef WCET::DWAGraph<unsigned long int> HyperOpGraph;
-	typedef std::map<MachineFunction::const_iterator, UID> InstructionLookup;
 	HyperOpGraph HyperGraph;
-	unsigned long int IUID = 0;
-
-	InstructionLookup ILookup;
 
 	const TargetInstrInfo* TII;
 	TII = MF.getTarget().getInstrInfo();
+	const TargetMachine &TM = MF.getTarget();
+	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
+	HyperOp* currentHyperOp =	HIG->getHyperOp(const_cast<Function*>(MF.getFunction()));
+	PHyperOpInteractionGraph phopDependence = currentHyperOp->getpHyperOpDependenceMap();
+	for(auto pHopDependenceItr = phopDependence.begin();pHopDependenceItr!=phopDependence.end();pHopDependenceItr++){
+		errs()<<"dependence between instructions :";
+		MachineInstr* sourceMI = pHopDependenceItr->first;
+		MachineInstr* targetMI = pHopDependenceItr->second;
+		sourceMI->dump();
+		targetMI->dump();
+	}
 
-	for (MachineFunction::const_iterator B = MF.begin(), E = MF.end(); B != E; ++B) {
+	for (MachineFunction::const_iterator B = MF.begin(), E = MF.end(); B != E; ++B)
+	{
 		int pHyperOpIndex = -1;
-		for (MachineBasicBlock::const_instr_iterator instrItr = B->instr_begin(); instrItr != B->instr_end(); ++instrItr) {
+		for (MachineBasicBlock::const_instr_iterator instrItr = B->instr_begin(); instrItr != B->instr_end(); ++instrItr)
+		{
 
-			if (!instrItr->isInsideBundle()) {
+			if (!instrItr->isInsideBundle())
+			{
 				pHyperOpIndex++;
 				//UID uniqueId(pHyperOpIndex,IUID);
-				//ILookup.insert(std::make_pair(instrItr,uniqueId));
-				IUID += 6;
+				//ILookup.insert(std::make_pair(instrItr,uniqueId))
 				if (instrItr->getNumOperands() > 2)
 					errs() << "\n\nBasicBlock#" << B->getNumber() << ", pHyperOp#" << pHyperOpIndex << " : " <<\
- TII->getName(instrItr->getOpcode()) << " (" << instrItr->getOpcode() << ") -> " << instrItr->getOperand(2) << "\n";
+					TII->getName(instrItr->getOpcode()) << " (" << instrItr->getOpcode() << ") -> " << instrItr->getOperand(2) << "\n";
 				else
 					errs() << "\n\nBasicBlock#" << B->getNumber() << ", pHyperOp#" << pHyperOpIndex << " : " <<\
- TII->getName(instrItr->getOpcode()) << instrItr->getOpcode() << "\n";
+					TII->getName(instrItr->getOpcode()) << instrItr->getOpcode() << "\n";
 			}
-			//UID uniqueId(pHyperOpIndex,IUID);
-			//ILookup.insert(std::make_pair(instrItr,uniqueId));
-			IUID += 6;
 			if (instrItr->getNumOperands() > 2)
 				errs() << "BasicBlock#" << B->getNumber() << ", pHyperOp#" << pHyperOpIndex << " : " <<\
- TII->getName(instrItr->getOpcode()) << " (" << instrItr->getOpcode() << ") -> " << instrItr->getOperand(2) << "\n";
+				TII->getName(instrItr->getOpcode()) << " (" << instrItr->getOpcode() << ") -> " << instrItr->getOperand(2) << "\n";
 			else
 				errs() << "BasicBlock#" << B->getNumber() << ", pHyperOp#" << pHyperOpIndex << " : " <<\
- TII->getName(instrItr->getOpcode()) << instrItr->getOpcode() << "\n";
+				TII->getName(instrItr->getOpcode()) << instrItr->getOpcode() << "\n";
 		}
 	}
 	errs() << "---------------------------------------------------------------------------------------------------\n";
 	errs() << "------------------------------------------HIG ALGO-------------------------------------------------\n";
 	errs() << "---------------------------------------------------------------------------------------------------\n";
+
 	WCET::DWAGraph<HyperOp *> H;
-//TargetMachine &TM;
-	const TargetMachine &TM = MF.getTarget();
-	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
+
 	for (list<HyperOp*>::iterator HyperopItr = HIG->Vertices.begin(); HyperopItr != HIG->Vertices.end(); ++HyperopItr)
 	{
-//		list<HyperOp*> children = (*HyperItr)->getChildList();
-//		for (list<HyperOp*>::iterator childItr = children.begin(); childItr != children.end(); ++childItr) {
-//			H.add_Edge(*HyperItr, *childItr, 0);
-//		}
 
 		for(auto childMapItr = (*HyperopItr)->ChildMap.begin();childMapItr!=(*HyperopItr)->ChildMap.end();childMapItr++)
 		{
 			HyperOpEdge* childEdge = childMapItr->first;
 			MachineInstr* edgeSourceInstr=  childEdge->getEdgeSource();
 			list<TileCoordinates> edgePath = HIG->getEdgePathOnNetwork((*HyperopItr), childMapItr->second);
+			H.add_Edge((*HyperopItr),  childMapItr->second, 0);
 			TileCoordinates sourceTile = edgePath.front();
 			TileCoordinates targetTile = edgePath.back();
 		}
 	}
-	H.xdot();
-//HyperOp *Hop=;
+	//H.xdot();
 	errs() << "###################################################################################################" << "\n";
-	errs() << "###################################################################################################" << "\n";
+	errs() << "########################################WCET Finished##############################################" << "\n";
 	errs() << "###################################################################################################" << "\n";
 
 	return false;

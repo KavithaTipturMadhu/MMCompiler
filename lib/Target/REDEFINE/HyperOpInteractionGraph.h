@@ -95,7 +95,7 @@ public:
 	void setEdgeSource(MachineInstr* edgeSource);
 	MachineInstr* getEdgeSource();
 };
-
+typedef map<MachineInstr*, MachineInstr*> PHyperOpInteractionGraph;
 class HyperOp {
 	/**
 	 * Bundle instruction corresponding to the HyperOp
@@ -199,6 +199,7 @@ public:
 	bool isUnrolledInstance();
 	void setIsUnrolledInstance(bool isUnrolledInstance);
 	void setFunction(Function* function);
+	PHyperOpInteractionGraph getpHyperOpDependenceMap();
 };
 
 class HyperOpInteractionGraph {
