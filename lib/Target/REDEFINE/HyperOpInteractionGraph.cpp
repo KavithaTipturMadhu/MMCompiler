@@ -195,6 +195,9 @@ PHyperOpInteractionGraph HyperOp::getpHyperOpDependenceMap() {
 	return this->pHopDependenceMap;
 }
 
+void HyperOp::setpHyperOpDependenceMap(PHyperOpInteractionGraph dependenceMap){
+	this->pHopDependenceMap = dependenceMap;
+}
 void HyperOp::setHyperOpId(unsigned hyperOpId) {
 	this->hyperOpId = hyperOpId;
 }
@@ -3598,7 +3601,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 
 	DEBUG(dbgs() << "after minimizing cluster and converting scalar edges to local refs, graph:");
 	this->print(dbgs());
-
 }
 
 HyperOp * HyperOpInteractionGraph::getHyperOp(Function * F) {

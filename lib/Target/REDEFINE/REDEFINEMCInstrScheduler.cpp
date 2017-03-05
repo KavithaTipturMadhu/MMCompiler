@@ -248,14 +248,14 @@ void REDEFINEMCInstrScheduler::schedule() {
 			//Mark all parent and child instructions that depend on the current SU for memory as belonging to the same ce
 			for (auto parentItr = parentInstructions.begin(); parentItr != parentInstructions.end(); parentItr++) {
 				if (instructionAndCEMap.find(*parentItr) == instructionAndCEMap.end()) {
-					instructionAndCEMap[*parentItr] =  sunitCEIndex;
+					instructionAndCEMap[*parentItr] = sunitCEIndex;
 					leafNodes.push_back(*parentItr);
 				}
 			}
 
 			for (auto childItr = childInstructions.begin(); childItr != childInstructions.end(); childItr++) {
 				if (instructionAndCEMap.find(*childItr) == instructionAndCEMap.end()) {
-					instructionAndCEMap[*childItr]= sunitCEIndex;
+					instructionAndCEMap[*childItr] = sunitCEIndex;
 					leafNodes.push_back(*childItr);
 				}
 			}
@@ -560,6 +560,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 			unsigned increment = nextCe / 2;
 			for (unsigned i = 0; i < ceCount; i += increment) {
 				if (i % 2 == 0 && (i + increment) < ceCount) {
+					MachineInstrBuilder writepmFirst, writepmSecond, readpmFirst, readpmSecond;
 					{
 						MachineInstrBuilder luiOfTargetCE = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::LUI));
 						unsigned registerForTargetAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
@@ -601,6 +602,9 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 						readpm.addImm(immediateSPOffset);
 						allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
+
+						writepmFirst = writepm;
+						readpmFirst = readpm;
 					}
 
 					{
@@ -645,7 +649,12 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 						LIS->getOrCreateInterval(readpmTarget);
 						LIS->addLiveRangeToEndOfBlock(readpmTarget, readpm.operator ->());
+
+						writepmSecond = writepm;
+						readpmSecond = readpm;
 					}
+					pHopInteractionGraph.insert(make_pair(writepmFirst.operator ->(), readpmSecond.operator ->()));
+					pHopInteractionGraph.insert(make_pair(writepmSecond.operator ->(), readpmFirst.operator ->()));
 				}
 			}
 			numNodesAtDepth = numNodesAtDepth + floor(ceCount / (nextCe / 2));
@@ -796,6 +805,8 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 
 				allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(ceContainingPredecessorInstruction, insertPosition++)));
 				allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
+				pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
+
 				//Increment by 4 since scratchpad is byte addressable
 				faninOfHyperOp[ceContainingInstruction] = faninOfHyperOp[ceContainingInstruction] + datawidth;
 			}
@@ -815,110 +826,122 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 
 //Check if the branch edge is a backedge
 //Add barrier reduction tree for synchronization
-	unsigned nextCe = 2;
-	unsigned depth = 0;
-	unsigned numNodesAtDepth = 0;
-	while (depth < ceil(log2(ceCount))) {
-		depth++;
-		unsigned increment = nextCe / 2;
-		for (unsigned i = 0; i < ceCount; i += increment) {
-			if (i % 2 == 0 && (i + increment) < ceCount) {
-				{
-					MachineInstrBuilder luiOfTargetCE = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::LUI));
-					unsigned registerForTargetAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					luiOfTargetCE.addReg(registerForTargetAddr, RegState::Define);
-					luiOfTargetCE.addImm(i + increment);
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(luiOfTargetCE.operator llvm::MachineInstr *());
-					allInstructionsOfRegion.push_back(make_pair(luiOfTargetCE.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
+	bool isLoopTerminator = true;
+	if (isLoopTerminator) {
+		unsigned nextCe = 2;
+		unsigned depth = 0;
+		unsigned numNodesAtDepth = 0;
+		while (depth < ceil(log2(ceCount))) {
+			depth++;
+			unsigned increment = nextCe / 2;
+			for (unsigned i = 0; i < ceCount; i += increment) {
+				if (i % 2 == 0 && (i + increment) < ceCount) {
+					MachineInstrBuilder writepmFirst, writepmSecond, readpmFirst, readpmSecond;
+					{
+						MachineInstrBuilder luiOfTargetCE = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::LUI));
+						unsigned registerForTargetAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						luiOfTargetCE.addReg(registerForTargetAddr, RegState::Define);
+						luiOfTargetCE.addImm(i + increment);
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(luiOfTargetCE.operator llvm::MachineInstr *());
+						allInstructionsOfRegion.push_back(make_pair(luiOfTargetCE.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 
-					if (firstInstructionOfpHyperOpInRegion[i] == 0) {
-						firstInstructionOfpHyperOpInRegion[i] = luiOfTargetCE.operator llvm::MachineInstr *();
+						if (firstInstructionOfpHyperOpInRegion[i] == 0) {
+							firstInstructionOfpHyperOpInRegion[i] = luiOfTargetCE.operator llvm::MachineInstr *();
+						}
+						//Add writepm to first CE
+						MachineInstrBuilder writepm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::WRITEPM));
+						writepm.addReg(registerForTargetAddr);
+						//Dummy data
+						writepm.addReg(registerForTargetAddr);
+						//TODO (SPLOCATIONS * 3) since we are using only 1/4th of address space
+						int32_t immediateSPOffset = SPLOCATIONS - ((depth * i + numNodesAtDepth + frameSize) * datawidth);
+						writepm.addImm(immediateSPOffset);
+						allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(writepm.operator llvm::MachineInstr *());
+
+						MachineInstrBuilder luiOfCurrentCE = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::LUI));
+						unsigned registerForCurrentAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						luiOfCurrentCE.addReg(registerForCurrentAddr, RegState::Define);
+						luiOfCurrentCE.addImm(i);
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(luiOfCurrentCE.operator llvm::MachineInstr *());
+						allInstructionsOfRegion.push_back(make_pair(luiOfCurrentCE.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
+
+						//Add readpm to first CE
+						MachineInstrBuilder readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::DREADPM));
+						unsigned readpmTarget = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						readpm.addReg(readpmTarget, RegState::Define);
+						//Dummy data
+						readpm.addReg(registerForCurrentAddr);
+						//TODO
+						immediateSPOffset = SPLOCATIONS - ((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth);
+						readpm.addImm(immediateSPOffset);
+						allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
+						LIS->getOrCreateInterval(readpmTarget);
+						LIS->addLiveRangeToEndOfBlock(readpmTarget, readpm.operator ->());
+
+						writepmFirst = writepm;
+						readpmFirst = readpm;
 					}
-					//Add writepm to first CE
-					MachineInstrBuilder writepm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::WRITEPM));
-					writepm.addReg(registerForTargetAddr);
-					//Dummy data
-					writepm.addReg(registerForTargetAddr);
-					//TODO (SPLOCATIONS * 3) since we are using only 1/4th of address space
-					int32_t immediateSPOffset = SPLOCATIONS - ((depth * i + numNodesAtDepth + frameSize) * datawidth);
-					writepm.addImm(immediateSPOffset);
-					allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(writepm.operator llvm::MachineInstr *());
 
-					MachineInstrBuilder luiOfCurrentCE = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::LUI));
-					unsigned registerForCurrentAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					luiOfCurrentCE.addReg(registerForCurrentAddr, RegState::Define);
-					luiOfCurrentCE.addImm(i);
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(luiOfCurrentCE.operator llvm::MachineInstr *());
-					allInstructionsOfRegion.push_back(make_pair(luiOfCurrentCE.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
+					{
+						MachineInstrBuilder luiOfTargetCE = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::LUI));
+						unsigned registerForTargetAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						luiOfTargetCE.addReg(registerForTargetAddr, RegState::Define);
+						luiOfTargetCE.addImm(i);
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(luiOfTargetCE.operator llvm::MachineInstr *());
+						allInstructionsOfRegion.push_back(make_pair(luiOfTargetCE.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
 
-					//Add readpm to first CE
-					MachineInstrBuilder readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::DREADPM));
-					unsigned readpmTarget = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					readpm.addReg(readpmTarget, RegState::Define);
-					//Dummy data
-					readpm.addReg(registerForCurrentAddr);
-					//TODO
-					immediateSPOffset = SPLOCATIONS - ((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth);
-					readpm.addImm(immediateSPOffset);
-					allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
-					LIS->getOrCreateInterval(readpmTarget);
-					LIS->addLiveRangeToEndOfBlock(readpmTarget, readpm.operator ->());
-				}
+						if (firstInstructionOfpHyperOpInRegion[i + increment] == 0) {
+							firstInstructionOfpHyperOpInRegion[i + increment] = luiOfTargetCE.operator llvm::MachineInstr *();
+						}
+						//Add writepm to second CE
+						MachineInstrBuilder writepm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::WRITEPM));
+						writepm.addReg(registerForTargetAddr);
+						//Dummy data
+						writepm.addReg(registerForTargetAddr);
+						//TODO
+						int32_t immediateSPOffset = SPLOCATIONS - ((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth);
+						writepm.addImm(immediateSPOffset);
+						allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(writepm.operator llvm::MachineInstr *());
 
-				{
-					MachineInstrBuilder luiOfTargetCE = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::LUI));
-					unsigned registerForTargetAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					luiOfTargetCE.addReg(registerForTargetAddr, RegState::Define);
-					luiOfTargetCE.addImm(i);
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(luiOfTargetCE.operator llvm::MachineInstr *());
-					allInstructionsOfRegion.push_back(make_pair(luiOfTargetCE.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
+						MachineInstrBuilder luiOfCurrentCE = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::LUI));
+						unsigned registerForCurrentAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						luiOfCurrentCE.addReg(registerForCurrentAddr, RegState::Define);
+						luiOfCurrentCE.addImm(i + increment);
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(luiOfCurrentCE.operator llvm::MachineInstr *());
+						allInstructionsOfRegion.push_back(make_pair(luiOfCurrentCE.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
 
-					if (firstInstructionOfpHyperOpInRegion[i + increment] == 0) {
-						firstInstructionOfpHyperOpInRegion[i + increment] = luiOfTargetCE.operator llvm::MachineInstr *();
+						//Add readpm to first CE
+						MachineInstrBuilder readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::DREADPM));
+						unsigned readpmTarget = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						readpm.addReg(readpmTarget, RegState::Define);
+						//Dummy data
+						readpm.addReg(registerForCurrentAddr);
+						//TODO
+						immediateSPOffset = SPLOCATIONS - ((depth * i + numNodesAtDepth + frameSize) * datawidth);
+						readpm.addImm(immediateSPOffset);
+						allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
+						LIS->getOrCreateInterval(readpmTarget);
+						LIS->addLiveRangeToEndOfBlock(readpmTarget, readpm.operator ->());
+
+						writepmSecond = writepm;
+						readpmSecond = readpm;
 					}
-					//Add writepm to second CE
-					MachineInstrBuilder writepm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::WRITEPM));
-					writepm.addReg(registerForTargetAddr);
-					//Dummy data
-					writepm.addReg(registerForTargetAddr);
-					//TODO
-					int32_t immediateSPOffset = SPLOCATIONS - ((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth);
-					writepm.addImm(immediateSPOffset);
-					allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(writepm.operator llvm::MachineInstr *());
 
-					MachineInstrBuilder luiOfCurrentCE = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::LUI));
-					unsigned registerForCurrentAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					luiOfCurrentCE.addReg(registerForCurrentAddr, RegState::Define);
-					luiOfCurrentCE.addImm(i + increment);
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(luiOfCurrentCE.operator llvm::MachineInstr *());
-					allInstructionsOfRegion.push_back(make_pair(luiOfCurrentCE.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
-
-					//Add readpm to first CE
-					MachineInstrBuilder readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::DREADPM));
-					unsigned readpmTarget = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					readpm.addReg(readpmTarget, RegState::Define);
-					//Dummy data
-					readpm.addReg(registerForCurrentAddr);
-					//TODO
-					immediateSPOffset = SPLOCATIONS - ((depth * i + numNodesAtDepth + frameSize) * datawidth);
-					readpm.addImm(immediateSPOffset);
-					allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
-					LIS->getOrCreateInterval(readpmTarget);
-					LIS->addLiveRangeToEndOfBlock(readpmTarget, readpm.operator ->());
+					pHopInteractionGraph.insert(make_pair(writepmFirst.operator ->(), readpmSecond.operator ->()));
+					pHopInteractionGraph.insert(make_pair(writepmSecond.operator ->(), readpmFirst.operator ->()));
 				}
 			}
+			numNodesAtDepth = numNodesAtDepth + floor(ceCount / (nextCe / 2));
+			nextCe = nextCe * 2;
 		}
-		numNodesAtDepth = numNodesAtDepth + floor(ceCount / (nextCe / 2));
-		nextCe = nextCe * 2;
+		for (unsigned i = 0; i < ceCount; i++) {
+			faninOfHyperOp[i] = 0;
+		}
 	}
-	for (unsigned i = 0; i < ceCount; i++) {
-		faninOfHyperOp[i] = 0;
-	}
-
 //See if some predecessors exist which require additional inter-pHyperOp communication instructions
 	for (unsigned i = 0; i < machineInstruction->getNumOperands(); i++) {
 		MachineOperand& operand = machineInstruction->getOperand(i);
@@ -1036,6 +1059,8 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 
 						allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(ceContainingPredecessorInstruction, insertPosition++)));
 						allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
+						pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
+
 						//Increment by data width since scratchpad is byte addressable
 						faninOfHyperOp[ceContainingInstruction] = faninOfHyperOp[ceContainingInstruction] + datawidth;
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(writepm.operator llvm::MachineInstr *());
@@ -1214,6 +1239,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		for (MachineFunction::iterator bbItr = BB->getParent()->begin(); bbItr != BB->getParent()->end(); bbItr++) {
 			if (!bbItr->empty()) {
 				isFunctionEmpty = false;
+				break;
 			}
 		}
 	}
@@ -1613,6 +1639,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							readpm.addImm(faninOfHyperOp[targetCE]);
 
 							allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+							pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 						}
 						break;
@@ -1665,9 +1692,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				readpm.addReg(registerContainingBaseAddress[targetCE][targetCE]);
 				readpm.addImm(faninOfHyperOp[targetCE]);
 
-				errs() << "first readpm added for ";
-				readpm.operator ->()->dump();
 				allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+				pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 				registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(consumer, make_pair(registerContainingConsumerBase, targetCE)));
 				faninOfHyperOp[targetCE] = faninOfHyperOp[targetCE] + datawidth;
@@ -1928,9 +1954,10 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				readpm.addReg(addFrameSize, RegState::Define);
 				readpm.addReg(registerContainingBaseAddress[targetCE][targetCE]);
 				readpm.addImm(faninOfHyperOp[targetCE]);
-				errs() << "added new dreadpm:";
-				readpm.operator ->()->dump();
+
 				allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+				pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
+
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 				list<pair<unsigned, unsigned> > prevRegCEPair;
 				if (regContainingMemFrameBaseAddress.find(consumer) != regContainingMemFrameBaseAddress.end()) {
@@ -2264,6 +2291,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 								readpm.addImm(faninOfHyperOp[targetCE]);
 
 								allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+								pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
 								LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 							}
 							break;
@@ -2456,6 +2484,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						readpm.addImm(faninOfHyperOp[targetCE]);
 
 						allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+						pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 						list<pair<unsigned, unsigned> > prevRegCEPair;
 						if (regContainingMemFrameBaseAddress.find(consumer) != regContainingMemFrameBaseAddress.end()) {
@@ -2629,7 +2658,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
 							allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 						}
-						errs() << "whats target ce?" << targetCE << "\n";
 						if (targetCE != 0) {
 							//Add writepm-dreadpm pair
 							unsigned sourceCEContainingFrameAddress = 0;
@@ -2652,8 +2680,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							writepm.addReg(registerContainingBaseAddress[sourceCEContainingFrameAddress][targetCE]);
 							writepm.addReg(registerContainingConsumerBase);
 							writepm.addImm(faninOfHyperOp[targetCE]);
-							errs() << "inserted writepm instruction in " << sourceCEContainingFrameAddress;
-							writepm.operator ->()->dump();
 
 							allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(sourceCEContainingFrameAddress, insertPosition++)));
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(writepm.operator llvm::MachineInstr *());
@@ -2681,6 +2707,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							readpm.addImm(faninOfHyperOp[targetCE]);
 
 							allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+							pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 						}
 						break;
@@ -2689,7 +2716,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			} else if (registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].second != targetCE) {
 //					&& (consumer->isStaticHyperOp() || consumer->getImmediateDominator() == hyperOp)) {
 				unsigned sourceCEContainingFrameAddress = registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].second;
-				errs() << "I came here with register containing frame address instruction in  " << sourceCEContainingFrameAddress << "\n";
 				//Load the base scratchpad address to a register in the producer CE for the first time
 				if (registerContainingBaseAddress[sourceCEContainingFrameAddress][targetCE] == -1) {
 					MachineInstrBuilder sourceLui = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::LUI));
@@ -2734,6 +2760,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				readpm.addReg(registerContainingBaseAddress[targetCE][targetCE]);
 				readpm.addImm(faninOfHyperOp[targetCE]);
 				allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+				pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
+
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 				LIS->getOrCreateInterval(registerContainingConsumerBase);
 				LIS->addLiveRangeToEndOfBlock(registerContainingConsumerBase, readpm.operator ->());
@@ -2743,7 +2771,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				registerContainingConsumerBase = registerContainingHyperOpFrameAddressAndCEWithFalloc[consumer].first;
 			}
 
-			errs() << "whats going on with ordering edges?" << edge->getType() << "\n";
 			if (edge->getType() == HyperOpEdge::PREDICATE || edge->getType() == HyperOpEdge::ORDERING) {
 				//predicate can take any offset wrt context frame base, it does not have a dedicated slot
 				unsigned contextFrameOffset = edge->getDecrementOperandCount();
@@ -2989,6 +3016,7 @@ if (!firstInstructionInCE.empty()) {
 DEBUG(dbgs() << "After bundling, state of BB" << BB->getNumber() << ":");
 BB->print(dbgs());
 BB = 0;
+
 }
 
 void REDEFINEMCInstrScheduler::finalizeSchedule() {
@@ -3052,9 +3080,7 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 }
 
 unsigned contextFrameLocation = 0;
-errs() << "\n-----\nFunction:" << MF.getName() << "\n";
 for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
-	errs() << "\nPhysical regs live in in ce " << ceIndex << ":";
 	if (ceAndLiveInPhysicalRegMap.find(ceIndex) != ceAndLiveInPhysicalRegMap.end()) {
 		list<unsigned> liveInRegs = ceAndLiveInPhysicalRegMap[ceIndex];
 		currentHyperOp->setNumCEInputs(ceIndex, liveInRegs.size());
@@ -3195,6 +3221,8 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 
 LIS->computeLiveInRegUnits();
 
-DEBUG(dbgs() << "Final state of Machine Function:");
-MF.print(dbgs());
+PHyperOpInteractionGraph pHopDependenceMap;
+pHopDependenceMap.insert(pHopInteractionGraph.begin(), pHopInteractionGraph.end());
+pHopInteractionGraph.clear();
+currentHyperOp->setpHyperOpDependenceMap(pHopDependenceMap);
 }

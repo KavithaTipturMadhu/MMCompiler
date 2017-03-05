@@ -22,6 +22,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
 #include "REDEFINE.h"
+#include "HyperOpInteractionGraph.h"
 //#include "metis.h"
 
 using namespace llvm;
@@ -79,6 +80,8 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 
 	//Tracks the writecm instructions that have already been added in a different machine function; this is required to patch the writecm instructions once the registers corresponding to HyperOp inputs are shuffled
 	map<Function*, list<MachineInstr*> > writeInstrToContextFrame;
+
+	PHyperOpInteractionGraph pHopInteractionGraph;
 
 	const char* HYPEROP_ID_PREFIX = "HyOp#";
 

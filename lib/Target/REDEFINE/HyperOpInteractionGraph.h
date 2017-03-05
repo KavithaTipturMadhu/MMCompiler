@@ -200,6 +200,7 @@ public:
 	void setIsUnrolledInstance(bool isUnrolledInstance);
 	void setFunction(Function* function);
 	PHyperOpInteractionGraph getpHyperOpDependenceMap();
+	void setpHyperOpDependenceMap(PHyperOpInteractionGraph);
 };
 
 class HyperOpInteractionGraph {
