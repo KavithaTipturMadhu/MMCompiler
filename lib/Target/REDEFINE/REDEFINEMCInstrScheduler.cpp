@@ -824,10 +824,14 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 	MachineInstr* machineInstruction = RegionEnd;
 	MachineInstr* firstInsertedInstruction = 0;
 
-//Check if the branch edge is a backedge
-//Add barrier reduction tree for synchronization
-	bool isLoopTerminator = true;
+	bool isLoopTerminator = false;
+	MachineLoop* loop = MLI.getLoopFor(BB);
+	if(loop!=NULL&&loop->getBottomBlock()!=BB){
+		isLoopTerminator = true;
+	}
+	//Check if the branch edge is a backedge
 	if (isLoopTerminator) {
+		//Add barrier reduction tree for synchronization
 		unsigned nextCe = 2;
 		unsigned depth = 0;
 		unsigned numNodesAtDepth = 0;
