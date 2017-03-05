@@ -2011,7 +2011,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 						MachineInstrBuilder store = BuildMI(lastBB, lastInstruction, lastInstruction->getDebugLoc(), TII->get(REDEFINE::SW));
 						store.addReg(integerRegister).addReg(registerContainingMemBase).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData);
-
+						//Adding edge source instruction for WCET
+						edge->setEdgeSource(store.operator ->());
 						allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(store.operator llvm::MachineInstr *());
 					}
@@ -2546,6 +2547,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 				writeInstructionsToConsumer.push_back(writeToContextFrame.operator ->());
 				writeInstrToContextFrame.insert(make_pair(consumerFunction, writeInstructionsToConsumer));
+				edge->setEdgeSource(writeToContextFrame.operator ->());
 			} else if (edge->getType() == HyperOpEdge::SCALAR) {
 				//position is multiplied by 4 since the context memory is byte addressable
 				unsigned contextFrameOffset = edge->getPositionOfContextSlot() * datawidth;
@@ -2594,6 +2596,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 				writeInstructionsToConsumer.push_back(writeToContextFrame.operator ->());
 				writeInstrToContextFrame.insert(make_pair(consumerFunction, writeInstructionsToConsumer));
+				edge->setEdgeSource(writeToContextFrame.operator ->());
 			}
 		}
 	}
@@ -2839,6 +2842,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				allInstructionsOfRegion.push_back(make_pair(writeToContextFrame.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 				//Add instruction to bundle
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(writeToContextFrame.operator llvm::MachineInstr *());
+				edge->setEdgeSource(writeToContextFrame.operator ->());
 			} else if (edge->getType() == HyperOpEdge::SYNC) {
 				//sync always goes to the 15th slot
 				unsigned contextFrameOffset = 60;
@@ -2862,6 +2866,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				syncInstruction.addImm(contextFrameOffset);
 				allInstructionsOfRegion.push_back(make_pair(syncInstruction.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(syncInstruction.operator llvm::MachineInstr *());
+				edge->setEdgeSource(syncInstruction.operator ->());
 			}
 		}
 	}
