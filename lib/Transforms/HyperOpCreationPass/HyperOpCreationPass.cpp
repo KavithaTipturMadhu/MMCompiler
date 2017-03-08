@@ -61,7 +61,7 @@ struct HyperOpCreationPass: public ModulePass {
 	virtual void getAnalysisUsage(AnalysisUsage &AU) const {
 		//Mandatory merge return to be invoked on each function
 		AU.addRequired<DependenceAnalysis>();
-		AU.addPreserved<AliasAnalysis>();
+		AU.addRequired<AliasAnalysis>();
 //		AU.addRequired<DominatorTree>();
 //		AU.addRequired<AliasAnalysis>();
 //		AU.addRequired<LoopInfo>();
@@ -407,7 +407,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 	HyperOpArgumentType supportedArgType(Value* argument, Module &m, Instruction* parentInstruction) {
 		//Memory location needs to be passed as a different type since all its uses need to be replaced with a different type, but it won't see realization in metadata
-		if(isa<StoreInst>(parentInstruction)&&((StoreInst*) parentInstruction)->getOperand(1)==argument){
+		if (isa<StoreInst>(parentInstruction) && ((StoreInst*) parentInstruction)->getOperand(1) == argument) {
 			return ADDRESS;
 		}
 		if (argument->getType()->isAggregateType() || argument->getType()->getTypeID() == Type::FloatTyID || argument->getType()->getTypeID() == Type::PointerTyID) {
@@ -811,14 +811,31 @@ struct HyperOpCreationPass: public ModulePass {
 					vector<BasicBlock*> basicBlocksList = loop->getBlocks();
 					for (auto bbItr = basicBlocksList.begin(); bbItr != basicBlocksList.end(); bbItr++) {
 						BasicBlock* basicBlock = *bbItr;
-						for (BasicBlock::iterator instItr = basicBlock->begin(); instItr != basicBlock->end(); instItr++) {
-							Instruction* source = instItr;
-							//Check if the instruction depends on its next instance
-							Dependence* dependence = depAnalysis.depends(source, source, false);
-							if (dependence != 0) {
-								errs() << "dependence distance:" << dependence->getDistance(1) << "\n";
+						for (auto SrcI = basicBlock->begin(), SrcE = basicBlock->end(); SrcI != SrcE; ++SrcI) {
+							if (isa<StoreInst>(*SrcI) || isa<LoadInst>(*SrcI)) {
+								for (auto DstI = SrcI, DstE = basicBlock->end(); DstI != DstE; ++DstI) {
+									if (isa<StoreInst>(*DstI) || isa<LoadInst>(*DstI)) {
+										errs() << "da analyze - ";
+										if (Dependence *D = depAnalysis.depends(&*SrcI, &*DstI, true)) {
+											errs()<<"dependence between ";
+											SrcI->dump();
+											DstI->dump();
+											D->dump(errs());
+											for (unsigned Level = 1; Level <= D->getLevels(); Level++) {
+												if (D->isSplitable(Level)) {
+													errs() << "da analyze - split level = " << Level;
+//													errs() << ", iteration = " << *depAnalysis.getSplitIteration(D, Level);
+													errs() << "!\n";
+												}
+											}
+											delete D;
+										} else
+											errs() << "none!\n";
+									}
+								}
 							}
 						}
+
 					}
 				}
 
@@ -1853,7 +1870,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
-				if (hyperOpArgItr->second != GLOBAL_REFERENCE&&hyperOpArgItr->second!=ADDRESS) {
+				if (hyperOpArgItr->second != GLOBAL_REFERENCE && hyperOpArgItr->second != ADDRESS) {
 					for (map<Instruction*, Value*>::iterator clonedReachingDefItr = replacementArg.begin(); clonedReachingDefItr != replacementArg.end(); clonedReachingDefItr++) {
 						Instruction* clonedReachingDefInst = clonedReachingDefItr->first;
 						list<Instruction*> clonedInstructionsToBeLabeled;
@@ -1996,7 +2013,8 @@ struct HyperOpCreationPass: public ModulePass {
 							MDNode* newMDNode = MDNode::get(ctxt, mdNodeArrayRef);
 
 							metadataHost->setMetadata(HYPEROP_CONSUMED_BY, newMDNode);
-							errs() << "added metadata on instruction that belongs to parent " << metadataHost->getParent()->getParent()->getName() << " and is mapped to slot " << hyperOpArgumentIndex << " when the function has " << createdFunction->getArgumentList().size() << " and is of type:"<<hyperOpArgItr->second<<":";
+							errs() << "added metadata on instruction that belongs to parent " << metadataHost->getParent()->getParent()->getName() << " and is mapped to slot " << hyperOpArgumentIndex << " when the function has " << createdFunction->getArgumentList().size() << " and is of type:"
+									<< hyperOpArgItr->second << ":";
 							metadataHost->dump();
 							//Parent function buffered to ensure that unnecessary control dependences need not exist
 							if (isProducerStatic && find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), metadataHost->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
