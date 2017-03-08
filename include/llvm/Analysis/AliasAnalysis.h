@@ -39,7 +39,7 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/CallSite.h"
-
+#include "llvm/Support/raw_ostream.h"
 namespace llvm {
 
 class LoadInst;

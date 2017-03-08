@@ -467,7 +467,7 @@ namespace {
     }
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      AU.addRequired<AliasAnalysis>();
+//      AU.addRequired<AliasAnalysis>();
       AU.addRequired<TargetLibraryInfo>();
     }
 
@@ -558,11 +558,11 @@ namespace {
 char BasicAliasAnalysis::ID = 0;
 INITIALIZE_AG_PASS_BEGIN(BasicAliasAnalysis, AliasAnalysis, "basicaa",
                    "Basic Alias Analysis (stateless AA impl)",
-                   false, true, false)
+                   false, true, true)
 INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
 INITIALIZE_AG_PASS_END(BasicAliasAnalysis, AliasAnalysis, "basicaa",
                    "Basic Alias Analysis (stateless AA impl)",
-                   false, true, false)
+                   false, true, true)
 
 
 ImmutablePass *llvm::createBasicAliasAnalysisPass() {

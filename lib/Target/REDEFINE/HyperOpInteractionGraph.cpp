@@ -195,7 +195,7 @@ PHyperOpInteractionGraph HyperOp::getpHyperOpDependenceMap() {
 	return this->pHopDependenceMap;
 }
 
-void HyperOp::setpHyperOpDependenceMap(PHyperOpInteractionGraph dependenceMap){
+void HyperOp::setpHyperOpDependenceMap(PHyperOpInteractionGraph dependenceMap) {
 	this->pHopDependenceMap = dependenceMap;
 }
 void HyperOp::setHyperOpId(unsigned hyperOpId) {
@@ -1773,6 +1773,11 @@ void printDS(list<HyperOp*> dominantSequence) {
 
 void HyperOpInteractionGraph::clusterNodes() {
 	errs() << "rowcount:" << this->rowCount << " and column count:" << columnCount << "\n";
+	//Create a wrapper to HyperOp class to hierarchically cluster nodes
+	class ClusterNode {
+	public:
+		HyperOp* originalHyperOp;
+	};
 	list<pair<list<HyperOp*>, unsigned int> > computeClusterList;
 	HyperOp* startHyperOp;
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
