@@ -58,25 +58,8 @@
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetOptions.h"
 #include <algorithm>
-#include <execinfo.h>
 using namespace llvm;
 
-void print_backtrace(void) {
-	static const char start[] = "BACKTRACE ------------\n";
-	static const char end[] = "----------------------\n";
-
-	void *bt[1024];
-	int bt_size;
-	char **bt_syms;
-	int i;
-
-	bt_size = backtrace(bt, 1024);
-	bt_syms = backtrace_symbols(bt, bt_size);
-	for (i = 1; i < bt_size; i++) {
-		errs() << bt_syms[i] << "\n";
-	}
-	free(bt_syms);
-}
 /// LimitFloatPrecision - Generate low-precision inline sequences for
 /// some float libcalls (6, 8 or 12 bits).
 static unsigned LimitFloatPrecision;
@@ -1089,17 +1072,20 @@ SDValue SelectionDAGBuilder::getValueImpl(const Value *V) {
 
 	//Addition for REDEFINE
 	if (const Argument *AI = dyn_cast<Argument>(V)) {
-		int argIndex = 0;
+		int argIndex = 1;
 		int argFrameIndex = -1;
-		for(Function::const_arg_iterator argItr = FuncInfo.Fn->arg_begin();argItr!=FuncInfo.Fn->arg_end();argItr++,argIndex++){
-			if(&*argItr==AI){
+		for (Function::const_arg_iterator argItr = FuncInfo.Fn->arg_begin(); argItr != FuncInfo.Fn->arg_end(); argItr++, argIndex++) {
+			if (&*argItr == AI) {
+				errs()<<"arg match found with argIndex:"<<argFrameIndex<<"\n";
 				break;
 			}
-			if(FuncInfo.Fn->getAttributes().hasAttribute(argIndex, Attribute::InReg)!=0){
-				 argFrameIndex--;
+			if (!FuncInfo.Fn->getAttributes().hasAttribute(argIndex, Attribute::InReg)) {
+				errs() << "in reg";
+				argFrameIndex--;
 			}
 		}
-		errs()<<"The value is an argument for which I am here to get arg frame index as:"<<FuncInfo.getArgumentFrameIndex(AI)<<"\n";
+		errs() << "The value is an argument for which I am here to get arg frame index as:" << FuncInfo.getArgumentFrameIndex(AI) << "\n";
+		errs() << "whats the index?" << argFrameIndex << "\n";
 		//check which frame index it is in
 		return DAG.getFrameIndex(argFrameIndex, TLI.getPointerTy());
 	}
@@ -6015,7 +6001,6 @@ void SelectionDAGISel::LowerArguments(const Function &F) {
 			}
 		}
 	}
-
 
 	// Call the target to set up the argument values.
 	SmallVector<SDValue, 8> InVals;
