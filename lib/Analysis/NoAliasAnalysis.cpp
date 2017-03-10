@@ -80,9 +80,9 @@ namespace {
 }  // End of anonymous namespace
 
 // Register this pass...
-char NoAA::ID = 1;
+char NoAA::ID = 0;
 INITIALIZE_AG_PASS(NoAA, AliasAnalysis, "no-aa",
                    "No Alias Analysis (always returns 'may' alias)",
-                   true, true, false)
+                   true, true, true)
 
 ImmutablePass *llvm::createNoAAPass() { return new NoAA(); }

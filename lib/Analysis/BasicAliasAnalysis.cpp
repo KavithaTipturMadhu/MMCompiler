@@ -456,8 +456,8 @@ static bool notDifferentParent(const Value *O1, const Value *O2) {
 
 namespace {
   /// BasicAliasAnalysis - This is the primary alias analysis implementation.
-  struct BasicAliasAnalysis : public ImmutablePass, public AliasAnalysis {
-    static char ID; // Class identification, replacement for typeinfo
+  class BasicAliasAnalysis : public ImmutablePass, public AliasAnalysis {
+	  public:static char ID; // Class identification, replacement for typeinfo
     BasicAliasAnalysis() : ImmutablePass(ID) {
       initializeBasicAliasAnalysisPass(*PassRegistry::getPassRegistry());
     }
@@ -467,7 +467,7 @@ namespace {
     }
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-//      AU.addRequired<AliasAnalysis>();
+      AU.addRequired<AliasAnalysis>();
       AU.addRequired<TargetLibraryInfo>();
     }
 
@@ -558,11 +558,11 @@ namespace {
 char BasicAliasAnalysis::ID = 0;
 INITIALIZE_AG_PASS_BEGIN(BasicAliasAnalysis, AliasAnalysis, "basicaa",
                    "Basic Alias Analysis (stateless AA impl)",
-                   false, true, true)
+                   false, true, false)
 INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
 INITIALIZE_AG_PASS_END(BasicAliasAnalysis, AliasAnalysis, "basicaa",
                    "Basic Alias Analysis (stateless AA impl)",
-                   false, true, true)
+                   false, true, false)
 
 
 ImmutablePass *llvm::createBasicAliasAnalysisPass() {
