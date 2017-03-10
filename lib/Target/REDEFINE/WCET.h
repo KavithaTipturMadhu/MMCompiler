@@ -17,14 +17,45 @@
 #include<climits>
 #include<cstring>
 
-//#include "llvm/Support/raw_ostream.h"
-#define s(x) cout<< #x <<" = "<< x <<std::endl
-#define pb cout<<"------------------------------------------------"<<std::endl;
-#define XDOTRANK 0 //True of False
-#define GND (void *)0
-#define PIPEDEPTH 5
+#define DEBUG_TYPE "analyzer"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Function.h"
+#include "llvm/CodeGen/MachineDominators.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/MachineScheduler.h"
+#include "llvm/PassSupport.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include <algorithm>
+#include <vector>
+#include "llvm/Support/raw_ostream.h"
+#include "iostream"
+#include "llvm/Pass.h"
+#include "llvm/Target/TargetMachine.h"
+#include <llvm/Analysis/LoopInfo.h>
+#include "llvm/Analysis/LoopInfo.h"
+#include "HyperOpInteractionGraph.h"
+#include "REDEFINETargetMachine.h"
+
+#define s(x) errs()<< #x <<" = "<< x <<std::endl
+#define pb errs()<<"------------------------------------------------"<<std::endl;
+#define XDOTRANK 0 //True of False Formatting in XDOT Critical Path.
+#define GND (void *)0//Void Pointer
+#define PIPEDEPTH 5//Pipeline Depth 5 Stage
+#define LoopScopeRoot (MachineLoop*) 0
 namespace WCET
 {
+	unsigned int get_gidx();
+
 	template <class T> class FuncUnit
 	{
 	protected:
@@ -84,8 +115,6 @@ namespace WCET
 		std::map< T , unsigned long int > Lookup;
 		//Cardinality |G| of Graph
 		unsigned long int n;
-		//UNIQUE ID OF EVERY DWGraph created
-		static unsigned int gidx;
 	public:
 		 DWGraph();
 		//To get Number of Vertices in Graph |G|
@@ -112,6 +141,10 @@ namespace WCET
 		void dump();
 		//get graph in xdot format in source folder
 	    void xdot();
+	    //get vertex list
+	    list<T> get_VertexList();
+	    //get adj. list
+	    list<T> get_AdjList(T);
 	};
 
 
@@ -120,8 +153,11 @@ namespace WCET
 	protected:
 		typedef std::list< T > TSList;
 		typedef std::map<T,unsigned long int> CPMap;
+		typedef std::multimap<int,T> TimeVextexMap;
+		TimeVextexMap CTVM;
 		TSList TSL;
 		CPMap CrticalPath;
+
 	public :
 		DWAGraph();
 		 void TopologicalSorting();
@@ -151,8 +187,14 @@ namespace WCET
 		void xdot_DFS();
 	};
 
+	class LoopAnalysis : public DWGraph<MachineLoop*>
+	{
+	public:
+		LoopAnalysis(MachineLoopInfo *LI);
+		void LoopDFS(MachineLoop *);
+		void dump();
+	};
 }
 
 
 #endif /* WCET_H_ */
-
