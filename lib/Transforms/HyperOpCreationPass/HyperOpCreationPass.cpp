@@ -1455,8 +1455,8 @@ struct HyperOpCreationPass: public ModulePass {
 				BasicBlock* originalBB = *accumulatedBBItr;
 				//Find the immediate dominator
 				DominatorTree& tree = getAnalysis<DominatorTree>(*function);
-				BasicBlock* idom =  tree.getBase().getIDom(originalBB);
-				if (idom != NULL) {
+				if (tree.getNode(originalBB)!=NULL && tree.getNode(originalBB)->getIDom()!= NULL) {
+					BasicBlock* idom =  tree.getNode(originalBB)->getIDom()->getBlock();
 					errs() << "idom of original bb " << originalBB->getName() << ":" << idom->getName() << "\n";
 				}else{
 					errs()<<"always here for bb:"<<originalBB->getName()<<"\n";
