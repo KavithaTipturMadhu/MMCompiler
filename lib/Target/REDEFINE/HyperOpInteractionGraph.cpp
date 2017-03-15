@@ -1773,16 +1773,22 @@ void printDS(list<HyperOp*> dominantSequence) {
 
 void HyperOpInteractionGraph::clusterNodes() {
 	errs() << "rowcount:" << this->rowCount << " and column count:" << columnCount << "\n";
+
 	//Create a wrapper to HyperOp class to hierarchically cluster nodes
 	class ClusterNode {
 	public:
-		HyperOp* originalHyperOp;
+		list<HyperOp*> originalHyperOpsInCluster;
+		list<unsigned int> executionTimeEstimate;
+		ClusterNode(list<HyperOp*>, list<unsigned int>);
 	};
-	list<pair<list<HyperOp*>, unsigned int> > computeClusterList;
+
+	list<pair<list<ClusterNode*>, unsigned int> > computeClusterList;
 	HyperOp* startHyperOp;
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
-		list<HyperOp*> newCluster;
-		newCluster.push_back(*vertexIterator);
+		list<ClusterNode*> newClusterNode;
+		list<HyperOp*> hopList;
+		hopList.push_back(*vertexIterator);
+		newClusterNode.push_back(new ClusterNode(hopList, (*vertexIterator)->getExecutionTimeEstimate()));
 		estimateExecutionTime(*vertexIterator);
 		unsigned int hyperOpType = 2;
 		if ((*vertexIterator)->isStartHyperOp()) {
@@ -1792,9 +1798,30 @@ void HyperOpInteractionGraph::clusterNodes() {
 		if ((*vertexIterator)->isEndHyperOp()) {
 			hyperOpType = 1;
 		}
-		computeClusterList.push_back(std::make_pair(newCluster, hyperOpType));
+		computeClusterList.push_back(std::make_pair(newClusterNode, hyperOpType));
 	}
 
+	pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > controlFlowGraphAndOriginalHopMap = getCFG(this);
+	map<HyperOp*, HyperOp*> originalToCFGVertexMap = controlFlowGraphAndOriginalHopMap.second;
+	HyperOpInteractionGraph* cfg = controlFlowGraphAndOriginalHopMap.first;
+	cfg->computeDominatorInfo();
+	//Find subtrees in cfg
+	for(auto vertex:cfg->Vertices){
+		//Check if any of the children of the vertex is predicated
+		bool hasPredicatedChildren = false;
+		for(auto childVertex:vertex->ChildMap){
+			if(childVertex.second->isPredicatedHyperOp()){
+				hasPredicatedChildren = true;
+				break;
+			}
+		}
+
+		if(hasPredicatedChildren){
+			//Treat the vertex as the root of a subtree and
+		}
+	}
+
+	//Cluster all the nodes in a queue first and replace the nodes with the cluster node
 	list<pair<HyperOp*, HyperOp*> > examinedEdges;
 	list<list<HyperOp*> > excludeList;
 //Find the initial Dominant Sequence
