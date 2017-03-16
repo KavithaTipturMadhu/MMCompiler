@@ -1782,13 +1782,14 @@ void HyperOpInteractionGraph::clusterNodes() {
 		ClusterNode(list<HyperOp*>, list<unsigned int>);
 	};
 
-	list<pair<list<ClusterNode*>, unsigned int> > computeClusterList;
+//	list<pair<list<ClusterNode*>, unsigned int> > computeClusterList;
+	list<pair<list<HyperOp*>, unsigned int> > computeClusterList;
 	HyperOp* startHyperOp;
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
-		list<ClusterNode*> newClusterNode;
+//		list<ClusterNode*> newClusterNode;
 		list<HyperOp*> hopList;
 		hopList.push_back(*vertexIterator);
-		newClusterNode.push_back(new ClusterNode(hopList, (*vertexIterator)->getExecutionTimeEstimate()));
+//		newClusterNode.push_back(new ClusterNode(hopList, (*vertexIterator)->getExecutionTimeEstimate()));
 		estimateExecutionTime(*vertexIterator);
 		unsigned int hyperOpType = 2;
 		if ((*vertexIterator)->isStartHyperOp()) {
@@ -1798,28 +1799,29 @@ void HyperOpInteractionGraph::clusterNodes() {
 		if ((*vertexIterator)->isEndHyperOp()) {
 			hyperOpType = 1;
 		}
-		computeClusterList.push_back(std::make_pair(newClusterNode, hyperOpType));
+//		computeClusterList.push_back(std::make_pair(newClusterNode, hyperOpType));
+		computeClusterList.push_back(std::make_pair(hopList, hyperOpType));
 	}
 
-	pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > controlFlowGraphAndOriginalHopMap = getCFG(this);
-	map<HyperOp*, HyperOp*> originalToCFGVertexMap = controlFlowGraphAndOriginalHopMap.second;
-	HyperOpInteractionGraph* cfg = controlFlowGraphAndOriginalHopMap.first;
-	cfg->computeDominatorInfo();
-	//Find subtrees in cfg
-	for(auto vertex:cfg->Vertices){
-		//Check if any of the children of the vertex is predicated
-		bool hasPredicatedChildren = false;
-		for(auto childVertex:vertex->ChildMap){
-			if(childVertex.second->isPredicatedHyperOp()){
-				hasPredicatedChildren = true;
-				break;
-			}
-		}
-
-		if(hasPredicatedChildren){
-			//Treat the vertex as the root of a subtree and
-		}
-	}
+//	pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > controlFlowGraphAndOriginalHopMap = getCFG(this);
+//	map<HyperOp*, HyperOp*> originalToCFGVertexMap = controlFlowGraphAndOriginalHopMap.second;
+//	HyperOpInteractionGraph* cfg = controlFlowGraphAndOriginalHopMap.first;
+//	cfg->computeDominatorInfo();
+//	//Find subtrees in cfg
+//	for(auto vertex:cfg->Vertices){
+//		//Check if any of the children of the vertex is predicated
+//		bool hasPredicatedChildren = false;
+//		for(auto childVertex:vertex->ChildMap){
+//			if(childVertex.second->isPredicatedHyperOp()){
+//				hasPredicatedChildren = true;
+//				break;
+//			}
+//		}
+//
+//		if(hasPredicatedChildren){
+//			//Treat the vertex as the root of a subtree and
+//		}
+//	}
 
 	//Cluster all the nodes in a queue first and replace the nodes with the cluster node
 	list<pair<HyperOp*, HyperOp*> > examinedEdges;
@@ -3227,9 +3229,11 @@ pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > getCFG(HyperOpInteracti
 }
 
 bool mutuallyExclusiveHyperOps(HyperOp* firstHyperOp, HyperOp* secondHyperOp) {
-	errs() << "finding mutually exclusive paths\n";
 	list<HyperOp*> firstHyperOpDomf = firstHyperOp->getDominanceFrontier();
 	list<HyperOp*> secondHyperOpDomf = firstHyperOp->getDominanceFrontier();
+	if((firstHyperOp->getImmediateDominator()==NULL&&secondHyperOp->getImmediateDominator()!=NULL)||(firstHyperOp->getImmediateDominator()!=NULL&&secondHyperOp->getImmediateDominator()==NULL)){
+		return false;
+	}
 	if (firstHyperOp->getImmediateDominator() == secondHyperOp->getImmediateDominator()) {
 		if (find(firstHyperOpDomf.begin(), firstHyperOpDomf.end(), secondHyperOp) == firstHyperOpDomf.end() && find(secondHyperOpDomf.begin(), secondHyperOpDomf.end(), firstHyperOp) == secondHyperOpDomf.end()) {
 			//HyperOps are on different paths
@@ -3594,7 +3598,9 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		}
 	}
 
-	DEBUG(dbgs() << "Decrementing sync count for ");
+	errs()<<"before decrementing sync, graph:";
+	cfg->print(dbgs());
+	DEBUG(dbgs() << "Decrementing sync count for nodes with sync edges coming from mutually exclusive paths\n");
 //Update the sync count of nodes with sync edges incoming from mutually exclusive paths
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hyperOp = *hopItr;
@@ -3614,8 +3620,8 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					secondSyncSourceItr++;
 					for (; secondSyncSourceItr != syncSourceList.end(); secondSyncSourceItr++) {
 						//Check if predicates are mutually exclusive
+						errs() << "checking for mutual exclusion of " << (*syncSourceItr)->asString() << " and " << (*secondSyncSourceItr)->asString() << "\n";
 						if (mutuallyExclusiveHyperOps(controlFlowGraphAndOriginalHopMap.second[*syncSourceItr], controlFlowGraphAndOriginalHopMap.second[*secondSyncSourceItr])) {
-							errs() << "checking for mutual exclusion of " << (*syncSourceItr)->asString() << " and " << (*secondSyncSourceItr)->asString() << "\n";
 							errs() << "they are exclusive!\n";
 //							TODO moar: sync count on mutually exclusive paths need not be equal
 							hyperOp->decrementIncomingSyncCount();
