@@ -826,7 +826,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 
 	bool isLoopTerminator = false;
 	MachineLoop* loop = MLI.getLoopFor(BB);
-	if(loop!=NULL&&loop->getBottomBlock()!=BB){
+	if (loop != NULL && loop->getBottomBlock() != BB) {
 		isLoopTerminator = true;
 	}
 	//Check if the branch edge is a backedge
@@ -2036,6 +2036,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					vector<const Value*> memoryLocationsAccessed = memoryLocationsAccessedInCE[i];
 					for (unsigned j = 0; j < memoryLocationsAccessed.size(); j++) {
 						if (memoryLocationsAccessed[j] == edge->getValue()) {
+							errs() << "mem dependence targetce added:" << targetCE << "\n";
 							targetCE = i;
 							break;
 						}
@@ -2198,13 +2199,12 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			if (edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) {
 				unsigned registerContainingData;
 				if (edge->getContextFrameAddress()->getImmediateDominator() == hyperOp) {
+					errs()<<"i mustve come here\n";
 					registerContainingData = registerContainingHyperOpFrameAddressAndCEWithFalloc[edge->getContextFrameAddress()].first;
 				} else {
 					//The address was forwarded to the current HyperOp
 					for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
-						errs() << "examining parent " << parentItr->second->asString() << "\n";
 						if ((parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) && parentItr->first->getContextFrameAddress() == edge->getContextFrameAddress()) {
-							errs() << "what slot am I on?" << edge->getPositionOfContextSlot() << "\n";
 							//Get the slot to read from which translates to a register anyway
 							if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) {
 								//Scalar argument
@@ -2247,9 +2247,10 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 								allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 								registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(edge->getContextFrameAddress(), make_pair(registerContainingData, 0)));
 							}
-							if (targetCE != 0) {
+							errs()<<"target ce not the same right?"<<(targetCE != registerContainingHyperOpFrameAddressAndCEWithFalloc[edge->getContextFrameAddress()].second)<<"\n";
+							if (targetCE != registerContainingHyperOpFrameAddressAndCEWithFalloc[edge->getContextFrameAddress()].second) {
 								//Add writepm-dreadpm pair
-								unsigned sourceCEContainingFrameAddress = 0;
+								unsigned sourceCEContainingFrameAddress = registerContainingHyperOpFrameAddressAndCEWithFalloc[edge->getContextFrameAddress()].second;
 								//Load the base scratchpad address to a register in the producer CE for the first time
 								if (registerContainingBaseAddress[sourceCEContainingFrameAddress][targetCE] == -1) {
 									MachineInstrBuilder sourceLui = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::LUI));
@@ -2300,8 +2301,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 								LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 							}
 							break;
-						} else {
-							errs() << "no parent matched\n";
 						}
 					}
 				}
@@ -2528,6 +2527,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					writeToContextFrame.addReg(registerContainingConsumerBase);
 					writeToContextFrame.addReg(registerContainingData);
 					writeToContextFrame.addImm(edge->getPositionOfContextSlot() * datawidth);
+					errs() << "added writecm1 to target ce:" << targetCE << "\n";
+					writeToContextFrame.operator ->()->dump();
 				}
 				if (firstInstructionOfpHyperOpInRegion[targetCE] == 0) {
 					firstInstructionOfpHyperOpInRegion[targetCE] = writeToContextFrame.operator llvm::MachineInstr *();
