@@ -63,8 +63,6 @@ struct HyperOpCreationPass: public ModulePass {
 		AU.addRequired<DominatorTree>();
 		AU.addRequired<DependenceAnalysis>();
 		AU.addRequired<AliasAnalysis>();
-//		AU.addRequired<AliasAnalysis>();
-//		AU.addRequired<LoopInfo>();
 	}
 
 	bool pathExistsInCFG(BasicBlock* source, BasicBlock* target, list<BasicBlock*> visitedBasicBlocks) {
@@ -843,7 +841,7 @@ struct HyperOpCreationPass: public ModulePass {
 			Function* function = functionList.front();
 			functionList.pop_front();
 			StringRef name = function->getName();
-			errs() << "now for function:" << name << "\n";
+			errs() << "Partitioning function:" << name << "\n";
 			if (function == mainFunction) {
 				Instruction* startOfBB = function->begin()->begin();
 				//Add initializers to globals that are not redefine inputs or outputs
@@ -853,7 +851,6 @@ struct HyperOpCreationPass: public ModulePass {
 						Constant * initializer = globalVarItr->getInitializer();
 						vector<Value*> idList;
 						idList.push_back(ConstantInt::get(ctxt, APInt(32, 0)));
-						errs() << "initialization issues with something?" << globalVarItr->getName() << "\n";
 						addInitializationInstructions(globalVarItr, initializer, idList, startOfBB, initializer->getType());
 					}
 				}
@@ -877,33 +874,19 @@ struct HyperOpCreationPass: public ModulePass {
 				if (bbItr != &(function->getEntryBlock())) {
 					//Check if all the parent nodes of the basic block are in the same HyperOp
 					//While this should in principle be done to all producers of data as well, since we are choosing one basic-block after another from a CFG to form a HyperOp, immediate predecessors should suffice
-					list<BasicBlock*> predecessorsFromSameFunction;
+					bool allParentsAcquired = true;
+					bool noParentAcquired = true;
 					for (pred_iterator predecessorItr = pred_begin(bbItr); predecessorItr != pred_end(bbItr); predecessorItr++) {
 						BasicBlock* predecessor = *predecessorItr;
-						if (predecessor->getParent() == function) {
-							predecessorsFromSameFunction.push_back(predecessor);
+						if(find(accumulatedBasicBlocks.begin(),accumulatedBasicBlocks.end(), predecessor)!=accumulatedBasicBlocks.end()){
+							noParentAcquired = false;
+						}else{
+							allParentsAcquired = false;
 						}
 					}
 
-					//More than one predecessor
-					if (predecessorsFromSameFunction.size() > 1) {
-						for (list<BasicBlock*>::iterator predecessorItr = predecessorsFromSameFunction.begin(); predecessorItr != predecessorsFromSameFunction.end(); predecessorItr++) {
-							BasicBlock* dependenceSource = *predecessorItr;
-							for (list<BasicBlock*>::iterator secondPredecessorItr = predecessorsFromSameFunction.begin(); secondPredecessorItr != predecessorItr && secondPredecessorItr != predecessorsFromSameFunction.end(); secondPredecessorItr++) {
-								BasicBlock *dependenceTarget = *secondPredecessorItr;
-								//If dependence target does not belong to the same HyperOp
-								list<BasicBlock*> visitedBasicBlocks;
-								if (dependenceTarget != dependenceSource
-										&& (pathExistsInCFG(dependenceSource, dependenceTarget, visitedBasicBlocks)
-												&& (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), dependenceSource) != accumulatedBasicBlocks.end() && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), dependenceTarget) == accumulatedBasicBlocks.end()))) {
-									canAcquireBBItr = false;
-									break;
-								}
-							}
-							if (!canAcquireBBItr) {
-								break;
-							}
-						}
+					if(!(noParentAcquired||allParentsAcquired)){
+						canAcquireBBItr = false;
 					}
 					//Check if the basic block's inclusion results introduces multiple entry points to the same HyperOp
 					if (canAcquireBBItr && !accumulatedBasicBlocks.empty()) {
@@ -1138,8 +1121,18 @@ struct HyperOpCreationPass: public ModulePass {
 				DEBUG(dbgs() << "Adding basic blocks for traversal in a breadth biased order for function " << function->getName() << "\n");
 				vector<unsigned> distanceToExit;
 				map<unsigned, list<BasicBlock*> > untraversedBasicBlocks;
+				list<BasicBlock*> tempTraversalList;
+				std::copy(bbTraverser.begin(), bbTraverser.end(), std::back_inserter(tempTraversalList));
 				for (unsigned succIndex = 0; succIndex < bbItr->getTerminator()->getNumSuccessors(); succIndex++) {
 					BasicBlock* succBB = bbItr->getTerminator()->getSuccessor(succIndex);
+					if (find(traversedBasicBlocks.begin(), traversedBasicBlocks.end(), succBB) == traversedBasicBlocks.end() && find(bbTraverser.begin(), bbTraverser.end(), succBB) == bbTraverser.end()) {
+						tempTraversalList.push_back(succBB);
+					}
+				}
+				bbTraverser.clear();
+
+				for (auto successorTraverser = tempTraversalList.begin();successorTraverser!=tempTraversalList.end();successorTraverser++) {
+					BasicBlock* succBB = *successorTraverser;
 					if (find(traversedBasicBlocks.begin(), traversedBasicBlocks.end(), succBB) == traversedBasicBlocks.end() && find(bbTraverser.begin(), bbTraverser.end(), succBB) == bbTraverser.end()) {
 						list<BasicBlock*> visitedBasicBlockList;
 						unsigned distanceFromExitBlock = distanceToExitBlock(succBB, visitedBasicBlockList);
