@@ -228,6 +228,7 @@ public:
 	 */
 	void computeDominatorInfo();
 
+	void makeGraphStructured();
 	/**
 	 * Add edges indicating the HyperOp whose context frame address that needs to be forwarded for either writing or deleting frames
 	 */

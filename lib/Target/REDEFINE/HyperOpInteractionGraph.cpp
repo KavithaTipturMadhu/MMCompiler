@@ -927,6 +927,51 @@ void HyperOpInteractionGraph::computeDominatorInfo() {
 //	}
 }
 
+//Add nodes to make the HIG structured if necessary
+void HyperOpInteractionGraph::makeGraphStructured() {
+	bool change = true;
+	while (change) {
+		change = false;
+		for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
+			HyperOp* vertex = *vertexItr;
+			if ((vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != NULL && vertex->getImmediateDominator()->getImmediateDominator() != vertex)
+					&& find(vertex->getDominanceFrontier().begin(), vertex->getDominanceFrontier().end(), vertex->getImmediatePostDominator()) != vertex->getDominanceFrontier().end()) {
+				change = true;
+				//Unstructured graph due to the current node, need to add a node that duplicates the immediate postdom
+				HyperOp* immediatePostDom = vertex->getImmediatePostDominator();
+				//Create a new function that contains all the arguments that come in along the nodes we are considering right now
+
+				//Find all the vertices that come from the branch being considered
+				list<HyperOpEdge*> parentVertexList;
+				for (auto parentVertexItr = Vertices.begin(); parentVertexItr != Vertices.end(); parentVertexItr++) {
+					HyperOp* parentVertex = *parentVertexItr;
+					//Find out recursively if the parent vertex is immediately dominated by vertex
+					bool parentToBeConsidered = false;
+					HyperOp* tempParent = parentVertex;
+					while (true) {
+						if (tempParent->getImmediateDominator() == vertex) {
+							parentToBeConsidered = true;
+							break;
+						}
+						tempParent = tempParent->getImmediateDominator();
+						if(tempParent==NULL){
+							break;
+						}
+					}
+					if(parentToBeConsidered){
+						parentVertexList.push_back(parentVertex);
+					}
+				}
+
+				//Find all the child edges leading to vertex
+				//Make a new immediate post dom vertex copy
+				HyperOp* newImmediatePostDom;
+
+				break;
+			}
+		}
+	}
+}
 /**
  * Indicates additional edges corresponding to WriteCM instructions for forwarding context frame addresses
  */
@@ -937,6 +982,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 		list<HyperOp*> vertexDomFrontier;
 
 		list<HyperOp*> originalDomFrontier = vertex->getDominanceFrontier();
+		errs() << "\n------\nforwarding address to " << vertex->asString() << ":";
 		for (list<HyperOp*>::iterator originalDomfItr = originalDomFrontier.begin(); originalDomfItr != originalDomFrontier.end(); originalDomfItr++) {
 			vertexDomFrontier.push_back(*originalDomfItr);
 		}
@@ -955,6 +1001,11 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 		}
 
 		for (list<HyperOp*>::iterator dominanceFrontierIterator = vertexDomFrontier.begin(); dominanceFrontierIterator != vertexDomFrontier.end(); dominanceFrontierIterator++) {
+			errs() << (*dominanceFrontierIterator)->asString() << ",";
+		}
+
+		errs() << "\n";
+		for (list<HyperOp*>::iterator dominanceFrontierIterator = vertexDomFrontier.begin(); dominanceFrontierIterator != vertexDomFrontier.end(); dominanceFrontierIterator++) {
 			HyperOp* dominanceFrontierHyperOp = *dominanceFrontierIterator;
 			if (dominanceFrontierHyperOp != vertex) {
 				HyperOp* immediateDominator = vertex->getImmediateDominator();
@@ -964,7 +1015,6 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 
 				int freeContextSlot;
 				int max = -1, maxAvailableContextSlots = maxContextFrameSize;
-				errs() << "\n---\ncomputing incoming edges to " << vertex->asString() << ", its parentmap size:" << vertex->ParentMap.size() << "\n";
 				if (dominanceFrontierHyperOp->getImmediateDominator() == vertex->getImmediateDominator()) {
 					bool edgeAddedPreviously = false;
 					for (map<HyperOpEdge*, HyperOp*>::iterator childMapItr = immediateDominator->ChildMap.begin(); childMapItr != immediateDominator->ChildMap.end(); childMapItr++) {
@@ -984,7 +1034,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 							}
 						}
 						freeContextSlot = max + 1;
-						errs() << "free slot:" << freeContextSlot << " and max slots:" << maxAvailableContextSlots << ", max frame size:" << maxContextFrameSize << "\n";
+						errs() << "edge added between " << immediateDominator->asString() << " and " << vertex->asString() << " containing " << dominanceFrontierHyperOp->asString() << "\n";
 						if (freeContextSlot >= maxAvailableContextSlots) {
 							//TODO test this
 							//Set the address to be passed as local reference
@@ -1257,7 +1307,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						}
 						if (!edgeAddedPreviously) {
 							this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) frameForwardChainEdge);
-							errs() << "edge added between " << immediateDominator->asString() << " and " << prevVertex->asString() << " to fwd " << dominanceFrontierHyperOp->asString() << " at slot:" << frameForwardChainEdge->getPositionOfContextSlot() << "\n";
+							errs() << "chain edge added between " << immediateDominator->asString() << " and " << prevVertex->asString() << " to fwd " << dominanceFrontierHyperOp->asString() << " at slot:" << frameForwardChainEdge->getPositionOfContextSlot() << "\n";
 						}
 						prevVertex = immediateDominator;
 						immediateDominator = immediateDominator->getImmediateDominator();
@@ -1275,10 +1325,8 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 					}
 					if (!edgeAddedPreviously) {
 						this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) contextFrameEdge);
-						errs() << "edge added between " << immediateDominator->asString() << " and " << prevVertex->asString() << " to fwd " << dominanceFrontierHyperOp->asString() << " at slot:" << contextFrameEdge->getPositionOfContextSlot() << "\n";
 						int freeContextSlot;
 						int max = -1, maxAvailableContextSlots = maxContextFrameSize;
-						errs() << "\n---\ncomputing incoming edges to " << vertex->asString() << ", its parentmap size:" << prevVertex->ParentMap.size() << "\n";
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = prevVertex->ParentMap.begin(); parentEdgeItr != prevVertex->ParentMap.end(); parentEdgeItr++) {
 							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
 							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
@@ -1288,8 +1336,9 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 							}
 						}
 						freeContextSlot = max + 1;
-						errs() << "free slot:" << freeContextSlot << " and max slots:" << maxAvailableContextSlots << ", max frame size:" << maxContextFrameSize << "\n";
+						errs() << "final edge added between " << immediateDominator->asString() << " and " << prevVertex->asString() << " to fwd " << dominanceFrontierHyperOp->asString() << " at slot:" << freeContextSlot << "\n";
 						if (freeContextSlot >= maxAvailableContextSlots) {
+
 							//TODO test this
 							//Set the address to be passed as local reference
 							list<Argument*> scalarArgs;
@@ -3231,7 +3280,7 @@ pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > getCFG(HyperOpInteracti
 bool mutuallyExclusiveHyperOps(HyperOp* firstHyperOp, HyperOp* secondHyperOp) {
 	list<HyperOp*> firstHyperOpDomf = firstHyperOp->getDominanceFrontier();
 	list<HyperOp*> secondHyperOpDomf = firstHyperOp->getDominanceFrontier();
-	if((firstHyperOp->getImmediateDominator()==NULL&&secondHyperOp->getImmediateDominator()!=NULL)||(firstHyperOp->getImmediateDominator()!=NULL&&secondHyperOp->getImmediateDominator()==NULL)){
+	if ((firstHyperOp->getImmediateDominator() == NULL && secondHyperOp->getImmediateDominator() != NULL) || (firstHyperOp->getImmediateDominator() != NULL && secondHyperOp->getImmediateDominator() == NULL)) {
 		return false;
 	}
 	if (firstHyperOp->getImmediateDominator() == secondHyperOp->getImmediateDominator()) {
@@ -3598,7 +3647,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		}
 	}
 
-	errs()<<"before decrementing sync, graph:";
+	errs() << "before decrementing sync, graph:";
 	cfg->print(dbgs());
 	DEBUG(dbgs() << "Decrementing sync count for nodes with sync edges coming from mutually exclusive paths\n");
 //Update the sync count of nodes with sync edges incoming from mutually exclusive paths
