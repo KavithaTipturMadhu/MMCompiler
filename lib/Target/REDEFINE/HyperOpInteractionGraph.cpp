@@ -930,19 +930,23 @@ void HyperOpInteractionGraph::computeDominatorInfo() {
 //Add nodes to make the HIG structured if necessary
 void HyperOpInteractionGraph::makeGraphStructured() {
 	bool change = true;
-	while (change) {
-		change = false;
+//	while (change) {
+//		change = false;
 		for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
 			HyperOp* vertex = *vertexItr;
-			if ((vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != NULL && vertex->getImmediateDominator()->getImmediateDominator() != vertex)
+			errs()<<"examining vertex:"<<vertex->asString()<<":"<<((vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator()!= vertex)
+					&& find(vertex->getDominanceFrontier().begin(), vertex->getDominanceFrontier().end(), vertex->getImmediatePostDominator()) != vertex->getDominanceFrontier().end())<<"\n";
+			if ((vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != vertex)
 					&& find(vertex->getDominanceFrontier().begin(), vertex->getDominanceFrontier().end(), vertex->getImmediatePostDominator()) != vertex->getDominanceFrontier().end()) {
-				change = true;
+//				change = true;
 				//Unstructured graph due to the current node, need to add a node that duplicates the immediate postdom
+				errs()<<"is this where I am?\n";
 				HyperOp* immediatePostDom = vertex->getImmediatePostDominator();
+				errs()<<"found the node causing problems:"<<vertex->asString()<<"\n";
 				//Create a new function that contains all the arguments that come in along the nodes we are considering right now
 
 				//Find all the vertices that come from the branch being considered
-				list<HyperOpEdge*> parentVertexList;
+				map<HyperOpEdge*, HyperOp*> parentVertexList;
 				for (auto parentVertexItr = Vertices.begin(); parentVertexItr != Vertices.end(); parentVertexItr++) {
 					HyperOp* parentVertex = *parentVertexItr;
 					//Find out recursively if the parent vertex is immediately dominated by vertex
@@ -954,22 +958,115 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 							break;
 						}
 						tempParent = tempParent->getImmediateDominator();
-						if(tempParent==NULL){
+						if (tempParent == NULL) {
 							break;
 						}
 					}
-					if(parentToBeConsidered){
-						parentVertexList.push_back(parentVertex);
+					if (parentToBeConsidered) {
+						for (auto childItr = parentVertex->ChildMap.begin(); childItr != parentVertex->ChildMap.end(); childItr++) {
+							if (childItr->second == vertex) {
+								parentVertexList.insert(make_pair(childItr->first, parentVertex));
+							}
+						}
 					}
 				}
 
-				//Find all the child edges leading to vertex
+				//TODO: Adding a new function
+//				{
+//					vector<Type*> argList;
+//					for (auto incomingEdgeItr = parentVertexList.begin(); incomingEdgeItr != parentVertexList.end(); incomingEdgeItr++) {
+//						if (incomingEdgeItr->first->getType() == HyperOpEdge::SCALAR || incomingEdgeItr->first->getType() != HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF || incomingEdgeItr->first->getType() != HyperOpEdge::LOCAL_REFERENCE) {
+//							if(incomingEdgeItr->first->getType() != HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF){
+//								argList.push_back(Type::getInt32PtrTy(vertex->getFunction()->getParent()->getContext()));
+//							}else{
+//								argList.push_back(incomingEdgeItr->first->getValue()->getType());
+//							}
+//						}
+//					}
+//					FunctionType *FT = FunctionType::get(Type::getVoidTy(vertex->getFunction()->getContext()), argList, false);
+//					Function *mergeFunction = Function::Create(FT, Function::ExternalLinkage, "mergeNode", vertex->getFunction()->getParent());
+//
+//					unsigned replicatedArgIndex = 0;
+//					for (Function::arg_iterator replicatedArgItr = replacementFunction->arg_begin(); replicatedArgItr != replacementFunction->arg_end(); replicatedArgItr++, replicatedArgIndex++) {
+//						replicatedArgIndexMap[replicatedArgIndex] = replicatedArgItr;
+//					}
+//
+//					for (unsigned i = 1; i <= numScalarArgs; i++) {
+//						replacementFunction->addAttribute(i, Attribute::InReg);
+//					}
+//
+//					map<BasicBlock*, BasicBlock*> originalAndReplicatedBBMap;
+//					map<Instruction*, Instruction*> localInstCloneMap;
+//					map<Instruction*, Instruction*> originalInstAndCloneMap;
+//					for (Function::iterator bbItr = consumerFunction->begin(); bbItr != consumerFunction->end(); bbItr++) {
+//						BasicBlock *newBB = BasicBlock::Create(consumerFunction->getParent()->getContext(), replacementFunction->getName().str().append(bbItr->getName()), replacementFunction);
+//						originalAndReplicatedBBMap[bbItr] = newBB;
+//						for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
+//							Instruction* clonedInst = instItr->clone();
+//							Instruction* key = 0;
+//							//Check if the instruction has been inserted previously as a clone of some other instruction
+//							for (map<Instruction*, Instruction*>::iterator cloneMapItr = originalInstAndCloneMap.begin(); cloneMapItr != originalInstAndCloneMap.end(); cloneMapItr++) {
+//								if (cloneMapItr->second == instItr) {
+//									key = cloneMapItr->first;
+//									break;
+//								}
+//							}
+//
+//							if (key != 0) {
+//								originalInstAndCloneMap.erase(key);
+//							} else {
+//								key = instItr;
+//							}
+//							originalInstAndCloneMap[key] = clonedInst;
+//							localInstCloneMap[instItr] = clonedInst;
+//							newBB->getInstList().insert(newBB->end(), clonedInst);
+//						}
+//					}
+//
+//					for (Function::iterator bbItr = replacementFunction->begin(); bbItr != replacementFunction->end(); bbItr++) {
+//						for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
+//							unsigned operatorIndex = 0;
+//							for (Instruction::op_iterator opItr = instItr->op_begin(); opItr != instItr->op_end(); opItr++, operatorIndex++) {
+//								unsigned argIndex = 0;
+//								bool argReplaced = false;
+//								for (Function::arg_iterator argItr = consumerFunction->arg_begin(); argItr != consumerFunction->arg_end(); argItr++, argIndex++) {
+//									if (opItr->get() == argItr) {
+//										Argument* replacementArg = replicatedArgIndexMap[originalToReplicatedArgIndexMap[argIndex]];
+//										instItr->setOperand(operatorIndex, replacementArg);
+//										argReplaced = true;
+//										break;
+//									}
+//								}
+//								if (!argReplaced && !isa<BranchInst>(opItr->get()) && localInstCloneMap.find((Instruction*) opItr->get()) != localInstCloneMap.end()) {
+//									instItr->setOperand(operatorIndex, localInstCloneMap[(Instruction*) opItr->get()]);
+//								} else if (originalAndReplicatedBBMap.find((BasicBlock*) opItr->get()) != originalAndReplicatedBBMap.end()) {
+//									instItr->setOperand(operatorIndex, originalAndReplicatedBBMap[(BasicBlock*) opItr->get()]);
+//								}
+//							}
+//						}
+//					}
+//					//Add a store in source HyperOp function
+//					contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF);
+//					string oldName = consumerFunction->getName();
+//					vertex->setFunction(replacementFunction);
+//					for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
+//						if ((*vertexItr)->getFunction() == consumerFunction) {
+//							(*vertexItr)->setFunction(replacementFunction);
+//						}
+//						if ((*vertexItr)->getInstanceof() == consumerFunction) {
+//							(*vertexItr)->setInstanceof(replacementFunction);
+//						}
+//					}
+//					consumerFunction->eraseFromParent();
+//					replacementFunction->setName(oldName);
+//				}
+
 				//Make a new immediate post dom vertex copy
 				HyperOp* newImmediatePostDom;
 
-				break;
+//				break;
 			}
-		}
+//		}
 	}
 }
 /**
