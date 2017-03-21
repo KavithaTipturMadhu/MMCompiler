@@ -4,51 +4,57 @@ using namespace std;
 using namespace WCET;
 using namespace llvm;
 
-namespace llvm {
-MachineFunctionPass *createWcetAnalyzer();
-void initializeWcetAnalyzerPass(PassRegistry&);
+namespace llvm
+{
+	MachineFunctionPass *createWcetAnalyzer();
+	void initializeWcetAnalyzerPass( PassRegistry& );
 }
-namespace {
-struct WcetAnalyzer: public MachineFunctionPass {
-	static char ID; // Pass identification, replacement for typeid
-
-	WcetAnalyzer() :
-			MachineFunctionPass(ID) {
-		initializeWcetAnalyzerPass(*PassRegistry::getPassRegistry());
-	}
-
-	const char *getPassName() const override
+namespace
+{
+	struct WcetAnalyzer : public MachineFunctionPass
 	{
-		return " Wcet analyzer pass";
-	}
+			static char ID; // Pass identification, replacement for typeid
 
-	void getAnalysisUsage(AnalysisUsage &AU) const override
-	{
-		AU.setPreservesCFG();
-		AU.setPreservesAll();
-		MachineFunctionPass::getAnalysisUsage(AU);
-		//AU.addRequired<AliasAnalysis>();
-		//AU.addPreservedID(MachineLoopInfoID);
-		AU.addRequired<MachineDominatorTree>();
-		AU.addRequired<MachineLoopInfo>();
-		//AU.addRequired<MemoryDependenceAnalysis>();
+			WcetAnalyzer() :
+					MachineFunctionPass( ID )
+			{
+				initializeWcetAnalyzerPass( *PassRegistry::getPassRegistry() );
+			}
 
-	}
+			const char *getPassName() const override
+			{
+				return " Wcet analyzer pass";
+			}
 
-	virtual bool runOnMachineFunction(MachineFunction &MF) override;
+			void getAnalysisUsage( AnalysisUsage &AU ) const override
+			{
+				AU.setPreservesCFG();
+				AU.setPreservesAll();
+				MachineFunctionPass::getAnalysisUsage( AU );
+				//AU.addRequired<AliasAnalysis>();
+				//AU.addPreservedID(MachineLoopInfoID);
+				AU.addRequired< MachineDominatorTree >();
+				AU.addRequired< MachineLoopInfo >();
+				//AU.addRequired<MemoryDependenceAnalysis>();
 
-};
+			}
+
+			virtual bool runOnMachineFunction( MachineFunction &MF ) override;
+
+	};
 }
 
 char WcetAnalyzer::ID = 0;
 INITIALIZE_PASS_BEGIN(WcetAnalyzer, "Wcet Analyzer"," Wcet analyzer pass", false, false)
-	INITIALIZE_PASS_END(WcetAnalyzer, "Wcet Analyzer", " Wcet analyzer pass", false, false)
+	INITIALIZE_PASS_END( WcetAnalyzer , "Wcet Analyzer" , " Wcet analyzer pass" , false , false )
 
-MachineFunctionPass *llvm::createWcetAnalyzer() {
+MachineFunctionPass *llvm::createWcetAnalyzer()
+{
 	return new WcetAnalyzer();
 }
 
-bool WcetAnalyzer::runOnMachineFunction(MachineFunction &MF) {
+bool WcetAnalyzer::runOnMachineFunction( MachineFunction &MF )
+{
 	errs() << "###################################################################################################" << "\n";
 	errs() << "########################################Start WCET#################################################" << "\n";
 	errs() << "###################################################################################################" << "\n";
@@ -95,33 +101,51 @@ bool WcetAnalyzer::runOnMachineFunction(MachineFunction &MF) {
 	errs() << "---------------------------------------------------------------------------------------------------\n";
 	errs() << "-------------------------------------------LOOP ALGO-----------------------------------------------\n";
 	errs() << "---------------------------------------------------------------------------------------------------\n";
-	MachineLoopInfo &GA = getAnalysis<MachineLoopInfo>();
-	LoopAnalysis LA(&GA);
-	LA.xdot();
-	LA.dump();
+	MachineLoopInfo &GA = getAnalysis< MachineLoopInfo >();
+	MachineDominatorTree &DT = getAnalysis< MachineDominatorTree >();
+	/*	LoopAnalysis LA(&GA);
+	 LA.xdot();
+	 LA.dump();*/
+
+	/*	MachineLoopInfo::iterator LIT = GA.begin();
+	 MachineLoop* l = *LIT;
+	 LoopSingleIterationWcet LWcet(l);
+	 */
+
+	WCET::SingleHyperOpWcet SHO( &MF , &GA , &DT );
+	errs() << "HyperOp WCET: " << SHO.get_Wcet() << "\n";
+
 	errs() << "---------------------------------------------------------------------------------------------------\n";
 	errs() << "----------------------------------------DOMINATOR TREE---------------------------------------------\n";
 	errs() << "---------------------------------------------------------------------------------------------------\n";
-
-	errs() << "Machine Function Name: " << MF.getName() << "\n";
-	MachineDominatorTree &DT = getAnalysis<MachineDominatorTree>();
-	errs() << "=============================--------------------------------\n";
-	WCET::DWAGraph<int> g;
-	for (auto& B : MF)
-	{
-		g.add_Vertex(B.getNumber());
-	}
-	for (auto& B : MF)
-	{
-		errs() << "Basic block:" << B.getNumber() << "\n";
-		for (MachineBasicBlock::succ_iterator succItr = B.succ_begin(); succItr != B.succ_end(); succItr++)
-		{
-			errs() << "Successor: " << (*succItr)->getNumber() << "\n";
-			g.add_Edge(B.getNumber(), (*succItr)->getNumber(), 0);
-		}
-	}
-	g.xdot();
 	/*
+	 errs() << "Machine Function Name: " << MF.getName() << "\n";
+	 MachineDominatorTree &DT = getAnalysis<MachineDominatorTree>();
+	 WCET::DWAGraph<int> g;
+	 for (auto& B : MF)
+	 {
+	 g.add_Vertex(B.getNumber());
+	 }
+	 for (auto& B : MF)
+	 {
+	 //errs() << "Basic block:" << B.getNumber() << "\n";
+	 for (MachineBasicBlock::succ_iterator succItr = B.succ_begin(); succItr != B.succ_end(); succItr++)
+	 {
+	 //errs() << "Successor: " << (*succItr)->getNumber() << "\n";
+	 g.add_Edge(B.getNumber(), (*succItr)->getNumber(), 0);
+	 }
+	 }
+	 g.xdot;*/
+	/*
+	 errs() << "---------------------------------------------------------------------------------------------------\n";
+	 errs() << "-------------------------------------------TEST Graph----------------------------------------------\n";
+	 errs() << "---------------------------------------------------------------------------------------------------\n";
+	 MachineFunction::iterator bbItr = MF.begin();
+	 WCET::pHyperOpBasicBlock pbb(bbItr);
+	 WCET::pHyperOpBB hbb=pbb.get_pHyperOpBB(0);
+	 //hbb.xdot();
+	 WCET::pHyperOpControlFlowGraph pcfg(MF);
+
 	 errs() << "---------------------------------------------------------------------------------------------------\n";
 	 errs() << "----------------------------------------HyperOp Graph----------------------------------------------\n";
 	 errs() << "---------------------------------------------------------------------------------------------------\n";
@@ -169,6 +193,7 @@ bool WcetAnalyzer::runOnMachineFunction(MachineFunction &MF) {
  TII->getName(instrItr->getOpcode()) << instrItr->getOpcode() << "\n";
 	 }
 	 }
+
 
 	 errs() << "---------------------------------------------------------------------------------------------------\n";
 	 errs() << "------------------------------------------HIG ALGO-------------------------------------------------\n";

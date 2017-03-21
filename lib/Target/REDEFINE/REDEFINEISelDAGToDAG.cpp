@@ -240,7 +240,7 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 		((REDEFINETargetMachine&) TM).HIG->computeDominatorInfo();
 		((REDEFINETargetMachine&) TM).HIG->associateStaticContextFrames();
 		((REDEFINETargetMachine&) TM).HIG->addContextFrameAddressForwardingEdges();
-		((REDEFINETargetMachine&) TM).HIG->makeGraphStructured();
+//		((REDEFINETargetMachine&) TM).HIG->makeGraphStructured();
 		((REDEFINETargetMachine&) TM).HIG->minimizeControlEdges();
 		((REDEFINETargetMachine&) TM).HIG->clusterNodes();
 		((REDEFINETargetMachine&) TM).HIG->mapClustersToComputeResources();

@@ -653,8 +653,8 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 						writepmSecond = writepm;
 						readpmSecond = readpm;
 					}
-					pHopInteractionGraph.insert(make_pair(writepmFirst.operator ->(), readpmSecond.operator ->()));
-					pHopInteractionGraph.insert(make_pair(writepmSecond.operator ->(), readpmFirst.operator ->()));
+					pHopInteractionGraph.push_back(make_pair(writepmFirst.operator ->(), readpmSecond.operator ->()));
+					pHopInteractionGraph.push_back(make_pair(writepmSecond.operator ->(), readpmFirst.operator ->()));
 				}
 			}
 			numNodesAtDepth = numNodesAtDepth + floor(ceCount / (nextCe / 2));
@@ -805,7 +805,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 
 				allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(ceContainingPredecessorInstruction, insertPosition++)));
 				allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
-				pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
+				pHopInteractionGraph.push_back(make_pair(writepm.operator ->(), readpm.operator ->()));
 
 				//Increment by 4 since scratchpad is byte addressable
 				faninOfHyperOp[ceContainingInstruction] = faninOfHyperOp[ceContainingInstruction] + datawidth;
@@ -935,8 +935,8 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 						readpmSecond = readpm;
 					}
 
-					pHopInteractionGraph.insert(make_pair(writepmFirst.operator ->(), readpmSecond.operator ->()));
-					pHopInteractionGraph.insert(make_pair(writepmSecond.operator ->(), readpmFirst.operator ->()));
+					pHopInteractionGraph.push_back(make_pair(writepmFirst.operator ->(), readpmSecond.operator ->()));
+					pHopInteractionGraph.push_back(make_pair(writepmSecond.operator ->(), readpmFirst.operator ->()));
 				}
 			}
 			numNodesAtDepth = numNodesAtDepth + floor(ceCount / (nextCe / 2));
@@ -1063,7 +1063,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 
 						allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(ceContainingPredecessorInstruction, insertPosition++)));
 						allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
-						pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
+						pHopInteractionGraph.push_back(make_pair(writepm.operator ->(), readpm.operator ->()));
 
 						//Increment by data width since scratchpad is byte addressable
 						faninOfHyperOp[ceContainingInstruction] = faninOfHyperOp[ceContainingInstruction] + datawidth;
@@ -1643,7 +1643,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							readpm.addImm(faninOfHyperOp[targetCE]);
 
 							allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
-							pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
+							pHopInteractionGraph.push_back(make_pair(writepm.operator ->(), readpm.operator ->()));
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 						}
 						break;
@@ -1697,7 +1697,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				readpm.addImm(faninOfHyperOp[targetCE]);
 
 				allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
-				pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
+				pHopInteractionGraph.push_back(make_pair(writepm.operator ->(), readpm.operator ->()));
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 				registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(consumer, make_pair(registerContainingConsumerBase, targetCE)));
 				faninOfHyperOp[targetCE] = faninOfHyperOp[targetCE] + datawidth;
@@ -1960,7 +1960,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				readpm.addImm(faninOfHyperOp[targetCE]);
 
 				allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
-				pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
+				pHopInteractionGraph.push_back(make_pair(writepm.operator ->(), readpm.operator ->()));
 
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 				list<pair<unsigned, unsigned> > prevRegCEPair;
@@ -2297,7 +2297,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 								readpm.addImm(faninOfHyperOp[targetCE]);
 
 								allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
-								pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
+								pHopInteractionGraph.push_back(make_pair(writepm.operator ->(), readpm.operator ->()));
 								LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 							}
 							break;
@@ -2488,7 +2488,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						readpm.addImm(faninOfHyperOp[targetCE]);
 
 						allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
-						pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
+						pHopInteractionGraph.push_back(make_pair(writepm.operator ->(), readpm.operator ->()));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 						list<pair<unsigned, unsigned> > prevRegCEPair;
 						if (regContainingMemFrameBaseAddress.find(consumer) != regContainingMemFrameBaseAddress.end()) {
@@ -2715,7 +2715,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							readpm.addImm(faninOfHyperOp[targetCE]);
 
 							allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
-							pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
+							pHopInteractionGraph.push_back(make_pair(writepm.operator ->(), readpm.operator ->()));
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 						}
 						break;
@@ -2768,7 +2768,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				readpm.addReg(registerContainingBaseAddress[targetCE][targetCE]);
 				readpm.addImm(faninOfHyperOp[targetCE]);
 				allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
-				pHopInteractionGraph.insert(make_pair(writepm.operator ->(), readpm.operator ->()));
+				pHopInteractionGraph.push_back(make_pair(writepm.operator ->(), readpm.operator ->()));
 
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(readpm.operator llvm::MachineInstr *());
 				LIS->getOrCreateInterval(registerContainingConsumerBase);
@@ -3232,7 +3232,7 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 LIS->computeLiveInRegUnits();
 
 PHyperOpInteractionGraph pHopDependenceMap;
-pHopDependenceMap.insert(pHopInteractionGraph.begin(), pHopInteractionGraph.end());
+std::copy(pHopInteractionGraph.begin(), pHopInteractionGraph.end(), std::back_inserter(pHopDependenceMap));
 pHopInteractionGraph.clear();
 currentHyperOp->setpHyperOpDependenceMap(pHopDependenceMap);
 }

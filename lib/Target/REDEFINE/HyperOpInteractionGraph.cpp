@@ -254,6 +254,7 @@ void HyperOp::setImmediatePostDominator(HyperOp* ImmediatePostDominator) {
 }
 
 void HyperOp::setDominanceFrontier(list<HyperOp*> DominanceFrontier) {
+	errs()<<"Setting domf of node "<<this->asString()<<" to size "<<DominanceFrontier.size()<<"\n";
 	this->DominanceFrontier = DominanceFrontier;
 }
 list<HyperOp*> HyperOp::getDominanceFrontier() {
@@ -929,15 +930,44 @@ void HyperOpInteractionGraph::computeDominatorInfo() {
 
 //Add nodes to make the HIG structured if necessary
 void HyperOpInteractionGraph::makeGraphStructured() {
+	print(dbgs());
 	bool change = true;
 //	while (change) {
 //		change = false;
 		for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
 			HyperOp* vertex = *vertexItr;
-			errs()<<"examining vertex:"<<vertex->asString()<<":"<<((vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator()!= vertex)
-					&& find(vertex->getDominanceFrontier().begin(), vertex->getDominanceFrontier().end(), vertex->getImmediatePostDominator()) != vertex->getDominanceFrontier().end())<<"\n";
+			errs()<<"\n-----\nexamining vertex:"<<vertex->asString()<<":";
+			errs()<<"do I have an idom?";
+			if(vertex->getImmediateDominator()!=NULL){
+				errs()<<vertex->getImmediateDominator()->asString();
+			}else{
+				 errs()<<"afraid not\n";
+			 }
+//			<<((vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator()!= vertex)
+//					&& find(vertex->getDominanceFrontier().begin(), vertex->getDominanceFrontier().end(), vertex->getImmediatePostDominator()) != vertex->getDominanceFrontier().end())<<"\n";
+			 errs()<<"\ndo i have an immediate postdom?";
+			 if(vertex->getImmediatePostDominator()!=NULL){
+				 errs()<<vertex->getImmediatePostDominator()->asString();
+			 }else{
+				 errs()<<"afraid not\n";
+			 }
+			 errs()<<"\n";
+
+			 errs()<<"whats in domf?"<<vertex->getDominanceFrontier().size()<<":";
+			 if(vertex->getDominanceFrontier().empty()){
+				 errs()<<"nothing";
+			 }else{
+				 list<HyperOp*> domf = vertex->getDominanceFrontier();
+//				 std::copy(vertex->getDominanceFrontier().begin(), vertex->getDominanceFrontier().end(), std::back_inserter(domf));
+				 errs()<<"domf copy?"<<domf.size()<<"\n";
+				 for(auto domfItr = domf.begin();domfItr!=domf.end();domfItr++){
+					 errs()<<(*domfItr)->asString()<<",";
+				 }
+			 }
+			 errs()<<"\n";
+			 list<HyperOp*> domf = vertex->getDominanceFrontier();
 			if ((vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != vertex)
-					&& find(vertex->getDominanceFrontier().begin(), vertex->getDominanceFrontier().end(), vertex->getImmediatePostDominator()) != vertex->getDominanceFrontier().end()) {
+					&& find(domf.begin(), domf.end(), vertex->getImmediatePostDominator()) != domf.end()) {
 //				change = true;
 				//Unstructured graph due to the current node, need to add a node that duplicates the immediate postdom
 				errs()<<"is this where I am?\n";
@@ -946,30 +976,30 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 				//Create a new function that contains all the arguments that come in along the nodes we are considering right now
 
 				//Find all the vertices that come from the branch being considered
-				map<HyperOpEdge*, HyperOp*> parentVertexList;
-				for (auto parentVertexItr = Vertices.begin(); parentVertexItr != Vertices.end(); parentVertexItr++) {
-					HyperOp* parentVertex = *parentVertexItr;
-					//Find out recursively if the parent vertex is immediately dominated by vertex
-					bool parentToBeConsidered = false;
-					HyperOp* tempParent = parentVertex;
-					while (true) {
-						if (tempParent->getImmediateDominator() == vertex) {
-							parentToBeConsidered = true;
-							break;
-						}
-						tempParent = tempParent->getImmediateDominator();
-						if (tempParent == NULL) {
-							break;
-						}
-					}
-					if (parentToBeConsidered) {
-						for (auto childItr = parentVertex->ChildMap.begin(); childItr != parentVertex->ChildMap.end(); childItr++) {
-							if (childItr->second == vertex) {
-								parentVertexList.insert(make_pair(childItr->first, parentVertex));
-							}
-						}
-					}
-				}
+//				map<HyperOpEdge*, HyperOp*> parentVertexList;
+//				for (auto parentVertexItr = Vertices.begin(); parentVertexItr != Vertices.end(); parentVertexItr++) {
+//					HyperOp* parentVertex = *parentVertexItr;
+//					//Find out recursively if the parent vertex is immediately dominated by vertex
+//					bool parentToBeConsidered = false;
+//					HyperOp* tempParent = parentVertex;
+//					while (true) {
+//						if (tempParent->getImmediateDominator() == vertex) {
+//							parentToBeConsidered = true;
+//							break;
+//						}
+//						tempParent = tempParent->getImmediateDominator();
+//						if (tempParent == NULL) {
+//							break;
+//						}
+//					}
+//					if (parentToBeConsidered) {
+//						for (auto childItr = parentVertex->ChildMap.begin(); childItr != parentVertex->ChildMap.end(); childItr++) {
+//							if (childItr->second == vertex) {
+//								parentVertexList.insert(make_pair(childItr->first, parentVertex));
+//							}
+//						}
+//					}
+//				}
 
 				//TODO: Adding a new function
 //				{
@@ -1062,7 +1092,7 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 //				}
 
 				//Make a new immediate post dom vertex copy
-				HyperOp* newImmediatePostDom;
+//				HyperOp* newImmediatePostDom;
 
 //				break;
 			}
@@ -3824,16 +3854,16 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 				postdom = "NULL";
 			}
 
-//			os << "Dom:" << dom << ", PostDom:" << postdom << ",";
+			os << "Dom:" << dom << ", PostDom:" << postdom << ",";
 			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
 			os << "SyncCount:" << (*vertexIterator)->getSyncCount();
-//			os << "Domf:";
-//			if (!vertex->getDominanceFrontier().empty()) {
-//				list<HyperOp*> domf = vertex->getDominanceFrontier();
-//				for (list<HyperOp*>::iterator domfItr = domf.begin(); domfItr != domf.end(); domfItr++) {
-//					os << (*domfItr)->getFunction()->getName() << ";";
-//				}
-//			}
+			os << "Domf:";
+			if (!vertex->getDominanceFrontier().empty()) {
+				list<HyperOp*> domf = vertex->getDominanceFrontier();
+				for (list<HyperOp*>::iterator domfItr = domf.begin(); domfItr != domf.end(); domfItr++) {
+					os << (*domfItr)->getFunction()->getName() << ";";
+				}
+			}
 			os << "\"];\n";
 
 			map<HyperOpEdge*, HyperOp*> children = vertex->ChildMap;

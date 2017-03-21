@@ -95,7 +95,7 @@ public:
 	void setEdgeSource(MachineInstr* edgeSource);
 	MachineInstr* getEdgeSource();
 };
-typedef map<MachineInstr*, MachineInstr*> PHyperOpInteractionGraph;
+typedef list<pair<MachineInstr*, MachineInstr*> > PHyperOpInteractionGraph;
 class HyperOp {
 	/**
 	 * Bundle instruction corresponding to the HyperOp
@@ -126,7 +126,7 @@ class HyperOp {
 	vector<unsigned> numInputsPerCE;
 	unsigned int numIncomingSyncEdges;
 	//Map of source instruction in a CE and the first consumer instruction in a different CE
-	map<MachineInstr*,MachineInstr*> pHopDependenceMap;
+	PHyperOpInteractionGraph pHopDependenceMap;
 
 public:
 	//Map to cache local reference objects that have an alloc instruction in a different HyperOp

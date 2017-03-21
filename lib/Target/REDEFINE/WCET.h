@@ -52,149 +52,193 @@
 #define GND (void *)0//Void Pointer
 #define PIPEDEPTH 5//Pipeline Depth 5 Stage
 #define LoopScopeRoot (MachineLoop*) 0
+#define CFGSTART (pHyperOpBB *)0
+#define CFGEND (pHyperOpBB *)1
+#define MAXLOOPBOUND 100
 namespace WCET
 {
 	unsigned int get_gidx();
 
-	template <class T> class FuncUnit
+	template<class T> class FuncUnit
 	{
-	protected:
-		//UNIQUE ID FunctionUnit
-		static unsigned long int ID;
-		typedef std::map< T , unsigned long int > FuncMap;
-		FuncMap TLookup;
-	public:
-		FuncUnit();
-		void Ireset();
-		void Iinsert(T);
-		void Idelete(T);
-		void dump();
-		unsigned long int get_FuncUnitNumber(T,unsigned);
+		protected:
+			//UNIQUE ID FunctionUnit
+			static unsigned long int ID;
+			typedef std::map< T , unsigned long int > FuncMap;
+			FuncMap TLookup;
+		public:
+			FuncUnit();
+			void Ireset();
+			void Iinsert( T );
+			void Idelete( T );
+			void dump();
+			unsigned long int get_FuncUnitNumber( T , unsigned );
 	};
 
-	template <class T> class AdjEdge
+	template<class T> class AdjEdge
 	{
-	protected:
-		int Weight;
-		T Vertex;
-	public:
-		AdjEdge(T,int);
-		int get_weight();
-		T get_vertex();
-		void set_weight(int);
-	};
-	template <class T> class DFSNode
-	{
-	protected:
-		unsigned long int  Pre;
-		unsigned long int  Post;
-		T    Parent;
-		bool Visited;
-
-	public:
-		DFSNode(T);
-		unsigned long int get_Pre();
-		unsigned long int get_Post();
-		T get_Parent();
-		void set_Pre(unsigned long int);
-		void set_Post(unsigned long int);
-		void set_Parent(T);
-		bool IsVisited();
-		void set_Visited();
+		protected:
+			int Weight;
+			T Vertex;
+		public:
+			AdjEdge( T , int );
+			int get_weight();
+			T get_vertex();
+			void set_weight( int );
 	};
 
-
-	template <class T> class DWGraph
+	template<class T> class DFSNode
 	{
-	protected:
-		typedef std::list< AdjEdge<T> >* AdjListPtr;
-		typedef std::list< AdjEdge<T> > AdjList;
-		typedef std::map< T , AdjListPtr > DWG;
-		DWG G;
-		//TO Create LOOKUP Table
-		std::map< T , unsigned long int > Lookup;
-		//Cardinality |G| of Graph
-		unsigned long int n;
-	public:
-		 DWGraph();
-		//To get Number of Vertices in Graph |G|
-		 unsigned long int get_Cardinality();
-		//To get Cardinality of Edges |E|
-		 unsigned long int get_SizeOfGraph();
-		//To add vertex to graph
-		bool add_Vertex(T);
-		//To add edge u to v of weight w
-		bool add_Edge(T,T,int);
-		//To remove edge u to v
-		bool remove_Edge(T,T);
-		//To get Weight of already added edge
-		int get_EdgeWeight(T,T);
-		//To Change Weight of already added edge
-		bool set_EdgeWeight(T,T,int);
-		//Vertex degree
-		unsigned long int get_VertexDegree(T);
-		//true if vertex is present
-		bool Is_Vertex(T);
-		//true if edge is present
-		bool Is_Edge(T,T);
-		//Adjacency Matrix form
-		void dump();
-		//get graph in xdot format in source folder
-	    void xdot();
-	    //get vertex list
-	    list<T> get_VertexList();
-	    //get adj. list
-	    list<T> get_AdjList(T);
+		protected:
+			unsigned long int Pre;
+			unsigned long int Post;
+			T Parent;
+			bool Visited;
+
+		public:
+			DFSNode( T );
+			unsigned long int get_Pre();
+			unsigned long int get_Post();
+			T get_Parent();
+			void set_Pre( unsigned long int );
+			void set_Post( unsigned long int );
+			void set_Parent( T );
+			bool IsVisited();
+			void set_Visited();
 	};
 
-
-	template <class T> class DWAGraph : public DWGraph<T>
+	template<class T> class DWGraph
 	{
-	protected:
-		typedef std::list< T > TSList;
-		typedef std::map<T,unsigned long int> CPMap;
-		typedef std::multimap<int,T> TimeVextexMap;
-		TimeVextexMap CTVM;
-		TSList TSL;
-		CPMap CrticalPath;
-
-	public :
-		DWAGraph();
-		 void TopologicalSorting();
-		 void CriticalPath();
-		 int get_Wcet();
-		 int get_NodeWcet(T);
-		 void dump_TSL();
-		 void dump_CriticalPath();
-		 void xdot_CriticalPath();
+		protected:
+			typedef std::list< AdjEdge< T > >* AdjListPtr;
+			typedef std::list< AdjEdge< T > > AdjList;
+			typedef std::map< T , AdjListPtr > DWG;
+			DWG G;
+			//TO Create LOOKUP Table
+			std::map< T , unsigned long int > Lookup;
+			//Cardinality |G| of Graph
+			unsigned long int n;
+		public:
+			DWGraph();
+			//To get Number of Vertices in Graph |G|
+			unsigned long int get_Cardinality();
+			//To get Cardinality of Edges |E|
+			unsigned long int get_SizeOfGraph();
+			//To add vertex to graph
+			bool add_Vertex( T );
+			//To split first vertex into 2 Vertex given by first and second argument graph
+			bool split_Vertex( T , T );
+			//To add edge u to v of weight w
+			bool add_Edge( T , T , int );
+			//To remove edge u to v
+			bool remove_Edge( T , T );
+			//To get Weight of already added edge
+			int get_EdgeWeight( T , T );
+			//To Change Weight of already added edge
+			bool set_EdgeWeight( T , T , int );
+			//Vertex degree
+			unsigned long int get_VertexDegree( T );
+			//true if vertex is present
+			bool Is_Vertex( T );
+			//true if edge is present
+			bool Is_Edge( T , T );
+			//Adjacency Matrix form
+			void dump();
+			//get graph in xdot format in source folder
+			void xdot();
+			//get vertex list
+			list< T > get_VertexList();
+			//get adj. list
+			list< T > get_AdjList( T );
 	};
 
-	template <class T> class DWXGraph : public DWAGraph<T>
+	template<class T> class DWAGraph : public DWGraph< T >
 	{
-	protected:
-		unsigned int Count;
-		typedef DFSNode<T> DNode;
-		typedef DFSNode<T>* DNodePtr;
-		typedef std::map< T , DNodePtr > GraphProfileMap;
-		GraphProfileMap GPM;
-		//std::make_pair<int,int> CHK;
-	public :
-		 DWXGraph();
-		void DFS(T);
-		void GraphProfile();
-		void LoopScope();
-		void dump_DFS();
-		void xdot_DFS();
+		protected:
+			typedef std::list< T > TSList;
+			typedef std::map< T , unsigned long int > CPMap;
+			typedef std::multimap< int , T > TimeVextexMap;
+			TimeVextexMap CTVM;
+			TSList TSL;
+			CPMap CrticalPath;
+
+		public:
+			DWAGraph();
+			void TopologicalSorting();
+			void CriticalPath();
+			int get_Wcet();
+			int get_NodeWcet( T );
+			void dump_TSL();
+			void dump_CriticalPath();
+			void xdot_CriticalPath();
 	};
 
-	class LoopAnalysis : public DWGraph<MachineLoop*>
+	typedef DWAGraph< unsigned long int > pHyperOpBB;
+	typedef std::map< MachineInstr* , pHyperOpBB* > MachinepHyperOpBBLookup;
+	typedef DWGraph< pHyperOpBB* > pHyperOpCFG;
+	typedef DWAGraph< pHyperOpBB* > IntraHyperOp;
+	typedef DWGraph< MachineLoop* > LoopScope;
+	typedef std::map< MachineLoop * , unsigned int > LoopBound;
+	class pHyperOpBasicBlock
 	{
-	public:
-		LoopAnalysis(MachineLoopInfo *LI);
-		void LoopDFS(MachineLoop *);
-		void dump();
+		protected:
+			pHyperOpBB pHyperBB[4];
+		public:
+			pHyperOpBasicBlock( llvm::MachineBasicBlock * );
+			pHyperOpBB get_pHyperOpBB( int );
 	};
+
+	class pHyperOpControlFlowGraph
+	{
+		public:
+			std::vector< pHyperOpBB* > LookUp[4];
+			pHyperOpCFG pHyperCFG[4];
+			pHyperOpControlFlowGraph( llvm::MachineFunction &MF , llvm::MachineDominatorTree *DT );
+	};
+
+	class LoopAnalysis
+	{
+		public:
+			LoopScope LS;
+			LoopAnalysis( MachineLoopInfo *LI );
+			void set_LoopBounds( MachineLoop * , unsigned int );
+			unsigned int get_LoopBounds( MachineLoop * L );
+			void LoopDFS( MachineLoop * );
+			int Loop_Wcet( MachineLoop * , int );
+			void dumpDFS( MachineLoop * );
+			void dump();
+	};
+
+	class LoopSingleIterationWcet : public DWAGraph< MachineLoop* >
+	{
+		protected:
+			typedef std::queue< llvm::MachineBasicBlock * > BBQ;
+			BBQ q;
+			BBQ qt;
+
+			int LoopSIWcet[4];
+			MachineLoop* L;
+		public:
+			LoopSingleIterationWcet( MachineLoop* );
+			int get_LoopSingleIterationWcet( int );
+	};
+
+	class SingleHyperOpWcet
+	{
+		private:
+			llvm::MachineFunction* MF;
+			pHyperOpCFG pHopCFG[4];
+			MachinepHyperOpBBLookup MPILookup;
+			pHyperOpCFG pHopMPI;
+			std::vector< pHyperOpBB* > LookUp[4];
+			LoopScope LScope[4];
+			IntraHyperOp IntraHop;
+		public:
+			SingleHyperOpWcet( llvm::MachineFunction* MF , MachineLoopInfo *LI , MachineDominatorTree *DT );
+			int get_Wcet();
+			int get_WcetNode( int Node );
+	};
+
 }
-
 
 #endif /* WCET_H_ */
