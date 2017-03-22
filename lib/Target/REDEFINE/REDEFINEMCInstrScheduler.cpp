@@ -2199,7 +2199,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			if (edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) {
 				unsigned registerContainingData;
 				if (edge->getContextFrameAddress()->getImmediateDominator() == hyperOp) {
-					errs()<<"i mustve come here\n";
+					errs() << "i mustve come here\n";
 					registerContainingData = registerContainingHyperOpFrameAddressAndCEWithFalloc[edge->getContextFrameAddress()].first;
 				} else {
 					//The address was forwarded to the current HyperOp
@@ -2247,7 +2247,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 								allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 								registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(edge->getContextFrameAddress(), make_pair(registerContainingData, 0)));
 							}
-							errs()<<"target ce not the same right?"<<(targetCE != registerContainingHyperOpFrameAddressAndCEWithFalloc[edge->getContextFrameAddress()].second)<<"\n";
+							errs() << "target ce not the same right?" << (targetCE != registerContainingHyperOpFrameAddressAndCEWithFalloc[edge->getContextFrameAddress()].second) << "\n";
 							if (targetCE != registerContainingHyperOpFrameAddressAndCEWithFalloc[edge->getContextFrameAddress()].second) {
 								//Add writepm-dreadpm pair
 								unsigned sourceCEContainingFrameAddress = registerContainingHyperOpFrameAddressAndCEWithFalloc[edge->getContextFrameAddress()].second;
@@ -3029,6 +3029,44 @@ BB = 0;
 
 }
 
+MachineInstr* revertBranch(MachineInstr* instruction) {
+//assert(Cond.size() <= 4 && "Invalid branch condition!");
+////Only need to switch the condition code, not the registers
+//switch (Cond[0].getImm()) {
+//case REDEFINE::CCMASK_CMP_EQ:
+//	Cond[0].setImm(REDEFINE::CCMASK_CMP_NE);
+//	return false;
+//case REDEFINE::CCMASK_CMP_NE:
+//	Cond[0].setImm(REDEFINE::CCMASK_CMP_EQ);
+//	return false;
+//case REDEFINE::CCMASK_CMP_LT:
+//	Cond[0].setImm(REDEFINE::CCMASK_CMP_GE);
+//	return false;
+//case REDEFINE::CCMASK_CMP_GE:
+//	Cond[0].setImm(REDEFINE::CCMASK_CMP_LT);
+//	return false;
+//case REDEFINE::CCMASK_CMP_LT | REDEFINE::CCMASK_CMP_UO:
+//	Cond[0].setImm(REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO);
+//	return false;
+//case REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO:
+//	Cond[0].setImm(REDEFINE::CCMASK_CMP_LT | REDEFINE::CCMASK_CMP_UO);
+//	return false;
+//	//synth
+//case REDEFINE::CCMASK_CMP_GT:
+//	Cond[0].setImm(REDEFINE::CCMASK_CMP_LE);
+//	return false;
+//case REDEFINE::CCMASK_CMP_LE:
+//	Cond[0].setImm(REDEFINE::CCMASK_CMP_GT);
+//	return false;
+//case REDEFINE::CCMASK_CMP_GT | REDEFINE::CCMASK_CMP_UO:
+//	Cond[0].setImm(REDEFINE::CCMASK_CMP_LE | REDEFINE::CCMASK_CMP_UO);
+//	return false;
+//case REDEFINE::CCMASK_CMP_LE | REDEFINE::CCMASK_CMP_UO:
+//	Cond[0].setImm(REDEFINE::CCMASK_CMP_GT | REDEFINE::CCMASK_CMP_UO);
+//	return false;
+//}
+}
+
 void REDEFINEMCInstrScheduler::finalizeSchedule() {
 //Find the right order of context frame inputs for a machine function
 unsigned contextFrameSlotAndPhysReg[frameSize];
@@ -3106,109 +3144,6 @@ for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
 	}
 }
 
-//DEBUG(dbgs() << "Patching writecm instructions to shuffle physical registers of function " << MF.getFunction()->getName() << "\n");
-////Modify the writecm instructions corresponding to writes to the current MachineFunction's context frame
-////TODO This assumes that the producer HyperOps have already been dealt with and all necessary writecm instructions have been added
-//if (writeInstrToContextFrame.find(const_cast<Function*>(MF.getFunction())) != writeInstrToContextFrame.end()) {
-//	list<MachineInstr*> writeInstrToBePatched = this->writeInstrToContextFrame.find(const_cast<Function*>(MF.getFunction()))->second;
-//	dbgs() << "number of writes to be patched that write to " << MF.getFunction()->getName() << ":" << writeInstrToBePatched.size() << "\n";
-//	for (list<MachineInstr*>::iterator writeInstItr = writeInstrToBePatched.begin(); writeInstItr != writeInstrToBePatched.end(); writeInstItr++) {
-//		MachineInstr* writeInst = *writeInstItr;
-//		dbgs() << "patching write:";
-//		writeInst->print(dbgs());
-////Replace the immediate offset of write instruction that corresponds to the context frame slot being written into
-//		unsigned previousFrameSlot = writeInst->getOperand(2).getImm();
-//		writeInst->getOperand(2).setImm(physRegAndContextFrameSlot[contextFrameSlotAndPhysReg[previousFrameSlot]]*datawidth);
-//		dbgs() << "previous slot:" << previousFrameSlot << " swapped to " << (physRegAndContextFrameSlot[contextFrameSlotAndPhysReg[previousFrameSlot]]*datawidth) << "\n";
-//	}
-//}
-//
-//DEBUG(dbgs() << "Updating edges from parent nodes to shuffle the physical registers of function " << MF.getFunction()->getName() << "\n");
-////Shuffle context frame slots for the HyperOp in case the parent hyperop hasn't been processed yet
-//map<HyperOpEdge*, HyperOp*> parentMap = graph->getHyperOp(const_cast<Function*>(MF.getFunction()))->ParentMap;
-//for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = parentMap.begin(); parentItr != parentMap.end(); parentItr++) {
-//	HyperOpEdge* edge = parentItr->first;
-//	if (edge->getType() == HyperOpEdge::SCALAR || edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS) {
-//		unsigned previousPhysReg = contextFrameSlotAndPhysReg[edge->getPositionOfContextSlot()];
-//		dbgs() << "updating the edge from " << parentItr->second->asString() << " to " << currentHyperOp->asString() << " that used to point to " << edge->getPositionOfContextSlot() << "to" << physRegAndContextFrameSlot[previousPhysReg] << " because of the use of phys reg " << previousPhysReg
-//				<< "\n";
-//		edge->setPositionOfContextSlot(physRegAndContextFrameSlot[previousPhysReg]);
-//		dbgs() << "The edge now points to " << edge->getPositionOfContextSlot() << "\n";
-//	}
-//}
-
-///*
-// * Since REDEFINE doesn't allow replication of context memory inputs to multiple CEs, after the first CE that uses a live-in register corresponding to a HyperOp input is encountered,
-// * if another CE requires the same input, it gets the input from scratch pad.
-// */
-////TODO Make necessary changes to check if the operand has been replicated atleast once
-//DEBUG(dbgs() << "Replicating HyperOp inputs\n");
-//map<unsigned, map<unsigned, unsigned> > replicatedRegInCE;
-//for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE; ++MBBI) {
-//	int pHyperOpIndex = -1;
-//	for (MachineBasicBlock::instr_iterator MII = MBBI->instr_begin(); MII != MBBI->instr_end(); ++MII) {
-//		MachineInstr *MI = MII;
-////First instruction in basic block
-//		if (!MI->isInsideBundle()) {
-//			//New pHyperOp
-//			pHyperOpIndex++;
-//		}
-//		for (unsigned i = 0; i < MI->getNumOperands(); i++) {
-//			MachineOperand &MO = MI->getOperand(i);
-//			if (MO.isReg() && find(liveInPhysRegisters.begin(), liveInPhysRegisters.end(), MO.getReg()) != liveInPhysRegisters.end()) {
-//				if (find(liveInPhysRegisters.begin(), liveInPhysRegisters.end(), MO.getReg()) != liveInPhysRegisters.end()) {
-//					unsigned physicalReg = MO.getReg();
-//					if ((physRegAndLiveIn[physicalReg] == -1 || physRegAndLiveIn[physicalReg] != pHyperOpIndex) && (replicatedRegInCE.find(pHyperOpIndex) == replicatedRegInCE.end() || replicatedRegInCE[pHyperOpIndex].find(physicalReg) == replicatedRegInCE[pHyperOpIndex].end())) {
-//						MachineInstr* firstDefinition = physRegAndFirstMachineOperand.find(physicalReg)->second;
-//						unsigned pHyperOpContainingDefinition = physRegAndLiveIn[physicalReg];
-//						MachineInstrBuilder sourceLui;
-//						if (registerContainingBaseAddress[pHyperOpContainingDefinition][pHyperOpIndex] == -1) {
-//							sourceLui = BuildMI(*(firstDefinition->getParent()), firstDefinition, firstDefinition->getDebugLoc(), TII->get(REDEFINE::LUI));
-//							unsigned sourceSpAddressRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-//							sourceLui.addReg(sourceSpAddressRegister, RegState::Define);
-//							//TODO May need changing later
-//							sourceLui.addImm(pHyperOpIndex);
-//							registerContainingBaseAddress[pHyperOpContainingDefinition][pHyperOpIndex] = (int) sourceSpAddressRegister;
-//						}
-//
-//						MachineInstrBuilder writepm = BuildMI(*(firstDefinition->getParent()), firstDefinition, firstDefinition->getDebugLoc(), TII->get(REDEFINE::WRITEPM));
-//						writepm.addReg(registerContainingBaseAddress[pHyperOpContainingDefinition][pHyperOpIndex]);
-//						writepm.addReg(physicalReg);
-//						//TODO
-//						writepm.addImm(SPLOCATIONS - (physRegAndContextFrameSlot[physicalReg] * datawidth));
-//
-//						MachineInstrBuilder targetLui;
-//						//Load the base scratchpad address to a register in the consumer CE the first time
-//						if (registerContainingBaseAddress[pHyperOpIndex][pHyperOpIndex] == -1) {
-//							targetLui = BuildMI(*MBBI, MI, MI->getDebugLoc(), TII->get(REDEFINE::LUI));
-//							unsigned targetSpAddressRegister = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-//							targetLui.addReg(targetSpAddressRegister, RegState::Define);
-//							//TODO May need changing later
-//							targetLui.addImm(pHyperOpIndex);
-//
-////						LIS->getOrCreateInterval(targetSpAddressRegister);
-//							registerContainingBaseAddress[pHyperOpIndex][pHyperOpIndex] = (int) targetSpAddressRegister;
-//						}
-//						unsigned readpmTarget = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-//						MachineInstrBuilder readpm = BuildMI(*MBBI, MI, MI->getDebugLoc(), TII->get(REDEFINE::DREADPM));
-//						readpm.addReg(readpmTarget, RegState::Define);
-//						readpm.addReg(registerContainingBaseAddress[pHyperOpIndex][pHyperOpIndex]);
-//						//TODO
-//						readpm.addImm(SPLOCATIONS - (physRegAndContextFrameSlot[physicalReg] * datawidth));
-//						MO.setReg(readpmTarget);
-//
-//						replicatedRegInCE[pHyperOpIndex][physicalReg] = readpmTarget;
-//						LIS->getOrCreateInterval(readpmTarget);
-//						LIS->addLiveRangeToEndOfBlock(readpmTarget, readpm);
-//					} else if (physRegAndLiveIn[physicalReg] != pHyperOpIndex) {
-//						MO.setReg(replicatedRegInCE[pHyperOpIndex][physicalReg]);
-//					}
-//				}
-//			}
-//		}
-//	}
-//}
-
 DEBUG(dbgs() << "Patching the instructions that are supposed to use the physical registers r30 and r31\n");
 for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 	int ceIndex = -1;
@@ -3232,7 +3167,204 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 LIS->computeLiveInRegUnits();
 
 PHyperOpInteractionGraph pHopDependenceMap;
-std::copy(pHopInteractionGraph.begin(), pHopInteractionGraph.end(), std::back_inserter(pHopDependenceMap));
-pHopInteractionGraph.clear();
+
+//Expand addi pseudos
+for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
+	for (MachineBasicBlock::instr_iterator instrItr = bbItr->instr_begin(); instrItr != bbItr->instr_end(); instrItr++) {
+		MachineBasicBlock::iterator MI = instrItr;
+		if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(1).getReg() == REDEFINE::zero) {
+			if (MI->getOperand(2).isImm() && MI->getOperand(2).getImm() != 0 && Log2_32_Ceil((uint32_t) MI->getOperand(2).getImm()) > 10) {
+				//Since immediate value cannot spill 11 bits, we need to expand it to lui and add instructions
+				MachineBasicBlock::instr_iterator Pred, Succ;
+				//TODO We know that an immediate value cannot exceed 32 bit value anyway, so casting to 32 bit is expected to be safe
+				int32_t immediateValue = ((int32_t) MI->getOperand(2).getImm());
+				bool isMIBundledWithPred = MI->isBundledWithPred();
+				bool isMIBundledWithSucc = MI->isBundledWithSucc();
+				if (isMIBundledWithPred) {
+					Pred = MI.getInstrIterator();
+					--Pred;
+				}
+				if (isMIBundledWithSucc) {
+					Succ = MI.getInstrIterator();
+					++Succ;
+				}
+
+				unsigned addiRegister = MI->getOperand(0).getReg();
+
+				MachineInstrBuilder luiForTopBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(addiRegister, RegState::Define).addImm((immediateValue & 0xfffff000) >> 12);
+				MachineInstrBuilder luiForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(REDEFINE::a5, RegState::Define).addImm(immediateValue & 0xfff);
+				MachineInstrBuilder srliForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(REDEFINE::a5, RegState::Define).addReg(REDEFINE::a5, RegState::InternalRead).addImm(12);
+				MachineInstrBuilder add = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(addiRegister).addReg(addiRegister).addReg(REDEFINE::a5);
+
+				for (auto pHopItr = pHopInteractionGraph.begin(); pHopItr != pHopInteractionGraph.end(); pHopItr++) {
+					if (pHopItr->first == MI.operator->()) {
+						pHopDependenceMap.push_back(make_pair(add.operator ->(), pHopItr->second));
+						break;
+					}
+				}
+				if (MI->isBundled()) {
+					MI->eraseFromBundle();
+				} else {
+					MI->eraseFromParent();
+				}
+				luiForTopBits->bundleWithSucc();
+				luiForBottomBits->bundleWithSucc();
+				srliForBottomBits->bundleWithSucc();
+
+				if (isMIBundledWithPred) {
+					//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
+					Pred->clearFlag(MachineInstr::BundledSucc);
+					luiForTopBits->bundleWithPred();
+				}
+				if (isMIBundledWithSucc) {
+					Succ->clearFlag(MachineInstr::BundledPred);
+					add->bundleWithSucc();
+				}
+
+				instrItr = add.operator ->();
+
+			} else if (MI->getOperand(2).isGlobal()) {
+				//This is only in case of getting the lower bits of addi
+				const GlobalValue * gv = MI->getOperand(2).getGlobal();
+				const Module* parentModule = MI->getParent()->getParent()->getFunction()->getParent();
+				unsigned maxGlobalSize = 0;
+				if (!parentModule->getGlobalList().empty()) {
+					for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
+						const GlobalVariable *globalVar = &*globalArgItr;
+						if (globalVar->getName().compare(gv->getName()) == 0) {
+							break;
+						}
+						maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
+					}
+				}
+
+				MachineBasicBlock::instr_iterator Pred, Succ;
+				bool isMIBundledWithPred = MI->isBundledWithPred();
+				bool isMIBundledWithSucc = MI->isBundledWithSucc();
+				if (isMIBundledWithPred) {
+					Pred = MI.getInstrIterator();
+					--Pred;
+				}
+				if (isMIBundledWithSucc) {
+					Succ = MI.getInstrIterator();
+					++Succ;
+				}
+
+				unsigned addiRegister = MI->getOperand(0).getReg();
+
+				MachineInstrBuilder lui = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::LUI));
+				lui.addReg(addiRegister, RegState::Define);
+				string lowGlobalAddrString = string("%lo(").append("\"ga#").append(itostr(maxGlobalSize)).append("\")");
+				MCSymbol* loSymbol = lui.operator ->()->getParent()->getParent()->getContext().GetOrCreateSymbol(StringRef(lowGlobalAddrString));
+				lui.addSym(loSymbol);
+
+				MachineInstrBuilder shiftInstr = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(addiRegister).addReg(addiRegister).addImm(12);
+
+				for (auto pHopItr = pHopInteractionGraph.begin(); pHopItr != pHopInteractionGraph.end(); pHopItr++) {
+					if (pHopItr->first == MI.operator->()) {
+						pHopDependenceMap.push_back(make_pair(shiftInstr.operator ->(), pHopItr->second));
+						break;
+					}
+				}
+
+				if (MI->isBundled()) {
+					MI->eraseFromBundle();
+				} else {
+					MI->eraseFromParent();
+				}
+				lui->bundleWithSucc();
+
+				if (isMIBundledWithPred) {
+					//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
+					Pred->clearFlag(MachineInstr::BundledSucc);
+					lui->bundleWithPred();
+				}
+				if (isMIBundledWithSucc) {
+					Succ->clearFlag(MachineInstr::BundledPred);
+					shiftInstr->bundleWithSucc();
+				}
+				instrItr = shiftInstr.operator ->();
+			}
+		} else {
+			for (auto pHopItr = pHopInteractionGraph.begin(); pHopItr != pHopInteractionGraph.end(); pHopItr++) {
+				if (pHopItr->first == MI.operator->()) {
+					pHopDependenceMap.push_back(make_pair(MI.operator ->(), pHopItr->second));
+					break;
+				}
+			}
+		}
+	}
+}
+
+list<MachineInstr*> previouslyProcessedBranchInstructions;
+//Examining branches
+for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
+	for (MachineBasicBlock::instr_iterator instrItr = bbItr->instr_begin(); instrItr != bbItr->instr_end(); instrItr++) {
+		MachineBasicBlock::iterator MI = instrItr;
+		bool isConditionalBranch = false;
+		switch (MI->getOpcode()) {
+		case REDEFINE::BEQ:
+		case REDEFINE::BNE:
+		case REDEFINE::BLT:
+		case REDEFINE::BLTU:
+		case REDEFINE::BGE:
+		case REDEFINE::BGEU:
+		case REDEFINE::BGT:
+		case REDEFINE::BGTU:
+		case REDEFINE::BLE:
+		case REDEFINE::BLEU:
+			isConditionalBranch = true;
+		}
+		if (isConditionalBranch) {
+			errs() << "fixing conditional branch:";
+			MI->dump();
+			const MachineOperand *Target = &MI->getOperand(0);
+			assert(Target->isMBB() && "Non mbb argument to MI \n");
+			MachineBasicBlock* TargetMBB = Target->getMBB();
+			//Compute how far off target is from current instruction
+			MachineBasicBlock* CurrentBB = MI->getParent();
+			bool isLayoutSucc = false;
+			unsigned codeSize = 0;
+			while (true) {
+				if (CurrentBB->getNextNode() == TargetMBB) {
+					isLayoutSucc = true;
+					break;
+				}
+				codeSize += CurrentBB->size() * REDEFINEUtils::SIZE_OF_INSTRUCTION;
+				CurrentBB = CurrentBB->getNextNode();
+			}
+			if (!isLayoutSucc) {
+				//Count backwards
+				while (true) {
+					codeSize += CurrentBB->size() * REDEFINEUtils::SIZE_OF_INSTRUCTION;
+					if (CurrentBB->getPrevNode() == TargetMBB) {
+						break;
+					}
+					CurrentBB = CurrentBB->getPrevNode();
+				}
+			}
+
+			if (Log2_32_Ceil(codeSize) > 11) {
+				//Need to add a branch from current target to the newly created branch
+				MachineBasicBlock::instr_iterator Pred, Succ;
+				bool isMIBundledWithPred = MI->isBundledWithPred();
+				bool isMIBundledWithSucc = MI->isBundledWithSucc();
+				if (isMIBundledWithPred) {
+					Pred = MI.getInstrIterator();
+					--Pred;
+				}
+				if (isMIBundledWithSucc) {
+					Succ = MI.getInstrIterator();
+					++Succ;
+				}
+				MachineInstr* replacementInstruction = revertBranch(MI);
+			} else {
+				previouslyProcessedBranchInstructions.push_back(MI);
+			}
+
+		}
+	}
+}
+
 currentHyperOp->setpHyperOpDependenceMap(pHopDependenceMap);
 }
