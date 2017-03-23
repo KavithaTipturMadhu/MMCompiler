@@ -28,7 +28,6 @@
 
 using namespace llvm;
 
-
 namespace llvm {
 
 class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
@@ -45,8 +44,8 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	list<pair<SUnit*, unsigned> > instructionAndPHyperOpMapForRegion;
 
 	/* Memory locations accessed in a ce are cached as alloca or getelementptr instructions(in Value* form) to ensure that memory accesses are chained across basic blocks.
-	This is required since l1 caches are coherent and hence, memory accesses need to be chained
-	*/
+	 This is required since l1 caches are coherent and hence, memory accesses need to be chained
+	 */
 	vector<const Value*> memoryLocationsAccessedInCE[4];
 
 	//Instruction in a region, the pHyperOp it belongs to and its position in the region
@@ -61,7 +60,7 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	vector<unsigned> registersUsedInBB;
 
 	//Contains t4 and t5 registers, a copy of t5 and their allocated virtual registers in each pHyperOp
-	pair<unsigned, unsigned > virtualRegistersForInstAddr[4];
+	pair<unsigned, unsigned> virtualRegistersForInstAddr[4];
 
 	//Position tracking a new insertion
 	unsigned insertPosition = 0;
@@ -87,7 +86,7 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	const char* HYPEROP_ID_PREFIX = "HyOp#";
 
 	unsigned copyOfInstanceId;
-	unsigned REDEFINEphysRegs[16] = {REDEFINE::ra,REDEFINE::sp,REDEFINE::gp,REDEFINE::tp,REDEFINE::t0,REDEFINE::t1,REDEFINE::t2,REDEFINE::t3,REDEFINE::fp,REDEFINE::s0,REDEFINE::s1,REDEFINE::a0,REDEFINE::a1,REDEFINE::a2,REDEFINE::a3,REDEFINE::a4 };
+	unsigned REDEFINEphysRegs[16] = { REDEFINE::ra, REDEFINE::sp, REDEFINE::gp, REDEFINE::tp, REDEFINE::t0, REDEFINE::t1, REDEFINE::t2, REDEFINE::t3, REDEFINE::fp, REDEFINE::s0, REDEFINE::s1, REDEFINE::a0, REDEFINE::a1, REDEFINE::a2, REDEFINE::a3, REDEFINE::a4 };
 	static const int FRAMES_PER_CR = 832;
 	static const int FRAMES_PER_PAGE = 52;
 	static const int SHIFT_FOR_CRID = 22;
@@ -106,6 +105,7 @@ public:
 	virtual void exitRegion();
 	virtual void finishBlock();
 	virtual void finalizeSchedule();
+	void splitBranchForLongJump(MachineBasicBlock::iterator MI, MachineBasicBlock* TargetMBB);
 };
 
 /// \brief Order nodes by the ILP metric.

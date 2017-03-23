@@ -3029,44 +3029,6 @@ BB = 0;
 
 }
 
-MachineInstr* revertBranch(MachineInstr* instruction) {
-//assert(Cond.size() <= 4 && "Invalid branch condition!");
-////Only need to switch the condition code, not the registers
-//switch (Cond[0].getImm()) {
-//case REDEFINE::CCMASK_CMP_EQ:
-//	Cond[0].setImm(REDEFINE::CCMASK_CMP_NE);
-//	return false;
-//case REDEFINE::CCMASK_CMP_NE:
-//	Cond[0].setImm(REDEFINE::CCMASK_CMP_EQ);
-//	return false;
-//case REDEFINE::CCMASK_CMP_LT:
-//	Cond[0].setImm(REDEFINE::CCMASK_CMP_GE);
-//	return false;
-//case REDEFINE::CCMASK_CMP_GE:
-//	Cond[0].setImm(REDEFINE::CCMASK_CMP_LT);
-//	return false;
-//case REDEFINE::CCMASK_CMP_LT | REDEFINE::CCMASK_CMP_UO:
-//	Cond[0].setImm(REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO);
-//	return false;
-//case REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO:
-//	Cond[0].setImm(REDEFINE::CCMASK_CMP_LT | REDEFINE::CCMASK_CMP_UO);
-//	return false;
-//	//synth
-//case REDEFINE::CCMASK_CMP_GT:
-//	Cond[0].setImm(REDEFINE::CCMASK_CMP_LE);
-//	return false;
-//case REDEFINE::CCMASK_CMP_LE:
-//	Cond[0].setImm(REDEFINE::CCMASK_CMP_GT);
-//	return false;
-//case REDEFINE::CCMASK_CMP_GT | REDEFINE::CCMASK_CMP_UO:
-//	Cond[0].setImm(REDEFINE::CCMASK_CMP_LE | REDEFINE::CCMASK_CMP_UO);
-//	return false;
-//case REDEFINE::CCMASK_CMP_LE | REDEFINE::CCMASK_CMP_UO:
-//	Cond[0].setImm(REDEFINE::CCMASK_CMP_GT | REDEFINE::CCMASK_CMP_UO);
-//	return false;
-//}
-}
-
 void REDEFINEMCInstrScheduler::finalizeSchedule() {
 //Find the right order of context frame inputs for a machine function
 unsigned contextFrameSlotAndPhysReg[frameSize];
@@ -3346,18 +3308,7 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 
 			if (Log2_32_Ceil(codeSize) > 11) {
 				//Need to add a branch from current target to the newly created branch
-				MachineBasicBlock::instr_iterator Pred, Succ;
-				bool isMIBundledWithPred = MI->isBundledWithPred();
-				bool isMIBundledWithSucc = MI->isBundledWithSucc();
-				if (isMIBundledWithPred) {
-					Pred = MI.getInstrIterator();
-					--Pred;
-				}
-				if (isMIBundledWithSucc) {
-					Succ = MI.getInstrIterator();
-					++Succ;
-				}
-				MachineInstr* replacementInstruction = revertBranch(MI);
+				splitBranchForLongJump(MI, TargetMBB);
 			} else {
 				previouslyProcessedBranchInstructions.push_back(MI);
 			}
@@ -3367,4 +3318,84 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 }
 
 currentHyperOp->setpHyperOpDependenceMap(pHopDependenceMap);
+}
+
+void REDEFINEMCInstrScheduler::splitBranchForLongJump(MachineBasicBlock::iterator MI, MachineBasicBlock* TargetMBB) {
+//	BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(addiRegister, RegState::Define).addImm((immediateValue & 0xfffff000) >> 12);
+MachineBasicBlock::instr_iterator Pred, Succ;
+bool isMIBundledWithPred = MI->isBundledWithPred();
+bool isMIBundledWithSucc = MI->isBundledWithSucc();
+if (isMIBundledWithPred) {
+	Pred = MI.getInstrIterator();
+	--Pred;
+}
+if (isMIBundledWithSucc) {
+	Succ = MI.getInstrIterator();
+	++Succ;
+}
+
+int targetOpcode;
+switch (MI->getOpcode()) {
+case REDEFINE::BEQ:
+	targetOpcode = REDEFINE::BNE;
+	break;
+case REDEFINE::BNE:
+	targetOpcode = REDEFINE::BEQ;
+	break;
+case REDEFINE::BLT:
+	targetOpcode = REDEFINE::BGE;
+	break;
+case REDEFINE::BLTU:
+	targetOpcode = REDEFINE::BGEU;
+	break;
+case REDEFINE::BGE:
+	targetOpcode = REDEFINE::BLT;
+	break;
+case REDEFINE::BGEU:
+	targetOpcode = REDEFINE::BLTU;
+	break;
+case REDEFINE::BGT:
+	targetOpcode = REDEFINE::BLEU;
+	break;
+case REDEFINE::BGTU:
+	targetOpcode = REDEFINE::BLTU;
+	break;
+case REDEFINE::BLE:
+	targetOpcode = REDEFINE::BGT;
+	break;
+case REDEFINE::BLEU:
+	targetOpcode = REDEFINE::BGT;
+	break;
+}
+
+MachineInstr* nextInstruction = MI->getNextNode();
+MachineInstrBuilder jumpBuilder = BuildMI(*MI->getParent(), MI, MI->getDebugLoc(), TII->get(REDEFINE::JAL)).addMBB(TargetMBB);
+//Splice bb at this point
+MachineBasicBlock* fallthroughBB = MI->getParent()->getParent()->CreateMachineBasicBlock();
+fallthroughBB->splice(fallthroughBB->instr_begin(), MI->getParent(), nextInstruction);
+errs()<<"kirik party?\n";
+
+MachineInstrBuilder replacementInstrBuilder = BuildMI(*MI->getParent(), jumpBuilder.operator ->(), MI->getDebugLoc(), TII->get(targetOpcode)).addReg(MI->getOperand(2).getReg()).addReg(MI->getOperand(1).getReg()).addMBB(fallthroughBB);
+
+if (MI->isBundled()) {
+	MI->eraseFromBundle();
+} else {
+	MI->eraseFromParent();
+}
+
+replacementInstrBuilder.operator ->()->bundleWithSucc();
+
+if (isMIBundledWithPred) {
+	//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
+	Pred->clearFlag(MachineInstr::BundledSucc);
+	replacementInstrBuilder.operator ->()->bundleWithPred();
+}
+if (isMIBundledWithSucc) {
+	Succ->clearFlag(MachineInstr::BundledPred);
+	jumpBuilder.operator ->()->bundleWithSucc();
+}
+//assert(Cond.size() <= 4 && "Invalid branch condition!");
+////Only need to switch the condition code, not the registers
+///	return false;
+//}
 }
