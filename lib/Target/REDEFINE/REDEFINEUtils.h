@@ -18,6 +18,7 @@ class REDEFINEUtils {
 	//Alignment is supposed to be for 64 words
 	const static unsigned ALIGNMENT_SIZE = 256;
 public:
+	const static unsigned SIZE_OF_INSTRUCTION = 32;
 	static unsigned getSizeOfType(Type * type);
 	//This method is to ensure that the types are aligned to 'n' word sizes to guarantee that data movement between DGM and global memory and vice-versa dont need extra packets to be processed
 	static unsigned getAlignedSizeOfType(Type * type);
