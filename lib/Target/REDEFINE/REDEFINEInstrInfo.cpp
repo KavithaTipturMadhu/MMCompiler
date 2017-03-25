@@ -288,105 +288,105 @@ void REDEFINEInstrInfo::copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::i
 }
 
 bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const {
-	//TODO Hack for immediates that don't fit in 12 bit addi operand field
-	if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(1).getReg() == REDEFINE::zero) {
-		if (MI->getOperand(2).isImm() && MI->getOperand(2).getImm() != 0 && Log2_32_Ceil((uint32_t) MI->getOperand(2).getImm()) > 10) {
-			//Since immediate value cannot spill 11 bits, we need to expand it to lui and add instructions
-			MachineBasicBlock::instr_iterator Pred, Succ;
-			//TODO We know that an immediate value cannot exceed 32 bit value anyway, so casting to 32 bit is expected to be safe
-			int32_t immediateValue = ((int32_t) MI->getOperand(2).getImm());
-			bool isMIBundledWithPred = MI->isBundledWithPred();
-			bool isMIBundledWithSucc = MI->isBundledWithSucc();
-			if (isMIBundledWithPred) {
-				Pred = MI.getInstrIterator();
-				--Pred;
-			}
-			if (isMIBundledWithSucc) {
-				Succ = MI.getInstrIterator();
-				++Succ;
-			}
-
-			unsigned addiRegister = MI->getOperand(0).getReg();
-
-			MachineInstrBuilder luiForTopBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::LUI)).addReg(addiRegister, RegState::Define).addImm((immediateValue & 0xfffff000) >> 12);
-			MachineInstrBuilder luiForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::LUI)).addReg(REDEFINE::a5, RegState::Define).addImm(immediateValue & 0xfff);
-			MachineInstrBuilder srliForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::SRLI)).addReg(REDEFINE::a5, RegState::Define).addReg(REDEFINE::a5, RegState::InternalRead).addImm(12);
-			MachineInstrBuilder add = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADD)).addReg(addiRegister).addReg(addiRegister).addReg(REDEFINE::a5);
-
-			if (MI->isBundled()) {
-				MI->eraseFromBundle();
-			} else {
-				MI->eraseFromParent();
-			}
-			luiForTopBits->bundleWithSucc();
-			luiForBottomBits->bundleWithSucc();
-			srliForBottomBits->bundleWithSucc();
-
-			if (isMIBundledWithPred) {
-				//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
-				Pred->clearFlag(MachineInstr::BundledSucc);
-				luiForTopBits->bundleWithPred();
-			}
-			if (isMIBundledWithSucc) {
-				Succ->clearFlag(MachineInstr::BundledPred);
-				add->bundleWithSucc();
-			}
-			return true;
-		} else if (MI->getOperand(2).isGlobal()) {
-			//This is only in case of getting the lower bits of addi
-			const GlobalValue * gv = MI->getOperand(2).getGlobal();
-			const Module* parentModule = MI->getParent()->getParent()->getFunction()->getParent();
-			unsigned maxGlobalSize = 0;
-			if (!parentModule->getGlobalList().empty()) {
-				for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
-					const GlobalVariable *globalVar = &*globalArgItr;
-					if (globalVar->getName().compare(gv->getName()) == 0) {
-						break;
-					}
-					maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
-				}
-			}
-
-			MachineBasicBlock::instr_iterator Pred, Succ;
-			bool isMIBundledWithPred = MI->isBundledWithPred();
-			bool isMIBundledWithSucc = MI->isBundledWithSucc();
-			if (isMIBundledWithPred) {
-				Pred = MI.getInstrIterator();
-				--Pred;
-			}
-			if (isMIBundledWithSucc) {
-				Succ = MI.getInstrIterator();
-				++Succ;
-			}
-
-			unsigned addiRegister = MI->getOperand(0).getReg();
-
-			MachineInstrBuilder lui = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::LUI));
-			lui.addReg(addiRegister, RegState::Define);
-			string lowGlobalAddrString = string("%lo(").append("\"ga#").append(itostr(maxGlobalSize)).append("\")");
-			MCSymbol* loSymbol = lui.operator ->()->getParent()->getParent()->getContext().GetOrCreateSymbol(StringRef(lowGlobalAddrString));
-			lui.addSym(loSymbol);
-
-			MachineInstrBuilder shiftInstr = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::SRLI)).addReg(addiRegister).addReg(addiRegister).addImm(12);
-			if (MI->isBundled()) {
-				MI->eraseFromBundle();
-			} else {
-				MI->eraseFromParent();
-			}
-			lui->bundleWithSucc();
-
-			if (isMIBundledWithPred) {
-				//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
-				Pred->clearFlag(MachineInstr::BundledSucc);
-				lui->bundleWithPred();
-			}
-			if (isMIBundledWithSucc) {
-				Succ->clearFlag(MachineInstr::BundledPred);
-				shiftInstr->bundleWithSucc();
-			}
-			return true;
-		}
-	}
+//	//TODO Hack for immediates that don't fit in 12 bit addi operand field
+//	if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(1).getReg() == REDEFINE::zero) {
+//		if (MI->getOperand(2).isImm() && MI->getOperand(2).getImm() != 0 && Log2_32_Ceil((uint32_t) MI->getOperand(2).getImm()) > 10) {
+//			//Since immediate value cannot spill 11 bits, we need to expand it to lui and add instructions
+//			MachineBasicBlock::instr_iterator Pred, Succ;
+//			//TODO We know that an immediate value cannot exceed 32 bit value anyway, so casting to 32 bit is expected to be safe
+//			int32_t immediateValue = ((int32_t) MI->getOperand(2).getImm());
+//			bool isMIBundledWithPred = MI->isBundledWithPred();
+//			bool isMIBundledWithSucc = MI->isBundledWithSucc();
+//			if (isMIBundledWithPred) {
+//				Pred = MI.getInstrIterator();
+//				--Pred;
+//			}
+//			if (isMIBundledWithSucc) {
+//				Succ = MI.getInstrIterator();
+//				++Succ;
+//			}
+//
+//			unsigned addiRegister = MI->getOperand(0).getReg();
+//
+//			MachineInstrBuilder luiForTopBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::LUI)).addReg(addiRegister, RegState::Define).addImm((immediateValue & 0xfffff000) >> 12);
+//			MachineInstrBuilder luiForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::LUI)).addReg(REDEFINE::a5, RegState::Define).addImm(immediateValue & 0xfff);
+//			MachineInstrBuilder srliForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::SRLI)).addReg(REDEFINE::a5, RegState::Define).addReg(REDEFINE::a5, RegState::InternalRead).addImm(12);
+//			MachineInstrBuilder add = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADD)).addReg(addiRegister).addReg(addiRegister).addReg(REDEFINE::a5);
+//
+//			if (MI->isBundled()) {
+//				MI->eraseFromBundle();
+//			} else {
+//				MI->eraseFromParent();
+//			}
+//			luiForTopBits->bundleWithSucc();
+//			luiForBottomBits->bundleWithSucc();
+//			srliForBottomBits->bundleWithSucc();
+//
+//			if (isMIBundledWithPred) {
+//				//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
+//				Pred->clearFlag(MachineInstr::BundledSucc);
+//				luiForTopBits->bundleWithPred();
+//			}
+//			if (isMIBundledWithSucc) {
+//				Succ->clearFlag(MachineInstr::BundledPred);
+//				add->bundleWithSucc();
+//			}
+//			return true;
+//		} else if (MI->getOperand(2).isGlobal()) {
+//			//This is only in case of getting the lower bits of addi
+//			const GlobalValue * gv = MI->getOperand(2).getGlobal();
+//			const Module* parentModule = MI->getParent()->getParent()->getFunction()->getParent();
+//			unsigned maxGlobalSize = 0;
+//			if (!parentModule->getGlobalList().empty()) {
+//				for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
+//					const GlobalVariable *globalVar = &*globalArgItr;
+//					if (globalVar->getName().compare(gv->getName()) == 0) {
+//						break;
+//					}
+//					maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
+//				}
+//			}
+//
+//			MachineBasicBlock::instr_iterator Pred, Succ;
+//			bool isMIBundledWithPred = MI->isBundledWithPred();
+//			bool isMIBundledWithSucc = MI->isBundledWithSucc();
+//			if (isMIBundledWithPred) {
+//				Pred = MI.getInstrIterator();
+//				--Pred;
+//			}
+//			if (isMIBundledWithSucc) {
+//				Succ = MI.getInstrIterator();
+//				++Succ;
+//			}
+//
+//			unsigned addiRegister = MI->getOperand(0).getReg();
+//
+//			MachineInstrBuilder lui = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::LUI));
+//			lui.addReg(addiRegister, RegState::Define);
+//			string lowGlobalAddrString = string("%lo(").append("\"ga#").append(itostr(maxGlobalSize)).append("\")");
+//			MCSymbol* loSymbol = lui.operator ->()->getParent()->getParent()->getContext().GetOrCreateSymbol(StringRef(lowGlobalAddrString));
+//			lui.addSym(loSymbol);
+//
+//			MachineInstrBuilder shiftInstr = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::SRLI)).addReg(addiRegister).addReg(addiRegister).addImm(12);
+//			if (MI->isBundled()) {
+//				MI->eraseFromBundle();
+//			} else {
+//				MI->eraseFromParent();
+//			}
+//			lui->bundleWithSucc();
+//
+//			if (isMIBundledWithPred) {
+//				//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
+//				Pred->clearFlag(MachineInstr::BundledSucc);
+//				lui->bundleWithPred();
+//			}
+//			if (isMIBundledWithSucc) {
+//				Succ->clearFlag(MachineInstr::BundledPred);
+//				shiftInstr->bundleWithSucc();
+//			}
+//			return true;
+//		}
+//	}
 	return false;
 
 }
