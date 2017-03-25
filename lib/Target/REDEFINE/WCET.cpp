@@ -66,7 +66,7 @@ pHyperOpBasicBlock::pHyperOpBasicBlock( MachineBasicBlock * B )
 		instrItrold = instrItr;
 	}
 	//Handling Instruction Function Unit Dependency
-	//TODO Parallelism by Floating and Integer Instruction
+	//TODO Include Parallelism by Floating and Integer Instruction
 	//errs()<<"WCET: pH0: "<<this->pHyperBB[0].get_Wcet()<<" WCET: pH1: "<<this->pHyperBB[1].get_Wcet()<<\
 			" WCET: pH2: "<<this->pHyperBB[2].get_Wcet()<<" WCET: pH3: "<<this->pHyperBB[3].get_Wcet()<<"\n";
 }
@@ -225,7 +225,7 @@ SingleHyperOpWcet::SingleHyperOpWcet( llvm::MachineFunction *MFI , MachineLoopIn
 	{
 		auto ls = this->pHopCFG[pHopindex].get_VertexList();
 		auto lsitr = ls.begin();
-		this->IntraHop.add_Edge( CFGSTART , mycfg.LookUp[pHopindex].at( 0 ) , 0 );
+		this->IntraHop.add_Edge( CFGSTART , mycfg.LookUp[pHopindex].at( 0 ) , 4 + ( pHopindex * 3 ) );
 		for ( ; lsitr != ls.end() ; ++lsitr )
 		{
 
@@ -243,10 +243,12 @@ SingleHyperOpWcet::SingleHyperOpWcet( llvm::MachineFunction *MFI , MachineLoopIn
 
 	}
 
-	this->IntraHop.xdot();
+	this->IntraHop.xdot_CriticalPath();
 	//TODO INCLUDING LOOP ANALYSIS
 
 	//ADDING MPI
+
+	//CREATING A LOOKUP
 	const TargetInstrInfo* TII;
 	TII = this->MF->getTarget().getInstrInfo();
 	const TargetMachine &TM = this->MF->getTarget();
@@ -254,7 +256,7 @@ SingleHyperOpWcet::SingleHyperOpWcet( llvm::MachineFunction *MFI , MachineLoopIn
 	HyperOp* currentHyperOp = HIG->getHyperOp( const_cast< Function* >( this->MF->getFunction() ) );
 
 	PHyperOpInteractionGraph phopDependence = currentHyperOp->getpHyperOpDependenceMap();
-	for ( auto pHopDependenceItr = phopDependence.begin() ; pHopDependenceItr != phopDependence.end() ; pHopDependenceItr++ )
+	for ( auto pHopDependenceItr = phopDependence.rbegin() ; pHopDependenceItr != phopDependence.rend() ; ++pHopDependenceItr )
 	{
 		MachineInstr* s = pHopDependenceItr->first;
 		MachineInstr* t = pHopDependenceItr->second;
@@ -266,37 +268,79 @@ SingleHyperOpWcet::SingleHyperOpWcet( llvm::MachineFunction *MFI , MachineLoopIn
 		pHyperOpBB *ptre = new pHyperOpBB;
 		this->MPILookup.insert( make_pair( s , ptrs ) );
 		this->MPILookup.insert( make_pair( t , ptre ) );
-
-		for ( int pLookindex = 0 ; pLookindex < 4 ; pLookindex++ )
-		{
-			pHyperOpBB* pbbs = ( this->LookUp[pLookindex][s->getParent()->getNumber()] );
-			if( pbbs->Is_Vertex( FunctionUnit.get_FuncUnitNumber( s , 0 ) ) )
-			{
-				pstart = pbbs;
-				this->IntraHop.split_Vertex( pstart , ptrs );
-			}
-
-			pHyperOpBB* pbbt = ( this->LookUp[pLookindex][t->getParent()->getNumber()] );
-			if( pbbt->Is_Vertex( FunctionUnit.get_FuncUnitNumber( t , 0 ) ) )
-			{
-				pend = pbbt;
-				this->IntraHop.split_Vertex( pend , ptre );
-			}
-		}
-
-		this->IntraHop.add_Edge( ptrs , ptre , pstart->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( s , 4 ) ) + 1000 );
-		//this->pHopMPI.add_Edge( ptrs , ptre , pstart->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( s , 4 ) ) );
 	}
 
+	//ADDING NODES
+	std::map< llvm::MachineBasicBlock * , bool > Q;
+	Q.clear();
+	for ( auto itr = MPILookup.begin() ; itr != MPILookup.end() ; ++itr )
+	{
+		auto Iptr = itr->first;
+		auto MBB = Iptr->getParent();
+		auto findItr = Q.find( MBB );
+
+		if( findItr == Q.end() )
+		{
+			for ( auto litr = MBB->instr_rbegin() ; litr != MBB->instr_rend() ; ++litr )
+			{
+				auto MessageInstrItr = MPILookup.find( &*litr );
+				if( MessageInstrItr != MPILookup.end() )
+				{
+					for ( int pLookindex = 0 ; pLookindex < 4 ; pLookindex++ )
+					{
+						pHyperOpBB* pbbs = this->LookUp[pLookindex][MBB->getNumber()];
+						if( pbbs->Is_Vertex( FunctionUnit.get_FuncUnitNumber( ( &*litr ) , 0 ) ) )
+						{
+							this->IntraHop.split_Vertex( pbbs , MessageInstrItr->second , pbbs->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( &*litr , 4 ) ) );
+						}
+
+					}
+
+				}
+
+			}
+			Q.insert( make_pair( MBB , true ) );
+		}
+	}
+
+	/*	for ( int pLookindex = 0 ; pLookindex < 4 ; pLookindex++ )
+	 {
+	 pHyperOpBB* pbbs = ( this->LookUp[pLookindex][s->getParent()->getNumber()] );
+	 if( pbbs->Is_Vertex( FunctionUnit.get_FuncUnitNumber( s , 0 ) ) )
+	 {
+	 pstart = pbbs;
+	 this->IntraHop.split_Vertex( pstart , ptrs , pstart->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( s , 4 ) ) );
+	 this->pHopMPI.add_Edge( pstart , ptrs , pstart->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( s , 4 ) ) );
+	 }
+
+	 pHyperOpBB* pbbt = ( this->LookUp[pLookindex][t->getParent()->getNumber()] );
+	 if( pbbt->Is_Vertex( FunctionUnit.get_FuncUnitNumber( t , 0 ) ) )
+	 {
+	 pend = pbbt;
+	 this->IntraHop.split_Vertex( pend , ptre , pend->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( t , 0 ) ) );
+	 this->pHopMPI.add_Edge( pend , ptre , pend->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( t , 0 ) ) );
+	 }
+	 }*/
+
+	//this->pHopMPI.add_Edge( ptrs , ptre , pstart->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( s , 4 ) ) );
+	//ADD EDGES
+	for ( auto pHopDependenceItr = phopDependence.rbegin() ; pHopDependenceItr != phopDependence.rend() ; ++pHopDependenceItr )
+	{
+		MachineInstr* s = pHopDependenceItr->first;
+		MachineInstr* t = pHopDependenceItr->second;
+		this->IntraHop.add_Edge( this->MPILookup.at( s ) , this->MPILookup.at( t ) , pHyperMessageLatency );
+	}
+
+	//this->pHopMPI.xdot();
+	//	this->pHopCFG[0].xdot();
+	//	this->pHopMPI.xdot();
+	//  this->LScope[0].xdot ();
 }
 int SingleHyperOpWcet::get_Wcet()
 {
+	this->IntraHop.xdot_CriticalPath();
+	return this->IntraHop.get_Wcet();
 
-	this->IntraHop.xdot();
-	this->pHopCFG[0].xdot();
-	this->pHopMPI.xdot();
-	//this->LScope[0].xdot ();
-	return 0;
 }
 int SingleHyperOpWcet::get_WcetNode( int i )
 {
@@ -440,9 +484,10 @@ template<class T> bool DWGraph< T >::add_Vertex( T _u )
 		return false;
 	}
 }
-template<class T> bool DWGraph< T >::split_Vertex( T _u , T _v )
+template<class T> bool DWGraph< T >::split_Vertex( T _u , T _v , int delta )
 {
 	typename DWG::iterator itr = this->G.find( _u );
+	typename DWG::iterator jitr;
 	if( itr == this->G.end() )
 	{
 		return false;
@@ -456,8 +501,15 @@ template<class T> bool DWGraph< T >::split_Vertex( T _u , T _v )
 			this->n++;
 
 			this->G.at( _u ) = new AdjList;
-			AdjEdge< T > *E = new AdjEdge< T >( _v , 0 );
+			AdjEdge< T > *E = new AdjEdge< T >( _v , delta );
 			this->G.at( _u )->push_back( *E );
+
+			jitr = this->G.find( _v );
+			for ( typename AdjList::iterator litr = ( ( *jitr ).second )->begin() ; litr != ( ( *jitr ).second )->end() ; ++litr )
+			{
+				litr->set_weight( litr->get_weight() - delta );
+			}
+
 			return true;
 		}
 		else

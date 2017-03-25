@@ -55,10 +55,10 @@
 #define CFGSTART (pHyperOpBB *)0
 #define CFGEND (pHyperOpBB *)1
 #define MAXLOOPBOUND 100
+#define pHyperMessageLatency 3
 namespace WCET
 {
 	unsigned int get_gidx();
-
 	template<class T> class FuncUnit
 	{
 		protected:
@@ -127,7 +127,7 @@ namespace WCET
 			//To add vertex to graph
 			bool add_Vertex( T );
 			//To split first vertex into 2 Vertex given by first and second argument graph
-			bool split_Vertex( T , T );
+			bool split_Vertex( T , T , int );
 			//To add edge u to v of weight w
 			bool add_Edge( T , T , int );
 			//To remove edge u to v
