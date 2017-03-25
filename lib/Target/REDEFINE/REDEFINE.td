@@ -18,6 +18,8 @@ include "llvm/Target/Target.td"
 
 def FeatureCECount4 : SubtargetFeature<"has4ce", "CECount", "4",
                                 "Supports 4 CEs per CR, default is 1">;
+def FeatureCECount2 : SubtargetFeature<"has2ce", "CECount", "2",
+                                "Supports 2 CEs per CR, default is 1">;                                
 def FeatureFabricMDim4 : SubtargetFeature<"has4rows", "M", "4",
                                 "Supports 4 CRs along each row, default is 1">;      
 def FeatureFabricNDim4 : SubtargetFeature<"has4columns", "N", "4",

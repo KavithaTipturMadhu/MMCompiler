@@ -136,6 +136,7 @@ bool WcetAnalyzer::runOnMachineFunction( MachineFunction &MF )
 	 }
 	 }
 	 g.xdot;*/
+
 	/*
 	 errs() << "---------------------------------------------------------------------------------------------------\n";
 	 errs() << "-------------------------------------------TEST Graph----------------------------------------------\n";
@@ -145,56 +146,60 @@ bool WcetAnalyzer::runOnMachineFunction( MachineFunction &MF )
 	 WCET::pHyperOpBB hbb=pbb.get_pHyperOpBB(0);
 	 //hbb.xdot();
 	 WCET::pHyperOpControlFlowGraph pcfg(MF);
+	 */
 
-	 errs() << "---------------------------------------------------------------------------------------------------\n";
-	 errs() << "----------------------------------------HyperOp Graph----------------------------------------------\n";
-	 errs() << "---------------------------------------------------------------------------------------------------\n";
-	 typedef WCET::DWAGraph<unsigned long int> HyperOpGraph;
-	 HyperOpGraph HyperGraph;
+	errs() << "---------------------------------------------------------------------------------------------------\n";
+	errs() << "----------------------------------------HyperOp Graph----------------------------------------------\n";
+	errs() << "---------------------------------------------------------------------------------------------------\n";
+//	 typedef WCET::DWAGraph<unsigned long int> HyperOpGraph;
+//	 HyperOpGraph HyperGraph;
 
-	 const TargetInstrInfo* TII;
-	 TII = MF.getTarget().getInstrInfo();
-	 const TargetMachine &TM = MF.getTarget();
-	 HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
-	 HyperOp* currentHyperOp = HIG->getHyperOp(const_cast<Function*>(MF.getFunction()));
-	 PHyperOpInteractionGraph phopDependence = currentHyperOp->getpHyperOpDependenceMap();
-	 for (auto pHopDependenceItr = phopDependence.begin(); pHopDependenceItr != phopDependence.end(); pHopDependenceItr++)
-	 {
-	 errs() << "dependence between instructions :";
-	 MachineInstr* sourceMI = pHopDependenceItr->first;
-	 MachineInstr* targetMI = pHopDependenceItr->second;
-	 sourceMI->dump();
-	 targetMI->dump();
-	 }
+	const TargetInstrInfo* TII;
+	TII = MF.getTarget().getInstrInfo();
+	const TargetMachine &TM = MF.getTarget();
+	const InstrItineraryData *InstrItins;
+	InstrItins = ( ( const REDEFINETargetMachine& ) TM ).getInstrItineraryData();
+	HyperOpInteractionGraph * HIG = ( ( REDEFINETargetMachine& ) TM ).HIG;
+	HyperOp* currentHyperOp = HIG->getHyperOp( const_cast< Function* >( MF.getFunction() ) );
+	PHyperOpInteractionGraph phopDependence = currentHyperOp->getpHyperOpDependenceMap();
+	for ( auto pHopDependenceItr = phopDependence.begin() ; pHopDependenceItr != phopDependence.end() ; pHopDependenceItr++ )
+	{
+		errs() << "dependence between instructions :";
+		MachineInstr* sourceMI = pHopDependenceItr->first;
+		MachineInstr* targetMI = pHopDependenceItr->second;
+		sourceMI->dump();
+		targetMI->dump();
+	}
 
-	 for (MachineFunction::const_iterator B = MF.begin(), E = MF.end(); B != E; ++B)
-	 {
-	 int pHyperOpIndex = -1;
-	 for (MachineBasicBlock::const_instr_iterator instrItr = B->instr_begin(); instrItr != B->instr_end(); ++instrItr)
-	 {
+	for ( MachineFunction::const_iterator B = MF.begin() , E = MF.end() ; B != E ; ++B )
+	{
+		int pHyperOpIndex = -1;
+		for ( MachineBasicBlock::const_instr_iterator instrItr = B->instr_begin() ; instrItr != B->instr_end() ; ++instrItr )
+		{
+			unsigned latency = TII->getInstrLatency( InstrItins , &*instrItr );
+			if( !instrItr->isInsideBundle() )
+			{
+				pHyperOpIndex++;
+				//UID uniqueId(pHyperOpIndex,IUID);
+				//ILookup.insert(std::make_pair(instrItr,uniqueId))
 
-	 if (!instrItr->isInsideBundle())
-	 {
-	 pHyperOpIndex++;
-	 //UID uniqueId(pHyperOpIndex,IUID);
-	 //ILookup.insert(std::make_pair(instrItr,uniqueId))
-	 if (instrItr->getNumOperands() > 2)
-	 errs() << "\n\nBasicBlock#" << B->getNumber() << ", pHyperOp#" << pHyperOpIndex << " : " <<\
- TII->getName(instrItr->getOpcode()) << " (" << instrItr->getOpcode() << ") -> " << instrItr->getOperand(2) << "\n";
-	 else
-	 errs() << "\n\nBasicBlock#" << B->getNumber() << ", pHyperOp#" << pHyperOpIndex << " : " <<\
- TII->getName(instrItr->getOpcode()) << instrItr->getOpcode() << "\n";
-	 }
-	 if (instrItr->getNumOperands() > 2)
-	 errs() << "BasicBlock#" << B->getNumber() << ", pHyperOp#" << pHyperOpIndex << " : " <<\
- TII->getName(instrItr->getOpcode()) << " (" << instrItr->getOpcode() << ") -> " << instrItr->getOperand(2) << "\n";
-	 else
-	 errs() << "BasicBlock#" << B->getNumber() << ", pHyperOp#" << pHyperOpIndex << " : " <<\
- TII->getName(instrItr->getOpcode()) << instrItr->getOpcode() << "\n";
-	 }
-	 }
+				if( instrItr->getNumOperands() > 2 )
+					errs() << "\n\nBasicBlock#" << B->getNumber() << ", pHyperOp#" << pHyperOpIndex << ", " << latency << " : " <<\
+ TII->getName( instrItr->getOpcode() ) << " (" << instrItr->getOpcode() << ") -> " << instrItr->getOperand( 2 ) << "\n";
+				else
+					errs() << "\n\nBasicBlock#" << B->getNumber() << ", pHyperOp#" << pHyperOpIndex << ", " << latency << " : " <<\
+ TII->getName( instrItr->getOpcode() ) << instrItr->getOpcode() << "\n";
+			}
+			if( instrItr->getNumOperands() > 2 )
+				errs() << "BasicBlock#" << B->getNumber() << ", pHyperOp#" << pHyperOpIndex << ", " << latency << " : " <<\
+ TII->getName( instrItr->getOpcode() ) << " (" << instrItr->getOpcode() << ") -> " << instrItr->getOperand( 2 ) << "\n";
+			else
+				errs() << "BasicBlock#" << B->getNumber() << ", pHyperOp#" << pHyperOpIndex << ", " << latency << " : " <<\
+ TII->getName( instrItr->getOpcode() ) << instrItr->getOpcode() << "\n";
+		}
+	}
 
-
+	/*
 	 errs() << "---------------------------------------------------------------------------------------------------\n";
 	 errs() << "------------------------------------------HIG ALGO-------------------------------------------------\n";
 	 errs() << "---------------------------------------------------------------------------------------------------\n";
