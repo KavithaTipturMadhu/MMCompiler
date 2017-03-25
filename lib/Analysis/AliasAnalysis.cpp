@@ -484,13 +484,15 @@ AliasAnalysis::~AliasAnalysis() {}
 void AliasAnalysis::InitializeAliasAnalysis(Pass *P) {
   TD = P->getAnalysisIfAvailable<DataLayout>();
   TLI = P->getAnalysisIfAvailable<TargetLibraryInfo>();
-//  AA = &P->getAnalysis<BasicAliasAnalysis>();
+  //TODO:	Comment out the following to make basicaa the default pass
+  AA = &P->getAnalysis<AliasAnalysis>();
 }
 
 // getAnalysisUsage - All alias analysis implementations should invoke this
 // directly (using AliasAnalysis::getAnalysisUsage(AU)).
 void AliasAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
-//  AU.addRequired<BasicAliasAnalysis>();         // All AA's chain
+//TODO:	Comment out the following to make basicaa the default pass
+  AU.addRequired<AliasAnalysis>();         // All AA's chain
 }
 
 /// getTypeStoreSize - Return the DataLayout store size for the given type,

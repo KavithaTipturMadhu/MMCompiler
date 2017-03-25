@@ -953,13 +953,11 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 			 }
 			 errs()<<"\n";
 
-			 errs()<<"whats in domf?"<<vertex->getDominanceFrontier().size()<<":";
 			 if(vertex->getDominanceFrontier().empty()){
 				 errs()<<"nothing";
 			 }else{
 				 list<HyperOp*> domf = vertex->getDominanceFrontier();
 //				 std::copy(vertex->getDominanceFrontier().begin(), vertex->getDominanceFrontier().end(), std::back_inserter(domf));
-				 errs()<<"domf copy?"<<domf.size()<<"\n";
 				 for(auto domfItr = domf.begin();domfItr!=domf.end();domfItr++){
 					 errs()<<(*domfItr)->asString()<<",";
 				 }
