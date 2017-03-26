@@ -4328,6 +4328,7 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
 		setValue(&I, Res);
 		return 0;
 	}
+	//redefine
 	case Intrinsic::powi:
 		setValue(&I, ExpandPowI(dl, getValue(I.getArgOperand(0)), getValue(I.getArgOperand(1)), DAG));
 		return 0;

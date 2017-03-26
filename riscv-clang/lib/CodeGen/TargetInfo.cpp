@@ -4120,7 +4120,7 @@ void NVPTXTargetCodeGenInfo::addKernelMetadata(llvm::Function *F) {
 //===----------------------------------------------------------------------===//
 
 namespace {
-
+//REDEFINE
 class REDEFINEABIInfo : public ABIInfo {
   static const unsigned MinABIStackAlignInBytes = 4;
 public:

@@ -404,6 +404,7 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD, unsigned Builtin
 		return RValue::get(0);
 	}
 
+	//redefine
 	case Builtin::BI__builtin_powi:
 	case Builtin::BI__builtin_powif:
 	case Builtin::BI__builtin_powil: {
