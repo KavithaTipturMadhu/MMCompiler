@@ -51,14 +51,20 @@
 #define XDOTRANK 0 //True of False Formatting in XDOT Critical Path.
 #define GND (void *)0//Void Pointer
 #define PIPEDEPTH 5//Pipeline Depth 5 Stage
-#define LoopScopeRoot (MachineLoop*) 0
 #define CFGSTART (pHyperOpBB *)0
 #define CFGEND (pHyperOpBB *)1
-#define MAXLOOPBOUND 100
-#define pHyperMessageLatency 3
+#define BCETEND(x) (pHyperOpBB *) (x+2)
+#define HyperGND (HyperOp *)0
+
+#define MAXLOOPBOUND 1000
+#define pHyperMessageWorstLatency 3
+#define pHyperMessageBestLatency 1
+#define pHyperOpNumber 4
+
 namespace WCET
 {
 	unsigned int get_gidx();
+
 	template<class T> class FuncUnit
 	{
 		protected:
@@ -85,26 +91,6 @@ namespace WCET
 			int get_weight();
 			T get_vertex();
 			void set_weight( int );
-	};
-
-	template<class T> class DFSNode
-	{
-		protected:
-			unsigned long int Pre;
-			unsigned long int Post;
-			T Parent;
-			bool Visited;
-
-		public:
-			DFSNode( T );
-			unsigned long int get_Pre();
-			unsigned long int get_Post();
-			T get_Parent();
-			void set_Pre( unsigned long int );
-			void set_Post( unsigned long int );
-			void set_Parent( T );
-			bool IsVisited();
-			void set_Visited();
 	};
 
 	template<class T> class DWGraph
@@ -161,28 +147,36 @@ namespace WCET
 			TimeVextexMap CTVM;
 			TSList TSL;
 			CPMap CrticalPath;
-
+			std::map< T , int > Distance;
 		public:
 			DWAGraph();
 			void TopologicalSorting();
 			void CriticalPath();
 			int get_Wcet();
 			int get_NodeWcet( T );
+			int get_Bcet();
+			int get_NodeBcet( T );
 			void dump_TSL();
 			void dump_CriticalPath();
 			void xdot_CriticalPath();
+			void dump_ShortestPath();
+			void xdot_ShortestPath();
 	};
 
 	typedef DWAGraph< unsigned long int > pHyperOpBB;
 	typedef std::map< MachineInstr* , pHyperOpBB* > MachinepHyperOpBBLookup;
-	typedef DWGraph< pHyperOpBB* > pHyperOpCFG;
+	typedef DWAGraph< pHyperOpBB* > pHyperOpCFG;
+	typedef DWAGraph< pHyperOpBB* > PartialCFG;
 	typedef DWAGraph< pHyperOpBB* > IntraHyperOp;
+	typedef std::map< pHyperOpBB* , std::pair< int , int > > pHyperOpBBExtraTime;
 	typedef DWGraph< MachineLoop* > LoopScope;
-	typedef std::map< MachineLoop * , unsigned int > LoopBound;
+	typedef std::map< MachineLoop * , std::pair< unsigned int , unsigned int > > LoopBound;
+	typedef WCET::DWAGraph< HyperOp * > HyperOpGraph;
+
 	class pHyperOpBasicBlock
 	{
 		protected:
-			pHyperOpBB pHyperBB[4];
+			pHyperOpBB pHyperBB[pHyperOpNumber];
 		public:
 			pHyperOpBasicBlock( llvm::MachineBasicBlock * );
 			pHyperOpBB get_pHyperOpBB( int );
@@ -191,52 +185,41 @@ namespace WCET
 	class pHyperOpControlFlowGraph
 	{
 		public:
-			std::vector< pHyperOpBB* > LookUp[4];
-			pHyperOpCFG pHyperCFG[4];
+			std::vector< pHyperOpBB* > LookUp[pHyperOpNumber];
+			pHyperOpCFG pHyperCFG[pHyperOpNumber];
 			pHyperOpControlFlowGraph( llvm::MachineFunction &MF , llvm::MachineDominatorTree *DT );
-	};
-
-	class LoopAnalysis
-	{
-		public:
-			LoopScope LS;
-			LoopAnalysis( MachineLoopInfo *LI );
-			void set_LoopBounds( MachineLoop * , unsigned int );
-			unsigned int get_LoopBounds( MachineLoop * L );
-			void LoopDFS( MachineLoop * );
-			int Loop_Wcet( MachineLoop * , int );
-			void dumpDFS( MachineLoop * );
-			void dump();
-	};
-
-	class LoopSingleIterationWcet : public DWAGraph< MachineLoop* >
-	{
-		protected:
-			typedef std::queue< llvm::MachineBasicBlock * > BBQ;
-			BBQ q;
-			BBQ qt;
-
-			int LoopSIWcet[4];
-			MachineLoop* L;
-		public:
-			LoopSingleIterationWcet( MachineLoop* );
-			int get_LoopSingleIterationWcet( int );
 	};
 
 	class SingleHyperOpWcet
 	{
 		private:
 			llvm::MachineFunction* MF;
-			pHyperOpCFG pHopCFG[4];
+			pHyperOpCFG pHopCFG[pHyperOpNumber];
 			MachinepHyperOpBBLookup MPILookup;
-			pHyperOpCFG pHopMPI;
-			std::vector< pHyperOpBB* > LookUp[4];
-			LoopScope LScope[4];
-			IntraHyperOp IntraHop;
+			std::vector< pHyperOpBB* > LookUp[pHyperOpNumber];
+			LoopScope LS;
+			LoopBound pLoopBound;
+			pHyperOpBBExtraTime pBBExtraTime[pHyperOpNumber];
+			IntraHyperOp IntraHopWCET;
+			IntraHyperOp IntraHopBCET;
+
 		public:
+			//std::vector< std::pair< unsigned int , unsigned int > > LoopUpperLowerBound;
 			SingleHyperOpWcet( llvm::MachineFunction* MF , MachineLoopInfo *LI , MachineDominatorTree *DT );
+			void LoopAnalysis( MachineLoopInfo *LI );
+			void LsDFS( MachineLoop * );
+			void LoopDFS( MachineLoop * );
+
+			void set_LoopBound( MachineLoop * , unsigned int , unsigned int );
+			void set_LoopUpperBound( MachineLoop * , unsigned int );
+			void set_LoopLowerBound( MachineLoop * , unsigned int );
+			unsigned int get_LoopUpperBound( MachineLoop * L );
+			unsigned int get_LoopLowerBound( MachineLoop * L );
 			int get_Wcet();
-			int get_WcetNode( int Node );
+			int get_WcetNode( MachineInstr* );
+			int get_Bcet();
+			int get_BcetNode( MachineInstr* );
+			void dumpLoop();
 	};
 
 }

@@ -8,16 +8,19 @@
 using namespace WCET;
 using namespace std;
 
-//GET ID
+//GLOBAL VARIABLE
 static unsigned int gidx;
+WCET::FuncUnit< const llvm::MachineInstr * > FunctionUnit;
+WCET::LoopBound LoopBounds;
+
+//GET ID
 unsigned int WCET::get_gidx()
 {
 	unsigned int id = gidx;
 	gidx = gidx + 1;
 	return id;
 }
-WCET::FuncUnit< const llvm::MachineInstr * > FunctionUnit;
-WCET::LoopBound LoopBounds;
+
 //pHyperOpBasicBlock
 pHyperOpBasicBlock::pHyperOpBasicBlock( MachineBasicBlock * B )
 {
@@ -79,16 +82,17 @@ WCET::pHyperOpBB pHyperOpBasicBlock::get_pHyperOpBB( int pHyperOpIndex )
 //pHyperOpControlFlowGraph
 pHyperOpControlFlowGraph::pHyperOpControlFlowGraph( llvm::MachineFunction &MF , llvm::MachineDominatorTree *DT )
 {
+	pHyperOpCFG temp;
 	for ( MachineFunction::iterator bbItr = MF.begin() ; bbItr != MF.end() ; bbItr++ )
 	{
-		//bbItr->getNumber();
 		WCET::pHyperOpBasicBlock pHyperMBB( bbItr );
-		for ( int pHyperCFGindex = 0 ; pHyperCFGindex < 4 ; pHyperCFGindex++ )
+		for ( int pHyperCFGindex = 0 ; pHyperCFGindex < pHyperOpNumber ; pHyperCFGindex++ )
 		{
 			WCET::pHyperOpBB *obj = new WCET::pHyperOpBB;
 			*obj = pHyperMBB.get_pHyperOpBB( pHyperCFGindex );
 			this->LookUp[pHyperCFGindex].push_back( obj );
 			this->pHyperCFG[pHyperCFGindex].add_Vertex( obj );
+			temp.add_Vertex( obj );
 		}
 	}
 
@@ -96,159 +100,86 @@ pHyperOpControlFlowGraph::pHyperOpControlFlowGraph( llvm::MachineFunction &MF , 
 	{
 		for ( MachineBasicBlock::succ_iterator succItr = B.succ_begin() ; succItr != B.succ_end() ; succItr++ )
 		{
-			for ( int pHyperCFGindex = 0 ; pHyperCFGindex < 4 ; pHyperCFGindex++ )
+			for ( int pHyperCFGindex = 0 ; pHyperCFGindex < pHyperOpNumber ; pHyperCFGindex++ )
 			{
 				if( !DT->dominates( ( *succItr ) , ( &B ) ) )
 				{
 					this->pHyperCFG[pHyperCFGindex].add_Edge( this->LookUp[pHyperCFGindex][B.getNumber()] , this->LookUp[pHyperCFGindex][ ( *succItr )->getNumber()] , ( this->LookUp[pHyperCFGindex][B.getNumber()] )->get_Wcet() );
 				}
+				temp.add_Edge( this->LookUp[pHyperCFGindex][B.getNumber()] , this->LookUp[pHyperCFGindex][ ( *succItr )->getNumber()] , ( this->LookUp[pHyperCFGindex][B.getNumber()] )->get_Wcet() );
 			}
 		}
 	}
-}
-
-//LoopSingleIterationWcet
-LoopSingleIterationWcet::LoopSingleIterationWcet( MachineLoop* ml )
-{
-	this->L = ml;
-	for ( auto BBitr = ml->block_begin() ; BBitr != ml->block_end() ; ++BBitr )
-	{
-		this->qt.push( *BBitr );
-	}
-
-}
-int LoopSingleIterationWcet::get_LoopSingleIterationWcet( int LoopSingleIterationWcetindex )
-{
-	return this->LoopSIWcet[LoopSingleIterationWcetindex];
-}
-
-//LoopAnalysis
-LoopAnalysis::LoopAnalysis( MachineLoopInfo *LI )
-{
-	this->LS.add_Vertex( LoopScopeRoot );
-
-	for ( MachineLoopInfo::iterator LIT = LI->begin() ; LIT != LI->end() ; ++LIT )
-	{
-		MachineLoop* l = *LIT;
-		set_LoopBounds( l , MAXLOOPBOUND );
-		this->LS.add_Edge( LoopScopeRoot , l , get_LoopBounds( l ) );
-
-		LoopDFS( l );
-	}
-}
-void LoopAnalysis::LoopDFS( MachineLoop *L )
-{
-	this->LS.add_Vertex( L );
-	errs() << "getLD entry " << L->getLoopDepth() << "\n";
-	for ( auto BBitr = L->block_begin() ; BBitr != L->block_end() ; ++BBitr )
-	{
-		errs() << ( *BBitr )->getNumber() << ", ";
-	}
-	errs() << "\n";
-	std::vector< MachineLoop* > subLoops = L->getSubLoops();
-	for ( MachineLoop::iterator subitr = subLoops.begin() ; subitr != subLoops.end() ; ++subitr )
-	{
-		//TODO Centrally Set Loop bounds
-		set_LoopBounds( L , MAXLOOPBOUND );
-		this->LS.add_Edge( L , *subitr , get_LoopBounds( L ) );
-		LoopDFS( *subitr );
-	}
-
-}
-void LoopAnalysis::dumpDFS( MachineLoop *L )
-{
-	list< MachineLoop * > l = this->LS.get_AdjList( L );
-	for ( auto itr = l.begin() ; itr != l.end() ; ++itr )
-	{
-		errs() << "---------------------------------------------------------------------------------------------------\n";
-		( *itr )->dump();
-		this->dumpDFS( *itr );
-	}
-}
-void LoopAnalysis::dump()
-{
-	this->dumpDFS( LoopScopeRoot );
-}
-void LoopAnalysis::set_LoopBounds( MachineLoop * l , unsigned int max )
-{
-	auto itr = LoopBounds.find( l );
-	if( itr != LoopBounds.end() )
-		LoopBounds.at( l ) = max;
-	else
-		LoopBounds.insert( std::make_pair( l , max ) );
-
-}
-unsigned int LoopAnalysis::get_LoopBounds( MachineLoop * l )
-{
-	auto itr = LoopBounds.find( l );
-	if( itr != LoopBounds.end() )
-		return LoopBounds.at( l );
-	else
-		return 0;
+	//temp.xdot();
 }
 
 //IntraHyperOp
 SingleHyperOpWcet::SingleHyperOpWcet( llvm::MachineFunction *MFI , MachineLoopInfo *LI , MachineDominatorTree *DT )
 {
 	this->MF = MFI;
+	//PartialCFG test;
+	//Loop Annotations
 
+	//-CREATE pCFG
 	WCET::pHyperOpControlFlowGraph mycfg( *MFI , DT );
-	this->pHopCFG[0] = mycfg.pHyperCFG[0];
-	this->pHopCFG[1] = mycfg.pHyperCFG[1];
-	this->pHopCFG[2] = mycfg.pHyperCFG[2];
-	this->pHopCFG[3] = mycfg.pHyperCFG[3];
+	for ( int pHopindex = 0 ; pHopindex < pHyperOpNumber ; pHopindex++ )
+	{
+		this->pHopCFG[pHopindex] = mycfg.pHyperCFG[pHopindex];
+		this->LookUp[pHopindex] = mycfg.LookUp[pHopindex];
+	}
 
-	this->LookUp[0] = mycfg.LookUp[0];
-	this->LookUp[1] = mycfg.LookUp[1];
-	this->LookUp[2] = mycfg.LookUp[2];
-	this->LookUp[3] = mycfg.LookUp[3];
-
-	WCET::LoopAnalysis myla( LI );
-	this->LScope[0] = myla.LS;
-	this->LScope[1] = myla.LS;
-	this->LScope[2] = myla.LS;
-	this->LScope[3] = myla.LS;
-
-	//MERGING pHop into HyerOp
-	this->IntraHop.add_Vertex( CFGSTART );
-	for ( int pHopindex = 0 ; pHopindex < 4 ; pHopindex++ )
+	//-MERGING pHop into HyerOp
+	//-- ADDING VERTEX
+	this->IntraHopWCET.add_Vertex( CFGSTART );
+	this->IntraHopBCET.add_Vertex( CFGSTART );
+	//test.add_Vertex( CFGSTART );
+	for ( int pHopindex = 0 ; pHopindex < pHyperOpNumber ; pHopindex++ )
 	{
 		auto ls = this->pHopCFG[pHopindex].get_VertexList();
 		for ( auto lsitr = ls.begin() ; lsitr != ls.end() ; ++lsitr )
 		{
-			this->IntraHop.add_Vertex( *lsitr );
+			this->IntraHopWCET.add_Vertex( *lsitr );
+			this->IntraHopBCET.add_Vertex( *lsitr );
+			//test.add_Vertex( *lsitr );
+			this->pBBExtraTime[pHopindex].insert( std::make_pair( *lsitr , std::make_pair( 0 , 0 ) ) );
 		}
 	}
-	this->IntraHop.add_Vertex( CFGEND );
+	this->IntraHopWCET.add_Vertex( CFGEND );
 
-	for ( int pHopindex = 0 ; pHopindex < 4 ; pHopindex++ )
+//- INCLUDING LOOP ANALYSIS
+	this->LoopAnalysis( LI );
+	this->LS.dump();
+
+//--ADD EDGE CFG
+	for ( int pHopindex = 0 ; pHopindex < pHyperOpNumber ; pHopindex++ )
 	{
 		auto ls = this->pHopCFG[pHopindex].get_VertexList();
 		auto lsitr = ls.begin();
-		this->IntraHop.add_Edge( CFGSTART , mycfg.LookUp[pHopindex].at( 0 ) , 4 + ( pHopindex * 3 ) );
+		this->IntraHopWCET.add_Edge( CFGSTART , mycfg.LookUp[pHopindex].at( 0 ) , 4 + ( pHopindex * 3 ) );
+		this->IntraHopBCET.add_Edge( CFGSTART , mycfg.LookUp[pHopindex].at( 0 ) , 4 + ( pHopindex * 3 ) );
+		//test.add_Edge( CFGSTART , mycfg.LookUp[pHopindex].at( 0 ) , 4 + ( pHopindex * 3 ) );
 		for ( ; lsitr != ls.end() ; ++lsitr )
 		{
 
 			auto adjls = this->pHopCFG[pHopindex].get_AdjList( *lsitr );
 			for ( auto adjlsitr = adjls.begin() ; adjlsitr != adjls.end() ; ++adjlsitr )
 			{
-				this->IntraHop.add_Edge( *lsitr , *adjlsitr , ( *lsitr )->get_Wcet() );
+				this->IntraHopWCET.add_Edge( *lsitr , *adjlsitr , ( *lsitr )->get_Wcet() + this->pBBExtraTime[pHopindex].at( *lsitr ).second );
+				this->IntraHopBCET.add_Edge( *lsitr , *adjlsitr , ( *lsitr )->get_Wcet() + this->pBBExtraTime[pHopindex].at( *lsitr ).first );
+				//test.add_Edge( *lsitr , *adjlsitr , ( *lsitr )->get_Wcet() );
 			}
 
 			if( adjls.size() == 0 )
 			{
-				this->IntraHop.add_Edge( *lsitr , CFGEND , ( *lsitr )->get_Wcet() );
+				this->IntraHopWCET.add_Edge( *lsitr , CFGEND , ( *lsitr )->get_Wcet() + this->pBBExtraTime[pHopindex].at( *lsitr ).second );
+				this->IntraHopBCET.add_Edge( *lsitr , BCETEND( pHopindex ) , ( *lsitr )->get_Wcet() + this->pBBExtraTime[pHopindex].at( *lsitr ).first );
+				//test.add_Edge( *lsitr , BCETEND( pHopindex ) , ( *lsitr )->get_Wcet() );
 			}
 		}
 
 	}
-
-	this->IntraHop.xdot_CriticalPath();
-	//TODO INCLUDING LOOP ANALYSIS
-
-	//ADDING MPI
-
-	//CREATING A LOOKUP
+//-ADDING MPI
+//--CREATING A LOOKUP
 	const TargetInstrInfo* TII;
 	TII = this->MF->getTarget().getInstrInfo();
 	const TargetMachine &TM = this->MF->getTarget();
@@ -270,7 +201,7 @@ SingleHyperOpWcet::SingleHyperOpWcet( llvm::MachineFunction *MFI , MachineLoopIn
 		this->MPILookup.insert( make_pair( t , ptre ) );
 	}
 
-	//ADDING NODES
+//--ADDING NODES
 	std::map< llvm::MachineBasicBlock * , bool > Q;
 	Q.clear();
 	for ( auto itr = MPILookup.begin() ; itr != MPILookup.end() ; ++itr )
@@ -286,12 +217,14 @@ SingleHyperOpWcet::SingleHyperOpWcet( llvm::MachineFunction *MFI , MachineLoopIn
 				auto MessageInstrItr = MPILookup.find( &*litr );
 				if( MessageInstrItr != MPILookup.end() )
 				{
-					for ( int pLookindex = 0 ; pLookindex < 4 ; pLookindex++ )
+					for ( int pLookindex = 0 ; pLookindex < pHyperOpNumber ; pLookindex++ )
 					{
 						pHyperOpBB* pbbs = this->LookUp[pLookindex][MBB->getNumber()];
 						if( pbbs->Is_Vertex( FunctionUnit.get_FuncUnitNumber( ( &*litr ) , 0 ) ) )
 						{
-							this->IntraHop.split_Vertex( pbbs , MessageInstrItr->second , pbbs->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( &*litr , 4 ) ) );
+							this->IntraHopWCET.split_Vertex( pbbs , MessageInstrItr->second , pbbs->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( &*litr , 4 ) ) );
+							//this->IntraHopBCET.split_Vertex( pbbs , MessageInstrItr->second , pbbs->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( &*litr , 4 ) ) );
+
 						}
 
 					}
@@ -303,48 +236,219 @@ SingleHyperOpWcet::SingleHyperOpWcet( llvm::MachineFunction *MFI , MachineLoopIn
 		}
 	}
 
-	/*	for ( int pLookindex = 0 ; pLookindex < 4 ; pLookindex++ )
-	 {
-	 pHyperOpBB* pbbs = ( this->LookUp[pLookindex][s->getParent()->getNumber()] );
-	 if( pbbs->Is_Vertex( FunctionUnit.get_FuncUnitNumber( s , 0 ) ) )
-	 {
-	 pstart = pbbs;
-	 this->IntraHop.split_Vertex( pstart , ptrs , pstart->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( s , 4 ) ) );
-	 this->pHopMPI.add_Edge( pstart , ptrs , pstart->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( s , 4 ) ) );
-	 }
-
-	 pHyperOpBB* pbbt = ( this->LookUp[pLookindex][t->getParent()->getNumber()] );
-	 if( pbbt->Is_Vertex( FunctionUnit.get_FuncUnitNumber( t , 0 ) ) )
-	 {
-	 pend = pbbt;
-	 this->IntraHop.split_Vertex( pend , ptre , pend->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( t , 0 ) ) );
-	 this->pHopMPI.add_Edge( pend , ptre , pend->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( t , 0 ) ) );
-	 }
-	 }*/
-
-	//this->pHopMPI.add_Edge( ptrs , ptre , pstart->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( s , 4 ) ) );
-	//ADD EDGES
+//--ADD EDGES
 	for ( auto pHopDependenceItr = phopDependence.rbegin() ; pHopDependenceItr != phopDependence.rend() ; ++pHopDependenceItr )
 	{
 		MachineInstr* s = pHopDependenceItr->first;
 		MachineInstr* t = pHopDependenceItr->second;
-		this->IntraHop.add_Edge( this->MPILookup.at( s ) , this->MPILookup.at( t ) , pHyperMessageLatency );
+		this->IntraHopWCET.add_Edge( this->MPILookup.at( s ) , this->MPILookup.at( t ) , pHyperMessageWorstLatency );
+		//this->IntraHopBCET.add_Edge( this->MPILookup.at( s ) , this->MPILookup.at( t ) , pHyperMessageBestLatency );
 	}
 
-	//this->pHopMPI.xdot();
-	//	this->pHopCFG[0].xdot();
-	//	this->pHopMPI.xdot();
-	//  this->LScope[0].xdot ();
 }
 int SingleHyperOpWcet::get_Wcet()
 {
-	this->IntraHop.xdot_CriticalPath();
-	return this->IntraHop.get_Wcet();
+//	this->IntraHopWCET.xdot_CriticalPath();
+	return this->IntraHopWCET.get_Wcet();
 
 }
-int SingleHyperOpWcet::get_WcetNode( int i )
+int SingleHyperOpWcet::get_WcetNode( MachineInstr* I )
 {
+	//errs()<<"Reached Here 1\n";
+	I->dump();
+	WCET::pHyperOpBB* src;
+	for ( int pidx = 0 ; pidx < pHyperOpNumber ; pidx++ )
+	{
+		//errs()<<"Reached Here 2\n";
+		src = this->LookUp[pidx][I->getParent()->getNumber()];
+		//errs()<<"Reached Here 3\n";
+		if( src->Is_Vertex( FunctionUnit.get_FuncUnitNumber(  I , 4 ) ) )
+		{
+			//errs()<<"Reached Here 4\n";
+			int g=0;
+			int b=0;
+			g=this->IntraHopWCET.get_NodeWcet( src );
+			//errs()<<"Reached Here 5\n";
+			b=src->get_NodeWcet(FunctionUnit.get_FuncUnitNumber( ( I ) , 4 ) );
+			//errs()<<"Reached Here 6\n";
+			return (b+g);
+		}
+	}
 	return 0;
+}
+int SingleHyperOpWcet::get_Bcet()
+{
+//	this->IntraHopBCET.xdot_ShortestPath();
+	return this->IntraHopBCET.get_Bcet();
+}
+int SingleHyperOpWcet::get_BcetNode( MachineInstr* I )
+{
+	WCET::pHyperOpBB* src;
+	for ( int pidx = 0 ; pidx < pHyperOpNumber ; pidx++ )
+	{
+		src = this->LookUp[pidx][I->getParent()->getNumber()];
+		if( src->Is_Vertex( FunctionUnit.get_FuncUnitNumber(  I , 4 ) ) )
+		{
+			int g=0;
+			int b=0;
+			g=this->IntraHopWCET.get_NodeBcet( src );
+			b=src->get_NodeBcet(FunctionUnit.get_FuncUnitNumber( ( I ) , 4 ) );
+			return (b+g);
+		}
+	}
+	return 0;
+}
+void SingleHyperOpWcet::LoopAnalysis( MachineLoopInfo *LI )
+{
+	for ( MachineLoopInfo::iterator LIT = LI->begin() ; LIT != LI->end() ; ++LIT )
+	{
+		MachineLoop* l = *LIT;
+		LsDFS( l );
+		auto ls = this->LS.get_VertexList();
+		for ( auto itr = ls.begin() ; itr != ls.end() ; ++itr )
+		{
+			this->pLoopBound.insert( std::make_pair( *itr , std::make_pair( 9 , 9 ) ) );
+		}
+		LoopDFS( l );
+	}
+}
+void SingleHyperOpWcet::LsDFS( MachineLoop *L )
+{
+	this->LS.add_Vertex( L );
+	std::vector< MachineLoop* > subLoops = L->getSubLoops();
+	for ( MachineLoop::iterator subitr = subLoops.begin() ; subitr != subLoops.end() ; ++subitr )
+	{
+		this->LS.add_Edge( L , *subitr , L->getLoopDepth() );
+		LsDFS( *subitr );
+	}
+
+}
+void SingleHyperOpWcet::LoopDFS( MachineLoop *L )
+{
+	int min = 0;
+	int max = 0;
+	std::vector< MachineLoop* > subLoops = L->getSubLoops();
+
+	for ( MachineLoop::iterator subitr = subLoops.begin() ; subitr != subLoops.end() ; ++subitr )
+	{
+		LoopDFS( *subitr );
+	}
+// ADD VERTEX
+	PartialCFG mypartialBCETcfg[pHyperOpNumber];
+	PartialCFG mypartialWCETcfg[pHyperOpNumber];
+	for ( auto BBitr = ( L )->block_begin() ; BBitr != ( L )->block_end() ; ++BBitr )
+	{
+		for ( int pindex = 0 ; pindex < pHyperOpNumber ; pindex++ )
+		{
+			mypartialBCETcfg[pindex].add_Vertex( this->LookUp[pindex].at( ( *BBitr )->getNumber() ) );
+			mypartialWCETcfg[pindex].add_Vertex( this->LookUp[pindex].at( ( *BBitr )->getNumber() ) );
+		}
+	}
+
+//ADD EDGE
+	for ( int pindex = 0 ; pindex < pHyperOpNumber ; pindex++ )
+	{
+		auto ls = mypartialWCETcfg[pindex].get_VertexList();
+		for ( auto itr = ls.begin() ; itr != ls.end() ; ++itr )
+		{
+
+			auto adjls = this->pHopCFG[pindex].get_AdjList( *itr );
+			for ( auto litr = adjls.begin() ; litr != adjls.end() ; ++litr )
+			{
+				if( mypartialWCETcfg[pindex].Is_Vertex( *litr ) )
+				{
+					mypartialBCETcfg[pindex].add_Edge( *itr , *litr , ( *itr )->get_Wcet() + this->pBBExtraTime[pindex].at( *itr ).first );
+					mypartialWCETcfg[pindex].add_Edge( *itr , *litr , ( *itr )->get_Wcet() + this->pBBExtraTime[pindex].at( *itr ).second );
+				}
+
+			}
+
+		}
+		for ( auto itr = ls.begin() ; itr != ls.end() ; ++itr )
+		{
+			if( mypartialWCETcfg[pindex].get_VertexDegree( *itr ) == 0 )
+			{
+				mypartialBCETcfg[pindex].add_Edge( *itr , CFGEND , ( *itr )->get_Wcet() + this->pBBExtraTime[pindex].at( *itr ).first );
+				mypartialWCETcfg[pindex].add_Edge( *itr , CFGEND , ( *itr )->get_Wcet() + this->pBBExtraTime[pindex].at( *itr ).second );
+			}
+		}
+
+		min = mypartialBCETcfg[pindex].get_Bcet();
+		min = min * this->pLoopBound.at( L ).first;
+		max = mypartialWCETcfg[pindex].get_Wcet();
+		max = max * this->pLoopBound.at( L ).second;
+
+		this->pBBExtraTime[pindex].at( this->LookUp[pindex].at( ( L->getHeader() )->getNumber() ) ).first = min;
+		this->pBBExtraTime[pindex].at( this->LookUp[pindex].at( ( L->getHeader() )->getNumber() ) ).second = max;
+
+		for ( MachineLoop::iterator subloopitr = subLoops.begin() ; subloopitr != subLoops.end() ; ++subloopitr )
+		{
+			this->pBBExtraTime[pindex].at( this->LookUp[pindex].at( ( ( *subloopitr )->getHeader() )->getNumber() ) ).first = 0;
+			this->pBBExtraTime[pindex].at( this->LookUp[pindex].at( ( ( *subloopitr )->getHeader() )->getNumber() ) ).second = 0;
+		}
+
+	}
+
+}
+void SingleHyperOpWcet::set_LoopBound( MachineLoop * l , unsigned int min , unsigned max )
+{
+	auto itr = LoopBounds.find( l );
+	if( itr != LoopBounds.end() )
+	{
+		LoopBounds.at( l ).first = min;
+		LoopBounds.at( l ).second = max;
+	}
+	else
+		LoopBounds.insert( std::make_pair( l , std::make_pair( min , max ) ) );
+
+}
+void SingleHyperOpWcet::set_LoopUpperBound( MachineLoop * l , unsigned int max )
+{
+	auto itr = LoopBounds.find( l );
+	if( itr != LoopBounds.end() )
+		( LoopBounds.at( l ) ).second = max;
+	else
+		LoopBounds.insert( std::make_pair( l , std::make_pair( 0 , max ) ) );
+
+}
+void SingleHyperOpWcet::set_LoopLowerBound( MachineLoop * l , unsigned min )
+{
+	auto itr = LoopBounds.find( l );
+	if( itr != LoopBounds.end() )
+		( LoopBounds.at( l ) ).first = min;
+	else
+		LoopBounds.insert( std::make_pair( l , std::make_pair( min , MAXLOOPBOUND ) ) );
+
+}
+unsigned int SingleHyperOpWcet::get_LoopUpperBound( MachineLoop * l )
+{
+	auto itr = LoopBounds.find( l );
+	if( itr != LoopBounds.end() )
+		return LoopBounds.at( l ).second;
+	else
+		return MAXLOOPBOUND;
+}
+unsigned int SingleHyperOpWcet::get_LoopLowerBound( MachineLoop * l )
+{
+	auto itr = LoopBounds.find( l );
+	if( itr != LoopBounds.end() )
+		return LoopBounds.at( l ).first;
+	else
+		return 0;
+}
+void SingleHyperOpWcet::dumpLoop()
+{
+	auto ls = this->LS.get_VertexList();
+	for ( auto itr = ls.begin() ; itr != ls.end() ; ++itr )
+	{
+
+		for ( auto BBitr = ( *itr )->block_begin() ; BBitr != ( *itr )->block_end() ; ++BBitr )
+		{
+			errs() << ( *BBitr )->getNumber() << ", ";
+		}
+		errs() << "\n";
+
+	}
 }
 
 //CLASS Functional Unit
@@ -411,47 +515,6 @@ template<class T> T AdjEdge< T >::get_vertex()
 template<class T> void AdjEdge< T >::set_weight( int _w )
 {
 	this->Weight = _w;
-}
-
-//CLASS DFSNode
-template<class T> DFSNode< T >::DFSNode( T _u )
-{
-	this->Parent = _u;
-	this->Post = -1;
-	this->Pre = -1;
-	this->Visited = 0;
-}
-template<class T> unsigned long int DFSNode< T >::get_Pre()
-{
-	return this->Pre;
-}
-template<class T> unsigned long int DFSNode< T >::get_Post()
-{
-	return this->Post;
-}
-template<class T> T DFSNode< T >::get_Parent()
-{
-	return this->Parent;
-}
-template<class T> void DFSNode< T >::set_Pre( unsigned long int _Pre )
-{
-	this->Pre = _Pre;
-}
-template<class T> void DFSNode< T >::set_Post( unsigned long int _Post )
-{
-	this->Post = _Post;
-}
-template<class T> void DFSNode< T >::set_Parent( T _Parent )
-{
-	this->Parent = _Parent;
-}
-template<class T> void DFSNode< T >::set_Visited()
-{
-	this->Visited = true;
-}
-template<class T> bool DFSNode< T >::IsVisited()
-{
-	return this->Visited;
 }
 
 //DONE CLASS DWGraph
@@ -936,6 +999,94 @@ template<class T> int DWAGraph< T >::get_NodeWcet( T Node )
 	return 0;
 
 }
+template<class T> int DWAGraph< T >::get_Bcet()
+{
+	if( this->G.empty() )
+	{
+		return 0;
+	}
+	this->Distance.clear();
+	int MIN = 0;
+	std::map< T , bool > IsVisited;
+	std::map< T , int > indegree;
+	T StartNode;
+	T Node;
+
+//Initialization
+	for ( auto itr = this->G.begin() ; itr != this->G.end() ; ++itr )
+	{
+		indegree.insert( std::make_pair( itr->first , 0 ) );
+		IsVisited.insert( std::make_pair( itr->first , false ) );
+		this->Distance.insert( std::make_pair( itr->first , INT_MAX ) );
+	}
+//Find Source
+	for ( auto itr = this->G.begin() ; itr != this->G.end() ; ++itr )
+	{
+		for ( auto litr = ( itr->second )->begin() ; litr != ( itr->second )->end() ; ++litr )
+		{
+			indegree.at( litr->get_vertex() ) += 1;
+		}
+	}
+	for ( auto itr = this->G.begin() ; itr != this->G.end() ; ++itr )
+	{
+		if( indegree.at( itr->first ) == 0 )
+		{
+			StartNode = itr->first;
+			break;
+		}
+	}
+	Distance.at( StartNode ) = 0;
+//Find Shortest Paths
+	for ( auto itr = this->G.begin() ; itr != this->G.end() ; ++itr )
+	{
+		int min = INT_MAX;
+		for ( auto ditr = Distance.begin() ; ditr != Distance.end() ; ++ditr )
+		{
+			if( ( min > ( ditr->second ) ) && !IsVisited.at( ditr->first ) )
+			{
+				Node = ditr->first;
+				min = ditr->second;
+			}
+		}
+
+		IsVisited.at( Node ) = true;
+
+		for ( auto litr = this->G.at( Node )->begin() ; litr != this->G.at( Node )->end() ; ++litr )
+		{
+			auto V = litr->get_vertex();
+			if( !IsVisited.at( V ) )
+			{
+				if( Distance.at( V ) > ( Distance.at( Node ) + litr->get_weight() ) )
+				{
+					Distance.at( V ) = ( Distance.at( Node ) + litr->get_weight() );
+				}
+			}
+		}
+
+	}
+
+//Report Max as BCET
+	for ( auto MaxItr = this->G.begin() ; MaxItr != this->G.end() ; ++MaxItr )
+	{
+		if( this->get_VertexDegree( MaxItr->first ) == 0 )
+		{
+			if( MIN < Distance.at( MaxItr->first ) )
+			{
+				MIN = Distance.at( MaxItr->first );
+			}
+		}
+	}
+	return MIN;
+
+}
+template<class T> int DWAGraph< T >::get_NodeBcet( T Node )
+{
+	if( Distance.empty() )
+	{
+		this->get_Bcet();
+	}
+	return Distance.at( Node );
+}
 template<class T> void DWAGraph< T >::dump_CriticalPath()
 {
 	if( this->CrticalPath.empty() )
@@ -1054,4 +1205,107 @@ template<class T> void DWAGraph< T >::xdot_CriticalPath()
 	df << "}\n";
 	df.close();
 }
+template<class T> void DWAGraph< T >::dump_ShortestPath()
+{
+	if( this->Distance.empty() )
+		this->get_Bcet();
 
+	for ( auto itr = this->Distance.begin() ; itr != this->Distance.end() ; ++itr )
+	{
+		std::cout << this->Lookup.at( itr->first ) << "(" << itr->second << "), ";
+	}
+	std::cout << std::endl;
+}
+template<class T> void DWAGraph< T >::xdot_ShortestPath()
+{
+
+	this->get_Bcet();
+
+	std::ofstream df;
+	std::string file( "graph" );
+	file.append( std::to_string( WCET::get_gidx() ) );
+	file.append( ".dot" );
+	df.open( file );
+	df << "digraph{\n";
+	if( XDOTRANK )
+		df << "\trankdir=LR;\n";
+
+	for ( auto itr = this->G.begin() ; itr != this->G.end() ; ++itr )
+	{
+		df << this->Lookup.at( itr->first ) << "[label=\"" << this->Lookup.at( itr->first ) << " (@" << Distance.at( itr->first ) << ")" << "\"];\n";
+	}
+	for ( auto itr = this->G.begin() ; itr != this->G.end() ; ++itr )
+	{
+		for ( auto litr = ( itr->second )->begin() ; litr != ( itr->second )->end() ; ++litr )
+		{
+			df << " " << this->Lookup.at( itr->first ) << "->" << this->Lookup.at( litr->get_vertex() ) << "[label=" << litr->get_weight() << "];\n";
+		}
+	}
+
+//Shortest Path
+	TimeVextexMap InverseMap;
+	auto iitr = InverseMap.rbegin();
+	auto jitr = InverseMap.rbegin();
+	for ( auto itr = this->Distance.begin() ; itr != this->Distance.end() ; ++itr )
+	{
+		InverseMap.insert( std::make_pair( itr->second , itr->first ) );
+	}
+
+	int MIN = 0;
+
+	for ( auto MaxItr = InverseMap.rbegin() ; MaxItr != InverseMap.rend() ; ++MaxItr )
+	{
+		if( this->get_VertexDegree( MaxItr->second ) == 0 )
+		{
+			if( MIN < Distance.at( MaxItr->second ) )
+			{
+				MIN = Distance.at( MaxItr->second );
+				iitr = MaxItr;
+				jitr = MaxItr;
+			}
+		}
+	}
+
+	while ( jitr != InverseMap.rend() )
+	{
+		if( iitr->first == jitr->first + this->get_EdgeWeight( jitr->second , iitr->second ) )
+		{
+			df << this->Lookup.at( iitr->second ) << "[fillcolor=blue, style=filled];\n";
+			df << this->Lookup.at( jitr->second ) << "[fillcolor=blue, style=filled];\n";
+			iitr = jitr;
+		}
+		++jitr;
+	}
+
+	if( XDOTRANK )
+	{
+		df << "{rank=same; ";
+
+		int MIN = 0;
+		for ( auto MaxItr = InverseMap.rbegin() ; MaxItr != InverseMap.rend() ; ++MaxItr )
+		{
+			if( this->get_VertexDegree( MaxItr->second ) == 0 )
+			{
+				if( MIN < Distance.at( MaxItr->second ) )
+				{
+					MIN = Distance.at( MaxItr->second );
+					iitr = MaxItr;
+					jitr = MaxItr;
+				}
+			}
+		}
+		while ( jitr != InverseMap.rend() )
+		{
+			if( iitr->first == jitr->first + this->get_EdgeWeight( jitr->second , iitr->second ) )
+			{
+				df << this->Lookup.at( iitr->second ) << " " << this->Lookup.at( jitr->second ) << " ";
+				iitr = jitr;
+			}
+			++jitr;
+		}
+
+		df << "}\n";
+	}
+	df << "}\n";
+	df.close();
+}
