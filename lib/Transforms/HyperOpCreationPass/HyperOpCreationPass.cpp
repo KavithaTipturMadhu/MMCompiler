@@ -58,9 +58,9 @@ struct HyperOpCreationPass: public ModulePass {
 
 	virtual void getAnalysisUsage(AnalysisUsage &AU) const {
 		//Mandatory merge return to be invoked on each function
-		AU.addRequired<DominatorTree>();
+//		AU.addRequired<DominatorTree>();
+//		AU.addRequired<AliasAnalysis>();
 		AU.addRequired<DependenceAnalysis>();
-		AU.addRequired<AliasAnalysis>();
 	}
 
 	bool pathExistsInCFG(BasicBlock* source, BasicBlock* target, list<BasicBlock*> visitedBasicBlocks) {
@@ -823,8 +823,9 @@ struct HyperOpCreationPass: public ModulePass {
 			errs() << "inling function call:";
 			callInst->dump();
 			InlineFunctionInfo info;
-//			InlineFunction(callInst, info);
 		}
+		errs() << "Module state:";
+		M.dump();
 
 		errs() << "whats the module now?\n";
 		M.dump();
@@ -909,47 +910,63 @@ struct HyperOpCreationPass: public ModulePass {
 				if (bbItr != &(function->getEntryBlock())) {
 					//Check if all the parent nodes of the basic block are in the same HyperOp
 					//While this should in principle be done to all producers of data as well, since we are choosing one basic-block after another from a CFG to form a HyperOp, immediate predecessors should suffice
-					bool allParentsAcquired = true;
 					bool noParentAcquired = true;
+					int numParentsAcquired = 0;
+					int numPredecessors = 0;
 					//Check if dependence leads to a back-edge
 					DominatorTree & dom = getAnalysis<DominatorTree>(*function);
 					for (pred_iterator predecessorItr = pred_begin(bbItr); predecessorItr != pred_end(bbItr); predecessorItr++) {
 						BasicBlock* predecessor = *predecessorItr;
+						errs()<<"considering pred "<<predecessor->getName()<<" for bb "<<bbItr->getName()<<"\n";
 						BasicBlock* predecessorDom = 0;
-						if (dom.getNode(predecessor)->getIDom() != NULL) {
-							predecessorDom = dom.getNode(predecessor)->getIDom()->getBlock();
+						bool isBackEdge = false;
+						BasicBlock* tempPredecessor = predecessor;
+						while (true) {
+							if (dom.getNode(tempPredecessor)->getIDom() == NULL) {
+								break;
+							}
+							predecessorDom = dom.getNode(tempPredecessor)->getIDom()->getBlock();
+							if (predecessorDom == bbItr) {
+								isBackEdge = true;
+								break;
+							}
+							tempPredecessor = predecessorDom;
 						}
-						if (predecessorDom == bbItr) {
+
+						errs()<<"is the edge going backwards?"<<isBackEdge<<"\n";
+						if (isBackEdge) {
 							continue;
 						}
 						if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), predecessor) != accumulatedBasicBlocks.end()) {
 							noParentAcquired = false;
-						} else {
-							allParentsAcquired = false;
+							numParentsAcquired++;
 						}
+						numPredecessors++;
 					}
 
+					bool allParentsAcquired = (numParentsAcquired == numPredecessors);
+					errs()<<"no parent acquired?"<<noParentAcquired<<", all parents acquired?"<<allParentsAcquired<<"\n";
 					if (!(noParentAcquired || allParentsAcquired)) {
 						errs() << "stopping hop creation here\n";
 						canAcquireBBItr = false;
 					}
-					//Check if the basic block's inclusion results introduces multiple entry points to the same HyperOp
-					if (canAcquireBBItr && !accumulatedBasicBlocks.empty()) {
-						//Find the basic blocks that jump to the basic block being acquired
-						for (Function::iterator sourceBBItr = function->begin(); sourceBBItr != function->end(); sourceBBItr++) {
-							for (unsigned i = 0; i < sourceBBItr->getTerminator()->getNumSuccessors(); i++) {
-								BasicBlock* successor = sourceBBItr->getTerminator()->getSuccessor(i);
-								if (successor == bbItr && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), sourceBBItr) == accumulatedBasicBlocks.end()) {
-									//Predicate to the basic block in the current set that comes from outside the basic block set accumulated for the current HyperOp
-									canAcquireBBItr = false;
-									break;
-								}
-							}
-							if (!canAcquireBBItr) {
-								break;
-							}
-						}
-					}
+//					//Check if the basic block's inclusion results introduces multiple entry points to the same HyperOp
+//					if (canAcquireBBItr && !accumulatedBasicBlocks.empty()) {
+//						//Find the basic blocks that jump to the basic block being acquired
+//						for (Function::iterator sourceBBItr = function->begin(); sourceBBItr != function->end(); sourceBBItr++) {
+//							for (unsigned i = 0; i < sourceBBItr->getTerminator()->getNumSuccessors(); i++) {
+//								BasicBlock* successor = sourceBBItr->getTerminator()->getSuccessor(i);
+//								if (successor == bbItr && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), sourceBBItr) == accumulatedBasicBlocks.end()) {
+//									//Predicate to the basic block in the current set that comes from outside the basic block set accumulated for the current HyperOp
+//									canAcquireBBItr = false;
+//									break;
+//								}
+//							}
+//							if (!canAcquireBBItr) {
+//								break;
+//							}
+//						}
+//					}
 				}
 
 				if (!canAcquireBBItr) {
@@ -958,6 +975,7 @@ struct HyperOpCreationPass: public ModulePass {
 					//Place the bbItr back in its place
 					bbTraverser.push_front(bbItr);
 				} else {
+					errs() << "managed to acquire bb :" << bbItr->getName() << "\n";
 					accumulatedBasicBlocks.push_back(bbItr);
 					unsigned bbIndex = 0;
 					for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
@@ -1170,7 +1188,7 @@ struct HyperOpCreationPass: public ModulePass {
 				std::copy(bbTraverser.begin(), bbTraverser.end(), std::back_inserter(tempTraversalList));
 				for (unsigned succIndex = 0; succIndex < bbItr->getTerminator()->getNumSuccessors(); succIndex++) {
 					BasicBlock* succBB = bbItr->getTerminator()->getSuccessor(succIndex);
-					if (find(traversedBasicBlocks.begin(), traversedBasicBlocks.end(), succBB) == traversedBasicBlocks.end() && find(bbTraverser.begin(), bbTraverser.end(), succBB) == bbTraverser.end()) {
+					if (find(traversedBasicBlocks.begin(), traversedBasicBlocks.end(), succBB) == traversedBasicBlocks.end() && find(bbTraverser.begin(), bbTraverser.end(), succBB) == bbTraverser.end()&& find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), succBB) == accumulatedBasicBlocks.end()) {
 						tempTraversalList.push_back(succBB);
 					}
 				}
@@ -1543,17 +1561,17 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
+					errs() << "for bb:" << originalBB->getName() << " whose idom is " << originalIdom->getName() << ":\n";
 					//Add all the jump sources of the basic block to point to their return blocks
 					for (auto predItr = pred_begin(originalBB); predItr != pred_end(originalBB); predItr++) {
 						BasicBlock* pred = *predItr;
-						if (pred != originalIdom) {
+						errs() << "considering predecessor " << pred->getName() << "\n";
+						if (pred != originalIdom && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), pred) == accumulatedBasicBlocks.end() && originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
 							errs() << "pred:" << pred->getName() << "\n";
 							assert(pred->getTerminator()->getNumSuccessors() <= 1 && "conditional jump to basic block cannot exist here\n");
-							if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), pred) == accumulatedBasicBlocks.end() && originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
-								errs() << "added unconditional jump:";
-								pred->getTerminator()->dump();
-								unconditionalBranchSources.push_back(pred->getTerminator());
-							}
+							errs() << "added unconditional jump:";
+							pred->getTerminator()->dump();
+							unconditionalBranchSources.push_back(pred->getTerminator());
 						}
 					}
 				}
@@ -1768,7 +1786,9 @@ struct HyperOpCreationPass: public ModulePass {
 				//Recursively find out if the call instruction is the first in the whole call chain
 				while (!callSiteCopy.empty()) {
 					Function* callerFunction = callSiteCopy.front()->getParent()->getParent();
-					if (callerFunction->back().getTerminator()->getPrevNode() == callSiteCopy.front() && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &function->back()) != accumulatedBasicBlocks.end()) {
+					errs() << "caller function empty?" << (callerFunction == NULL) << " or is it terminator?" << (callerFunction->back().getTerminator() == NULL) << "\n";
+					if (callerFunction->back().getInstList().size() > 1 && callerFunction->back().getTerminator()->getPrevNode() != NULL && callerFunction->back().getTerminator()->getPrevNode() == callSiteCopy.front()
+							&& find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &function->back()) != accumulatedBasicBlocks.end()) {
 						isKernelExit = true;
 						break;
 					}
