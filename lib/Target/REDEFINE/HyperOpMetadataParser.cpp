@@ -15,15 +15,12 @@ HyperOpMetadataParser::~HyperOpMetadataParser() {
 	// TODO Auto-generated destructor stub
 }
 
-AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Instruction* sourceInstr, MDNode* sourceMDNode, map<Function*, MDNode*> functionMetadataMap) {
+AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Instruction* sourceInstr, map<Function*, MDNode*> functionMetadataMap) {
 	if (isa<AllocaInst>(sourceInstr)) {
-		errs() << "and the match was from ";
-		sourceInstr->dump();
 		return (AllocaInst*) sourceInstr;
 	}
 	if (isa<LoadInst>(sourceInstr)) {
-		errs() << "load instr whose alloc needs looking up:";
-		sourceInstr->dump();
+		MDNode* sourceMDNode = functionMetadataMap[sourceInstr->getParent()->getParent()];
 		unsigned argIndex = 0;
 		Function* parentFunction = sourceInstr->getParent()->getParent();
 		for (Function::arg_iterator argItr = parentFunction->arg_begin(); argItr != parentFunction->arg_end(); argItr++, argIndex++) {
@@ -38,9 +35,9 @@ AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Instruction* sourceIns
 									if (consumedByMDNode != 0) {
 										for (unsigned i = 0; i < consumedByMDNode->getNumOperands(); i++) {
 											MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(i);
+											((MDNode*) consumerMDNode->getOperand(0))->dump();
 											if (((MDNode*) consumerMDNode->getOperand(0)) == sourceMDNode && ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue() == argIndex) {
-												errs() << "there was a match...\n";
-												return getAllocInstrForLocalReferenceData(M, instrItr, functionMetadataMap[funcItr], functionMetadataMap);
+												return getAllocInstrForLocalReferenceData(M, instrItr, functionMetadataMap);
 											}
 										}
 									}
@@ -236,11 +233,13 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 									edge->Type = HyperOpEdge::LOCAL_REFERENCE;
 									list<unsigned> volumeOfCommunication;
 									Function* consumerFunction = consumerHyperOp->getFunction();
-									AllocaInst* allocInst = getAllocInstrForLocalReferenceData(*M, instr, (MDNode*) consumerMDNode->getOperand(0), functionMetadataMap);
+									AllocaInst* allocInst = getAllocInstrForLocalReferenceData(*M, instr, functionMetadataMap);
 									if (isa<LoadInst>(instr)) {
 										//TODO TERRIBLE CODE, CHECK IF THIS CAN BE CLEANED
 										errs() << "added alloc to map of " << sourceHyperOp->asString() << " with key ";
 										instr->dump();
+										errs() << "is it empty alloc?";
+										allocInst->dump();
 										sourceHyperOp->loadInstrAndAllocaMap[instr] = allocInst;
 									}
 									unsigned volume = REDEFINEUtils::getSizeOfType(allocInst->getType()) / 4;
@@ -404,33 +403,33 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 		}
 	}
 
-	//This had to be written as follows because removal of one node may cause other nodes to go hanging
-	while (true) {
-		bool updatedGraph = false;
-		list<HyperOp*> vertices = graph->Vertices;
-		for (list<HyperOp*>::iterator vertexItr = vertices.begin(); vertexItr != vertices.end(); vertexItr++) {
-			if (!(*vertexItr)->isEndHyperOp() && (*vertexItr)->ChildMap.empty()) {
-				if (!(*vertexItr)->isUnrolledInstance()) {
-					(*vertexItr)->getFunction()->eraseFromParent();
-				}
-				graph->removeHyperOp(*vertexItr);
-				updatedGraph = true;
-				break;
-			}
-
-			else if (!(*vertexItr)->isStartHyperOp() && (*vertexItr)->ParentMap.empty()) {
-				if (!(*vertexItr)->isUnrolledInstance()) {
-					(*vertexItr)->getFunction()->eraseFromParent();
-				}
-				graph->removeHyperOp(*vertexItr);
-				updatedGraph = true;
-				break;
-			}
-		}
-		if (!updatedGraph) {
-			break;
-		}
-	}
+//	//This had to be written as follows because removal of one node may cause other nodes to go hanging
+//	while (true) {
+//		bool updatedGraph = false;
+//		list<HyperOp*> vertices = graph->Vertices;
+//		for (list<HyperOp*>::iterator vertexItr = vertices.begin(); vertexItr != vertices.end(); vertexItr++) {
+//			if (!(*vertexItr)->isEndHyperOp() && (*vertexItr)->ChildMap.empty()) {
+//				if (!(*vertexItr)->isUnrolledInstance()) {
+//					(*vertexItr)->getFunction()->eraseFromParent();
+//				}
+//				graph->removeHyperOp(*vertexItr);
+//				updatedGraph = true;
+//				break;
+//			}
+//
+//			else if (!(*vertexItr)->isStartHyperOp() && (*vertexItr)->ParentMap.empty()) {
+//				if (!(*vertexItr)->isUnrolledInstance()) {
+//					(*vertexItr)->getFunction()->eraseFromParent();
+//				}
+//				graph->removeHyperOp(*vertexItr);
+//				updatedGraph = true;
+//				break;
+//			}
+//		}
+//		if (!updatedGraph) {
+//			break;
+//		}
+//	}
 
 	graph->setMaxMemFrameSize(maxFrameSizeOfHyperOp);
 	graph->print(errs());

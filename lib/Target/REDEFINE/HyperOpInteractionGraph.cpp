@@ -2866,6 +2866,7 @@ void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrame
 	unsigned id = 0;
 	for (list<HyperOp*>::iterator clusterItr = cluster.begin(); clusterItr != cluster.end(); clusterItr++) {
 		if ((*clusterItr)->isStaticHyperOp()) {
+			errs()<<"setting context frame id of "<<(*clusterItr)->asString()<<" to "<<id<<"\n";
 			(*clusterItr)->setContextFrame(id++);
 		}
 	}
@@ -3398,7 +3399,8 @@ pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > getCFG(HyperOpInteracti
 		}
 	}
 	errs() << "generated cfg:";
-	cfg->print(errs());
+//	dfg->Vertices.front()->getFunction()->getParent()->dump();
+//	cfg->print(errs());
 	return make_pair(cfg, originalToClonedNodesMap);
 }
 
@@ -3773,7 +3775,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 	}
 
 	errs() << "before decrementing sync, graph:";
-	cfg->print(dbgs());
+//	cfg->print(dbgs());
 	DEBUG(dbgs() << "Decrementing sync count for nodes with sync edges coming from mutually exclusive paths\n");
 //Update the sync count of nodes with sync edges incoming from mutually exclusive paths
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {

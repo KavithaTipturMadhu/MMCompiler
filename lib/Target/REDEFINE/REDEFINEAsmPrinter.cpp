@@ -65,16 +65,24 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 	const MachineInstr *LastMI = 0;
 	vector<list<const MachineInstr*> > pHyperOpInstructions(ceCount);
 	vector<list<const MachineInstr*> > startOfBBInPHyperOp(ceCount);
+	errs() << "current state of mf:";
+	MF->dump();
 	for (MachineFunction::const_iterator I = MF->begin(), E = MF->end(); I != E; ++I) {
 		int pHyperOpIndex = -1;
-		for (MachineBasicBlock::const_instr_iterator instrItr = I->instr_begin(); instrItr != I->instr_end(); ++instrItr) {
-			//First instruction of the pHyperOp is never in a bundle
-			if (!instrItr->isInsideBundle()) {
-				pHyperOpIndex++;
-				startOfBBInPHyperOp[pHyperOpIndex].push_back(instrItr);
+//		if (I->empty()) {
+//			for (pHyperOpIndex = 0; pHyperOpIndex < ceCount; pHyperOpIndex++) {
+//				startOfBBInPHyperOp[pHyperOpIndex] = NULL;
+//			}
+//		} else {
+			for (MachineBasicBlock::const_instr_iterator instrItr = I->instr_begin(); instrItr != I->instr_end(); ++instrItr) {
+				//First instruction of the pHyperOp is never in a bundle
+				if (!instrItr->isInsideBundle()) {
+					pHyperOpIndex++;
+					startOfBBInPHyperOp[pHyperOpIndex].push_back(instrItr);
+				}
+				pHyperOpInstructions[pHyperOpIndex].push_back(instrItr);
 			}
-			pHyperOpInstructions[pHyperOpIndex].push_back(instrItr);
-		}
+//		}
 	}
 
 	for (int pHyperOpIndex = 0; pHyperOpIndex < pHyperOpInstructions.size(); pHyperOpIndex++) {
@@ -90,6 +98,10 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 				label->setUndefined();
 				OutStreamer.EmitLabel(label);
 				startOfBBInPHyperOp[pHyperOpIndex].pop_front();
+//			} else if (startOfBBInPHyperOp[pHyperOpIndex] == NULL) {
+//				MCSymbol *label = (*mcItr)->getParent()->getSymbol();
+//				label->setUndefined();
+//				OutStreamer.EmitLabel(label);
 			}
 			EmitInstruction(*mcItr);
 		}
@@ -210,8 +222,8 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 				minYInTopology = mappedToY;
 			}
 		}
-		errs()<<"max x:"<<maxXInTopology<<", min x:"<<minXInTopology<<"\n";
-		errs()<<"max y:"<<maxYInTopology<<", min y:"<<minYInTopology<<"\n";
+		errs() << "max x:" << maxXInTopology << ", min x:" << minXInTopology << "\n";
+		errs() << "max y:" << maxYInTopology << ", min y:" << minYInTopology << "\n";
 
 		long int maxGlobalSize = 0;
 		for (Module::const_global_iterator globalArgItr = MF->getFunction()->getParent()->global_begin(); globalArgItr != MF->getFunction()->getParent()->global_end(); globalArgItr++) {
