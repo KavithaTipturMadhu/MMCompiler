@@ -362,6 +362,7 @@ BB = bb;
 DEBUG(dbgs() << "\n-------------\nStarting new basic block BB#" << BB->getNumber() << "\n");
 
 faninOfHyperOp.clear();
+endOfBBLoopEdgeCovered = false;
 for (int i = 0; i < ceCount; i++) {
 	faninOfHyperOp.push_back(0);
 	for (unsigned j = 0; j < ceCount; j++) {
@@ -826,8 +827,9 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 
 	bool isLoopTerminator = false;
 	MachineLoop* loop = MLI.getLoopFor(BB);
-	if (loop != NULL && loop->getBottomBlock() != BB) {
+	if (loop != NULL && loop->getBottomBlock() != BB&&!endOfBBLoopEdgeCovered) {
 		isLoopTerminator = true;
+		endOfBBLoopEdgeCovered = true;
 	}
 	//Check if the branch edge is a backedge
 	if (isLoopTerminator) {
@@ -1481,6 +1483,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			HyperOp* liveStartOfVertex = (*childHyperOpItr)->getImmediateDominator();
 			HyperOp* immediatePostDomForDeletion = 0;
 			HyperOp* liveEndOfVertex = 0;
+			//Non-predicated HyperOp can be deleted by itself
 			if (liveStartOfVertex != 0) {
 				liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
 			} else {
@@ -1489,12 +1492,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			//Add fdelete instruction from r30
 			if (liveEndOfVertex == hyperOp) {
 				MachineInstrBuilder fdelete;
-				if (liveEndOfVertex == (*childHyperOpItr)) {
-					//Add an instruction to delete the frame of the HyperOp
-					fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE));
-					fdelete.addReg(REDEFINE::t4);
-					fdelete.addImm(0);
-				} else {
+				if (liveEndOfVertex != (*childHyperOpItr)) {
 					//Find the edge corresponding to the context frame of the child hyperop
 					for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = liveEndOfVertex->ParentMap.begin(); parentItr != liveEndOfVertex->ParentMap.end(); parentItr++) {
 						if ((parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) && parentItr->first->getContextFrameAddress() == (*childHyperOpItr)) {
@@ -1540,13 +1538,14 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							break;
 						}
 					}
+					if (firstInstructionOfpHyperOpInRegion[0] == 0) {
+						firstInstructionOfpHyperOpInRegion[0] = fdelete.operator llvm::MachineInstr *();
+					}
+					LIS->getSlotIndexes()->insertMachineInstrInMaps(fdelete.operator llvm::MachineInstr *());
+					allInstructionsOfRegion.push_back(make_pair(fdelete.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
+					errs() << "HyperOp " << hyperOp->asString() << " is trying to delete " << (*childHyperOpItr)->asString() << "\n";
 				}
-				if (firstInstructionOfpHyperOpInRegion[0] == 0) {
-					firstInstructionOfpHyperOpInRegion[0] = fdelete.operator llvm::MachineInstr *();
-				}
-				LIS->getSlotIndexes()->insertMachineInstrInMaps(fdelete.operator llvm::MachineInstr *());
-				allInstructionsOfRegion.push_back(make_pair(fdelete.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
-				errs() << "HyperOp " << hyperOp->asString() << " is trying to delete " << (*childHyperOpItr)->asString() << "\n";
+
 			}
 		}
 	}
@@ -2871,6 +2870,21 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			}
 		}
 	}
+
+	//If a HyperOp is not predicated, it deletes itself
+	if (!hyperOp->isPredicatedHyperOp()) {
+		MachineInstrBuilder fdelete;
+		//Add an instruction to delete the frame of the HyperOp
+		fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE));
+		fdelete.addReg(REDEFINE::t4);
+		fdelete.addImm(0);
+
+		if (firstInstructionOfpHyperOpInRegion[0] == 0) {
+			firstInstructionOfpHyperOpInRegion[0] = fdelete.operator llvm::MachineInstr *();
+		}
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(fdelete.operator llvm::MachineInstr *());
+		allInstructionsOfRegion.push_back(make_pair(fdelete.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
+	}
 	for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstructionItr = allInstructionsOfRegion.begin(); allInstructionItr != allInstructionsOfRegion.end(); allInstructionItr++) {
 		MachineInstr* instruction = allInstructionItr->first;
 		unsigned ce = allInstructionItr->second.first;
@@ -3158,6 +3172,12 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 				MachineInstrBuilder srliForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(REDEFINE::a5, RegState::Define).addReg(REDEFINE::a5, RegState::InternalRead).addImm(12);
 				MachineInstrBuilder add = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(addiRegister).addReg(addiRegister).addReg(REDEFINE::a5);
 
+				LIS->getSlotIndexes()->insertMachineInstrInMaps(luiForTopBits.operator llvm::MachineInstr *());
+				LIS->getSlotIndexes()->insertMachineInstrInMaps(luiForBottomBits.operator llvm::MachineInstr *());
+				LIS->getSlotIndexes()->insertMachineInstrInMaps(srliForBottomBits.operator llvm::MachineInstr *());
+				LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator llvm::MachineInstr *());
+
+
 				for (auto pHopItr = pHopInteractionGraph.begin(); pHopItr != pHopInteractionGraph.end(); pHopItr++) {
 					if (pHopItr->first == MI.operator->()) {
 						pHopDependenceMap.push_back(make_pair(add.operator ->(), pHopItr->second));
@@ -3221,6 +3241,9 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 				lui.addSym(loSymbol);
 
 				MachineInstrBuilder shiftInstr = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(addiRegister).addReg(addiRegister).addImm(12);
+
+				LIS->getSlotIndexes()->insertMachineInstrInMaps(lui.operator llvm::MachineInstr *());
+				LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftInstr.operator llvm::MachineInstr *());
 
 				for (auto pHopItr = pHopInteractionGraph.begin(); pHopItr != pHopInteractionGraph.end(); pHopItr++) {
 					if (pHopItr->first == MI.operator->()) {

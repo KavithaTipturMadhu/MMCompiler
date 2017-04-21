@@ -69,6 +69,8 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	//Used to track the SP location in use
 	vector<unsigned> faninOfHyperOp;
 
+	bool endOfBBLoopEdgeCovered;
+
 	//TODO
 	//First index corresponds to the CE and the value corresponds to the register containing the base address of the scratch pad location of the consumer CE to which the producer CE is writing to
 	int registerContainingBaseAddress[4][4];
