@@ -3149,7 +3149,7 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 	for (MachineBasicBlock::instr_iterator instrItr = bbItr->instr_begin(); instrItr != bbItr->instr_end(); instrItr++) {
 		MachineBasicBlock::iterator MI = instrItr;
 		if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(1).getReg() == REDEFINE::zero) {
-			if (MI->getOperand(2).isImm() && MI->getOperand(2).getImm() != 0 && Log2_32_Ceil((uint32_t) MI->getOperand(2).getImm()) > 10) {
+			if (MI->getOperand(2).isImm() && MI->getOperand(2).getImm() != 0 && Log2_32_Ceil((uint32_t) (MI->getOperand(2).getImm())) > 10) {
 				//Since immediate value cannot spill 11 bits, we need to expand it to lui and add instructions
 				MachineBasicBlock::instr_iterator Pred, Succ;
 				//TODO We know that an immediate value cannot exceed 32 bit value anyway, so casting to 32 bit is expected to be safe
@@ -3168,14 +3168,13 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 				unsigned addiRegister = MI->getOperand(0).getReg();
 
 				MachineInstrBuilder luiForTopBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(addiRegister, RegState::Define).addImm((immediateValue & 0xfffff000) >> 12);
+//				LIS->getSlotIndexes()->insertMachineInstrInMaps(luiForTopBits.operator llvm::MachineInstr *());
 				MachineInstrBuilder luiForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(REDEFINE::a5, RegState::Define).addImm(immediateValue & 0xfff);
+//				LIS->getSlotIndexes()->insertMachineInstrInMaps(luiForBottomBits.operator llvm::MachineInstr *());
 				MachineInstrBuilder srliForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(REDEFINE::a5, RegState::Define).addReg(REDEFINE::a5, RegState::InternalRead).addImm(12);
+//				LIS->getSlotIndexes()->insertMachineInstrInMaps(srliForBottomBits.operator llvm::MachineInstr *());
 				MachineInstrBuilder add = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(addiRegister).addReg(addiRegister).addReg(REDEFINE::a5);
-
-				LIS->getSlotIndexes()->insertMachineInstrInMaps(luiForTopBits.operator llvm::MachineInstr *());
-				LIS->getSlotIndexes()->insertMachineInstrInMaps(luiForBottomBits.operator llvm::MachineInstr *());
-				LIS->getSlotIndexes()->insertMachineInstrInMaps(srliForBottomBits.operator llvm::MachineInstr *());
-				LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator llvm::MachineInstr *());
+//				LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator llvm::MachineInstr *());
 
 
 				for (auto pHopItr = pHopInteractionGraph.begin(); pHopItr != pHopInteractionGraph.end(); pHopItr++) {
@@ -3242,8 +3241,8 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 
 				MachineInstrBuilder shiftInstr = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(addiRegister).addReg(addiRegister).addImm(12);
 
-				LIS->getSlotIndexes()->insertMachineInstrInMaps(lui.operator llvm::MachineInstr *());
-				LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftInstr.operator llvm::MachineInstr *());
+//				LIS->getSlotIndexes()->insertMachineInstrInMaps(lui.operator llvm::MachineInstr *());
+//				LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftInstr.operator llvm::MachineInstr *());
 
 				for (auto pHopItr = pHopInteractionGraph.begin(); pHopItr != pHopInteractionGraph.end(); pHopItr++) {
 					if (pHopItr->first == MI.operator->()) {
