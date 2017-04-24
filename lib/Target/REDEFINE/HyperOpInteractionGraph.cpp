@@ -1693,7 +1693,7 @@ list<unsigned int> addHierarchicalVolume(list<unsigned int> first, list<unsigned
 /**
  * Dominant sequence and its execution time
  */
-pair<list<HyperOp*>, list<unsigned int> > computeDominantSequence(list<HyperOp*> partialDominantSequence) {
+pair<list<HyperOp*>, list<unsigned int> > computeDominantSequence(list<HyperOp*> partialDominantSequence, list<pair<list<HyperOp*>, unsigned int> > clusterList) {
 //		, list<list<HyperOp*> > excludeList) {
 	list<unsigned int> executionTime;
 	list<HyperOp*> dominantSequence;
@@ -1701,7 +1701,7 @@ pair<list<HyperOp*>, list<unsigned int> > computeDominantSequence(list<HyperOp*>
 	map<HyperOp*, list<unsigned int> > childNodeWeightMap = source->getChildNodeEdgeWeights();
 	bool firstChild = true;
 	bool atleastOneChildTraversed = false;
-	if (childNodeWeightMap.size() > 0) {
+	if (!childNodeWeightMap.empty()) {
 		for (map<HyperOp*, list<unsigned int> >::iterator childIterator = childNodeWeightMap.begin(); childIterator != childNodeWeightMap.end(); childIterator++) {
 			HyperOp* childVertex = (*childIterator).first;
 			list<unsigned int> edgeWeight = (*childIterator).second;
@@ -1713,12 +1713,12 @@ pair<list<HyperOp*>, list<unsigned int> > computeDominantSequence(list<HyperOp*>
 //			if (isPathInExcludeList(tempPartialDS, excludeList)) {
 //				continue;
 //			}
-			pair<list<HyperOp*>, list<unsigned int> > dominantSequenceOfChild = computeDominantSequence(tempPartialDS);
+			pair<list<HyperOp*>, list<unsigned int> > dominantSequenceOfChild = computeDominantSequence(tempPartialDS, clusterList);
 //					, excludeList);
 			if (!dominantSequenceOfChild.first.empty()) {
 				atleastOneChildTraversed = true;
 				list<unsigned int> newExecutionTime = addHierarchicalVolume(edgeWeight, dominantSequenceOfChild.second);
-				if (firstChild || compareHierarchicalVolume(executionTime, newExecutionTime) <= 0) {
+				if (firstChild || compareHierarchicalVolume(executionTime, newExecutionTime) < 0) {
 					dominantSequence = dominantSequenceOfChild.first;
 					executionTime = newExecutionTime;
 					firstChild = false;
@@ -1920,7 +1920,7 @@ pair<list<unsigned int>, list<pair<list<HyperOp*>, unsigned int> > > mergeNodesA
 	list<HyperOp*> tempDominantSequence;
 	tempDominantSequence.push_back(startHyperOp);
 	list<list<HyperOp*> > excludeList;
-	pair<list<HyperOp*>, list<unsigned int> > computedDominantSequencePair = computeDominantSequence(tempDominantSequence);
+	pair<list<HyperOp*>, list<unsigned int> > computedDominantSequencePair = computeDominantSequence(tempDominantSequence, clusterList);
 
 	if (revert) {
 		clusterList.clear();
@@ -2004,7 +2004,7 @@ void HyperOpInteractionGraph::clusterNodes() {
 //Find the initial Dominant Sequence
 	list<HyperOp*> partialDominantSequence;
 	partialDominantSequence.push_back(startHyperOp);
-	pair<list<HyperOp*>, list<unsigned int> > dominantSequencePair = computeDominantSequence(partialDominantSequence);
+	pair<list<HyperOp*>, list<unsigned int> > dominantSequencePair = computeDominantSequence(partialDominantSequence, computeClusterList);
 //	printDS(dominantSequencePair.first);
 	list<HyperOp*> dominantSequence = dominantSequencePair.first;
 	list<unsigned int> executionTime = dominantSequencePair.second;
@@ -2188,7 +2188,7 @@ void HyperOpInteractionGraph::clusterNodes() {
 		//Check if zeroing helped reduce execution time
 		list<HyperOp*> tempDominantSequence;
 		tempDominantSequence.push_back(startHyperOp);
-		pair<list<HyperOp*>, list<unsigned int> > computedDominantSequencePair = computeDominantSequence(tempDominantSequence);
+		pair<list<HyperOp*>, list<unsigned int> > computedDominantSequencePair = computeDominantSequence(tempDominantSequence, computeClusterList);
 //				, excludeList);
 		//If execution time decreases from the previous step, clustering is acceptable
 		if (compareHierarchicalVolume(executionTime, computedDominantSequencePair.second) >= 0) {
