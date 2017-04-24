@@ -827,7 +827,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 
 	bool isLoopTerminator = false;
 	MachineLoop* loop = MLI.getLoopFor(BB);
-	if (loop != NULL && loop->getBottomBlock() != BB&&!endOfBBLoopEdgeCovered) {
+	if (loop != NULL && loop->getBottomBlock() != BB && !endOfBBLoopEdgeCovered) {
 		isLoopTerminator = true;
 		endOfBBLoopEdgeCovered = true;
 	}
@@ -3168,14 +3168,22 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 				unsigned addiRegister = MI->getOperand(0).getReg();
 
 				MachineInstrBuilder luiForTopBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(addiRegister, RegState::Define).addImm((immediateValue & 0xfffff000) >> 12);
-//				LIS->getSlotIndexes()->insertMachineInstrInMaps(luiForTopBits.operator llvm::MachineInstr *());
+				if (LIS->isNotInMIMap(luiForTopBits.operator llvm::MachineInstr *())) {
+					LIS->getSlotIndexes()->insertMachineInstrInMaps(luiForTopBits.operator llvm::MachineInstr *());
+				}
 				MachineInstrBuilder luiForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(REDEFINE::a5, RegState::Define).addImm(immediateValue & 0xfff);
-//				LIS->getSlotIndexes()->insertMachineInstrInMaps(luiForBottomBits.operator llvm::MachineInstr *());
-				MachineInstrBuilder srliForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(REDEFINE::a5, RegState::Define).addReg(REDEFINE::a5, RegState::InternalRead).addImm(12);
-//				LIS->getSlotIndexes()->insertMachineInstrInMaps(srliForBottomBits.operator llvm::MachineInstr *());
-				MachineInstrBuilder add = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(addiRegister).addReg(addiRegister).addReg(REDEFINE::a5);
-//				LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator llvm::MachineInstr *());
+				if (LIS->isNotInMIMap(luiForBottomBits.operator llvm::MachineInstr *())) {
+					LIS->getSlotIndexes()->insertMachineInstrInMaps(luiForBottomBits.operator llvm::MachineInstr *());
+				}
 
+				MachineInstrBuilder srliForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(REDEFINE::a5, RegState::Define).addReg(REDEFINE::a5, RegState::InternalRead).addImm(12);
+				if (LIS->isNotInMIMap(srliForBottomBits.operator llvm::MachineInstr *())) {
+					LIS->getSlotIndexes()->insertMachineInstrInMaps(srliForBottomBits.operator llvm::MachineInstr *());
+				}
+				MachineInstrBuilder add = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(addiRegister).addReg(addiRegister).addReg(REDEFINE::a5);
+				if (LIS->isNotInMIMap(add.operator llvm::MachineInstr *())) {
+					LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator llvm::MachineInstr *());
+				}
 
 				for (auto pHopItr = pHopInteractionGraph.begin(); pHopItr != pHopInteractionGraph.end(); pHopItr++) {
 					if (pHopItr->first == MI.operator->()) {
@@ -3241,8 +3249,12 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 
 				MachineInstrBuilder shiftInstr = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(addiRegister).addReg(addiRegister).addImm(12);
 
-//				LIS->getSlotIndexes()->insertMachineInstrInMaps(lui.operator llvm::MachineInstr *());
-//				LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftInstr.operator llvm::MachineInstr *());
+				if (LIS->isNotInMIMap(lui.operator llvm::MachineInstr *())) {
+					LIS->getSlotIndexes()->insertMachineInstrInMaps(lui.operator llvm::MachineInstr *());
+				}
+				if (LIS->isNotInMIMap(shiftInstr.operator llvm::MachineInstr *())) {
+					LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftInstr.operator llvm::MachineInstr *());
+				}
 
 				for (auto pHopItr = pHopInteractionGraph.begin(); pHopItr != pHopInteractionGraph.end(); pHopItr++) {
 					if (pHopItr->first == MI.operator->()) {
