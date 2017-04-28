@@ -522,6 +522,8 @@ struct HyperOpCreationPass: public ModulePass {
 					subTypeInitializer = CDS->getElementAsConstant(i);
 				} else if (initializer->getNumOperands() > i) {
 					subTypeInitializer = cast<Constant>(initializer->getOperand(i));
+				} else if (ConstantAggregateZero *CDS = dyn_cast<ConstantAggregateZero>(initializer)) {
+					subTypeInitializer = CDS->getElementValue(i);
 				} else {
 					subTypeInitializer = initializer;
 				}
@@ -538,6 +540,8 @@ struct HyperOpCreationPass: public ModulePass {
 					subTypeInitializer = CDS->getElementAsConstant(subTypeIndex);
 				} else if (initializer->getNumOperands() > subTypeIndex) {
 					subTypeInitializer = cast<Constant>(initializer->getOperand(subTypeIndex));
+				} else if (ConstantAggregateZero *CDS = dyn_cast<ConstantAggregateZero>(initializer)) {
+					subTypeInitializer = CDS->getElementValue(subTypeIndex);
 				} else {
 					subTypeInitializer = initializer;
 				}
@@ -1542,7 +1546,7 @@ struct HyperOpCreationPass: public ModulePass {
 						idom = tree.getNode(idom)->getIDom()->getBlock();
 					}
 					if (idom != NULL) {
-						errs() << "idom:" << idom->getName() << " from "<<idom->getParent()->getName()<<" and original idom:"<<originalIdom->getName()<<"\n";
+						errs() << "idom:" << idom->getName() << " from " << idom->getParent()->getName() << " and original idom:" << originalIdom->getName() << "\n";
 					}
 					//if the idom is not in accumulated list, add it as a branch source
 					if (idom != NULL) {
@@ -1575,11 +1579,11 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
-					errs()<<"trying to add unconditional jumps\n";
+					errs() << "trying to add unconditional jumps\n";
 					//Add all the jump sources of the basic block to point to their return blocks
 					for (auto predItr = pred_begin(originalBB); predItr != pred_end(originalBB); predItr++) {
 						BasicBlock* pred = *predItr;
-						errs()<<"from pred:"<<pred->getName()<<":"<<(pred != idom)<<","<<(!idomPredecessor)<<" cos original:"<<originalIdom->getName()<<" and "<<(find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), pred) == accumulatedBasicBlocks.end())<<"\n";
+						errs() << "from pred:" << pred->getName() << ":" << (pred != idom) << "," << (!idomPredecessor) << " cos original:" << originalIdom->getName() << " and " << (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), pred) == accumulatedBasicBlocks.end()) << "\n";
 						if ((pred != idom || !idomPredecessor) && originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
 //								find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), pred) == accumulatedBasicBlocks.end() && originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
 							assert(pred->getTerminator()->getNumSuccessors() <= 1 && "conditional jump to basic block cannot exist here\n");
@@ -2497,7 +2501,7 @@ struct HyperOpCreationPass: public ModulePass {
 				clonedInstructionsToBeLabeled.push_back(make_pair(clonedInstr, clonedPredicateOperand));
 				Function* producerFunction = conditionalBranchInst->getParent()->getParent();
 				bool isProducerStatic = createdHyperOpAndType[clonedInstr->getParent()->getParent()];
-				errs()<<"producer of data:"<<producerFunction->getName()<<" and its clone?"<<clonedInstr->getParent()->getParent()->getName()<<", is it static?"<<isProducerStatic<<"\n";
+				errs() << "producer of data:" << producerFunction->getName() << " and its clone?" << clonedInstr->getParent()->getParent()->getName() << ", is it static?" << isProducerStatic << "\n";
 
 				//Find the replicas of the consumer HyperOp which also need to be annotated, hence populating a list
 				if (isProducerStatic && !isStaticHyperOp) {
