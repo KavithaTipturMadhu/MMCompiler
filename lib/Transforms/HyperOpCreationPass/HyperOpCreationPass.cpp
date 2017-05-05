@@ -601,26 +601,26 @@ struct HyperOpCreationPass: public ModulePass {
 		return cyclesInCallGraph;
 	}
 
-	list<list<pair<Function*, CallInst*> > > getCyclesContainingHyperOpInstance(CallInst * callInst, list<list<pair<Function*, CallInst*> > > cyclesInCallGraph) {
-		errs() << "cycles containing call:";
-		callInst->dump();
-		list<list<pair<Function*, CallInst*> > > cyclesContainingCall;
-		for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
-			list<pair<Function*, CallInst*> > cycle = *cycleItr;
-			bool callInCycle = false;
-			for (list<pair<Function*, CallInst*> >::iterator funcCallItr = cycle.begin(); funcCallItr != cycle.end(); funcCallItr++) {
-				if (funcCallItr->second == callInst) {
-					callInCycle = true;
-					break;
-				}
-			}
-
-			if (callInCycle) {
-				cyclesContainingCall.push_back(cycle);
-			}
-		}
-		return cyclesContainingCall;
-	}
+//	list<list<pair<Function*, CallInst*> > > getCyclesContainingHyperOpInstance(CallInst * callInst, list<list<pair<Function*, CallInst*> > > cyclesInCallGraph) {
+//		errs() << "finding cycles containing call:";
+//		callInst->dump();
+//		list<list<pair<Function*, CallInst*> > > cyclesContainingCall;
+//		for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
+//			list<pair<Function*, CallInst*> > cycle = *cycleItr;
+//			bool callInCycle = false;
+//			for (list<pair<Function*, CallInst*> >::iterator funcCallItr = cycle.begin(); funcCallItr != cycle.end(); funcCallItr++) {
+//				if (funcCallItr->second == callInst) {
+//					callInCycle = true;
+//					break;
+//				}
+//			}
+//
+//			if (callInCycle) {
+//				cyclesContainingCall.push_back(cycle);
+//			}
+//		}
+//		return cyclesContainingCall;
+//	}
 
 	bool inline isHyperOpInstanceInCycle(CallInst* callInst, list<list<pair<Function*, CallInst*> > > cyclesInCallGraph) {
 		map<CallInst*, Function*> functionInstancesToBeCreated;
@@ -825,17 +825,9 @@ struct HyperOpCreationPass: public ModulePass {
 		}
 
 		for (CallInst* callInst : callsToInline) {
-			errs() << "inling function call:";
-			callInst->dump();
 			InlineFunctionInfo info;
 //			InlineFunction(callInst, info);
 		}
-
-		errs() << "Module state:";
-		M.dump();
-
-		errs() << "whats the module now?\n";
-		M.dump();
 
 		for (Module::iterator func = M.begin(); func != M.end(); func++) {
 			errs() << "finding dependences of func:" << func->getName() << "\n";
@@ -2131,10 +2123,10 @@ struct HyperOpCreationPass: public ModulePass {
 						//Find the replicas of the consumer HyperOp which also need to be annotated, hence populating a list
 						if (isProducerStatic && !isStaticHyperOp) {
 							//replicate the meta data in the last instance of the HyperOp corresponding to the last HyperOp in the cycle
-							list<list<pair<Function*, CallInst*> > > cyclesContainingCall = getCyclesContainingHyperOpInstance(callSite.back(), cyclesInCallGraph);
+//							list<list<pair<Function*, CallInst*> > > cyclesContainingCall = getCyclesContainingHyperOpInstance(callSite.back(), cyclesInCallGraph);
 							list<list<CallInst*> > callChainList;
-							errs() << "how many cycles?" << cyclesContainingCall.size() << "\n";
-							for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesContainingCall.begin(); cycleItr != cyclesContainingCall.end(); cycleItr++) {
+//							errs() << "how many cycles?" << cyclesContainingCall.size() << "\n";
+							for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
 								list<CallInst*> callChain;
 								std::copy(callSite.begin(), callSite.end(), std::back_inserter(callChain));
 								list<pair<Function*, CallInst*> > cycle = *cycleItr;
@@ -2307,7 +2299,7 @@ struct HyperOpCreationPass: public ModulePass {
 							//Find the replicas of the consumer HyperOp which also need to be annotated, hence populating a list
 							if (isProducerStatic && !isStaticHyperOp) {
 								//replicate the meta data in the last instance of the HyperOp corresponding to the last HyperOp in the cycle
-								list<list<pair<Function*, CallInst*> > > cyclesContainingCall = getCyclesContainingHyperOpInstance(callSite.back(), cyclesInCallGraph);
+//								list<list<pair<Function*, CallInst*> > > cyclesContainingCall = getCyclesContainingHyperOpInstance(callSite.back(), cyclesInCallGraph);
 								list<list<CallInst*> > callChainList;
 
 								for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
@@ -2506,7 +2498,7 @@ struct HyperOpCreationPass: public ModulePass {
 				//Find the replicas of the consumer HyperOp which also need to be annotated, hence populating a list
 				if (isProducerStatic && !isStaticHyperOp) {
 					//replicate the meta data in the last instance of the HyperOp corresponding to the last HyperOp in the cycle
-					list<list<pair<Function*, CallInst*> > > cyclesContainingCall = getCyclesContainingHyperOpInstance(callSite.back(), cyclesInCallGraph);
+//					list<list<pair<Function*, CallInst*> > > cyclesContainingCall = getCyclesContainingHyperOpInstance(callSite.back(), cyclesInCallGraph);
 					list<list<CallInst*> > callChainList;
 
 					for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
@@ -2754,7 +2746,7 @@ struct HyperOpCreationPass: public ModulePass {
 					//Find the replicas of the consumer HyperOp which also need to be annotated, hence populating a list
 					if (isProducerStatic && !isStaticHyperOp) {
 						//replicate the meta data in the last instance of the HyperOp corresponding to the last HyperOp in the cycle
-						list<list<pair<Function*, CallInst*> > > cyclesContainingCall = getCyclesContainingHyperOpInstance(callSite.back(), cyclesInCallGraph);
+//						list<list<pair<Function*, CallInst*> > > cyclesContainingCall = getCyclesContainingHyperOpInstance(callSite.back(), cyclesInCallGraph);
 						list<list<CallInst*> > callChainList;
 
 						for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
