@@ -1398,6 +1398,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 //		firstInstructionOfpHyperOpInRegion.push_back(0);
 //	}
 
+	errs() << "before falloc, state of bb" << BB->getNumber() << ":";
+	BB->dump();
 	DEBUG(dbgs() << "Adding all fallocs first to avoid stalls due to sequential fallocs and fbinds\n");
 	map<HyperOp*, pair<unsigned, unsigned> > registerContainingHyperOpFrameAddressAndCEWithFalloc;
 	unsigned currentCE = 0;
@@ -1411,6 +1413,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					MachineInstrBuilder falloc = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FALLOC));
 					falloc.addReg(registerContainingConsumerFrameAddr, RegState::Define);
 					falloc.addImm(0);
+					errs() << "where is the falloc inserted?" << currentCE << "\n";
+					falloc.operator ->()->dump();
 					allInstructionsOfRegion.push_back(make_pair(falloc.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 					registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(*childHyperOpItr, make_pair(registerContainingConsumerFrameAddr, currentCE)));
 					if (firstInstructionOfpHyperOpInRegion[currentCE] == 0) {
@@ -1435,6 +1439,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	}
 
 	DEBUG(dbgs() << "Adding writecm(for writing sync count to context frames) and fbind instructions\n");
+	errs() << "which hop:" << hyperOp->asString() << "\n";
 	for (list<HyperOp*>::iterator childHyperOpItr = graph->Vertices.begin(); childHyperOpItr != graph->Vertices.end(); childHyperOpItr++) {
 		//Among the HyperOps immediately dominated by the hyperOp, add fbind for those HyperOps that require it
 		if ((*childHyperOpItr)->getImmediateDominator() == hyperOp) {
@@ -1484,68 +1489,66 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			HyperOp* immediatePostDomForDeletion = 0;
 			HyperOp* liveEndOfVertex = 0;
 			//Non-predicated HyperOp can be deleted by itself
-			if (liveStartOfVertex != 0) {
+			if (liveStartOfVertex != 0 && (*childHyperOpItr)->isPredicatedHyperOp()) {
 				liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
 			} else {
 				liveEndOfVertex = (*childHyperOpItr);
+				errs()<<"live end of child is itself\n";
 			}
 			//Add fdelete instruction from r30
-			if (liveEndOfVertex == hyperOp) {
+			if (liveEndOfVertex == hyperOp && liveEndOfVertex != (*childHyperOpItr)) {
+				errs()<<"adding fdelete\n";
 				MachineInstrBuilder fdelete;
-				if (liveEndOfVertex != (*childHyperOpItr)) {
-					//Find the edge corresponding to the context frame of the child hyperop
-					for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = liveEndOfVertex->ParentMap.begin(); parentItr != liveEndOfVertex->ParentMap.end(); parentItr++) {
-						if ((parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) && parentItr->first->getContextFrameAddress() == (*childHyperOpItr)) {
-							unsigned virtualReg;
-							//Get the slot to read from which translates to a register anyway
-							if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) {
-								unsigned physicalReg = REDEFINEphysRegs[parentItr->first->getPositionOfContextSlot()];
-								if (!MF.getRegInfo().isLiveIn(physicalReg)) {
-									//There is no need to check if the register is live-in and have an else block here
-									virtualReg = MF.addLiveIn(physicalReg, TRI->getMinimalPhysRegClass(physicalReg));
-									for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
-										bbItr->addLiveIn(physicalReg);
-									}
-									MF.getRegInfo().setRegAllocationHint(virtualReg, 0, physicalReg);
-									//Emit copy
-									MachineInstrBuilder copy = BuildMI(lastBB, lastInstruction, location, TII->get(TargetOpcode::COPY)).addReg(virtualReg, RegState::Define).addReg(physicalReg);
-									LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
-									allInstructionsOfRegion.push_back(make_pair(copy.operator ->(), make_pair(0, insertPosition++)));
-									LIS->computeLiveInRegUnits();
-								} else {
-									virtualReg = MF.getRegInfo().getLiveInVirtReg(physicalReg);
+				//Find the edge corresponding to the context frame of the child hyperop
+				for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = liveEndOfVertex->ParentMap.begin(); parentItr != liveEndOfVertex->ParentMap.end(); parentItr++) {
+					if ((parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) && parentItr->first->getContextFrameAddress() == (*childHyperOpItr)) {
+						unsigned virtualReg;
+						//Get the slot to read from which translates to a register anyway
+						if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) {
+							unsigned physicalReg = REDEFINEphysRegs[parentItr->first->getPositionOfContextSlot()];
+							if (!MF.getRegInfo().isLiveIn(physicalReg)) {
+								//There is no need to check if the register is live-in and have an else block here
+								virtualReg = MF.addLiveIn(physicalReg, TRI->getMinimalPhysRegClass(physicalReg));
+								for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
+									bbItr->addLiveIn(physicalReg);
 								}
-							} else {
-								virtualReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-								MachineInstrBuilder copy = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::LW));
-								copy.addReg(virtualReg, RegState::Define);
-								copy.addReg(REDEFINE::t5);
-								unsigned argCount = 0;
-								int frameIndex = -1;
-								for (auto argItr = MF.getFunction()->arg_begin(); argItr != MF.getFunction()->arg_end(); argItr++, argCount++) {
-									if (argCount == parentItr->first->getPositionOfContextSlot()) {
-										break;
-									}
-									if (!MF.getFunction()->getAttributes().hasAttribute(argCount, Attribute::InReg)) {
-										frameIndex--;
-									}
-								}
-								copy.addFrameIndex(frameIndex);
+								MF.getRegInfo().setRegAllocationHint(virtualReg, 0, physicalReg);
+								//Emit copy
+								MachineInstrBuilder copy = BuildMI(lastBB, lastInstruction, location, TII->get(TargetOpcode::COPY)).addReg(virtualReg, RegState::Define).addReg(physicalReg);
 								LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
-								allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
+								allInstructionsOfRegion.push_back(make_pair(copy.operator ->(), make_pair(0, insertPosition++)));
+								LIS->computeLiveInRegUnits();
+							} else {
+								virtualReg = MF.getRegInfo().getLiveInVirtReg(physicalReg);
 							}
-							fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(virtualReg).addImm(0);
-							break;
+						} else {
+							virtualReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+							MachineInstrBuilder copy = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::LW));
+							copy.addReg(virtualReg, RegState::Define);
+							copy.addReg(REDEFINE::t5);
+							unsigned argCount = 0;
+							int frameIndex = -1;
+							for (auto argItr = MF.getFunction()->arg_begin(); argItr != MF.getFunction()->arg_end(); argItr++, argCount++) {
+								if (argCount == parentItr->first->getPositionOfContextSlot()) {
+									break;
+								}
+								if (!MF.getFunction()->getAttributes().hasAttribute(argCount, Attribute::InReg)) {
+									frameIndex--;
+								}
+							}
+							copy.addFrameIndex(frameIndex);
+							LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
+							allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 						}
+						fdelete = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::FDELETE)).addReg(virtualReg).addImm(0);
+						break;
 					}
-					if (firstInstructionOfpHyperOpInRegion[0] == 0) {
-						firstInstructionOfpHyperOpInRegion[0] = fdelete.operator llvm::MachineInstr *();
-					}
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(fdelete.operator llvm::MachineInstr *());
-					allInstructionsOfRegion.push_back(make_pair(fdelete.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
-					errs() << "HyperOp " << hyperOp->asString() << " is trying to delete " << (*childHyperOpItr)->asString() << "\n";
 				}
-
+				if (firstInstructionOfpHyperOpInRegion[0] == 0) {
+					firstInstructionOfpHyperOpInRegion[0] = fdelete.operator llvm::MachineInstr *();
+				}
+				LIS->getSlotIndexes()->insertMachineInstrInMaps(fdelete.operator llvm::MachineInstr *());
+				allInstructionsOfRegion.push_back(make_pair(fdelete.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 			}
 		}
 	}
@@ -2025,8 +2028,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	for (map<HyperOpEdge*, HyperOp*>::iterator childItr = hyperOp->ChildMap.begin(); childItr != hyperOp->ChildMap.end(); childItr++) {
 		HyperOpEdge* edge = childItr->first;
 		HyperOp* consumer = childItr->second;
-		errs() << "consumer hop:" << consumer->asString() << " with edge type " << edge->getType() << "\n";
-
 		if (edge->getType() == HyperOpEdge::SCALAR || edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) {
 			unsigned registerContainingConsumerBase;
 			unsigned targetCE = 0;
@@ -2035,7 +2036,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					vector<const Value*> memoryLocationsAccessed = memoryLocationsAccessedInCE[i];
 					for (unsigned j = 0; j < memoryLocationsAccessed.size(); j++) {
 						if (memoryLocationsAccessed[j] == edge->getValue()) {
-							errs() << "mem dependence targetce added:" << targetCE << "\n";
 							targetCE = i;
 							break;
 						}
@@ -2526,7 +2526,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					writeToContextFrame.addReg(registerContainingConsumerBase);
 					writeToContextFrame.addReg(registerContainingData);
 					writeToContextFrame.addImm(edge->getPositionOfContextSlot() * datawidth);
-					errs() << "added writecm1 to target ce:" << targetCE << "\n";
+					errs() << "added writecm to target ce:" << targetCE << ":";
 					writeToContextFrame.operator ->()->dump();
 				}
 				if (firstInstructionOfpHyperOpInRegion[targetCE] == 0) {
