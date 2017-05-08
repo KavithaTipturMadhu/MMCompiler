@@ -85,8 +85,6 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 
 	PHyperOpInteractionGraph pHopInteractionGraph;
 
-	const char* HYPEROP_ID_PREFIX = "HyOp#";
-
 	unsigned copyOfInstanceId;
 	unsigned REDEFINEphysRegs[16] = { REDEFINE::ra, REDEFINE::sp, REDEFINE::gp, REDEFINE::tp, REDEFINE::t0, REDEFINE::t1, REDEFINE::t2, REDEFINE::t3, REDEFINE::fp, REDEFINE::s0, REDEFINE::s1, REDEFINE::a0, REDEFINE::a1, REDEFINE::a2, REDEFINE::a3, REDEFINE::a4 };
 	static const int FRAMES_PER_CR = 832;

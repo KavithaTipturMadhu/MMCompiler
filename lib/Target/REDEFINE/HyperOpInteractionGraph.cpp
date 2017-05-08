@@ -291,6 +291,12 @@ void HyperOp::setPredicatedHyperOp() {
 	this->IsPredicated = true;
 }
 
+void HyperOp::setInRange(){
+	this->InRange = true;
+}
+bool HyperOp::getInRange(){
+	return this->InRange;
+}
 bool HyperOp::isStartHyperOp() {
 	return this->IsStart;
 }
@@ -3796,7 +3802,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			errs() << "updating node with incoming sync edges " << hyperOp->asString() << "\n";
 			list<HyperOp*> syncSourceList;
 			for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
-				if (parentItr->first->getType() == HyperOpEdge::SYNC && find(syncSourceList.begin(), syncSourceList.end(), parentItr->second) == syncSourceList.end()) {
+				if (!parentItr->second->getInRange()&&parentItr->first->getType() == HyperOpEdge::SYNC && find(syncSourceList.begin(), syncSourceList.end(), parentItr->second) == syncSourceList.end()) {
 					syncSourceList.push_back(parentItr->second);
 				}
 			}
@@ -3903,6 +3909,8 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 					os << "order";
 				} else if (edge->Type == HyperOpEdge::SYNC) {
 					os << "sync";
+				}else if(edge->Type == HyperOpEdge::RANGE){
+					os<<"range";
 				}
 				os << "];\n";
 			}
