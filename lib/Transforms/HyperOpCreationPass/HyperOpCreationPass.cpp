@@ -58,8 +58,8 @@ struct HyperOpCreationPass: public ModulePass {
 
 	virtual void getAnalysisUsage(AnalysisUsage &AU) const {
 		//Mandatory merge return to be invoked on each function
-//		AU.addRequired<DominatorTree>();
-//		AU.addRequired<AliasAnalysis>();
+//	AU.addRequired<DominatorTree>();
+//	AU.addRequired<AliasAnalysis>();
 		AU.addRequired<UnifyFunctionExitNodes>();
 		AU.addRequired<DependenceAnalysis>();
 	}
@@ -103,159 +103,159 @@ struct HyperOpCreationPass: public ModulePass {
 
 //	//TODO replace this with a forward flow problem ASAP
 //	list<list<pair<BasicBlock*, unsigned> > > reachingPredicateChain(BasicBlock* targetBB, list<BasicBlock*> acquiredBasicBlocks) {
-//		list<list<pair<BasicBlock*, unsigned> > > predicateChains;
-//		for (pred_iterator predecessorItr = pred_begin(targetBB); predecessorItr != pred_end(targetBB); predecessorItr++) {
-//			BasicBlock* predecessor = *predecessorItr;
-//			if (predecessor->getParent() == targetBB->getParent() || find(acquiredBasicBlocks.begin(), acquiredBasicBlocks.end(), predecessor) != acquiredBasicBlocks.end()) {
-//				for (unsigned i = 0; i < predecessor->getTerminator()->getNumSuccessors(); i++) {
-//					if (predecessor->getTerminator()->getSuccessor(i) == targetBB) {
-//						list<list<pair<BasicBlock*, unsigned> > > predicateToPredecessor = reachingPredicateChain(predecessor, acquiredBasicBlocks);
-//						if (predicateToPredecessor.empty() && predecessor->getTerminator()->getNumSuccessors() > 1) {
-//							list<pair<BasicBlock*, unsigned> > predicateChainToPredecessor;
-//							predicateChainToPredecessor.push_back(make_pair(predecessor, i));
-//							predicateChains.push_back(predicateChainToPredecessor);
-//						} else {
-//							for (list<list<pair<BasicBlock*, unsigned> > >::iterator predecessorPredItr = predicateToPredecessor.begin(); predecessorPredItr != predicateToPredecessor.end(); predecessorPredItr++) {
-//								list<pair<BasicBlock*, unsigned> > predicateChainToPredecessor = *predecessorPredItr;
-//								if (predecessor->getTerminator()->getNumSuccessors() > 1) {
-//									predicateChainToPredecessor.push_back(make_pair(predecessor, i));
-//								}
-//								predicateChains.push_back(predicateChainToPredecessor);
-//							}
-//						}
-//					}
-//				}
-//			}
-//		}
+//	list<list<pair<BasicBlock*, unsigned> > > predicateChains;
+//	for (pred_iterator predecessorItr = pred_begin(targetBB); predecessorItr != pred_end(targetBB); predecessorItr++) {
+//	BasicBlock* predecessor = *predecessorItr;
+//	if (predecessor->getParent() == targetBB->getParent() || find(acquiredBasicBlocks.begin(), acquiredBasicBlocks.end(), predecessor) != acquiredBasicBlocks.end()) {
+//	for (unsigned i = 0; i < predecessor->getTerminator()->getNumSuccessors(); i++) {
+//	if (predecessor->getTerminator()->getSuccessor(i) == targetBB) {
+//	list<list<pair<BasicBlock*, unsigned> > > predicateToPredecessor = reachingPredicateChain(predecessor, acquiredBasicBlocks);
+//	if (predicateToPredecessor.empty() && predecessor->getTerminator()->getNumSuccessors() > 1) {
+//	list<pair<BasicBlock*, unsigned> > predicateChainToPredecessor;
+//	predicateChainToPredecessor.push_back(make_pair(predecessor, i));
+//	predicateChains.push_back(predicateChainToPredecessor);
+//	} else {
+//	for (list<list<pair<BasicBlock*, unsigned> > >::iterator predecessorPredItr = predicateToPredecessor.begin(); predecessorPredItr != predicateToPredecessor.end(); predecessorPredItr++) {
+//	list<pair<BasicBlock*, unsigned> > predicateChainToPredecessor = *predecessorPredItr;
+//	if (predecessor->getTerminator()->getNumSuccessors() > 1) {
+//	predicateChainToPredecessor.push_back(make_pair(predecessor, i));
+//	}
+//	predicateChains.push_back(predicateChainToPredecessor);
+//	}
+//	}
+//	}
+//	}
+//	}
+//	}
 //
-//		bool change = true;
-//		//Reduce the predicates to match mutually exclusive paths and identify the longest predicate
-//		while (change) {
-//			change = false;
-//			list<list<pair<BasicBlock*, unsigned> > > removalList;
-//			list<list<pair<BasicBlock*, unsigned> > > additionList;
+//	bool change = true;
+//	//Reduce the predicates to match mutually exclusive paths and identify the longest predicate
+//	while (change) {
+//	change = false;
+//	list<list<pair<BasicBlock*, unsigned> > > removalList;
+//	list<list<pair<BasicBlock*, unsigned> > > additionList;
 //
-//			int i = 0;
-//			for (list<list<pair<BasicBlock*, unsigned> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++, i++) {
-//				if (*predicateChainItr != predicateChains.back()) {
-//					int j = i + 1;
-//					list<list<pair<BasicBlock*, unsigned> > >::iterator secondPredicateChainItr = predicateChainItr;
-//					secondPredicateChainItr++;
-//					for (; secondPredicateChainItr != predicateChains.end(); secondPredicateChainItr++, j++) {
-//						if (predicateChainItr == secondPredicateChainItr || predicateChainItr->size() != secondPredicateChainItr->size()) {
-//							continue;
-//						}
-//						//Check if the predicate chains are the same and mark duplicates for removal
-//						bool chainMatches = true;
-//						//Check if the rest of the predicate chain matches
-//						list<pair<BasicBlock*, unsigned> >::iterator secondChainItr = secondPredicateChainItr->begin();
-//						for (list<pair<BasicBlock*, unsigned> >::iterator firstChainItr = predicateChainItr->begin(); firstChainItr != predicateChainItr->end() && secondChainItr != secondPredicateChainItr->end(); firstChainItr++, secondChainItr++) {
-//							if (firstChainItr->first != secondChainItr->first || firstChainItr->second != secondChainItr->second) {
-//								chainMatches = false;
-//								break;
-//							}
-//						}
+//	int i = 0;
+//	for (list<list<pair<BasicBlock*, unsigned> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++, i++) {
+//	if (*predicateChainItr != predicateChains.back()) {
+//	int j = i + 1;
+//	list<list<pair<BasicBlock*, unsigned> > >::iterator secondPredicateChainItr = predicateChainItr;
+//	secondPredicateChainItr++;
+//	for (; secondPredicateChainItr != predicateChains.end(); secondPredicateChainItr++, j++) {
+//	if (predicateChainItr == secondPredicateChainItr || predicateChainItr->size() != secondPredicateChainItr->size()) {
+//	continue;
+//	}
+//	//Check if the predicate chains are the same and mark duplicates for removal
+//	bool chainMatches = true;
+//	//Check if the rest of the predicate chain matches
+//	list<pair<BasicBlock*, unsigned> >::iterator secondChainItr = secondPredicateChainItr->begin();
+//	for (list<pair<BasicBlock*, unsigned> >::iterator firstChainItr = predicateChainItr->begin(); firstChainItr != predicateChainItr->end() && secondChainItr != secondPredicateChainItr->end(); firstChainItr++, secondChainItr++) {
+//	if (firstChainItr->first != secondChainItr->first || firstChainItr->second != secondChainItr->second) {
+//	chainMatches = false;
+//	break;
+//	}
+//	}
 //
-//						if (chainMatches && find(removalList.begin(), removalList.end(), *secondPredicateChainItr) == removalList.end()) {
-//							removalList.push_back(*secondPredicateChainItr);
-//						}
-//					}
-//				}
-//			}
-//			for (list<list<pair<BasicBlock*, unsigned> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
-//				//Remove only the first instance of the predicate and not all instances that are equal t
-//				predicateChains.remove(*removalItr);
-//			}
+//	if (chainMatches && find(removalList.begin(), removalList.end(), *secondPredicateChainItr) == removalList.end()) {
+//	removalList.push_back(*secondPredicateChainItr);
+//	}
+//	}
+//	}
+//	}
+//	for (list<list<pair<BasicBlock*, unsigned> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
+//	//Remove only the first instance of the predicate and not all instances that are equal t
+//	predicateChains.remove(*removalItr);
+//	}
 //
-//			if (!removalList.empty()) {
-//				change = true;
-//			}
-//			removalList.clear();
+//	if (!removalList.empty()) {
+//	change = true;
+//	}
+//	removalList.clear();
 //
-//			list<pair<BasicBlock*, unsigned> > firstLongestMatchingPred;
-//			list<pair<BasicBlock*, unsigned> > secondLongestMatchingPred;
-//			for (list<list<pair<BasicBlock*, unsigned> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++) {
-//				if (*predicateChainItr != predicateChains.back()) {
-//					list<list<pair<BasicBlock*, unsigned> > >::iterator secondPredicateChainItr = predicateChainItr;
-//					secondPredicateChainItr++;
-//					for (; secondPredicateChainItr != predicateChains.end(); secondPredicateChainItr++) {
-//						if (predicateChainItr->size() == secondPredicateChainItr->size()) {
-//							//Check if the predicate chains are mutually exclusive
-//							if (!(predicateChainItr->front().first == secondPredicateChainItr->front().first && predicateChainItr->front().second != secondPredicateChainItr->front().second)) {
-//								continue;
-//							}
-//							bool restOfChainMatches = true;
-//							//Check if the rest of the predicate chain matches
-//							list<pair<BasicBlock*, unsigned> >::iterator secondChainItr = secondPredicateChainItr->begin();
-//							for (list<pair<BasicBlock*, unsigned> >::iterator firstChainItr = predicateChainItr->begin(); firstChainItr != predicateChainItr->end() && secondChainItr != secondPredicateChainItr->end(); firstChainItr++, secondChainItr++) {
-//								if (*firstChainItr == predicateChainItr->front() && *secondChainItr == secondPredicateChainItr->front()) {
-//									continue;
-//								}
-//								if (firstChainItr->first != secondChainItr->first || firstChainItr->second != secondChainItr->second) {
-//									restOfChainMatches = false;
-//									break;
-//								}
-//							}
+//	list<pair<BasicBlock*, unsigned> > firstLongestMatchingPred;
+//	list<pair<BasicBlock*, unsigned> > secondLongestMatchingPred;
+//	for (list<list<pair<BasicBlock*, unsigned> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++) {
+//	if (*predicateChainItr != predicateChains.back()) {
+//	list<list<pair<BasicBlock*, unsigned> > >::iterator secondPredicateChainItr = predicateChainItr;
+//	secondPredicateChainItr++;
+//	for (; secondPredicateChainItr != predicateChains.end(); secondPredicateChainItr++) {
+//	if (predicateChainItr->size() == secondPredicateChainItr->size()) {
+//	//Check if the predicate chains are mutually exclusive
+//	if (!(predicateChainItr->front().first == secondPredicateChainItr->front().first && predicateChainItr->front().second != secondPredicateChainItr->front().second)) {
+//	continue;
+//	}
+//	bool restOfChainMatches = true;
+//	//Check if the rest of the predicate chain matches
+//	list<pair<BasicBlock*, unsigned> >::iterator secondChainItr = secondPredicateChainItr->begin();
+//	for (list<pair<BasicBlock*, unsigned> >::iterator firstChainItr = predicateChainItr->begin(); firstChainItr != predicateChainItr->end() && secondChainItr != secondPredicateChainItr->end(); firstChainItr++, secondChainItr++) {
+//	if (*firstChainItr == predicateChainItr->front() && *secondChainItr == secondPredicateChainItr->front()) {
+//	continue;
+//	}
+//	if (firstChainItr->first != secondChainItr->first || firstChainItr->second != secondChainItr->second) {
+//	restOfChainMatches = false;
+//	break;
+//	}
+//	}
 //
-//							if (restOfChainMatches && (firstLongestMatchingPred.empty() || firstLongestMatchingPred.size() < predicateChainItr->size())) {
-//								firstLongestMatchingPred = *predicateChainItr;
-//								secondLongestMatchingPred = *secondPredicateChainItr;
-//							}
-//						}
-//					}
-//				}
-//			}
+//	if (restOfChainMatches && (firstLongestMatchingPred.empty() || firstLongestMatchingPred.size() < predicateChainItr->size())) {
+//	firstLongestMatchingPred = *predicateChainItr;
+//	secondLongestMatchingPred = *secondPredicateChainItr;
+//	}
+//	}
+//	}
+//	}
+//	}
 //
-//			if (!firstLongestMatchingPred.empty() && find(removalList.begin(), removalList.end(), firstLongestMatchingPred) == removalList.end()) {
-//				removalList.push_back(firstLongestMatchingPred);
-//			}
+//	if (!firstLongestMatchingPred.empty() && find(removalList.begin(), removalList.end(), firstLongestMatchingPred) == removalList.end()) {
+//	removalList.push_back(firstLongestMatchingPred);
+//	}
 //
-//			if (!secondLongestMatchingPred.empty() && find(removalList.begin(), removalList.end(), secondLongestMatchingPred) == removalList.end()) {
-//				removalList.push_back(secondLongestMatchingPred);
-//			}
+//	if (!secondLongestMatchingPred.empty() && find(removalList.begin(), removalList.end(), secondLongestMatchingPred) == removalList.end()) {
+//	removalList.push_back(secondLongestMatchingPred);
+//	}
 //
-//			//Create a new predicate chain that is one short of the chains in consideration
-//			list<pair<BasicBlock*, unsigned> > prefixPredicate = secondLongestMatchingPred;
-//			if (!prefixPredicate.empty()) {
-//				prefixPredicate.pop_front();
-//				if (!prefixPredicate.empty() && find(additionList.begin(), additionList.end(), prefixPredicate) == additionList.end()) {
-//					additionList.push_back(prefixPredicate);
-//				}
-//			}
+//	//Create a new predicate chain that is one short of the chains in consideration
+//	list<pair<BasicBlock*, unsigned> > prefixPredicate = secondLongestMatchingPred;
+//	if (!prefixPredicate.empty()) {
+//	prefixPredicate.pop_front();
+//	if (!prefixPredicate.empty() && find(additionList.begin(), additionList.end(), prefixPredicate) == additionList.end()) {
+//	additionList.push_back(prefixPredicate);
+//	}
+//	}
 //
-//			for (list<list<pair<BasicBlock*, unsigned> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
-//				predicateChains.remove(*removalItr);
-//			}
+//	for (list<list<pair<BasicBlock*, unsigned> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
+//	predicateChains.remove(*removalItr);
+//	}
 //
-//			//		errs() << "after removal, what is in predicate chains list?";
-//			//		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
-//			//			errs() << "\neach chain:";
-//			//			for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
-//			//				errs() << printItr->second->asString() << "(";
-//			//				printItr->first->getValue()->print(errs());
-//			//				errs() << printItr->first->getPredicateValue() << ")->";
-//			//			}
-//			//		}
+//	//	errs() << "after removal, what is in predicate chains list?";
+//	//	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
+//	//	errs() << "\neach chain:";
+//	//	for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
+//	//	errs() << printItr->second->asString() << "(";
+//	//	printItr->first->getValue()->print(errs());
+//	//	errs() << printItr->first->getPredicateValue() << ")->";
+//	//	}
+//	//	}
 //
-//			for (list<list<pair<BasicBlock*, unsigned> > >::iterator additionItr = additionList.begin(); additionItr != additionList.end(); additionItr++) {
-//				predicateChains.push_back(*additionItr);
-//			}
-//			//Check if there are duplicates and remove them
-//			if (!removalList.empty()) {
-//				change = true;
-//			}
-//		}
+//	for (list<list<pair<BasicBlock*, unsigned> > >::iterator additionItr = additionList.begin(); additionItr != additionList.end(); additionItr++) {
+//	predicateChains.push_back(*additionItr);
+//	}
+//	//Check if there are duplicates and remove them
+//	if (!removalList.empty()) {
+//	change = true;
+//	}
+//	}
 //
-//		errs() << "finally, what is in predicate chains list?";
-//		for (list<list<pair<BasicBlock*, unsigned> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
-//			errs() << "\neach chain:";
-//			for (list<pair<BasicBlock*, unsigned> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
-//				errs() << printItr->first->getName() << "(" << printItr->first->getParent()->getName() << "," << printItr->second << ")" << "->";
-//			}
-//		}
+//	errs() << "finally, what is in predicate chains list?";
+//	for (list<list<pair<BasicBlock*, unsigned> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
+//	errs() << "\neach chain:";
+//	for (list<pair<BasicBlock*, unsigned> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
+//	errs() << printItr->first->getName() << "(" << printItr->first->getParent()->getName() << "," << printItr->second << ")" << "->";
+//	}
+//	}
 //
-//		errs() << "\n";
-//		return predicateChains;
+//	errs() << "\n";
+//	return predicateChains;
 //	}
 
 //Find the definitions of globals reaching the target instruction
@@ -292,7 +292,7 @@ struct HyperOpCreationPass: public ModulePass {
 				//Reverse iterator so that the last store is encountered first
 				for (BasicBlock::reverse_iterator instrItr = originalBB->rbegin(); instrItr != originalBB->rend(); instrItr++) {
 					Instruction* instr = &*instrItr;
-					if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(0) == globalVariable && reachingDefinitions.find(originalBB) == reachingDefinitions.end()) {
+					if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == globalVariable && reachingDefinitions.find(originalBB) == reachingDefinitions.end()) {
 						//Check if the store instruction is reachable to any of the uses of the argument in the accumulated bb list
 						for (Value::use_iterator useItr = globalVariable->use_begin(); useItr != globalVariable->use_end(); useItr++) {
 							User* user = *useItr;
@@ -349,7 +349,7 @@ struct HyperOpCreationPass: public ModulePass {
 					Instruction* instr = instrItr;
 					//Check the uses in BasicBlocks that are predecessors and use allocInstr
 					list<BasicBlock*> visitedBasicBlocks;
-					if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(1) == useInstr && (pathExistsInCFG(useInstr->getParent(), originalBB, visitedBasicBlocks) || useInstr->getParent() == originalBB)) {
+					if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(1) == useInstr && (pathExistsInCFG(useInstr->getParent(), originalBB, visitedBasicBlocks) || useInstr->getParent() == originalBB)) {
 						//Check if there is a path from the current BB to any of the accumulated bbs
 						bool pathExistsToAccumulatedBB = false;
 						for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
@@ -404,7 +404,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 	HyperOpArgumentType supportedArgType(Value* argument, Module &m, Instruction* parentInstruction) {
 		//Memory location needs to be passed as a different type since all its uses need to be replaced with a different type, but it won't see realization in metadata
-		if (isa < StoreInst > (parentInstruction) &&((StoreInst*) parentInstruction)->getOperand(1) == argument) {
+		if (isa<StoreInst>(parentInstruction) && ((StoreInst*) parentInstruction)->getOperand(1) == argument) {
 			return ADDRESS;
 		}
 
@@ -509,7 +509,7 @@ struct HyperOpCreationPass: public ModulePass {
 		if (!type->isAggregateType()) {
 			if (isa<ConstantInt>(initializer) || isa<ConstantFP>(initializer) || isa<ConstantExpr>(initializer) || initializer->isZeroValue()) {
 				GetElementPtrInst* typeAddrInst = GetElementPtrInst::CreateInBounds(global, idList, "", insertBefore);
-//					Value* zero = ConstantInt::get(ctx, APInt(32, 0));
+//	Value* zero = ConstantInt::get(ctx, APInt(32, 0));
 				errs() << "how could this mess up?\n";
 				typeAddrInst->dump();
 				StoreInst* storeInst = new StoreInst(initializer, typeAddrInst, insertBefore);
@@ -746,7 +746,7 @@ struct HyperOpCreationPass: public ModulePass {
 							for (unsigned i = 0; i < callInst->getNumArgOperands(); i++) {
 								//TODO what about globals?
 								if (isa<Constant>(callInst->getArgOperand(i))) {
-//										&&!isa<GlobalVariable>(callInst->getArgOperand(i))) {
+//	&&!isa<GlobalVariable>(callInst->getArgOperand(i))) {
 									//Place alloc, store and load instructions before call
 									AllocaInst* ai = new AllocaInst(callInst->getArgOperand(i)->getType());
 									ai->setAlignment(4);
@@ -824,13 +824,10 @@ struct HyperOpCreationPass: public ModulePass {
 			errs() << "inling function call:";
 			callInst->dump();
 			InlineFunctionInfo info;
-//			InlineFunction(callInst, info);
+//	InlineFunction(callInst, info);
 		}
 
 		errs() << "Module state:";
-		M.dump();
-
-		errs() << "whats the module now?\n";
 		M.dump();
 
 		for (Module::iterator func = M.begin(); func != M.end(); func++) {
@@ -840,30 +837,38 @@ struct HyperOpCreationPass: public ModulePass {
 				LoopInfo& LI = getAnalysis<LoopInfo>(*func);
 				//Lets check if there are loop carried dependences
 				for (LoopInfo::iterator loopItr = LI.begin(); loopItr != LI.end(); loopItr++) {
+					list<list<unsigned> > distanceVectors;
+					int distanceVectorArray[100][100];
+					int maxLevels;
 					Loop* loop = *loopItr;
 					vector<BasicBlock*> basicBlocksList = loop->getBlocks();
 					for (auto bbItr = basicBlocksList.begin(); bbItr != basicBlocksList.end(); bbItr++) {
 						BasicBlock* basicBlock = *bbItr;
 						for (auto SrcI = basicBlock->begin(), SrcE = basicBlock->end(); SrcI != SrcE; ++SrcI) {
 							if (isa<StoreInst>(*SrcI) || isa<LoadInst>(*SrcI)) {
-								for (auto DstI = SrcI, DstE = basicBlock->end(); DstI != DstE; ++DstI) {
+								for (auto DstI = basicBlock->begin(), DstE = basicBlock->end(); DstI != DstE; ++DstI) {
 									if (isa<StoreInst>(*DstI) || isa<LoadInst>(*DstI)) {
-										errs() << "da analyze - ";
+										errs() << "\n----\nda analyze - ";
+										if (isa<StoreInst>(*SrcI) && isa<LoadInst>(*DstI)) {
+											errs() << "I need atleast one flow pair here\n";
+											SrcI->dump();
+											DstI->dump();
+										}
 										if (Dependence *D = depAnalysis.depends(&*SrcI, &*DstI, true)) {
 											errs() << "dependence between ";
 											SrcI->dump();
 											DstI->dump();
 											D->dump(errs());
-											for (unsigned Level = 1; Level <= D->getLevels(); Level++) {
-												if (D->isSplitable(Level)) {
-													errs() << "da analyze - split level = " << Level;
-//													errs() << ", iteration = " << *depAnalysis.getSplitIteration(D, Level);
-													errs() << "!\n";
-												}
+											list<unsigned> distanceVector;
+											for(unsigned i=0;i<D->getLevels();i++){
+//												distanceVector.push_back(D->getDistance(i)->);
+												D->
 											}
+
 											delete D;
-										} else
-											errs() << "none!\n";
+										} else {
+											errs() << "no dependence\n";
+										}
 									}
 								}
 							}
@@ -879,7 +884,7 @@ struct HyperOpCreationPass: public ModulePass {
 			Function* function = functionList.front();
 			functionList.pop_front();
 			StringRef name = function->getName();
-			errs() << "Partitioning function:" << name << "\n";
+			errs() << "\n-----------\nPartitioning function:" << name << "\n";
 			if (function == mainFunction) {
 				Instruction* startOfBB = function->begin()->begin();
 				//Add initializers to globals that are not redefine inputs or outputs
@@ -918,9 +923,9 @@ struct HyperOpCreationPass: public ModulePass {
 					int numPredecessors = 0;
 					//Check if dependence leads to a back-edge
 					DominatorTree & dom = getAnalysis<DominatorTree>(*function);
+					list<BasicBlock*> backEdgePredecessors;
 					for (pred_iterator predecessorItr = pred_begin(bbItr); predecessorItr != pred_end(bbItr); predecessorItr++) {
 						BasicBlock* predecessor = *predecessorItr;
-						errs() << "considering pred " << predecessor->getName() << " for bb " << bbItr->getName() << "\n";
 						BasicBlock* predecessorDom = 0;
 						bool isBackEdge = false;
 						BasicBlock* tempPredecessor = predecessor;
@@ -936,8 +941,8 @@ struct HyperOpCreationPass: public ModulePass {
 							tempPredecessor = predecessorDom;
 						}
 
-						errs() << "is the edge going backwards?" << isBackEdge << "\n";
 						if (isBackEdge) {
+							backEdgePredecessors.push_back(predecessor);
 							continue;
 						}
 						if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), predecessor) != accumulatedBasicBlocks.end()) {
@@ -948,9 +953,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 
 					bool allParentsAcquired = (numParentsAcquired == numPredecessors);
-					errs() << "no parent acquired?" << noParentAcquired << ", all parents acquired?" << allParentsAcquired << "\n";
 					if (!(noParentAcquired || allParentsAcquired)) {
-						errs() << "stopping hop creation here\n";
 						canAcquireBBItr = false;
 					}
 					//Check if the basic block's inclusion results introduces multiple entry points to the same HyperOp
@@ -959,7 +962,7 @@ struct HyperOpCreationPass: public ModulePass {
 						for (Function::iterator sourceBBItr = function->begin(); sourceBBItr != function->end(); sourceBBItr++) {
 							for (unsigned i = 0; i < sourceBBItr->getTerminator()->getNumSuccessors(); i++) {
 								BasicBlock* successor = sourceBBItr->getTerminator()->getSuccessor(i);
-								if (successor == bbItr && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), sourceBBItr) == accumulatedBasicBlocks.end()) {
+								if (successor == bbItr && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), sourceBBItr) == accumulatedBasicBlocks.end() && find(backEdgePredecessors.begin(), backEdgePredecessors.end(), sourceBBItr) == backEdgePredecessors.end()) {
 									//Predicate to the basic block in the current set that comes from outside the basic block set accumulated for the current HyperOp
 									canAcquireBBItr = false;
 									break;
@@ -973,12 +976,12 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 
 				if (!canAcquireBBItr) {
+					errs() << "can't acquire bb\n";
 					//Create a HyperOp at this boundary
 					endOfHyperOp = true;
 					//Place the bbItr back in its place
 					bbTraverser.push_front(bbItr);
 				} else {
-					errs() << "managed to acquire bb :" << bbItr->getName() << "\n";
 					accumulatedBasicBlocks.push_back(bbItr);
 					unsigned bbIndex = 0;
 					for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
@@ -1031,9 +1034,9 @@ struct HyperOpCreationPass: public ModulePass {
 							list<Value*> newHyperOpArguments;
 							for (unsigned int i = 0; i < instItr->getNumOperands(); i++) {
 								Value * argument = instItr->getOperand(i);
-								if (!isa < Constant > (argument) &&!argument->getType()->isLabelTy()) {
+								if (!isa<Constant>(argument) && !argument->getType()->isLabelTy()) {
 									//Find the reaching definition of the argument; alloca instruction maybe followed by store instructions to the memory location, we need to identify the set of store instructions to the memory location that reach the current use of the memory location
-									if (isa < Instruction > (argument) &&find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
+									if (isa<Instruction>(argument) && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
 										continue;
 									}
 
@@ -1116,6 +1119,23 @@ struct HyperOpCreationPass: public ModulePass {
 
 				//Create a new HyperOp
 				if (endOfHyperOp) {
+					//First remove args due to back edges
+					list<HyperOpArgumentList::iterator> deleteList;
+					for (auto newArgItr = hyperOpArguments.begin(); newArgItr != hyperOpArguments.end(); newArgItr++) {
+						list<Value*> phiArgs = (*newArgItr).first;
+						for (auto argItr = phiArgs.begin(); argItr != phiArgs.end(); argItr++) {
+							Value* argument = *argItr;
+							if (isa<Instruction>(argument) && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
+								deleteList.push_back(newArgItr);
+								break;
+							}
+						}
+					}
+
+					for (auto deleteItr = deleteList.begin(); deleteItr != deleteList.end(); deleteItr++) {
+						hyperOpArguments.erase(*deleteItr);
+					}
+					errs() << "hyperOp args:" << hyperOpArguments.size() << "\n";
 					//Shuffle the arguments to the HyperOp such that scalar arguments are positioned first and the rest of the arguments are positioned after
 					HyperOpArgumentList tempHyperOpArguments;
 					for (HyperOpArgumentList::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
@@ -1281,7 +1301,7 @@ struct HyperOpCreationPass: public ModulePass {
 				//Update the arguments to the HyperOp to be created in place of the callsite
 				for (list<pair<list<BasicBlock*>, HyperOpArgumentList> >::reverse_iterator replacementFuncItr = calledFunctionBBList.rbegin(); replacementFuncItr != calledFunctionBBList.rend(); replacementFuncItr++) {
 					traversalList.push_back(make_pair(make_pair(replacementFuncItr->first, replacementFuncItr->second), newCallSite));
-//					traversalList.push_front(make_pair(make_pair(replacementFuncItr->first, replacementFuncItr->second), newCallSite));
+//	traversalList.push_front(make_pair(make_pair(replacementFuncItr->first, replacementFuncItr->second), newCallSite));
 				}
 				continue;
 			}
@@ -1291,7 +1311,7 @@ struct HyperOpCreationPass: public ModulePass {
 			 * (╯°□°)╯︵ ┻━┻
 			 */
 			CallInst* instanceCallSite = callSite.back();
-			if (!callSite.empty() && isa < CallInst > (instanceCallSite) &&isHyperOpInstanceInCycle(instanceCallSite, cyclesInCallGraph)) {
+			if (!callSite.empty() && isa<CallInst>(instanceCallSite) && isHyperOpInstanceInCycle(instanceCallSite, cyclesInCallGraph)) {
 				isStaticHyperOp = false;
 			}
 
@@ -1372,12 +1392,15 @@ struct HyperOpCreationPass: public ModulePass {
 			Instruction* retInst = ReturnInst::Create(ctxt);
 			retInstMap.insert(make_pair(newFunction, retInst));
 			retBB->getInstList().insert(retBB->getFirstInsertionPt(), retInst);
+			errs() << "ret bb?";
+			retBB->dump();
 
 			for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 				string bbName = "";
 				bbName.append(newFunction->getName()).append(".");
 				bbName.append((*accumulatedBBItr)->getName());
 				BasicBlock *newBB = BasicBlock::Create(getGlobalContext(), bbName, newFunction, retBB);
+				errs() << "created bb by name:" << newBB->getName() << "\n";
 				originalToClonedBasicBlockMap.insert(make_pair(*accumulatedBBItr, newBB));
 				//Cloning instructions in the reverse order so that the user instructions are cloned before the definition instructions
 				for (BasicBlock::iterator instItr = (*accumulatedBBItr)->begin(); instItr != (*accumulatedBBItr)->end(); instItr++) {
@@ -1395,6 +1418,7 @@ struct HyperOpCreationPass: public ModulePass {
 						Instruction * originalInstruction = instItr;
 						originalToClonedInstMap.insert(std::make_pair(originalInstruction, clonedInst));
 						newBB->getInstList().insert(newBB->end(), clonedInst);
+						errs() << "cloning instruction to newbb:" << clonedInst->getParent()->getName() << "\n";
 						for (unsigned operandIndex = 0; operandIndex < clonedInst->getNumOperands(); operandIndex++) {
 							Value* operandToBeReplaced = clonedInst->getOperand(operandIndex);
 							//If the instruction operand is an argument to the HyperOp
@@ -1581,112 +1605,112 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 
 				//TODO: Predicates are for call sites also and hence, they are not limited to non-entry basic blocks of the original function
-//				for (pred_iterator predecessorItr = pred_begin(originalBB); predecessorItr != pred_end(originalBB); predecessorItr++) {
-//					BasicBlock* predecessor = *predecessorItr;
-//					//Control flow edge originates from a predecessor basic block that does not belong to the same HyperOp
-//					//TODO is the first half of the conditional sufficient?
-//					if ((find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), predecessor) == accumulatedBasicBlocks.end() || find(newlyAcquiredBBList.begin(), newlyAcquiredBBList.end(), originalBB) != newlyAcquiredBBList.end())
-//							&& originalFunctionToHyperOpBBListMap.find(predecessor->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
-//						TerminatorInst* terminator = predecessor->getTerminator();
-//						//If the terminator instruction has only one successor, its an unconditional jump
-//						if (terminator->getNumSuccessors() == 1 && terminator->getSuccessor(0) == originalBB) {
-//							Instruction* originalUnconditionalBranchInstr = terminator;
-//							list<BasicBlock*> parentBBList;
+//	for (pred_iterator predecessorItr = pred_begin(originalBB); predecessorItr != pred_end(originalBB); predecessorItr++) {
+//	BasicBlock* predecessor = *predecessorItr;
+//	//Control flow edge originates from a predecessor basic block that does not belong to the same HyperOp
+//	//TODO is the first half of the conditional sufficient?
+//	if ((find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), predecessor) == accumulatedBasicBlocks.end() || find(newlyAcquiredBBList.begin(), newlyAcquiredBBList.end(), originalBB) != newlyAcquiredBBList.end())
+//	&& originalFunctionToHyperOpBBListMap.find(predecessor->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
+//	TerminatorInst* terminator = predecessor->getTerminator();
+//	//If the terminator instruction has only one successor, its an unconditional jump
+//	if (terminator->getNumSuccessors() == 1 && terminator->getSuccessor(0) == originalBB) {
+//	Instruction* originalUnconditionalBranchInstr = terminator;
+//	list<BasicBlock*> parentBBList;
 //
-//							//Get the parent basic block containing the unconditional jump
-//							for (list<pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator bbItr = originalFunctionToHyperOpBBListMap[((Instruction*) originalUnconditionalBranchInstr)->getParent()->getParent()].begin();
-//									bbItr != originalFunctionToHyperOpBBListMap[((Instruction*) originalUnconditionalBranchInstr)->getParent()->getParent()].end(); bbItr++) {
-//								if (find(bbItr->first.begin(), bbItr->first.end(), ((Instruction*) originalUnconditionalBranchInstr)->getParent()) != bbItr->first.end()) {
-//									parentBBList = bbItr->first;
-//									break;
-//								}
-//							}
+//	//Get the parent basic block containing the unconditional jump
+//	for (list<pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator bbItr = originalFunctionToHyperOpBBListMap[((Instruction*) originalUnconditionalBranchInstr)->getParent()->getParent()].begin();
+//	bbItr != originalFunctionToHyperOpBBListMap[((Instruction*) originalUnconditionalBranchInstr)->getParent()->getParent()].end(); bbItr++) {
+//	if (find(bbItr->first.begin(), bbItr->first.end(), ((Instruction*) originalUnconditionalBranchInstr)->getParent()) != bbItr->first.end()) {
+//	parentBBList = bbItr->first;
+//	break;
+//	}
+//	}
 //
-//							//Find out whether there is a conditional jump from the same HyperOp to the unconditional jump instruction's bb or has a reaching predicate from elsewhere and add it to the conditional basic block list
-//							list<TerminatorInst*> terminatorInst;
-//							terminatorInst.push_back((TerminatorInst*) terminator);
-//							Instruction* conditionalBranchInstr = 0;
-//							while (!terminatorInst.empty()) {
-//								TerminatorInst* tempTerminator = terminatorInst.front();
-//								terminatorInst.pop_front();
-//								//Check if the terminator itself is conditionally executed
-//								for (pred_iterator terminatorPredItr = pred_begin(tempTerminator->getParent()); terminatorPredItr != pred_end(tempTerminator->getParent()); terminatorPredItr++) {
-//									BasicBlock* terminatorPredecessor = *terminatorPredItr;
-//									//Check if terminatorPredecessor and predecessor are both in the same function to be created
-//									if (find(parentBBList.begin(), parentBBList.end(), terminatorPredecessor) != parentBBList.end()) {
-//										if (terminatorPredecessor->getTerminator()->getNumSuccessors() > 1) {
-//											conditionalBranchInstr = terminatorPredecessor->getTerminator();
-//											break;
-//										} else {
-//											terminatorInst.push_front(terminatorPredecessor->getTerminator());
-//										}
-//									}
-//								}
-//							}
-//							if (conditionalBranchInstr != 0 && isa < BranchInst > (conditionalBranchInstr) &&((BranchInst*) conditionalBranchInstr)->getNumSuccessors() > 1) {
-//								vector<pair<BasicBlock*, int> > successorBBList;
-//								TerminatorInst* terminator = ((TerminatorInst*) conditionalBranchInstr);
-//								successorBBList.push_back(make_pair(((BranchInst*) originalUnconditionalBranchInstr)->getSuccessor(0), -1));
-//								conditionalBranchSources.insert(make_pair(terminator, successorBBList));
-//							} else {
-//								errs() << "finding reaching predicates to " << originalBB->getName() << " of function " << originalBB->getParent()->getName() << ":";
-//								list<list<pair<BasicBlock*, unsigned> > > reachingPred = reachingPredicateChain(originalBB, newlyAcquiredBBList);
-//								for (list<list<pair<BasicBlock*, unsigned> > >::iterator reachingPredItr = reachingPred.begin(); reachingPredItr != reachingPred.end(); reachingPredItr++) {
-//									errs() << "\nreaching pred chain :";
-//									for (list<pair<BasicBlock*, unsigned> >::iterator predItr = reachingPredItr->begin(); predItr != reachingPredItr->end(); predItr++) {
-//										errs() << predItr->first->getName() << "(" << predItr->second << ")->";
-//									}
-//								}
-//								//Take the last conditional predicate in the chain
-//								for (list<list<pair<BasicBlock*, unsigned> > >::iterator reachingPredItr = reachingPred.begin(); reachingPredItr != reachingPred.end(); reachingPredItr++) {
-//									list<pair<BasicBlock*, unsigned> > reachingPredChain = *reachingPredItr;
-//									bool conditionalPredicateDelivered = false;
-//									list<pair<BasicBlock*, unsigned> >::reverse_iterator predicateItr;
-//									for (predicateItr = reachingPredChain.rbegin(); predicateItr != reachingPredChain.rend(); predicateItr++) {
-//										if (predicateItr->first->getTerminator()->getNumSuccessors() > 1) {
-//											conditionalPredicateDelivered = true;
-//											break;
-//										}
-//									}
+//	//Find out whether there is a conditional jump from the same HyperOp to the unconditional jump instruction's bb or has a reaching predicate from elsewhere and add it to the conditional basic block list
+//	list<TerminatorInst*> terminatorInst;
+//	terminatorInst.push_back((TerminatorInst*) terminator);
+//	Instruction* conditionalBranchInstr = 0;
+//	while (!terminatorInst.empty()) {
+//	TerminatorInst* tempTerminator = terminatorInst.front();
+//	terminatorInst.pop_front();
+//	//Check if the terminator itself is conditionally executed
+//	for (pred_iterator terminatorPredItr = pred_begin(tempTerminator->getParent()); terminatorPredItr != pred_end(tempTerminator->getParent()); terminatorPredItr++) {
+//	BasicBlock* terminatorPredecessor = *terminatorPredItr;
+//	//Check if terminatorPredecessor and predecessor are both in the same function to be created
+//	if (find(parentBBList.begin(), parentBBList.end(), terminatorPredecessor) != parentBBList.end()) {
+//	if (terminatorPredecessor->getTerminator()->getNumSuccessors() > 1) {
+//	conditionalBranchInstr = terminatorPredecessor->getTerminator();
+//	break;
+//	} else {
+//	terminatorInst.push_front(terminatorPredecessor->getTerminator());
+//	}
+//	}
+//	}
+//	}
+//	if (conditionalBranchInstr != 0 && isa < BranchInst > (conditionalBranchInstr) &&((BranchInst*) conditionalBranchInstr)->getNumSuccessors() > 1) {
+//	vector<pair<BasicBlock*, int> > successorBBList;
+//	TerminatorInst* terminator = ((TerminatorInst*) conditionalBranchInstr);
+//	successorBBList.push_back(make_pair(((BranchInst*) originalUnconditionalBranchInstr)->getSuccessor(0), -1));
+//	conditionalBranchSources.insert(make_pair(terminator, successorBBList));
+//	} else {
+//	errs() << "finding reaching predicates to " << originalBB->getName() << " of function " << originalBB->getParent()->getName() << ":";
+//	list<list<pair<BasicBlock*, unsigned> > > reachingPred = reachingPredicateChain(originalBB, newlyAcquiredBBList);
+//	for (list<list<pair<BasicBlock*, unsigned> > >::iterator reachingPredItr = reachingPred.begin(); reachingPredItr != reachingPred.end(); reachingPredItr++) {
+//	errs() << "\nreaching pred chain :";
+//	for (list<pair<BasicBlock*, unsigned> >::iterator predItr = reachingPredItr->begin(); predItr != reachingPredItr->end(); predItr++) {
+//	errs() << predItr->first->getName() << "(" << predItr->second << ")->";
+//	}
+//	}
+//	//Take the last conditional predicate in the chain
+//	for (list<list<pair<BasicBlock*, unsigned> > >::iterator reachingPredItr = reachingPred.begin(); reachingPredItr != reachingPred.end(); reachingPredItr++) {
+//	list<pair<BasicBlock*, unsigned> > reachingPredChain = *reachingPredItr;
+//	bool conditionalPredicateDelivered = false;
+//	list<pair<BasicBlock*, unsigned> >::reverse_iterator predicateItr;
+//	for (predicateItr = reachingPredChain.rbegin(); predicateItr != reachingPredChain.rend(); predicateItr++) {
+//	if (predicateItr->first->getTerminator()->getNumSuccessors() > 1) {
+//	conditionalPredicateDelivered = true;
+//	break;
+//	}
+//	}
 //
-//									if (conditionalPredicateDelivered && conditionalBranchSources.find(terminator) == conditionalBranchSources.end()) {
-//										vector<pair<BasicBlock*, int> > successorBBList;
-//										TerminatorInst* terminator = ((TerminatorInst*) predicateItr->first->getTerminator());
-//										successorBBList.push_back(make_pair(((BranchInst*) originalUnconditionalBranchInstr)->getSuccessor(0), -1));
-////										conditionalBranchSources.insert(make_pair(terminator, successorBBList));
-//										conditionalBranchSources[terminator] = successorBBList;
-//									}
+//	if (conditionalPredicateDelivered && conditionalBranchSources.find(terminator) == conditionalBranchSources.end()) {
+//	vector<pair<BasicBlock*, int> > successorBBList;
+//	TerminatorInst* terminator = ((TerminatorInst*) predicateItr->first->getTerminator());
+//	successorBBList.push_back(make_pair(((BranchInst*) originalUnconditionalBranchInstr)->getSuccessor(0), -1));
+////	conditionalBranchSources.insert(make_pair(terminator, successorBBList));
+//	conditionalBranchSources[terminator] = successorBBList;
+//	}
 //
-//								}
+//	}
 //
-//								errs() << "\n";
-//							}
-//							unconditionalBranchSources.push_back(terminator);
-//						} else {
-//							//Get the first operand of terminator instruction corresponding to a branch
-//							vector<pair<BasicBlock*, int> > successorBBList;
-//							for (unsigned i = 0; i < terminator->getNumSuccessors(); i++) {
-//								if (terminator->getSuccessor(i) == originalBB) {
-//									//Add only those successors that correspond to a basic block in the current HyperOp
-//									successorBBList.push_back(make_pair(terminator->getSuccessor(i), i));
-//								}
-//							}
-//							if (successorBBList.size() == terminator->getNumSuccessors()) {
-//								//All successors of the terminator instruction are in the same target HyperOp, mark the jump as unconditional
-//								unconditionalBranchSources.push_back(terminator);
-//							} else {
-//								errs() << "terminator delivering conditional:";
-//								terminator->dump();
-//								if (conditionalBranchSources.find(terminator) != conditionalBranchSources.end()) {
-//									vector<pair<BasicBlock*, int> > previousSuccessorIndexList = conditionalBranchSources[terminator];
-//									conditionalBranchSources.erase(terminator);
-//									std::copy(previousSuccessorIndexList.begin(), previousSuccessorIndexList.end(), back_inserter(successorBBList));
-//								}
-//								conditionalBranchSources[terminator] = successorBBList;
-//							}
-//						}
-//					}
-//				}
+//	errs() << "\n";
+//	}
+//	unconditionalBranchSources.push_back(terminator);
+//	} else {
+//	//Get the first operand of terminator instruction corresponding to a branch
+//	vector<pair<BasicBlock*, int> > successorBBList;
+//	for (unsigned i = 0; i < terminator->getNumSuccessors(); i++) {
+//	if (terminator->getSuccessor(i) == originalBB) {
+//	//Add only those successors that correspond to a basic block in the current HyperOp
+//	successorBBList.push_back(make_pair(terminator->getSuccessor(i), i));
+//	}
+//	}
+//	if (successorBBList.size() == terminator->getNumSuccessors()) {
+//	//All successors of the terminator instruction are in the same target HyperOp, mark the jump as unconditional
+//	unconditionalBranchSources.push_back(terminator);
+//	} else {
+//	errs() << "terminator delivering conditional:";
+//	terminator->dump();
+//	if (conditionalBranchSources.find(terminator) != conditionalBranchSources.end()) {
+//	vector<pair<BasicBlock*, int> > previousSuccessorIndexList = conditionalBranchSources[terminator];
+//	conditionalBranchSources.erase(terminator);
+//	std::copy(previousSuccessorIndexList.begin(), previousSuccessorIndexList.end(), back_inserter(successorBBList));
+//	}
+//	conditionalBranchSources[terminator] = successorBBList;
+//	}
+//	}
+//	}
+//	}
 			}
 
 			while (numCallInstrAdded) {
@@ -1830,6 +1854,7 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 
 			errs() << "created func:" << newFunction->getName() << "\n";
+			errs() << "newf size:" << newFunction->front().getNextNode()->getNextNode()->getNextNode()->getNextNode()->getName() << "\n";
 			createdHyperOpAndOriginalBasicBlockAndArgMap[newFunction] = make_pair(accumulatedBasicBlocks, hyperOpArguments);
 			createdHyperOpAndCallSite[newFunction] = callSite;
 			createdHyperOpAndConditionalBranchSources[newFunction] = conditionalBranchSources;
@@ -1980,7 +2005,7 @@ struct HyperOpCreationPass: public ModulePass {
 						clonedInst->dump();
 						errs() << "cloned inst belongs to parent:" << clonedInst->getParent()->getName() << "\n";
 					}
-					if (!isa < CallInst > (argOperand) &&clonedInst != NULL && isa < LoadInst > (clonedInst) &&isa<AllocaInst>(clonedInst->getOperand(0))) {
+					if (!isa<CallInst>(argOperand) && clonedInst != NULL && isa<LoadInst>(clonedInst) && isa<AllocaInst>(clonedInst->getOperand(0))) {
 						clonedInst = (AllocaInst*) clonedInst->getOperand(0);
 						//TODO Is this casting correct?
 						replacementArg.insert(make_pair(clonedInst, ((Instruction*) argOperand)->getOperand(0)));
@@ -2070,9 +2095,9 @@ struct HyperOpCreationPass: public ModulePass {
 								//Reaching definitions are only for memory instructions
 								reachingDefBasicBlocks = reachingStoreOperations((AllocaInst*) argument, originalFunction, accumulatedOriginalBasicBlocks);
 								//Check the sources of reaching definitions and make sure the ones from different HyperOps are the only ones added eventually
-//								if(reachingDefBasicBlocks.empty()){
-//									reachingDefBasicBlocks.insert(make_pair(((Instruction*) argument)->getParent(), (Instruction*) argument));
-//								}
+//	if(reachingDefBasicBlocks.empty()){
+//	reachingDefBasicBlocks.insert(make_pair(((Instruction*) argument)->getParent(), (Instruction*) argument));
+//	}
 							} else {
 								reachingDefBasicBlocks.insert(make_pair(((Instruction*) argument)->getParent(), (Instruction*) argument));
 							}
@@ -2099,12 +2124,12 @@ struct HyperOpCreationPass: public ModulePass {
 						Function* producerFunction;
 						errs() << "cloned inst second:";
 						clonedReachingDefItr->second->dump();
-//						if (isa<Instruction>(clonedReachingDefItr->second) && !isa<StoreInst>(clonedReachingDefItr->second)&&!isa<CallInst>(clonedReachingDefItr->second)) {
-//							producerFunction = ((Instruction*) clonedReachingDefItr->second)->getParent()->getParent();
-//						} else {
+//	if (isa<Instruction>(clonedReachingDefItr->second) && !isa<StoreInst>(clonedReachingDefItr->second)&&!isa<CallInst>(clonedReachingDefItr->second)) {
+//	producerFunction = ((Instruction*) clonedReachingDefItr->second)->getParent()->getParent();
+//	} else {
 						//Check if its an argument
 						producerFunction = clonedReachingDefInst->getParent()->getParent();
-//						}
+//	}
 
 						//Is it static?
 						//TODO
@@ -2202,11 +2227,11 @@ struct HyperOpCreationPass: public ModulePass {
 							Instruction* metadataHost = 0;
 							if (isa<AllocaInst>(clonedDefInst)) {
 								metadataHost = clonedDefInst;
-							} else if (isa < LoadInst > (clonedDefInst) &&isArgInList(clonedDefInst->getParent()->getParent(), clonedDefInst->getOperand(0))) {
+							} else if (isa<LoadInst>(clonedDefInst) && isArgInList(clonedDefInst->getParent()->getParent(), clonedDefInst->getOperand(0))) {
 								//function argument is passed on to another HyperOp, find the first load instruction from the memory location and add metadata to it
 								for (Function::iterator bbItr = clonedDefInst->getParent()->getParent()->begin(); bbItr != clonedDefInst->getParent()->getParent()->end(); bbItr++) {
 									for (BasicBlock::iterator instrItr = bbItr->begin(); instrItr != bbItr->end(); instrItr++) {
-										if (isa < LoadInst > (instrItr) &&((LoadInst*) &instrItr)->getOperand(0) == clonedDefInst->getOperand(0)) {
+										if (isa<LoadInst>(instrItr) && ((LoadInst*) &instrItr)->getOperand(0) == clonedDefInst->getOperand(0)) {
 											metadataHost = instrItr;
 											break;
 										}
@@ -2459,7 +2484,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
-				if (isa < CallInst > (predicateOperand) &&predicateOperand == conditionalBranchInst->getOperand(0)) {
+				if (isa<CallInst>(predicateOperand) && predicateOperand == conditionalBranchInst->getOperand(0)) {
 					continue;
 				}
 				if (isa<Constant>(predicateOperand)) {
@@ -2609,14 +2634,14 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
-//					//Branch instruction points to the same target, replace with unconditional branch
-//					if (branchTargets.size() == 1) {
-//						BranchInst* unconditionalBranch = BranchInst::Create(((BranchInst*) clonedInstr)->getSuccessor(0));
-//						unconditionalBranch->insertBefore(clonedInstr);
-//						errs() << "deleted instr from parent " << clonedInstr->getParent()->getParent()->getName() << ":";
-//						clonedInstr->dump();
-//						clonedInstr->eraseFromParent();
-//					}
+//	//Branch instruction points to the same target, replace with unconditional branch
+//	if (branchTargets.size() == 1) {
+//	BranchInst* unconditionalBranch = BranchInst::Create(((BranchInst*) clonedInstr)->getSuccessor(0));
+//	unconditionalBranch->insertBefore(clonedInstr);
+//	errs() << "deleted instr from parent " << clonedInstr->getParent()->getParent()->getName() << ":";
+//	clonedInstr->dump();
+//	clonedInstr->eraseFromParent();
+//	}
 					if (isProducerStatic) {
 						if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), metadataHost->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
 							addedParentsToCurrentHyperOp.push_back(metadataHost->getParent()->getParent());
@@ -2649,7 +2674,7 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 
 				if (isa<CallInst>(&(*unconditionalBranchSourceItr)->getParent()->front())) {
-//						&& createdHyperOpAndType.find((*unconditionalBranchSourceItr)->getParent()->getParent()) != createdHyperOpAndType.end() && createdHyperOpAndType[(*unconditionalBranchSourceItr)->getParent()->getParent()]) {
+//	&& createdHyperOpAndType.find((*unconditionalBranchSourceItr)->getParent()->getParent()) != createdHyperOpAndType.end() && createdHyperOpAndType[(*unconditionalBranchSourceItr)->getParent()->getParent()]) {
 					newCallSite.push_back((CallInst*) &targetBB->front());
 					while (true) {
 						CallInst* appendCall = 0;
@@ -2694,7 +2719,7 @@ struct HyperOpCreationPass: public ModulePass {
 							newCallSite.push_back(appendCall);
 						} else {
 							if (isa<CallInst>(unconditionalBranchInstr)) {
-//									&& createdHyperOpAndType[(*unconditionalBranchSourceItr)->getParent()->getParent()]) {
+//	&& createdHyperOpAndType[(*unconditionalBranchSourceItr)->getParent()->getParent()]) {
 								newCallSite.push_back((CallInst*) unconditionalBranchInstr);
 							} else {
 								break;
