@@ -71,15 +71,23 @@ bool inline hyperOpInList(HyperOp* hyperOp, list<HyperOp*> traversedList) {
 	return (std::find(traversedList.begin(), traversedList.end(), hyperOp) != traversedList.end());
 }
 
-list<unsigned> parseInstanceId(StringRef instanceTag) {
+pair<list<unsigned>, bool > parseInstanceId(StringRef instanceTag) {
 	list<StringRef> parsedList = parseInstanceIdString(instanceTag);
 	list<unsigned> parsedIntegerList;
+	bool isRange = false;
 	for (list<StringRef>::iterator stringItr = parsedList.begin(); stringItr != parsedList.end(); stringItr++) {
 		APInt id;
-		stringItr->getAsInteger(0, id);
+		pair<StringRef, StringRef> splitString = stringItr->split(',');
+		splitString.first.getAsInteger(0, id);
+		if(stringItr->find(',')!=StringRef::npos){
+			isRange = true;
+		}
 		parsedIntegerList.push_back(id.getZExtValue());
 	}
-	return parsedIntegerList;
+	pair<list<unsigned>, bool > instanceIdWithRange;
+	instanceIdWithRange = make_pair(parsedIntegerList, isRange);
+
+	return instanceIdWithRange;
 }
 
 //Take care of unrolling here so that unrolling is performed in a target aware manner instead of at the front end which doesn't know what the target params are
@@ -111,7 +119,11 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					hyperOp->setInstanceof((Function *) hyperOpMDNode->getOperand(3));
 					hyperOp->setFbindRequired(true);
 					StringRef instanceTag = ((MDString*) hyperOpMDNode->getOperand(4))->getName();
-					hyperOp->setInstanceId(parseInstanceId(instanceTag));
+					pair<list<unsigned> , bool> parsedId = parseInstanceId(instanceTag);
+					hyperOp->setInstanceId(parsedId.first);
+					if(parsedId.second){
+						hyperOp->setInRange();
+					}
 				}
 				graph->addHyperOp(hyperOp);
 				errs() << "new hyop#" << hyperOp->getHyperOpId() << ":" << hyperOp->asString() << "\n";
@@ -175,11 +187,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					frameSizeOfHyperOp += REDEFINEUtils::getSizeOfType(((AllocaInst*) instr)->getType());
 				}
 				if (instr->hasMetadata()) {
-					errs() << "parsing problems with:";
-					instr->dump();
 					MDNode* consumedByMDNode = instr->getMetadata(HYPEROP_CONSUMED_BY);
 					if (consumedByMDNode != 0) {
-						errs() << "consumed by issues?\n";
 						for (unsigned consumerMDNodeIndex = 0; consumerMDNodeIndex != consumedByMDNode->getNumOperands(); consumerMDNodeIndex++) {
 							HyperOp* consumerHyperOp = 0;
 							//Create an edge between two HyperOps labeled by the instruction
@@ -236,10 +245,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 									AllocaInst* allocInst = getAllocInstrForLocalReferenceData(*M, instr, functionMetadataMap);
 									if (isa<LoadInst>(instr)) {
 										//TODO TERRIBLE CODE, CHECK IF THIS CAN BE CLEANED
-										errs() << "added alloc to map of " << sourceHyperOp->asString() << " with key ";
-										instr->dump();
-										errs() << "is it empty alloc?";
-										allocInst->dump();
 										sourceHyperOp->loadInstrAndAllocaMap[instr] = allocInst;
 									}
 									unsigned volume = REDEFINEUtils::getSizeOfType(allocInst->getType()) / 4;
@@ -394,6 +399,22 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								}
 							}
 						}
+					}
+					MDNode* rangeMDNode = instr->getMetadata(HYPEROP_RANGE);
+					if(rangeMDNode!=0){
+						for (unsigned rangeMDNodeIndex = 0; rangeMDNodeIndex != rangeMDNode->getNumOperands(); rangeMDNodeIndex++) {
+							MDNode* indirectionNode = (MDNode*) rangeMDNode->getOperand(rangeMDNodeIndex);
+							if(indirectionNode!=0){
+								MDNode* hyperOpMDNode = (MDNode*) indirectionNode->getOperand(0);
+								HyperOp* consumerDynamicHyperOp = hyperOpMetadataMap[hyperOpMDNode];
+								//Add an edge from the HyperOp housing the range node
+								HyperOpEdge* edge = new HyperOpEdge();
+								edge->setType(HyperOpEdge::RANGE);
+								sourceHyperOp->addChildEdge(edge, consumerDynamicHyperOp);
+								consumerDynamicHyperOp->addChildEdge(edge, sourceHyperOp);
+							}
+						}
+
 					}
 				}
 			}

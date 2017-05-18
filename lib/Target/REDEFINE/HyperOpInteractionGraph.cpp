@@ -291,6 +291,12 @@ void HyperOp::setPredicatedHyperOp() {
 	this->IsPredicated = true;
 }
 
+void HyperOp::setInRange(){
+	this->InRange = true;
+}
+bool HyperOp::getInRange(){
+	return this->InRange;
+}
 bool HyperOp::isStartHyperOp() {
 	return this->IsStart;
 }
@@ -1120,8 +1126,9 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 				liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
 			}
 			//Address also needs to be forwarded to the HyperOp deleting the context frame
-			if (liveEndOfVertex != 0 && liveEndOfVertex == vertex && find(originalDomFrontier.begin(), originalDomFrontier.end(), *tempItr) == originalDomFrontier.end()) {
+			if ((*tempItr)->isPredicatedHyperOp() && liveEndOfVertex != 0 && liveEndOfVertex == vertex && *tempItr != vertex && find(originalDomFrontier.begin(), originalDomFrontier.end(), *tempItr) == originalDomFrontier.end()) {
 //						&& !(*tempItr)->isStaticHyperOp() && ) {
+				errs() << "added for deletion:"<<(*tempItr)->asString()<<"\n";
 				vertexDomFrontier.push_back(*tempItr);
 			}
 		}
@@ -1698,6 +1705,7 @@ pair<list<HyperOp*>, list<unsigned int> > computeDominantSequence(list<HyperOp*>
 	list<unsigned int> executionTime;
 	list<HyperOp*> dominantSequence;
 	HyperOp* source = partialDominantSequence.back();
+//	errs()<<"source:"<<source->asString()<<"\n";
 	map<HyperOp*, list<unsigned int> > childNodeWeightMap = source->getChildNodeEdgeWeights();
 	bool firstChild = true;
 	bool atleastOneChildTraversed = false;
@@ -1950,274 +1958,280 @@ void HyperOpInteractionGraph::clusterNodes() {
 	errs() << "rowcount:" << this->rowCount << " and column count:" << columnCount << "\n";
 
 	//Create a wrapper to HyperOp class to hierarchically cluster nodes
-	class ClusterNode {
+	class HIGSubtree {
 	public:
-		list<HyperOp*> originalHyperOpsInCluster;
+		list<HyperOp*> hyperOpsInCluster;
+		list<pair<list<HyperOp*>, unsigned int> > subtreeClusterList;
 		list<unsigned int> executionTimeEstimate;
-		ClusterNode(list<HyperOp*>, list<unsigned int>);
+		HyperOp* startHyperOp;
+		HyperOp* endHyperOp;
+		HIGSubtree(list<HyperOp*> hyperOpList, HyperOp* startHyperOp, HyperOp* endHyperOp) {
+			hyperOpsInCluster = hyperOpList;
+			this->startHyperOp = startHyperOp;
+			this->endHyperOp = endHyperOp;
+		}
+
+		void clusterSubTree() {
+			errs() << "total number of nodes:" << hyperOpsInCluster.size() << "\n";
+			//Compute start and end HyperOps for the subtree
+			list<pair<list<HyperOp*>, unsigned int> > computeClusterList;
+			for (list<HyperOp*>::iterator vertexIterator = hyperOpsInCluster.begin(); vertexIterator != hyperOpsInCluster.end(); vertexIterator++) {
+				list<HyperOp*> hopList;
+				hopList.push_back(*vertexIterator);
+				estimateExecutionTime(*vertexIterator);
+				unsigned int hyperOpType = 2;
+				if ((*vertexIterator) == startHyperOp) {
+					hyperOpType = 0;
+				}
+				if ((*vertexIterator) == endHyperOp) {
+					hyperOpType = 1;
+				}
+				//		hierarchicalComputeClusterList.push_back(std::make_pair(newClusterNode, hyperOpType));
+				computeClusterList.push_back(std::make_pair(hopList, hyperOpType));
+			}
+			errs() << "initial number of compute clusters:" << computeClusterList.size() << "\n";
+
+			//Cluster all the nodes in a queue first and replace the nodes with the cluster node
+			list<pair<HyperOp*, HyperOp*> > examinedEdges;
+			list<list<HyperOp*> > excludeList;
+			//Find the initial Dominant Sequence
+			list<HyperOp*> partialDominantSequence;
+			partialDominantSequence.push_back(startHyperOp);
+			pair<list<HyperOp*>, list<unsigned int> > dominantSequencePair = computeDominantSequence(partialDominantSequence);
+			//	printDS(dominantSequencePair.first);
+			list<HyperOp*> dominantSequence = dominantSequencePair.first;
+			list<unsigned int> executionTime = dominantSequencePair.second;
+
+			while (true) {
+				HyperOp* source;
+				HyperOp* target;
+				bool noEdgeToExamine = true;
+				for (list<HyperOp*>::iterator dominantSequenceEdgeItr = dominantSequence.begin(); dominantSequenceEdgeItr != --dominantSequence.end();) {
+					source = *dominantSequenceEdgeItr;
+					target = *(++dominantSequenceEdgeItr);
+
+					if (!alreadyExamined(source, target, examinedEdges)) {
+						noEdgeToExamine = false;
+						break;
+					}
+				}
+
+				if (noEdgeToExamine) {
+					//No more edges to examine
+					break;
+				}
+				//		errs() << "dominant sequence computed:";
+				//		printDS(dominantSequence);
+				//Find the cluster containing source and target
+				list<HyperOp*> sourceCluster;
+				list<HyperOp*> targetCluster;
+				pair<list<HyperOp*>, unsigned int> sourceClusterPair;
+				pair<list<HyperOp*>, unsigned int> targetClusterPair;
+
+				for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterListIterator = computeClusterList.begin(); clusterListIterator != computeClusterList.end(); clusterListIterator++) {
+					list<HyperOp*> cluster = (*clusterListIterator).first;
+					if (std::find(cluster.begin(), cluster.end(), source) != cluster.end()) {
+						sourceCluster = cluster;
+						sourceClusterPair = (*clusterListIterator);
+					}
+					if (std::find(cluster.begin(), cluster.end(), target) != cluster.end()) {
+						targetCluster = cluster;
+						targetClusterPair = (*clusterListIterator);
+					}
+				}
+
+				//Variables used to revert the changes made previously
+				list<pair<HyperOpEdge*, pair<HyperOp*, HyperOp*> > > additionalEdgesMap;
+
+				list<pair<list<HyperOp*>, unsigned int> > tempClusterList;
+				std::copy(computeClusterList.begin(), computeClusterList.end(), std::back_inserter(tempClusterList));
+
+				//Zero out the edges between source and target nodes
+				source->zeroOutChildEdge(target, true);
+
+				list<HyperOpEdge*> stateChangedEdgeList;
+				//Merge target cluster with source cluster and create zeroed out edges between them
+				for (list<HyperOp*>::iterator targetClusterIterator = targetCluster.begin(); targetClusterIterator != targetCluster.end(); targetClusterIterator++) {
+					HyperOp* targetNodeForMerge = *targetClusterIterator;
+					//Find the child nodes of the node
+					list<HyperOp*> targetNodeChildNodes = targetNodeForMerge->getChildList();
+
+					//Find the bottom level of node
+					list<unsigned int> targetNodeTopLevel = computeTopLevelofNode(targetNodeForMerge);
+
+					//The source node which is at a higher level in the graph as compared to the node being merged into the cluster
+					HyperOp* sourceClusterNodeFirst = 0;
+					HyperOp* sourceClusterNodeSecond = 0;
+					list<HyperOp*>::iterator itr, secondItr;
+					list<HyperOp*> nodesBelowTarget;
+					list<HyperOp*> nodesAboveTarget;
+					bool first = true;
+					for (list<HyperOp*>::iterator sourceClusterIterator = sourceCluster.begin(); sourceClusterIterator != sourceCluster.end(); sourceClusterIterator++) {
+						//Compute bottom level of sourceClusterNode
+						list<unsigned int> topLevel = computeTopLevelofNode(*sourceClusterIterator);
+						//First hyperOp which is below the target node that needs merging
+						if (compareHierarchicalVolume(targetNodeTopLevel, topLevel) < 0) {
+							if (first) {
+								itr = sourceClusterIterator;
+								secondItr = sourceClusterIterator;
+								sourceClusterNodeSecond = *sourceClusterIterator;
+								first = false;
+							}
+							nodesBelowTarget.push_back(*sourceClusterIterator);
+						} else {
+							nodesAboveTarget.push_back(*sourceClusterIterator);
+						}
+					}
+
+					if (sourceClusterNodeSecond == 0) {
+						sourceClusterNodeFirst = sourceCluster.back();
+						itr = sourceCluster.end();
+						secondItr = sourceCluster.end();
+					} else if (sourceClusterNodeSecond != sourceCluster.front()) {
+						std::advance(secondItr, -1);
+						sourceClusterNodeFirst = *secondItr;
+					}
+
+					list<HyperOp*> temporaryInserter;
+					temporaryInserter.push_back(targetNodeForMerge);
+					//Add target node that gets merged into source cluster
+					sourceCluster.splice(itr, temporaryInserter);
+
+					//Find out if there are edges to the same node from a node in nodesBelowTarget and mark them as ignored
+					for (list<HyperOp*>::iterator bottomLevelNodeItr = nodesBelowTarget.begin(); bottomLevelNodeItr != nodesBelowTarget.end(); bottomLevelNodeItr++) {
+						HyperOp* bottomLevelNode = *bottomLevelNodeItr;
+						list<HyperOp*> bottomLevelNodeChildren = bottomLevelNode->getChildList();
+						list<HyperOp*> intersectionSet = getIntersection(bottomLevelNodeChildren, targetNodeChildNodes);
+						if (!intersectionSet.empty()) {
+							//Mark the edges between the target node and the child nodes as ignored edges
+							for (list<HyperOp*>::iterator childNodeItr = intersectionSet.begin(); childNodeItr != intersectionSet.end(); childNodeItr++) {
+								list<HyperOpEdge*> stateChangedEdges = targetNodeForMerge->ignoreChildEdge(*childNodeItr, true);
+								stateChangedEdgeList.merge(stateChangedEdgeList);
+							}
+						}
+					}
+
+					//Find out if there are edges to the same node from a node in nodesAboveTarget and mark them as ignored
+					for (list<HyperOp*>::iterator topLevelNodeItr = nodesAboveTarget.begin(); topLevelNodeItr != nodesAboveTarget.end(); topLevelNodeItr++) {
+						HyperOp* topLevelNode = *topLevelNodeItr;
+						list<HyperOp*> topLevelNodeChildren = topLevelNode->getChildList();
+						list<HyperOp*> intersectionSet = getIntersection(topLevelNodeChildren, targetNodeChildNodes);
+						if (!intersectionSet.empty()) {
+							//Mark the edges between the target node and the child nodes as ignored edges
+							for (list<HyperOp*>::iterator childNodeItr = intersectionSet.begin(); childNodeItr != intersectionSet.end(); childNodeItr++) {
+								list<HyperOpEdge*> stateChangedEdges = topLevelNode->ignoreChildEdge(*childNodeItr, true);
+								stateChangedEdgeList.merge(stateChangedEdges);
+							}
+						}
+					}
+
+					//Ignore all the edges from the same cluster to the target node
+					for (list<HyperOp*>::iterator nodeAboveTargetItr = nodesAboveTarget.begin(); nodeAboveTargetItr != nodesAboveTarget.end(); nodeAboveTargetItr++) {
+						HyperOp* nodeAboveTarget = *nodeAboveTargetItr;
+						if (!(nodeAboveTarget == source && targetNodeForMerge == target)) {
+							list<HyperOp*> childNodesOfNodeAboveTarget = nodeAboveTarget->getChildList();
+							if (std::find(childNodesOfNodeAboveTarget.begin(), childNodesOfNodeAboveTarget.end(), targetNodeForMerge) != childNodesOfNodeAboveTarget.end()) {
+								list<HyperOpEdge*> stateChangedEdges = nodeAboveTarget->ignoreChildEdge(targetNodeForMerge, true);
+								stateChangedEdgeList.merge(stateChangedEdges);
+							}
+						}
+					}
+					//Ignore all the edges from the target to the same cluster
+					for (list<HyperOp*>::iterator nodeBelowTargetItr = nodesBelowTarget.begin(); nodeBelowTargetItr != nodesBelowTarget.end(); nodeBelowTargetItr++) {
+						HyperOp* nodeBelowTarget = *nodeBelowTargetItr;
+						if (!(nodeBelowTarget == source && targetNodeForMerge == target)) {
+							list<HyperOp*> parentNodesOfNodeAboveTarget = nodeBelowTarget->getParentList();
+							if (std::find(parentNodesOfNodeAboveTarget.begin(), parentNodesOfNodeAboveTarget.end(), targetNodeForMerge) != parentNodesOfNodeAboveTarget.end()) {
+								list<HyperOpEdge*> stateChangedEdges = targetNodeForMerge->ignoreParentEdge(nodeBelowTarget, true);
+								stateChangedEdgeList.merge(stateChangedEdges);
+							}
+						}
+					}
+
+					//Merge represents a serial schedule being generated between two clusters, edges need to be added such that there is a serial schedule between the merged clusters
+					if (sourceClusterNodeFirst != 0) {
+						HyperOpEdge *edge = new HyperOpEdge();
+						edge->setType(HyperOpEdge::ORDERING);
+						edge->setIsEdgeIgnored(true);
+						additionalEdgesMap.push_back(std::make_pair((HyperOpEdge*) edge, make_pair(sourceClusterNodeFirst, targetNodeForMerge)));
+						sourceClusterNodeFirst->addChildEdge((HyperOpEdge*) edge, targetNodeForMerge);
+						targetNodeForMerge->addParentEdge((HyperOpEdge*) edge, sourceClusterNodeFirst);
+					}
+					if (sourceClusterNodeSecond != 0) {
+						HyperOpEdge *edge = new HyperOpEdge();
+						edge->setType(HyperOpEdge::ORDERING);
+						edge->setIsEdgeIgnored(true);
+						additionalEdgesMap.push_back(std::make_pair(edge, make_pair(targetNodeForMerge, sourceClusterNodeSecond)));
+						targetNodeForMerge->addChildEdge((HyperOpEdge*) edge, sourceClusterNodeSecond);
+						sourceClusterNodeSecond->addParentEdge((HyperOpEdge*) edge, targetNodeForMerge);
+					}
+				}
+
+				//remove the merged cluster from the original cluster list
+				computeClusterList.remove(targetClusterPair);
+				//Set the merged cluster
+				for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterItr = computeClusterList.begin(); clusterItr != computeClusterList.end(); clusterItr++) {
+					if (*clusterItr == sourceClusterPair) {
+						(*clusterItr).first = sourceCluster;
+						break;
+					}
+				}
+
+				//Check if zeroing helped reduce execution time
+				list<HyperOp*> tempDominantSequence;
+				tempDominantSequence.push_back(startHyperOp);
+				pair<list<HyperOp*>, list<unsigned int> > computedDominantSequencePair = computeDominantSequence(tempDominantSequence);
+				//				, excludeList);
+				//If execution time decreases from the previous step, clustering is acceptable
+				if (compareHierarchicalVolume(executionTime, computedDominantSequencePair.second) >= 0) {
+					//			excludeList.clear();
+					dominantSequence = computedDominantSequencePair.first;
+					executionTime = computedDominantSequencePair.second;
+					for (list<pair<HyperOpEdge*, pair<HyperOp*, HyperOp*> > >::iterator addedEdgeIterator = additionalEdgesMap.begin(); addedEdgeIterator != additionalEdgesMap.end(); addedEdgeIterator++) {
+						examinedEdges.push_back(make_pair((*addedEdgeIterator).second.first, (*addedEdgeIterator).second.second));
+					}
+				} else {
+					computeClusterList.clear();
+					std::copy(tempClusterList.begin(), tempClusterList.end(), back_inserter(computeClusterList));
+					for (list<pair<HyperOpEdge*, pair<HyperOp*, HyperOp*> > >::iterator addedEdgeIterator = additionalEdgesMap.begin(); addedEdgeIterator != additionalEdgesMap.end(); addedEdgeIterator++) {
+						(*addedEdgeIterator).second.first->removeChildEdge((*addedEdgeIterator).first);
+						(*addedEdgeIterator).second.second->removeParentEdge((*addedEdgeIterator).first);
+					}
+					for (list<HyperOpEdge*>::iterator ignoreEdgeIterator = stateChangedEdgeList.begin(); ignoreEdgeIterator != stateChangedEdgeList.end(); ignoreEdgeIterator++) {
+						(*ignoreEdgeIterator)->setIsEdgeIgnored(false);
+					}
+					source->zeroOutChildEdge(target, false);
+					//			excludeList.push_back(dominantSequencePair.first);
+				}
+
+				examinedEdges.push_back(std::make_pair(source, target));
+			}
+			subtreeClusterList = computeClusterList;
+		}
+//		printDS(dominantSequence);
 	};
 
-//	list<pair<list<ClusterNode*>, unsigned int> > computeClusterList;
-	list<pair<list<HyperOp*>, unsigned int> > computeClusterList;
-	HyperOp* startHyperOp;
-	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
-//		list<ClusterNode*> newClusterNode;
-		list<HyperOp*> hopList;
-		hopList.push_back(*vertexIterator);
-//		newClusterNode.push_back(new ClusterNode(hopList, (*vertexIterator)->getExecutionTimeEstimate()));
-		estimateExecutionTime(*vertexIterator);
-		unsigned int hyperOpType = 2;
-		if ((*vertexIterator)->isStartHyperOp()) {
-			startHyperOp = *vertexIterator;
-			hyperOpType = 0;
-		}
-		if ((*vertexIterator)->isEndHyperOp()) {
-			hyperOpType = 1;
-		}
-//		computeClusterList.push_back(std::make_pair(newClusterNode, hyperOpType));
-		computeClusterList.push_back(std::make_pair(hopList, hyperOpType));
-	}
+	//	pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > controlFlowGraphAndOriginalHopMap = getCFG(this);
+	//	map<HyperOp*, HyperOp*> originalToCFGVertexMap = controlFlowGraphAndOriginalHopMap.second;
+	//	HyperOpInteractionGraph* cfg = controlFlowGraphAndOriginalHopMap.first;
+	//	cfg->computeDominatorInfo();
+	//	//Find subtrees in cfg
+	//	for(auto vertex:cfg->Vertices){
+	//		//Check if any of the children of the vertex is predicated
+	//		bool hasPredicatedChildren = false;
+	//		for(auto childVertex:vertex->ChildMap){
+	//			if(childVertex.second->isPredicatedHyperOp()){
+	//				hasPredicatedChildren = true;
+	//				break;
+	//			}
+	//		}
+	//
+	//		if(hasPredicatedChildren){
+	//			//Treat the vertex as the root of a subtree and
+	//		}
+	//	}
 
-//	pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > controlFlowGraphAndOriginalHopMap = getCFG(this);
-//	map<HyperOp*, HyperOp*> originalToCFGVertexMap = controlFlowGraphAndOriginalHopMap.second;
-//	HyperOpInteractionGraph* cfg = controlFlowGraphAndOriginalHopMap.first;
-//	cfg->computeDominatorInfo();
-//	//Find subtrees in cfg
-//	for(auto vertex:cfg->Vertices){
-//		//Check if any of the children of the vertex is predicated
-//		bool hasPredicatedChildren = false;
-//		for(auto childVertex:vertex->ChildMap){
-//			if(childVertex.second->isPredicatedHyperOp()){
-//				hasPredicatedChildren = true;
-//				break;
-//			}
-//		}
-//
-//		if(hasPredicatedChildren){
-//			//Treat the vertex as the root of a subtree and
-//		}
-//	}
-
-	//Cluster all the nodes in a queue first and replace the nodes with the cluster node
-	list<pair<HyperOp*, HyperOp*> > examinedEdges;
-	list<list<HyperOp*> > excludeList;
-//Find the initial Dominant Sequence
-	list<HyperOp*> partialDominantSequence;
-	partialDominantSequence.push_back(startHyperOp);
-	pair<list<HyperOp*>, list<unsigned int> > dominantSequencePair = computeDominantSequence(partialDominantSequence);
-//	printDS(dominantSequencePair.first);
-	list<HyperOp*> dominantSequence = dominantSequencePair.first;
-	list<unsigned int> executionTime = dominantSequencePair.second;
-
-	while (true) {
-		HyperOp* source;
-		HyperOp* target;
-		bool noEdgeToExamine = true;
-		for (list<HyperOp*>::iterator dominantSequenceEdgeItr = dominantSequence.begin(); dominantSequenceEdgeItr != --dominantSequence.end();) {
-			source = *dominantSequenceEdgeItr;
-			target = *(++dominantSequenceEdgeItr);
-
-			if (!alreadyExamined(source, target, examinedEdges)) {
-				noEdgeToExamine = false;
-				break;
-			}
-		}
-
-		if (noEdgeToExamine) {
-			//No more edges to examine
-			break;
-		}
-
-//		errs() << "dominant sequence computed:";
-//		printDS(dominantSequence);
-//		errs() << "zeroing edge between " << source->getFunction()->getName() << " and " << target->getFunction()->getName() << "\n";
-		//Find the cluster containing source and target
-		list<HyperOp*> sourceCluster;
-		list<HyperOp*> targetCluster;
-		pair<list<HyperOp*>, unsigned int> sourceClusterPair;
-		pair<list<HyperOp*>, unsigned int> targetClusterPair;
-
-		for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterListIterator = computeClusterList.begin(); clusterListIterator != computeClusterList.end(); clusterListIterator++) {
-			list<HyperOp*> cluster = (*clusterListIterator).first;
-			if (std::find(cluster.begin(), cluster.end(), source) != cluster.end()) {
-				sourceCluster = cluster;
-				sourceClusterPair = (*clusterListIterator);
-			} else if (std::find(cluster.begin(), cluster.end(), target) != cluster.end()) {
-				targetCluster = cluster;
-				targetClusterPair = (*clusterListIterator);
-			}
-		}
-
-		//Variables used to revert the changes made previously
-		list<pair<HyperOpEdge*, pair<HyperOp*, HyperOp*> > > additionalEdgesMap;
-
-		list<pair<list<HyperOp*>, unsigned int> > tempClusterList;
-		std::copy(computeClusterList.begin(), computeClusterList.end(), std::back_inserter(tempClusterList));
-
-		//Zero out the edges between source and target nodes
-		source->zeroOutChildEdge(target, true);
-
-		list<HyperOpEdge*> stateChangedEdgeList;
-		//Merge target cluster with source cluster and create zeroed out edges between them
-		for (list<HyperOp*>::iterator targetClusterIterator = targetCluster.begin(); targetClusterIterator != targetCluster.end(); targetClusterIterator++) {
-			HyperOp* targetNodeForMerge = *targetClusterIterator;
-			//Find the child nodes of the node
-			list<HyperOp*> targetNodeChildNodes = targetNodeForMerge->getChildList();
-
-			//Find the bottom level of node
-			list<unsigned int> targetNodeTopLevel = computeTopLevelofNode(targetNodeForMerge);
-
-			//The source node which is at a higher level in the graph as compared to the node being merged into the cluster
-			HyperOp* sourceClusterNodeFirst = 0;
-			HyperOp* sourceClusterNodeSecond = 0;
-			list<HyperOp*>::iterator itr, secondItr;
-			list<HyperOp*> nodesBelowTarget;
-			list<HyperOp*> nodesAboveTarget;
-			bool first = true;
-			for (list<HyperOp*>::iterator sourceClusterIterator = sourceCluster.begin(); sourceClusterIterator != sourceCluster.end(); sourceClusterIterator++) {
-				//Compute bottom level of sourceClusterNode
-				list<unsigned int> topLevel = computeTopLevelofNode(*sourceClusterIterator);
-				//First hyperOp which is below the target node that needs merging
-				if (compareHierarchicalVolume(targetNodeTopLevel, topLevel) < 0) {
-					if (first) {
-						itr = sourceClusterIterator;
-						secondItr = sourceClusterIterator;
-						sourceClusterNodeSecond = *sourceClusterIterator;
-						first = false;
-					}
-					nodesBelowTarget.push_back(*sourceClusterIterator);
-				} else {
-					nodesAboveTarget.push_back(*sourceClusterIterator);
-				}
-			}
-
-			if (sourceClusterNodeSecond == 0) {
-				sourceClusterNodeFirst = sourceCluster.back();
-				itr = sourceCluster.end();
-				secondItr = sourceCluster.end();
-			} else if (sourceClusterNodeSecond != sourceCluster.front()) {
-				std::advance(secondItr, -1);
-				sourceClusterNodeFirst = *secondItr;
-			}
-
-			list<HyperOp*> temporaryInserter;
-			temporaryInserter.push_back(targetNodeForMerge);
-			//Add target node that gets merged into source cluster
-			sourceCluster.splice(itr, temporaryInserter);
-
-			//Find out if there are edges to the same node from a node in nodesBelowTarget and mark them as ignored
-			for (list<HyperOp*>::iterator bottomLevelNodeItr = nodesBelowTarget.begin(); bottomLevelNodeItr != nodesBelowTarget.end(); bottomLevelNodeItr++) {
-				HyperOp* bottomLevelNode = *bottomLevelNodeItr;
-				list<HyperOp*> bottomLevelNodeChildren = bottomLevelNode->getChildList();
-				list<HyperOp*> intersectionSet = getIntersection(bottomLevelNodeChildren, targetNodeChildNodes);
-				if (!intersectionSet.empty()) {
-					//Mark the edges between the target node and the child nodes as ignored edges
-					for (list<HyperOp*>::iterator childNodeItr = intersectionSet.begin(); childNodeItr != intersectionSet.end(); childNodeItr++) {
-						list<HyperOpEdge*> stateChangedEdges = targetNodeForMerge->ignoreChildEdge(*childNodeItr, true);
-						stateChangedEdgeList.merge(stateChangedEdgeList);
-					}
-				}
-			}
-
-			//Find out if there are edges to the same node from a node in nodesAboveTarget and mark them as ignored
-			for (list<HyperOp*>::iterator topLevelNodeItr = nodesAboveTarget.begin(); topLevelNodeItr != nodesAboveTarget.end(); topLevelNodeItr++) {
-				HyperOp* topLevelNode = *topLevelNodeItr;
-				list<HyperOp*> topLevelNodeChildren = topLevelNode->getChildList();
-				list<HyperOp*> intersectionSet = getIntersection(topLevelNodeChildren, targetNodeChildNodes);
-				if (!intersectionSet.empty()) {
-					//Mark the edges between the target node and the child nodes as ignored edges
-					for (list<HyperOp*>::iterator childNodeItr = intersectionSet.begin(); childNodeItr != intersectionSet.end(); childNodeItr++) {
-						list<HyperOpEdge*> stateChangedEdges = topLevelNode->ignoreChildEdge(*childNodeItr, true);
-						stateChangedEdgeList.merge(stateChangedEdges);
-					}
-				}
-			}
-
-			//Ignore all the edges from the same cluster to the target node
-			for (list<HyperOp*>::iterator nodeAboveTargetItr = nodesAboveTarget.begin(); nodeAboveTargetItr != nodesAboveTarget.end(); nodeAboveTargetItr++) {
-				HyperOp* nodeAboveTarget = *nodeAboveTargetItr;
-				if (!(nodeAboveTarget == source && targetNodeForMerge == target)) {
-					list<HyperOp*> childNodesOfNodeAboveTarget = nodeAboveTarget->getChildList();
-					if (std::find(childNodesOfNodeAboveTarget.begin(), childNodesOfNodeAboveTarget.end(), targetNodeForMerge) != childNodesOfNodeAboveTarget.end()) {
-						list<HyperOpEdge*> stateChangedEdges = nodeAboveTarget->ignoreChildEdge(targetNodeForMerge, true);
-						stateChangedEdgeList.merge(stateChangedEdges);
-					}
-				}
-			}
-			//Ignore all the edges from the target to the same cluster
-			for (list<HyperOp*>::iterator nodeBelowTargetItr = nodesBelowTarget.begin(); nodeBelowTargetItr != nodesBelowTarget.end(); nodeBelowTargetItr++) {
-				HyperOp* nodeBelowTarget = *nodeBelowTargetItr;
-				if (!(nodeBelowTarget == source && targetNodeForMerge == target)) {
-					list<HyperOp*> parentNodesOfNodeAboveTarget = nodeBelowTarget->getParentList();
-					if (std::find(parentNodesOfNodeAboveTarget.begin(), parentNodesOfNodeAboveTarget.end(), targetNodeForMerge) != parentNodesOfNodeAboveTarget.end()) {
-						list<HyperOpEdge*> stateChangedEdges = targetNodeForMerge->ignoreParentEdge(nodeBelowTarget, true);
-						stateChangedEdgeList.merge(stateChangedEdges);
-					}
-				}
-			}
-
-			//Merge represents a serial schedule being generated between two clusters, edges need to be added such that there is a serial schedule between the merged clusters
-			if (sourceClusterNodeFirst != 0) {
-				HyperOpEdge *edge = new HyperOpEdge();
-				edge->setType(HyperOpEdge::ORDERING);
-				edge->setIsEdgeIgnored(true);
-				additionalEdgesMap.push_back(std::make_pair((HyperOpEdge*) edge, make_pair(sourceClusterNodeFirst, targetNodeForMerge)));
-				sourceClusterNodeFirst->addChildEdge((HyperOpEdge*) edge, targetNodeForMerge);
-				targetNodeForMerge->addParentEdge((HyperOpEdge*) edge, sourceClusterNodeFirst);
-			}
-			if (sourceClusterNodeSecond != 0) {
-				HyperOpEdge *edge = new HyperOpEdge();
-				edge->setType(HyperOpEdge::ORDERING);
-				edge->setIsEdgeIgnored(true);
-				additionalEdgesMap.push_back(std::make_pair(edge, make_pair(targetNodeForMerge, sourceClusterNodeSecond)));
-				targetNodeForMerge->addChildEdge((HyperOpEdge*) edge, sourceClusterNodeSecond);
-				sourceClusterNodeSecond->addParentEdge((HyperOpEdge*) edge, targetNodeForMerge);
-			}
-		}
-
-		//remove the merged cluster from the original cluster list
-		computeClusterList.remove(targetClusterPair);
-		//Set the merged cluster
-		for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterItr = computeClusterList.begin(); clusterItr != computeClusterList.end(); clusterItr++) {
-			if (*clusterItr == sourceClusterPair) {
-				(*clusterItr).first = sourceCluster;
-				break;
-			}
-		}
-
-		//Check if zeroing helped reduce execution time
-		list<HyperOp*> tempDominantSequence;
-		tempDominantSequence.push_back(startHyperOp);
-		pair<list<HyperOp*>, list<unsigned int> > computedDominantSequencePair = computeDominantSequence(tempDominantSequence);
-//				, excludeList);
-		//If execution time decreases from the previous step, clustering is acceptable
-		if (compareHierarchicalVolume(executionTime, computedDominantSequencePair.second) >= 0) {
-//			excludeList.clear();
-			dominantSequence = computedDominantSequencePair.first;
-			executionTime = computedDominantSequencePair.second;
-			for (list<pair<HyperOpEdge*, pair<HyperOp*, HyperOp*> > >::iterator addedEdgeIterator = additionalEdgesMap.begin(); addedEdgeIterator != additionalEdgesMap.end(); addedEdgeIterator++) {
-				examinedEdges.push_back(make_pair((*addedEdgeIterator).second.first, (*addedEdgeIterator).second.second));
-			}
-		} else {
-			computeClusterList.clear();
-			std::copy(tempClusterList.begin(), tempClusterList.end(), back_inserter(computeClusterList));
-			for (list<pair<HyperOpEdge*, pair<HyperOp*, HyperOp*> > >::iterator addedEdgeIterator = additionalEdgesMap.begin(); addedEdgeIterator != additionalEdgesMap.end(); addedEdgeIterator++) {
-				(*addedEdgeIterator).second.first->removeChildEdge((*addedEdgeIterator).first);
-				(*addedEdgeIterator).second.second->removeParentEdge((*addedEdgeIterator).first);
-			}
-			for (list<HyperOpEdge*>::iterator ignoreEdgeIterator = stateChangedEdgeList.begin(); ignoreEdgeIterator != stateChangedEdgeList.end(); ignoreEdgeIterator++) {
-				(*ignoreEdgeIterator)->setIsEdgeIgnored(false);
-			}
-			source->zeroOutChildEdge(target, false);
-//			excludeList.push_back(dominantSequencePair.first);
-		}
-		//Add the edge to examined list;
-		examinedEdges.push_back(std::make_pair(source, target));
-
-//		printDS(dominantSequence);
-	}
-
-	errs() << "before merging, num of clusters:" << computeClusterList.size() << "\n";
+	//Add the edge to examined list;
 
 //TODO uncomment the following
 //Merge clusters till the number of compute resources matches the number of clusters created
@@ -2258,8 +2272,23 @@ void HyperOpInteractionGraph::clusterNodes() {
 //		computeClusterList = returnValue.second;
 //	}
 
+	HyperOp* startHyperOp;
+	HyperOp* endHyperOp;
+	for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
+		if ((*vertexItr)->isStartHyperOp()) {
+			startHyperOp = *vertexItr;
+		}
+		if ((*vertexItr)->isEndHyperOp()) {
+			endHyperOp = *vertexItr;
+		}
+	}
+	HIGSubtree subtree(Vertices, startHyperOp, endHyperOp);
+	subtree.clusterSubTree();
+
 	map<unsigned, list<HyperOp*> > roundRobinClusterDist;
 //	roundRobinClusterDist.reserve(this->rowCount*this->columnCount);
+	auto computeClusterList = subtree.subtreeClusterList;
+
 	unsigned crId = 0;
 	for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterItr = computeClusterList.begin(); clusterItr != computeClusterList.end(); clusterItr++) {
 		if (roundRobinClusterDist.find(crId) == roundRobinClusterDist.end()) {
@@ -2277,23 +2306,9 @@ void HyperOpInteractionGraph::clusterNodes() {
 		errs() << "each cluster:\n";
 		for (list<HyperOp*>::iterator printItr = clusterItr->second.begin(); printItr != clusterItr->second.end(); printItr++) {
 			errs() << (*printItr)->asString() << ",";
-//			clusterList.push_back()
 		}
 		errs() << "\n";
 	}
-
-//	//TODO: temp fix since the previous snippet is taking forever
-//	unsigned distributionIntoCR = 0;
-//	unsigned numberOfResources = this->rowCount * this->columnCount;
-//	for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterItr = computeClusterList.begin(); clusterItr != computeClusterList.end(); clusterItr++) {
-//		clusterList.push_back(clusterItr->first);
-//		errs() << "each cluster:\n";
-//		for (list<HyperOp*>::iterator printItr = clusterItr->first.begin(); printItr != clusterItr->first.end(); printItr++) {
-//			errs() << (*printItr)->asString() << ",";
-//		}
-//		distributionIntoCR = (distributionIntoCR + 1) % numberOfResources;
-//		errs() << "\n";
-//	}
 
 	DEBUG(dbgs() << "Minimizing ordering edges\n");
 	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
@@ -3787,7 +3802,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			errs() << "updating node with incoming sync edges " << hyperOp->asString() << "\n";
 			list<HyperOp*> syncSourceList;
 			for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
-				if (parentItr->first->getType() == HyperOpEdge::SYNC && find(syncSourceList.begin(), syncSourceList.end(), parentItr->second) == syncSourceList.end()) {
+				if (!parentItr->second->getInRange()&&parentItr->first->getType() == HyperOpEdge::SYNC && find(syncSourceList.begin(), syncSourceList.end(), parentItr->second) == syncSourceList.end()) {
 					syncSourceList.push_back(parentItr->second);
 				}
 			}
@@ -3894,6 +3909,8 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 					os << "order";
 				} else if (edge->Type == HyperOpEdge::SYNC) {
 					os << "sync";
+				}else if(edge->Type == HyperOpEdge::RANGE){
+					os<<"range";
 				}
 				os << "];\n";
 			}

@@ -31,6 +31,7 @@ static string HYPEROP = "HyperOp";
 static string HYPEROP_CONSUMED_BY = "ConsumedBy";
 static string HYPEROP_CONTROLS = "Controls";
 const string HYPEROP_SYNC = "Sync";
+const string HYPEROP_RANGE = "Range";
 static string HYPEROP_AFFINITY = "Affinity";
 static string HYPEROP_ENTRY = "Entry";
 static string HYPEROP_EXIT = "Exit";
@@ -67,6 +68,7 @@ public:
 		ORDERING,
 		//Edge to ensure completion of the hyperOp by inserting equivalent delay instruction in the end HyperOp
 		SYNC,
+		RANGE
 	} Type;
 
 	enum EdgeDataType {
@@ -109,6 +111,7 @@ class HyperOp {
 	bool IsEnd;
 	bool IsIntermediate;
 	bool IsPredicated;
+	bool InRange;
 	unsigned int TargetResource;
 	unsigned contextFrame;
 	list<unsigned int> executionTimeEstimate;
@@ -151,6 +154,8 @@ public:
 	void setIntermediateHyperOp();
 	void setBarrierHyperOp();
 	void setPredicatedHyperOp();
+	void setInRange();
+	bool getInRange();
 	bool isBarrierHyperOp();
 	bool isStartHyperOp();
 	bool isEndHyperOp();

@@ -862,7 +862,7 @@ struct HyperOpCreationPass: public ModulePass {
 											list<unsigned> distanceVector;
 											for(unsigned i=0;i<D->getLevels();i++){
 //												distanceVector.push_back(D->getDistance(i)->);
-												D->
+//												D->
 											}
 
 											delete D;
