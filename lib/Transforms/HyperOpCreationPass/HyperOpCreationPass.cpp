@@ -824,7 +824,7 @@ struct HyperOpCreationPass: public ModulePass {
 			errs() << "inling function call:";
 			callInst->dump();
 			InlineFunctionInfo info;
-//	InlineFunction(callInst, info);
+            InlineFunction(callInst, info);
 		}
 
 		errs() << "Module state:";

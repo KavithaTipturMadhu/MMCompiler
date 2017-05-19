@@ -60,6 +60,91 @@ bool WcetAnalyzer::runOnMachineFunction( MachineFunction &MF )
 	errs() << "###################################################################################################" << "\n";
 
 	errs() << "---------------------------------------------------------------------------------------------------\n";
+	errs() << "------------------------------------CACHE ANALYSIS ALGO--------------------------------------------\n";
+	errs() << "---------------------------------------------------------------------------------------------------\n";
+	const TargetInstrInfo* TII;
+	const InstrItineraryData *InstrItins;
+	const TargetMachine &TM = MF.getTarget();
+	TII = MF.getTarget().getInstrInfo();
+
+	for ( auto bitr = MF.begin() ; bitr != MF.end() ; ++bitr )
+	{
+		errs() << "MBB Name: " << bitr->getName() << " , BB Name: " << bitr->getBasicBlock()->getName() << "\n";
+		for ( auto itr = bitr->instr_begin() ; itr != bitr->instr_end() ; ++itr )
+		{
+
+			if( !itr->memoperands_empty() )
+			{
+				for ( auto mitr = itr->memoperands_begin() ; mitr != itr->memoperands_end() ; ++mitr )
+				{
+					errs() << "\t\tVAR VAL: " << "Ptr: " << ( *mitr )->getValue() << " , IR Instruction " << * ( ( *mitr )->getValue() ) << " , OPCODE: " << itr->getOpcode() << "\n\t\t";
+				}
+			}
+			else
+			{
+				itr->dump();
+			}
+			if( itr->mayLoad( llvm::MachineInstr::QueryType::AnyInBundle ) || itr->mayStore( llvm::MachineInstr::QueryType::AnyInBundle ) )
+			{
+				errs() << "Inside: load&store: ";
+				itr->dump();
+			}
+
+		}
+	}
+	errs() << "---------------------------------------------------------------------------------------------------\n";
+	errs() << "--------------------------------------Global ANALYSIS ALGO--------------------------------------------\n";
+	errs() << "---------------------------------------------------------------------------------------------------\n";
+
+	std::map< StringRef , long int > globalVarStartAddressMap;
+	long int maxGlobalSize = 0;
+	const Module* parentModule = MF.getFunction()->getParent(); //MO.getParent()->getParent()->getParent()->getFunction()->getParent();
+	for ( Module::const_global_iterator globalArgItr = parentModule->global_begin() ; globalArgItr != parentModule->global_end() ; globalArgItr++ )
+	{
+		const GlobalVariable *globalVar = &*globalArgItr;
+		globalVar->dump();
+		errs() << "Global Variable: " << globalVar->getName() << " , Type" << globalVar->getType()->getTypeID() << " , ID " << globalVar->getValueID() << "\n";
+		globalVarStartAddressMap.insert( std::make_pair( globalVar->getName() , maxGlobalSize ) );
+		maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType( globalVar->getType() );
+	}
+	errs() << "maxGlobal Size " << maxGlobalSize << "\n";
+
+	errs() << "---------------------------------------------------------------------------------------------------\n";
+	errs() << "--------------------------------------Local ANALYSIS ALGO--------------------------------------------\n";
+	errs() << "---------------------------------------------------------------------------------------------------\n";
+
+	//Get the location of the stack allocated object in the basic block containing the load instruction and not the alloca instruction because alloca might belong
+	//Arguments have negative index and are added in memory locations that succeed the locals of the stack frame
+	unsigned frameLocationOfSourceData = 0;
+	if( MF.getFrameInfo()->getObjectIndexEnd() > 0 )
+	{
+		for ( unsigned i = 0 ; i < MF.getFrameInfo()->getObjectIndexEnd() ; i++ )
+		{
+			frameLocationOfSourceData += REDEFINEUtils::getSizeOfType( MF.getFrameInfo()->getObjectAllocation( i )->getType() );
+		}
+	}
+	MF.getFrameInfo()->dump( MF );
+	errs() << "---------------------------------------------------------------------------------------------------\n";
+	errs() << "--------------------------------------ARG ANALYSIS ALGO--------------------------------------------\n";
+	errs() << "---------------------------------------------------------------------------------------------------\n";
+	Function* consumerFunction = const_cast< Function* >( MF.getFunction() ) ;
+	int beginArgIndex = 0;
+	unsigned frameLocationOfTargetData = 0;
+	for ( Function::arg_iterator funcArgItr = consumerFunction->arg_begin() ; funcArgItr != consumerFunction->arg_end() ; funcArgItr++ , beginArgIndex++ )
+	{
+		Argument* argument = &*funcArgItr;
+		argument->dump();
+		if( !consumerFunction->getAttributes().hasAttribute( beginArgIndex + 1 , Attribute::InReg ) )
+		{
+			frameLocationOfTargetData += REDEFINEUtils::getSizeOfType( funcArgItr->getType() );
+		}
+	}
+
+
+
+
+
+	errs() << "---------------------------------------------------------------------------------------------------\n";
 	errs() << "------------------------------------------HIG ALGO-------------------------------------------------\n";
 	errs() << "---------------------------------------------------------------------------------------------------\n";
 	//RUN ONLY FOR LAST PASS Machine Function
@@ -94,14 +179,39 @@ bool WcetAnalyzer::runOnMachineFunction( MachineFunction &MF )
 			MachineInstr* edgeSourceInstr = childEdge->getEdgeSource();
 			if( edgeSourceInstr != NULL )
 			{
-				HigWcet.add_Edge( currentHyperOp , childMapItr->second , SingleHyperOpMap.at( ( currentHyperOp )->getHyperOpId() )->get_WcetNode( edgeSourceInstr ) );
-				HigBcet.add_Edge( currentHyperOp , childMapItr->second , SingleHyperOpMap.at( ( currentHyperOp )->getHyperOpId() )->get_BcetNode( edgeSourceInstr ) );
+				if( HigWcet.Is_Edge( currentHyperOp , childMapItr->second ) )
+				{
+					if( HigWcet.get_EdgeWeight( currentHyperOp , childMapItr->second ) < SingleHyperOpMap.at( ( currentHyperOp )->getHyperOpId() )->get_WcetNode( edgeSourceInstr ) )
+					{
+						HigWcet.set_EdgeWeight( currentHyperOp , childMapItr->second , SingleHyperOpMap.at( ( currentHyperOp )->getHyperOpId() )->get_WcetNode( edgeSourceInstr ) );
+					}
+				}
+				else
+				{
+					HigWcet.add_Edge( currentHyperOp , childMapItr->second , SingleHyperOpMap.at( ( currentHyperOp )->getHyperOpId() )->get_WcetNode( edgeSourceInstr ) );
+				}
+
+				if( HigBcet.Is_Edge( currentHyperOp , childMapItr->second ) )
+				{
+					if( HigBcet.get_EdgeWeight( currentHyperOp , childMapItr->second ) > SingleHyperOpMap.at( ( currentHyperOp )->getHyperOpId() )->get_Bcet() )
+					{
+						HigBcet.set_EdgeWeight( currentHyperOp , childMapItr->second , SingleHyperOpMap.at( ( currentHyperOp )->getHyperOpId() )->get_Bcet() );
+					}
+				}
+				else
+				{
+					HigBcet.add_Edge( currentHyperOp , childMapItr->second , SingleHyperOpMap.at( ( currentHyperOp )->getHyperOpId() )->get_Bcet() );
+				}
+				/*
+				 if( 1 )
+				 {
+				 HigBcet.add_Edge( currentHyperOp , childMapItr->second , SingleHyperOpMap.at( ( currentHyperOp )->getHyperOpId() )->get_Bcet() );
+				 }*/
 			}
 
 		}
 
 	}
-
 	if( MF.getFunctionNumber() == ( ( MF.getFunction() )->getParent()->getFunctionList().size() - 2 ) )
 	{
 
@@ -114,8 +224,11 @@ bool WcetAnalyzer::runOnMachineFunction( MachineFunction &MF )
 				HigBcet.add_Edge( ( *itr ) , HyperGND , SingleHyperOpMap.at( ( *itr )->getHyperOpId() )->get_Bcet() );
 			}
 		}
-		HigWcet.xdot();
-		HigBcet.xdot();
+		HigWcet.xdot_CriticalPath();
+		HigBcet.xdot_ShortestPath();
+		errs() << "HIG WCET : " << HigWcet.get_Wcet() << "\n";
+		errs() << "HIG BCET : " << HigBcet.get_Bcet() << "\n";
+
 		errs() << "HIG graph Created!!!\n";
 	}
 

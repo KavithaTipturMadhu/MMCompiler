@@ -12,6 +12,7 @@ using namespace std;
 static unsigned int gidx;
 WCET::FuncUnit< const llvm::MachineInstr * > FunctionUnit;
 WCET::LoopBound LoopBounds;
+MemoryAliasMap MA;
 
 //GET ID
 unsigned int WCET::get_gidx()
@@ -21,10 +22,283 @@ unsigned int WCET::get_gidx()
 	return id;
 }
 
-//pHyperOpBasicBlock
-pHyperOpBasicBlock::pHyperOpBasicBlock( MachineBasicBlock * B )
+//GLOBAL MF CACHE
+void WCET::WCETMemoryAliasing( MachineFunction *MF )
+{
+	for ( auto bitr = MF->begin() ; bitr != MF->end() ; ++bitr )
+	{
+		for ( auto itr = bitr->instr_begin() ; itr != bitr->instr_end() ; ++itr )
+		{
+//		if( itr->mayLoad( llvm::MachineInstr::QueryType::AnyInBundle ) || itr->mayStore( llvm::MachineInstr::QueryType::AnyInBundle ) )
+			if( !itr->memoperands_empty() )
+			{
+				for ( auto mitr = itr->memoperands_begin() ; mitr != itr->memoperands_end() ; ++mitr )
+				{
+					MA.insert( std::make_pair( itr , std::make_pair( ( void * ) ( ( *mitr )->getValue() ) , ( unsigned int ) ( ( *mitr )->getSize() ) ) ) );
+				}
+			}
+		}
+	}
+}
+CacheAnalysis * WCET::Union( CacheAnalysis * CAA , CacheAnalysis * CAB )
+{
+	CacheAnalysis *CA = new CacheAnalysis[pHyperOpNumber];
+	for ( int pindx = 0 ; pindx < pHyperOpNumber ; pindx++ )
+	{
+		auto Aitr = CAA[pindx].LRU.begin();
+		auto Bitr = CAB[pindx].LRU.begin();
+		bool flagA = true;
+		bool flagB = true;
+		CacheNode *Node;
+
+		while ( ( Aitr != CAA[pindx].LRU.end() ) && ( Bitr != CAB[pindx].LRU.end() ) )
+		{
+			for ( auto itr = CA[pindx].LRU.begin() ; itr != CA[pindx].LRU.end() ; ++itr )
+			{
+				if( itr->get_MemoryLocation() == Aitr->get_MemoryLocation() )
+				{
+					flagA = false;
+					break;
+				}
+			}
+			if( flagA && ( Aitr != CAA[pindx].LRU.end() ) )
+			{
+				Node = new CacheNode( Aitr->get_MemoryLocation() , Aitr->get_memsize() );
+				CA[pindx].LRU.push_back( *Node );
+				++Aitr;
+
+			}
+			flagA = true;
+			if( CA[pindx].LRU.size() >= CA[pindx].get_line() )
+			{
+				break;
+			}
+			for ( auto itr = CA[pindx].LRU.begin() ; itr != CA[pindx].LRU.end() ; ++itr )
+			{
+				if( itr->get_MemoryLocation() == Bitr->get_MemoryLocation() )
+				{
+					flagB = false;
+					break;
+				}
+			}
+			if( flagB && ( Bitr != CAB[pindx].LRU.end() ) )
+			{
+				Node = new CacheNode( Bitr->get_MemoryLocation() , Bitr->get_memsize() );
+				CA[pindx].LRU.push_back( *Node );
+				++Bitr;
+
+			}
+			flagB = true;
+			if( CA[pindx].LRU.size() >= CA[pindx].get_line() )
+			{
+				break;
+			}
+		}
+	}
+	return CA;
+}
+CacheAnalysis * WCET::Intersection( CacheAnalysis * A , CacheAnalysis * B )
+{
+	//errs() << "ERROR 100\n";
+	CacheAnalysis *CA = new CacheAnalysis[pHyperOpNumber];
+	for ( int pindx = 0 ; pindx < pHyperOpNumber ; pindx++ )
+	{
+		CacheAnalysis CAA;
+		CacheAnalysis CAB;
+
+		for ( auto Aitr = A[pindx].LRU.rbegin() ; Aitr != A[pindx].LRU.rend() ; ++Aitr )
+		{
+			for ( auto Bitr = B[pindx].LRU.rbegin() ; Bitr != B[pindx].LRU.rend() ; ++Bitr )
+			{
+				if( Aitr->get_MemoryLocation() == Bitr->get_MemoryLocation() )
+				{
+					CacheNode *Node = new CacheNode( Aitr->get_MemoryLocation() , Aitr->get_memsize() );
+					CAA.LRU.push_front( *Node );
+				}
+			}
+		}
+		CAA.dump();
+		//errs() << "ERROR 101\n";
+		for ( auto Bitr = B[pindx].LRU.rbegin() ; Bitr != B[pindx].LRU.rend() ; ++Bitr )
+		{
+			for ( auto Aitr = A[pindx].LRU.rbegin() ; Aitr != A[pindx].LRU.rend() ; ++Aitr )
+			{
+				if( Bitr->get_MemoryLocation() == Aitr->get_MemoryLocation() )
+				{
+					CacheNode *Node = new CacheNode( Bitr->get_MemoryLocation() , Bitr->get_memsize() );
+					CAB.LRU.push_front( *Node );
+				}
+			}
+		}
+		CAB.dump();
+		//errs() << "ERROR 102\n";
+		bool flagA = true;
+		bool flagB = true;
+		auto CAAitr = CAA.LRU.rbegin();
+		auto CABitr = CAB.LRU.rbegin();
+		if( CAA.LRU.size() > 0 )
+		{
+			while ( ( CAAitr != CAA.LRU.rend() ) && ( CABitr != CAB.LRU.rend() ) )
+			{
+				flagA = true;
+				for ( auto itr = CA[pindx].LRU.begin() ; itr != CA[pindx].LRU.end() ; ++itr )
+				{
+					if( itr->get_MemoryLocation() == CAAitr->get_MemoryLocation() )
+					{
+						flagA = false;
+						break;
+					}
+				}
+
+				//errs() << "ERROR 103\n";
+				if( flagA && ( CAAitr != CAA.LRU.rend() ) )
+				{
+					CacheNode *Node = new CacheNode( CAAitr->get_MemoryLocation() , CAAitr->get_memsize() );
+					CA[pindx].LRU.push_front( *Node );
+				}
+				++CAAitr;
+				flagB = true;
+				//errs() << "ERROR 104\n";
+				for ( auto itr = CA[pindx].LRU.begin() ; itr != CA[pindx].LRU.end() ; ++itr )
+				{
+					if( itr->get_MemoryLocation() == CABitr->get_MemoryLocation() )
+					{
+						flagB = false;
+						break;
+					}
+				}
+				//errs() << "ERROR 105\n";
+				if( flagB && ( CABitr != CAB.LRU.rend() ) )
+				{
+					CacheNode *Node = new CacheNode( CABitr->get_MemoryLocation() , CABitr->get_memsize() );
+					CA[pindx].LRU.push_front( *Node );
+				}
+				++CABitr;
+
+				errs() << "Size of CA: " << CA[pindx].LRU.size() << "\n";
+				CA[pindx].dump();
+			//	errs() << "ERROR 106\n";
+			}
+		//	errs() << "ERROR 107\n";
+		}
+	}
+	//errs() << "ERROR 108\n";
+	return CA;
+}
+//CacheNode
+CacheNode::CacheNode( void * ptr , unsigned int _size )
+{
+	this->MemoryLocation = ptr;
+	this->size = _size;
+}
+void CacheNode::set_MemoryLocation( void * ptr )
+{
+	this->MemoryLocation = ptr;
+}
+void * CacheNode::get_MemoryLocation()
+{
+	return this->MemoryLocation;
+}
+void CacheNode::set_memsize( unsigned int i )
+{
+	this->size = i;
+}
+unsigned int CacheNode::get_memsize()
+{
+	return this->size;
+}
+
+//Cache Analysis
+WCET::CacheAnalysis::CacheAnalysis()
+{
+	this->associativity = 2;
+	this->cachesize = ( 1024 * 8 * 2 );
+	this->linesize = 8;
+	this->NumberofLines = 2;
+}
+void WCET::CacheAnalysis::set_associativity( int a )
+{
+	this->associativity = a;
+}
+void WCET::CacheAnalysis::set_line( int l )
+{
+	this->linesize = l;
+}
+int WCET::CacheAnalysis::get_line()
+{
+	return this->linesize;
+}
+void WCET::CacheAnalysis::set_cachsize( int c )
+{
+	this->cachesize = c;
+	if( this->associativity == 0 )
+		this->associativity = 1;
+	if( this->linesize == 0 )
+		this->linesize = 1;
+	this->NumberofLines = c / ( this->associativity * this->linesize );
+
+}
+bool WCET::CacheAnalysis::Update( void * ptr , unsigned int _size )
+{
+	auto lsitr = this->LRU.begin();
+	auto nextptr = this->LRU.begin();
+	bool flag = false;
+	for ( ; lsitr != this->LRU.end() ; ++lsitr )
+	{
+		if( ptr == ( *lsitr ).get_MemoryLocation() )
+		{
+			nextptr = lsitr;
+			++nextptr;
+			flag = true;
+			break;
+		}
+	}
+	if( flag == true )
+	{
+		if( lsitr != this->LRU.begin() )
+			this->LRU.splice( this->LRU.begin() , this->LRU , lsitr , nextptr );
+		return true;
+	}
+	else
+	{
+		WCET::CacheNode *node = new CacheNode( ptr , _size );
+		if( this->LRU.size() >= this->NumberofLines )
+		{
+			this->LRU.push_front( *node );
+			this->LRU.pop_back();
+		}
+		else
+		{
+			this->LRU.push_front( *node );
+		}
+	}
+	return false;
+}
+bool WCET::CacheAnalysis::In_Cache( MachineInstr * MI )
 {
 
+//	if( MI->mayLoad( llvm::MachineInstr::QueryType::AnyInBundle ) || MI->mayStore( llvm::MachineInstr::QueryType::AnyInBundle ) )
+	if( !MI->memoperands_empty() )
+	{
+		return this->Update( MA.at( MI ).first , MA.at( MI ).second );
+	}
+	return false;
+
+}
+void WCET::CacheAnalysis::dump()
+{
+	if( this->LRU.empty() )
+		errs() << "Cache is Empty\n";
+	else
+		for ( auto itr = this->LRU.begin() ; itr != this->LRU.end() ; ++itr )
+		{
+			errs() << "MEMORY ADDR: " << ( *itr ).get_MemoryLocation() << " , Size: " << ( *itr ).get_memsize() << "\n";
+		}
+}
+//pHyperOpBasicBlock
+pHyperOpBasicBlock::pHyperOpBasicBlock( MachineBasicBlock * B , CacheAnalysis *CA )
+{
+	//errs() << "pBB error 01\n";
 	MachineFunction *MF = ( const_cast< MachineFunction* >( B->getParent() ) );
 	const TargetInstrInfo* TII;
 	const InstrItineraryData *InstrItins;
@@ -35,8 +309,9 @@ pHyperOpBasicBlock::pHyperOpBasicBlock( MachineBasicBlock * B )
 	//Creating Function unit Graph
 	int pHyperOpIndex = -1;
 	int pHyperOpIndexold = -2;
-	MachineBasicBlock::const_instr_iterator instrItr = B->instr_begin();
-	MachineBasicBlock::const_instr_iterator instrItrold;
+	MachineBasicBlock::instr_iterator instrItr = B->instr_begin();
+	MachineBasicBlock::instr_iterator instrItrold;
+	//errs() << "pBB error 02\n";
 	for ( ; instrItr != B->instr_end() ; ++instrItr )
 	{
 		FunctionUnit.Iinsert( &*instrItr );
@@ -44,7 +319,7 @@ pHyperOpBasicBlock::pHyperOpBasicBlock( MachineBasicBlock * B )
 		{
 			pHyperOpIndex++;
 		}
-
+		//errs() << "pBB error 03\n";
 		if( InstrItins && !InstrItins->isEmpty() )
 		{
 			const InstrStage *IS = InstrItins->beginStage( instrItr->getDesc().getSchedClass() );
@@ -53,10 +328,37 @@ pHyperOpBasicBlock::pHyperOpBasicBlock( MachineBasicBlock * B )
 			for ( ; IS != E ; ++IS )
 			{
 				unsigned StageDepth = IS->getCycles();
-				( this->pHyperBB[pHyperOpIndex] ).add_Edge( FunctionUnit.get_FuncUnitNumber( &*instrItr , unit ) , FunctionUnit.get_FuncUnitNumber( &*instrItr , unit + 1 ) , StageDepth );
+				//errs() << "pBB error 03a\n";
+				if( unit != 3 )
+					{
+						//errs() << "pBB error 03aa\n";
+						( this->pHyperBB[pHyperOpIndex] ).add_Edge( FunctionUnit.get_FuncUnitNumber( &*instrItr , unit ) , FunctionUnit.get_FuncUnitNumber( &*instrItr , unit + 1 ) , StageDepth );
+						//errs() << "pBB error 03ab\n";
+					}
+				else
+				{
+					//errs() << "pBB error 03b\n";
+					if( StageDepth <= 1 )
+						( this->pHyperBB[pHyperOpIndex] ).add_Edge( FunctionUnit.get_FuncUnitNumber( &*instrItr , unit ) , FunctionUnit.get_FuncUnitNumber( &*instrItr , unit + 1 ) , StageDepth );
+					else
+					{
+						//errs() << "pBB error 03c\n";
+						if( !CA[pHyperOpIndex].In_Cache( instrItr ) )
+						{
+							//errs() << "pBB error 03d\n";
+							( this->pHyperBB[pHyperOpIndex] ).add_Edge( FunctionUnit.get_FuncUnitNumber( &*instrItr , unit ) , FunctionUnit.get_FuncUnitNumber( &*instrItr , unit + 1 ) , StageDepth );
+						}
+						else
+						{
+							//errs() << "pBB error 03e\n";
+							( this->pHyperBB[pHyperOpIndex] ).add_Edge( FunctionUnit.get_FuncUnitNumber( &*instrItr , unit ) , FunctionUnit.get_FuncUnitNumber( &*instrItr , unit + 1 ) , 1 );
+						}
+					}
+				}
 				unit++;
 			}
 		}
+		//errs() << "pBB error 04\n";
 		if( pHyperOpIndex == pHyperOpIndexold )
 		{
 
@@ -65,37 +367,48 @@ pHyperOpBasicBlock::pHyperOpBasicBlock( MachineBasicBlock * B )
 				( this->pHyperBB[pHyperOpIndex] ).add_Edge( FunctionUnit.get_FuncUnitNumber( &*instrItrold , unit + 1 ) , FunctionUnit.get_FuncUnitNumber( &*instrItr , unit ) , 0 );
 			}
 		}
+		//errs() << "pBB error 05\n";
 		pHyperOpIndexold = pHyperOpIndex;
 		instrItrold = instrItr;
 	}
-	//Handling Instruction Function Unit Dependency
-	//TODO Include Parallelism by Floating and Integer Instruction
-	//errs()<<"WCET: pH0: "<<this->pHyperBB[0].get_Wcet()<<" WCET: pH1: "<<this->pHyperBB[1].get_Wcet()<<\
-			" WCET: pH2: "<<this->pHyperBB[2].get_Wcet()<<" WCET: pH3: "<<this->pHyperBB[3].get_Wcet()<<"\n";
-}
-WCET::pHyperOpBB pHyperOpBasicBlock::get_pHyperOpBB( int pHyperOpIndex )
-{
-	WCET::pHyperOpBB phmbb = this->pHyperBB[pHyperOpIndex];
-	return phmbb;
+//Handling Instruction Function Unit Dependency
+//TODO Include Parallelism by Floating and Integer Instruction
+//errs()<<"WCET: pH0: "<<this->pHyperBB[0].get_Wcet()<<" WCET: pH1: "<<this->pHyperBB[1].get_Wcet()<<" WCET: pH2: "<<this->pHyperBB[2].get_Wcet()<<" WCET: pH3: "<<this->pHyperBB[3].get_Wcet()<<"\n";
 }
 
 //pHyperOpControlFlowGraph
 pHyperOpControlFlowGraph::pHyperOpControlFlowGraph( llvm::MachineFunction &MF , llvm::MachineDominatorTree *DT )
 {
-	pHyperOpCFG temp;
-	for ( MachineFunction::iterator bbItr = MF.begin() ; bbItr != MF.end() ; bbItr++ )
+	int numblock = 0;
+	this->DT = DT;
+	errs() << "Successor BEGIN\n";
+	//List of Successor Machine Basic Block
+	for ( auto bitr = MF.begin() ; bitr != MF.end() ; ++bitr )
 	{
-		WCET::pHyperOpBasicBlock pHyperMBB( bbItr );
-		for ( int pHyperCFGindex = 0 ; pHyperCFGindex < pHyperOpNumber ; pHyperCFGindex++ )
+		numblock++;
+		if( bitr->succ_size() == 0 )
 		{
-			WCET::pHyperOpBB *obj = new WCET::pHyperOpBB;
-			*obj = pHyperMBB.get_pHyperOpBB( pHyperCFGindex );
-			this->LookUp[pHyperCFGindex].push_back( obj );
-			this->pHyperCFG[pHyperCFGindex].add_Vertex( obj );
-			temp.add_Vertex( obj );
+			this->LeafMBB.push_back( bitr );
+			errs() << "Leaf MBB are: " << bitr->getNumber() << "\n";
 		}
 	}
 
+	errs() << "DFS BEGIN\n";
+	//Apply DFS on all Leaf MBB
+	for ( auto leafitr = this->LeafMBB.begin() ; leafitr != this->LeafMBB.end() ; ++leafitr )
+	{
+		this->pHyperOpMayDFS( *leafitr );
+		errs() << "May Analysis Complete\n";
+		this->pHyperOpMustDFS( *leafitr );
+
+		errs() << "Completed  Leaf\n";
+	}
+
+	errs() << "pCFG :ADD Edges\n";
+	errs() << "# of Basic Blocks " << numblock << "\n";
+	errs() << "# of Basic Blocks " << this->MayLookUp[0].size() << "\n";
+
+	//ADD EDGES TO CFG
 	for ( auto& B : MF )
 	{
 		for ( MachineBasicBlock::succ_iterator succItr = B.succ_begin() ; succItr != B.succ_end() ; succItr++ )
@@ -104,80 +417,263 @@ pHyperOpControlFlowGraph::pHyperOpControlFlowGraph( llvm::MachineFunction &MF , 
 			{
 				if( !DT->dominates( ( *succItr ) , ( &B ) ) )
 				{
-					this->pHyperCFG[pHyperCFGindex].add_Edge( this->LookUp[pHyperCFGindex][B.getNumber()] , this->LookUp[pHyperCFGindex][ ( *succItr )->getNumber()] , ( this->LookUp[pHyperCFGindex][B.getNumber()] )->get_Wcet() );
+					this->pHyperMustCFG[pHyperCFGindex].add_Edge( this->MustLookUp[pHyperCFGindex].at( B.getNumber() ) , this->MustLookUp[pHyperCFGindex].at( ( *succItr )->getNumber() ) , this->MustLookUp[pHyperCFGindex].at( B.getNumber() )->get_Wcet() );
+					this->pHyperMayCFG[pHyperCFGindex].add_Edge( this->MayLookUp[pHyperCFGindex].at( B.getNumber() ) , this->MayLookUp[pHyperCFGindex].at( ( *succItr )->getNumber() ) , this->MayLookUp[pHyperCFGindex].at( B.getNumber() )->get_Wcet() );
 				}
-				temp.add_Edge( this->LookUp[pHyperCFGindex][B.getNumber()] , this->LookUp[pHyperCFGindex][ ( *succItr )->getNumber()] , ( this->LookUp[pHyperCFGindex][B.getNumber()] )->get_Wcet() );
 			}
 		}
 	}
-	//temp.xdot();
+	//this->pHyperMayCFG[0].xdot();
+	//this->pHyperMustCFG[0].xdot();
 }
+void pHyperOpControlFlowGraph::pHyperOpMayDFS( llvm::MachineBasicBlock * MBB )
+{
+	//Return Memorize Computed Results
+	auto memitr = this->MayCA.find( MBB->getNumber() );
+	if( memitr != this->MayCA.end() )
+	{
+		errs() << "MEMOIZATION USED BY DFS\n";
+		return;
+	}
 
+	if( MBB->pred_size() == 0 )
+	{
+		//errs() << "ERROR 01 MBB Number: " << MBB->getNumber() << "\n";
+		CacheAnalysis *MayCA = new CacheAnalysis[pHyperOpNumber];
+		//errs() << "ERROR 010 MBB Number: " << MBB->getNumber() << "\n";
+		pHyperOpBasicBlock *pbb = new pHyperOpBasicBlock( MBB , MayCA );
+		//errs() << "ERROR 011 MBB Number: " << MBB->getNumber() << "\n";
+		for ( int pindex = 0 ; pindex < pHyperOpNumber ; pindex++ )
+		{
+			pHyperOpBB *obj = new pHyperOpBB;
+			*obj = pbb->pHyperBB[pindex];
+			this->MayLookUp[pindex].insert( std::make_pair( MBB->getNumber() , obj ) );
+			//errs() << "ERROR 012 MBB Number: " << MBB->getNumber() << "\n";
+			this->pHyperMayCFG[pindex].add_Vertex( obj );
+			//errs() << "BB #: " << MBB->getNumber() << "\n";
+		}
+		//errs() << "ERROR 02\n";
+		this->MayCA.insert( std::make_pair( MBB->getNumber() , MayCA ) );
+		return;
+	}
+	else
+	{
+		//errs() << "ERROR 04\n";
+
+		//errs() << "ERROR 05\n";
+		//Get CA of All parent Nodes
+		auto isvisit = this->Ismayvisted.find( MBB );
+		for ( auto preditr = MBB->pred_begin() ; preditr != MBB->pred_end() ; ++preditr )
+		{
+			if( this->DT->dominates( ( *preditr ) , ( MBB ) ) || ( isvisit == this->Ismayvisted.end() ) )
+			{
+				this->pHyperOpMayDFS( ( *preditr ) );
+				this->Ismayvisted.insert( std::make_pair( MBB , true ) );
+			}
+		}
+
+		CacheAnalysis *MayCA = new CacheAnalysis[pHyperOpNumber];
+	//	errs() << "ERROR 06\n";
+		auto preditr = MBB->pred_begin();
+		auto Aitr = MBB->pred_begin();
+		*MayCA = *this->MayCA.at( ( *Aitr )->getNumber() );
+
+		++preditr;
+		for ( ; preditr != MBB->pred_end() ; ++preditr )
+		{
+			if( this->DT->dominates( ( *preditr ) , ( MBB ) ) )
+			{
+				auto ptr = WCET::Union( MayCA , this->MayCA.at( ( *preditr )->getNumber() ) );
+				*MayCA = *ptr;
+			}
+		}
+		//errs() << "ERROR 07\n";
+		pHyperOpBasicBlock *pbb = new pHyperOpBasicBlock( MBB , MayCA );
+		for ( int pindex = 0 ; pindex < pHyperOpNumber ; pindex++ )
+		{
+			pHyperOpBB *obj = new pHyperOpBB;
+			*obj = pbb->pHyperBB[pindex];
+			this->MayLookUp[pindex].insert( std::make_pair( MBB->getNumber() , obj ) );
+			this->pHyperMayCFG[pindex].add_Vertex( obj );
+			//errs() << "BB #: " << MBB->getNumber() << "\n";
+		}
+		//errs() << "ERROR 08\n";
+		this->MayCA.insert( std::make_pair( MBB->getNumber() , MayCA ) );
+	//	errs() << "ERROR 09\n";
+		return;
+	}
+
+}
+void pHyperOpControlFlowGraph::pHyperOpMustDFS( llvm::MachineBasicBlock * MBB )
+{
+	//Return Memorize Computed Results
+	auto memitr = this->MustCA.find( MBB->getNumber() );
+	if( memitr != this->MustCA.end() )
+	{
+		//errs() << "MEMOIZATION USED BY DFS\n";
+		return;
+	}
+
+	if( MBB->pred_size() == 0 )
+	{
+		//errs() << "ERROR 10\n";
+		CacheAnalysis *MustCA = new CacheAnalysis[pHyperOpNumber];
+
+		pHyperOpBasicBlock *pbb = new pHyperOpBasicBlock( MBB , MustCA );
+
+		for ( int pindex = 0 ; pindex < pHyperOpNumber ; pindex++ )
+		{
+			pHyperOpBB *obj = new pHyperOpBB;
+			*obj = pbb->pHyperBB[pindex];
+			this->MustLookUp[pindex].insert( std::make_pair( MBB->getNumber() , obj ) );
+			this->pHyperMustCFG[pindex].add_Vertex( obj );
+		}
+		//errs() << "ERROR 11\n";
+		this->MustCA.insert( std::make_pair( MBB->getNumber() , MustCA ) );
+		//errs() << "ERROR 12\n";
+		return;
+	}
+	else
+	{
+		//errs() << "ERROR 13\n";
+
+		//errs() << "ERROR 14\n";
+		//Get CA of All parent Nodes
+		auto isvisit = this->Ismustvisted.find( MBB );
+		for ( auto preditr = MBB->pred_begin() ; preditr != MBB->pred_end() ; ++preditr )
+		{
+
+			if( this->DT->dominates( ( *preditr ) , ( MBB ) ) || ( isvisit == this->Ismustvisted.end() ) )
+			{
+				this->pHyperOpMustDFS( ( *preditr ) );
+				this->Ismustvisted.insert( std::make_pair( MBB , true ) );
+			}
+		}
+		//errs() << "ERROR 15\n";
+		CacheAnalysis *MustCA = new CacheAnalysis[pHyperOpNumber];
+
+		auto preditr = MBB->pred_begin();
+		auto Aitr = MBB->pred_begin();
+		*MustCA = *this->MustCA.at( ( *Aitr )->getNumber() );
+
+		++preditr;
+		for ( ; preditr != MBB->pred_end() ; ++preditr )
+		{
+			if( this->DT->dominates( ( *preditr ) , ( MBB ) ) )
+			{
+				auto ptr = WCET::Intersection( MustCA , this->MustCA.at( ( *preditr )->getNumber() ) );
+				*MustCA = *ptr;
+			}
+		}
+		//errs() << "ERROR 16\n";
+		pHyperOpBasicBlock *pbb = new pHyperOpBasicBlock( MBB , MustCA );
+		for ( int pindex = 0 ; pindex < pHyperOpNumber ; pindex++ )
+		{
+			pHyperOpBB *obj = new pHyperOpBB;
+			*obj = pbb->pHyperBB[pindex];
+			this->MustLookUp[pindex].insert( std::make_pair( MBB->getNumber() , obj ) );
+			this->pHyperMustCFG[pindex].add_Vertex( obj );
+		}
+	//	errs() << "ERROR 17\n";
+		this->MustCA.insert( std::make_pair( MBB->getNumber() , MustCA ) );
+	//	errs() << "ERROR 18\n";
+		return;
+	}
+
+}
 //IntraHyperOp
 SingleHyperOpWcet::SingleHyperOpWcet( llvm::MachineFunction *MFI , MachineLoopInfo *LI , MachineDominatorTree *DT )
 {
 	this->MF = MFI;
-	//PartialCFG test;
-	//Loop Annotations
+//Memory Alias;
+	WCETMemoryAliasing( MFI );
+//PartialCFG test;
+//Loop Annotations
 
-	//-CREATE pCFG
+//-CREATE pCFG
+	errs() << "Creating pHyperOp Control Flow Graph\n";
 	WCET::pHyperOpControlFlowGraph mycfg( *MFI , DT );
+	errs() << "Completed pHyperOp Control Flow  Graph\n";
 	for ( int pHopindex = 0 ; pHopindex < pHyperOpNumber ; pHopindex++ )
 	{
-		this->pHopCFG[pHopindex] = mycfg.pHyperCFG[pHopindex];
-		this->LookUp[pHopindex] = mycfg.LookUp[pHopindex];
+		this->pHopMayCFG[pHopindex] = mycfg.pHyperMayCFG[pHopindex];
+		this->MayLookUp[pHopindex] = mycfg.MayLookUp[pHopindex];
+		this->pHopMustCFG[pHopindex] = mycfg.pHyperMustCFG[pHopindex];
+		this->MustLookUp[pHopindex] = mycfg.MustLookUp[pHopindex];
 	}
-
-	//-MERGING pHop into HyerOp
-	//-- ADDING VERTEX
+	errs() << "Copying DATA COMPLETE\n";
+//-MERGING pHop into HyerOp
+//-- ADDING VERTEX
 	this->IntraHopWCET.add_Vertex( CFGSTART );
 	this->IntraHopBCET.add_Vertex( CFGSTART );
-	//test.add_Vertex( CFGSTART );
 	for ( int pHopindex = 0 ; pHopindex < pHyperOpNumber ; pHopindex++ )
 	{
-		auto ls = this->pHopCFG[pHopindex].get_VertexList();
+		auto ls = this->pHopMayCFG[pHopindex].get_VertexList();
+		for ( auto lsitr = ls.begin() ; lsitr != ls.end() ; ++lsitr )
+		{
+			this->IntraHopBCET.add_Vertex( *lsitr );
+			this->pBBMayExtraTime[pHopindex].insert( std::make_pair( *lsitr , std::make_pair( 0 , 0 ) ) );
+		}
+	}
+	errs() << "BCET VETREX COMPLETE\n";
+	for ( int pHopindex = 0 ; pHopindex < pHyperOpNumber ; pHopindex++ )
+	{
+		auto ls = this->pHopMustCFG[pHopindex].get_VertexList();
 		for ( auto lsitr = ls.begin() ; lsitr != ls.end() ; ++lsitr )
 		{
 			this->IntraHopWCET.add_Vertex( *lsitr );
-			this->IntraHopBCET.add_Vertex( *lsitr );
-			//test.add_Vertex( *lsitr );
-			this->pBBExtraTime[pHopindex].insert( std::make_pair( *lsitr , std::make_pair( 0 , 0 ) ) );
+			this->pBBMustExtraTime[pHopindex].insert( std::make_pair( *lsitr , std::make_pair( 0 , 0 ) ) );
 		}
 	}
-	this->IntraHopWCET.add_Vertex( CFGEND );
 
+	this->IntraHopWCET.add_Vertex( CFGEND );
+	errs() << "WCET VETREX COMPLETE\n";
 //- INCLUDING LOOP ANALYSIS
 	this->LoopAnalysis( LI );
 	this->LS.dump();
-
+	errs() << "LOOP COMPLETE\n";
 //--ADD EDGE CFG
 	for ( int pHopindex = 0 ; pHopindex < pHyperOpNumber ; pHopindex++ )
 	{
-		auto ls = this->pHopCFG[pHopindex].get_VertexList();
-		auto lsitr = ls.begin();
-		this->IntraHopWCET.add_Edge( CFGSTART , mycfg.LookUp[pHopindex].at( 0 ) , 4 + ( pHopindex * 3 ) );
-		this->IntraHopBCET.add_Edge( CFGSTART , mycfg.LookUp[pHopindex].at( 0 ) , 4 + ( pHopindex * 3 ) );
-		//test.add_Edge( CFGSTART , mycfg.LookUp[pHopindex].at( 0 ) , 4 + ( pHopindex * 3 ) );
-		for ( ; lsitr != ls.end() ; ++lsitr )
+		this->IntraHopWCET.add_Edge( CFGSTART , mycfg.MustLookUp[pHopindex].at( 0 ) , 4 + ( pHopindex * 3 ) );
+		this->IntraHopBCET.add_Edge( CFGSTART , mycfg.MayLookUp[pHopindex].at( 0 ) , 4 + ( pHopindex * 3 ) );
+
+		auto mayls = this->pHopMayCFG[pHopindex].get_VertexList();
+		auto maylsitr = mayls.begin();
+		for ( ; maylsitr != mayls.end() ; ++maylsitr )
 		{
 
-			auto adjls = this->pHopCFG[pHopindex].get_AdjList( *lsitr );
+			auto adjls = this->pHopMayCFG[pHopindex].get_AdjList( *maylsitr );
 			for ( auto adjlsitr = adjls.begin() ; adjlsitr != adjls.end() ; ++adjlsitr )
 			{
-				this->IntraHopWCET.add_Edge( *lsitr , *adjlsitr , ( *lsitr )->get_Wcet() + this->pBBExtraTime[pHopindex].at( *lsitr ).second );
-				this->IntraHopBCET.add_Edge( *lsitr , *adjlsitr , ( *lsitr )->get_Wcet() + this->pBBExtraTime[pHopindex].at( *lsitr ).first );
-				//test.add_Edge( *lsitr , *adjlsitr , ( *lsitr )->get_Wcet() );
+				this->IntraHopBCET.add_Edge( *maylsitr , *adjlsitr , ( *maylsitr )->get_Wcet() + this->pBBMayExtraTime[pHopindex].at( *maylsitr ).first );
+			}
+			if( adjls.size() == 0 )
+			{
+				this->IntraHopBCET.add_Edge( *maylsitr , BCETEND( pHopindex ) , ( *maylsitr )->get_Wcet() + this->pBBMayExtraTime[pHopindex].at( *maylsitr ).first );
+			}
+		}
+
+		auto mustls = this->pHopMustCFG[pHopindex].get_VertexList();
+		auto mustlsitr = mustls.begin();
+		for ( ; mustlsitr != mustls.end() ; ++mustlsitr )
+		{
+			auto adjls = this->pHopMustCFG[pHopindex].get_AdjList( *mustlsitr );
+			for ( auto adjlsitr = adjls.begin() ; adjlsitr != adjls.end() ; ++adjlsitr )
+			{
+				this->IntraHopWCET.add_Edge( *mustlsitr , *adjlsitr , ( *mustlsitr )->get_Wcet() + this->pBBMustExtraTime[pHopindex].at( *mustlsitr ).second );
 			}
 
 			if( adjls.size() == 0 )
 			{
-				this->IntraHopWCET.add_Edge( *lsitr , CFGEND , ( *lsitr )->get_Wcet() + this->pBBExtraTime[pHopindex].at( *lsitr ).second );
-				this->IntraHopBCET.add_Edge( *lsitr , BCETEND( pHopindex ) , ( *lsitr )->get_Wcet() + this->pBBExtraTime[pHopindex].at( *lsitr ).first );
-				//test.add_Edge( *lsitr , BCETEND( pHopindex ) , ( *lsitr )->get_Wcet() );
+				this->IntraHopWCET.add_Edge( *mustlsitr , CFGEND , ( *mustlsitr )->get_Wcet() + this->pBBMustExtraTime[pHopindex].at( *mustlsitr ).second );
 			}
 		}
 
 	}
+	errs() << "EDGE COMPLETE\n";
+//	this->IntraHopWCET.xdot_CriticalPath();
+//	this->IntraHopBCET.xdot_ShortestPath();
 //-ADDING MPI
 //--CREATING A LOOKUP
 	const TargetInstrInfo* TII;
@@ -219,7 +715,7 @@ SingleHyperOpWcet::SingleHyperOpWcet( llvm::MachineFunction *MFI , MachineLoopIn
 				{
 					for ( int pLookindex = 0 ; pLookindex < pHyperOpNumber ; pLookindex++ )
 					{
-						pHyperOpBB* pbbs = this->LookUp[pLookindex][MBB->getNumber()];
+						pHyperOpBB* pbbs = this->MustLookUp[pLookindex].at( MBB->getNumber() );
 						if( pbbs->Is_Vertex( FunctionUnit.get_FuncUnitNumber( ( &*litr ) , 0 ) ) )
 						{
 							this->IntraHopWCET.split_Vertex( pbbs , MessageInstrItr->second , pbbs->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( &*litr , 4 ) ) );
@@ -242,58 +738,66 @@ SingleHyperOpWcet::SingleHyperOpWcet( llvm::MachineFunction *MFI , MachineLoopIn
 		MachineInstr* s = pHopDependenceItr->first;
 		MachineInstr* t = pHopDependenceItr->second;
 		this->IntraHopWCET.add_Edge( this->MPILookup.at( s ) , this->MPILookup.at( t ) , pHyperMessageWorstLatency );
-		//this->IntraHopBCET.add_Edge( this->MPILookup.at( s ) , this->MPILookup.at( t ) , pHyperMessageBestLatency );
 	}
-
+//	this->IntraHopWCET.xdot_CriticalPath();
+//	this->IntraHopBCET.xdot_ShortestPath();
 }
 int SingleHyperOpWcet::get_Wcet()
 {
-//	this->IntraHopWCET.xdot_CriticalPath();
-	return this->IntraHopWCET.get_Wcet();
+	long int i = 0;
+	for ( auto itr = this->IntraHopWCET.CrticalPath.begin() ; itr != this->IntraHopWCET.CrticalPath.end() ; ++itr )
+	{
+		i += itr->first->get_Cardinality();
+	}
+	i = i / 6;
+	i = ( i / 8 ) * 7 + 7;
+	return ( this->IntraHopWCET.get_Wcet() + ( int ) i );
 
 }
 int SingleHyperOpWcet::get_WcetNode( MachineInstr* I )
 {
-	//errs()<<"Reached Here 1\n";
-	I->dump();
+//errs()<<"Reached Here 1\n";
+//	I->dump();
 	WCET::pHyperOpBB* src;
 	for ( int pidx = 0 ; pidx < pHyperOpNumber ; pidx++ )
 	{
 		//errs()<<"Reached Here 2\n";
-		src = this->LookUp[pidx][I->getParent()->getNumber()];
+		src = this->MustLookUp[pidx].at( I->getParent()->getNumber() );
 		//errs()<<"Reached Here 3\n";
-		if( src->Is_Vertex( FunctionUnit.get_FuncUnitNumber(  I , 4 ) ) )
+		if( src->Is_Vertex( FunctionUnit.get_FuncUnitNumber( I , 4 ) ) )
 		{
 			//errs()<<"Reached Here 4\n";
-			int g=0;
-			int b=0;
-			g=this->IntraHopWCET.get_NodeWcet( src );
+			int g = 0;
+			int b = 0;
+			g = this->IntraHopWCET.get_NodeWcet( src );
 			//errs()<<"Reached Here 5\n";
-			b=src->get_NodeWcet(FunctionUnit.get_FuncUnitNumber( ( I ) , 4 ) );
+			b = src->get_NodeWcet( FunctionUnit.get_FuncUnitNumber( ( I ) , 4 ) );
 			//errs()<<"Reached Here 6\n";
-			return (b+g);
+			return ( b + g );
 		}
 	}
 	return 0;
 }
 int SingleHyperOpWcet::get_Bcet()
 {
-//	this->IntraHopBCET.xdot_ShortestPath();
+
 	return this->IntraHopBCET.get_Bcet();
 }
 int SingleHyperOpWcet::get_BcetNode( MachineInstr* I )
 {
+
 	WCET::pHyperOpBB* src;
 	for ( int pidx = 0 ; pidx < pHyperOpNumber ; pidx++ )
 	{
-		src = this->LookUp[pidx][I->getParent()->getNumber()];
-		if( src->Is_Vertex( FunctionUnit.get_FuncUnitNumber(  I , 4 ) ) )
+		src = this->MayLookUp[pidx].at( I->getParent()->getNumber() );
+		errs()<<"may aa gya 01\n";
+		if( src->Is_Vertex( FunctionUnit.get_FuncUnitNumber( I , 4 ) ) )
 		{
-			int g=0;
-			int b=0;
-			g=this->IntraHopWCET.get_NodeBcet( src );
-			b=src->get_NodeBcet(FunctionUnit.get_FuncUnitNumber( ( I ) , 4 ) );
-			return (b+g);
+			int g = 0;
+			int b = 0;
+			g = this->IntraHopWCET.get_NodeBcet( src );
+			b = src->get_NodeBcet( FunctionUnit.get_FuncUnitNumber( ( I ) , 4 ) );
+			return ( b + g );
 		}
 	}
 	return 0;
@@ -303,14 +807,19 @@ void SingleHyperOpWcet::LoopAnalysis( MachineLoopInfo *LI )
 	for ( MachineLoopInfo::iterator LIT = LI->begin() ; LIT != LI->end() ; ++LIT )
 	{
 		MachineLoop* l = *LIT;
+		//errs() << "LOOP00\n";
 		LsDFS( l );
+		//errs() << "LOOP01\n";
 		auto ls = this->LS.get_VertexList();
 		for ( auto itr = ls.begin() ; itr != ls.end() ; ++itr )
 		{
-			this->pLoopBound.insert( std::make_pair( *itr , std::make_pair( 9 , 9 ) ) );
+			this->pLoopBound.insert( std::make_pair( *itr , std::make_pair( 18 , 18 ) ) );
 		}
+		//errs() << "LOOP02\n";
 		LoopDFS( l );
+		//errs() << "LOOP03\n";
 	}
+	//errs() << "LOOP04\n";
 }
 void SingleHyperOpWcet::LsDFS( MachineLoop *L )
 {
@@ -328,11 +837,12 @@ void SingleHyperOpWcet::LoopDFS( MachineLoop *L )
 	int min = 0;
 	int max = 0;
 	std::vector< MachineLoop* > subLoops = L->getSubLoops();
-
+	//errs() << "LOOP02a\n";
 	for ( MachineLoop::iterator subitr = subLoops.begin() ; subitr != subLoops.end() ; ++subitr )
 	{
 		LoopDFS( *subitr );
 	}
+	//errs() << "LOOP02b\n";
 // ADD VERTEX
 	PartialCFG mypartialBCETcfg[pHyperOpNumber];
 	PartialCFG mypartialWCETcfg[pHyperOpNumber];
@@ -340,11 +850,11 @@ void SingleHyperOpWcet::LoopDFS( MachineLoop *L )
 	{
 		for ( int pindex = 0 ; pindex < pHyperOpNumber ; pindex++ )
 		{
-			mypartialBCETcfg[pindex].add_Vertex( this->LookUp[pindex].at( ( *BBitr )->getNumber() ) );
-			mypartialWCETcfg[pindex].add_Vertex( this->LookUp[pindex].at( ( *BBitr )->getNumber() ) );
+			mypartialBCETcfg[pindex].add_Vertex( this->MayLookUp[pindex].at( ( *BBitr )->getNumber() ) );
+			mypartialWCETcfg[pindex].add_Vertex( this->MustLookUp[pindex].at( ( *BBitr )->getNumber() ) );
 		}
 	}
-
+	//errs() << "LOOP02c\n";
 //ADD EDGE
 	for ( int pindex = 0 ; pindex < pHyperOpNumber ; pindex++ )
 	{
@@ -352,41 +862,71 @@ void SingleHyperOpWcet::LoopDFS( MachineLoop *L )
 		for ( auto itr = ls.begin() ; itr != ls.end() ; ++itr )
 		{
 
-			auto adjls = this->pHopCFG[pindex].get_AdjList( *itr );
+			auto adjls = this->pHopMustCFG[pindex].get_AdjList( *itr );
 			for ( auto litr = adjls.begin() ; litr != adjls.end() ; ++litr )
 			{
 				if( mypartialWCETcfg[pindex].Is_Vertex( *litr ) )
 				{
-					mypartialBCETcfg[pindex].add_Edge( *itr , *litr , ( *itr )->get_Wcet() + this->pBBExtraTime[pindex].at( *itr ).first );
-					mypartialWCETcfg[pindex].add_Edge( *itr , *litr , ( *itr )->get_Wcet() + this->pBBExtraTime[pindex].at( *itr ).second );
+					mypartialWCETcfg[pindex].add_Edge( *itr , *litr , ( *itr )->get_Wcet() + this->pBBMustExtraTime[pindex].at( *itr ).second );
 				}
 
 			}
 
 		}
+		//errs() << "LOOP02d\n";
+		ls = mypartialBCETcfg[pindex].get_VertexList();
+		for ( auto itr = ls.begin() ; itr != ls.end() ; ++itr )
+		{
+
+			auto adjls = this->pHopMayCFG[pindex].get_AdjList( *itr );
+			for ( auto litr = adjls.begin() ; litr != adjls.end() ; ++litr )
+			{
+				if( mypartialBCETcfg[pindex].Is_Vertex( *litr ) )
+				{
+					mypartialBCETcfg[pindex].add_Edge( *itr , *litr , ( *itr )->get_Wcet() + this->pBBMayExtraTime[pindex].at( *itr ).first );
+				}
+
+			}
+
+		}
+		//errs() << "LOOP02e: " << ls.size() << "\n";
+		ls = mypartialBCETcfg[pindex].get_VertexList();
+		for ( auto itr = ls.begin() ; itr != ls.end() ; ++itr )
+		{
+			if( mypartialBCETcfg[pindex].get_VertexDegree( *itr ) == 0 )
+			{
+			//	errs() << "LOOP02ei\n";
+				mypartialBCETcfg[pindex].add_Edge( *itr , CFGEND , ( *itr )->get_Wcet() + this->pBBMayExtraTime[pindex].at( *itr ).first );
+			}
+		}
+
+		ls = mypartialWCETcfg[pindex].get_VertexList();
 		for ( auto itr = ls.begin() ; itr != ls.end() ; ++itr )
 		{
 			if( mypartialWCETcfg[pindex].get_VertexDegree( *itr ) == 0 )
 			{
-				mypartialBCETcfg[pindex].add_Edge( *itr , CFGEND , ( *itr )->get_Wcet() + this->pBBExtraTime[pindex].at( *itr ).first );
-				mypartialWCETcfg[pindex].add_Edge( *itr , CFGEND , ( *itr )->get_Wcet() + this->pBBExtraTime[pindex].at( *itr ).second );
+		//		errs() << "LOOP02ei\n";
+				mypartialWCETcfg[pindex].add_Edge( *itr , CFGEND , ( *itr )->get_Wcet() + this->pBBMustExtraTime[pindex].at( *itr ).second );
 			}
 		}
 
+		//errs() << "LOOP02f\n";
 		min = mypartialBCETcfg[pindex].get_Bcet();
 		min = min * this->pLoopBound.at( L ).first;
 		max = mypartialWCETcfg[pindex].get_Wcet();
 		max = max * this->pLoopBound.at( L ).second;
-
-		this->pBBExtraTime[pindex].at( this->LookUp[pindex].at( ( L->getHeader() )->getNumber() ) ).first = min;
-		this->pBBExtraTime[pindex].at( this->LookUp[pindex].at( ( L->getHeader() )->getNumber() ) ).second = max;
-
+	//	errs() << "LOOP02g\n";
+		this->pBBMayExtraTime[pindex].at( this->MayLookUp[pindex].at( ( L->getHeader() )->getNumber() ) ).first = min;
+		this->pBBMustExtraTime[pindex].at( this->MustLookUp[pindex].at( ( L->getHeader() )->getNumber() ) ).second = max;
+	//	errs() << "LOOP02h\n";
 		for ( MachineLoop::iterator subloopitr = subLoops.begin() ; subloopitr != subLoops.end() ; ++subloopitr )
 		{
-			this->pBBExtraTime[pindex].at( this->LookUp[pindex].at( ( ( *subloopitr )->getHeader() )->getNumber() ) ).first = 0;
-			this->pBBExtraTime[pindex].at( this->LookUp[pindex].at( ( ( *subloopitr )->getHeader() )->getNumber() ) ).second = 0;
+			this->pBBMayExtraTime[pindex].at( this->MayLookUp[pindex].at( ( ( *subloopitr )->getHeader() )->getNumber() ) ).first = 0;
+			this->pBBMustExtraTime[pindex].at( this->MustLookUp[pindex].at( ( ( *subloopitr )->getHeader() )->getNumber() ) ).second = 0;
+			this->pBBMayExtraTime[pindex].at( this->MayLookUp[pindex].at( ( ( *subloopitr )->getHeader() )->getNumber() ) ).second = 0;
+			this->pBBMustExtraTime[pindex].at( this->MustLookUp[pindex].at( ( ( *subloopitr )->getHeader() )->getNumber() ) ).first = 0;
 		}
-
+	//	errs() << "LOOP02i\n";
 	}
 
 }
@@ -1085,6 +1625,7 @@ template<class T> int DWAGraph< T >::get_NodeBcet( T Node )
 	{
 		this->get_Bcet();
 	}
+	errs()<<"may aa gya 03a\n";
 	return Distance.at( Node );
 }
 template<class T> void DWAGraph< T >::dump_CriticalPath()
