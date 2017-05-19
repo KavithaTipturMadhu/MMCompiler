@@ -24,6 +24,9 @@ using namespace std;
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Transforms/Utils/Cloning.h"
+#include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/ScalarEvolutionExpressions.h"
+
 using namespace llvm;
 
 #define DEBUG_TYPE "HyperOpCreationPass"
@@ -824,22 +827,22 @@ struct HyperOpCreationPass: public ModulePass {
 			errs() << "inling function call:";
 			callInst->dump();
 			InlineFunctionInfo info;
-//	InlineFunction(callInst, info);
+			InlineFunction(callInst, info);
 		}
 
 		errs() << "Module state:";
 		M.dump();
 
 		for (Module::iterator func = M.begin(); func != M.end(); func++) {
-			errs() << "finding dependences of func:" << func->getName() << "\n";
+			DEBUG(dbgs() << "Finding dependences of function:" << func->getName() << "\n");
 			if (!func->isIntrinsic()) {
 				DependenceAnalysis& depAnalysis = getAnalysis<DependenceAnalysis>(*func);
 				LoopInfo& LI = getAnalysis<LoopInfo>(*func);
 				//Lets check if there are loop carried dependences
 				for (LoopInfo::iterator loopItr = LI.begin(); loopItr != LI.end(); loopItr++) {
-					list<list<unsigned> > distanceVectors;
+					list<vector<int> > distanceVectorsList;
 					int distanceVectorArray[100][100];
-					int maxLevels;
+					unsigned maxLevels = 0;
 					Loop* loop = *loopItr;
 					vector<BasicBlock*> basicBlocksList = loop->getBlocks();
 					for (auto bbItr = basicBlocksList.begin(); bbItr != basicBlocksList.end(); bbItr++) {
@@ -850,19 +853,43 @@ struct HyperOpCreationPass: public ModulePass {
 									if (isa<StoreInst>(*DstI) || isa<LoadInst>(*DstI)) {
 										errs() << "\n----\nda analyze - ";
 										if (isa<StoreInst>(*SrcI) && isa<LoadInst>(*DstI)) {
-											errs() << "I need atleast one flow pair here\n";
-											SrcI->dump();
-											DstI->dump();
+											SrcI->print(dbgs());
+											DstI->print(dbgs());
 										}
 										if (Dependence *D = depAnalysis.depends(&*SrcI, &*DstI, true)) {
-											errs() << "dependence between ";
-											SrcI->dump();
-											DstI->dump();
-											D->dump(errs());
-											list<unsigned> distanceVector;
-											for(unsigned i=0;i<D->getLevels();i++){
-//												distanceVector.push_back(D->getDistance(i)->);
-//												D->
+											if (!D->isInput() && !D->isLoopIndependent()) {
+												DEBUG(dbgs() << "Dependence between ");
+												SrcI->print(dbgs());
+												DEBUG(dbgs() << " and ");
+												DstI->print(dbgs());
+												DEBUG(dbgs() << "\n");
+												D->dump(dbgs());
+												vector<int> distanceVector;
+												for (unsigned i = 1; i <= D->getLevels(); i++) {
+													unsigned Direction = D->getDirection(i);
+													if (Direction == Dependence::DVEntry::ALL) {
+														distanceVector.push_back(2);
+													} else {
+														if (Direction & Dependence::DVEntry::LT) {
+															distanceVector.push_back(1);
+														} else if (Direction & Dependence::DVEntry::EQ) {
+															distanceVector.push_back(0);
+														} else if (Direction & Dependence::DVEntry::GT) {
+															distanceVector.push_back(-1);
+														} else {
+															distanceVector.push_back(0);
+														}
+													}
+//													if (D->getDistance(i) != NULL && isa<SCEVConstant>(D->getDistance(i))) {
+//														((SCEVConstant*) (D->getDistance(i)))->getValue()->getZExtValue());
+//													}
+												}
+												if (distanceVector.size() == D->getLevels()) {
+													distanceVectorsList.push_back(distanceVector);
+													if (maxLevels < D->getLevels()) {
+														maxLevels = D->getLevels();
+													}
+												}
 											}
 
 											delete D;
@@ -873,10 +900,85 @@ struct HyperOpCreationPass: public ModulePass {
 								}
 							}
 						}
+					}
+
+					unsigned i = 0;
+					unsigned numVectors = distanceVectorsList.size();
+					for (auto vectorItr = distanceVectorsList.begin(); vectorItr != distanceVectorsList.end(); vectorItr++, i++) {
+						vector<int> vector = *vectorItr;
+						//Get the distance vectors in array form
+						for (unsigned j = 0; j < maxLevels - vector.size(); j++) {
+							distanceVectorArray[i][j] = 0;
+						}
+						int k = maxLevels - vector.size();
+						for (unsigned j = 0; j < vector.size(); j++) {
+							distanceVectorArray[i][j + k] = vector[j];
+						}
 
 					}
-				}
 
+//					errs() << "what is in array?";
+//					for (unsigned i = 0; i < numVectors; i++) {
+//						for (unsigned j = 0; j < maxLevels; j++) {
+//							errs() << distanceVectorArray[i][j] << ",";
+//						}
+//						errs() << "\n";
+//					}
+
+//					errs() << "number of max levels:" << maxLevels << "\n";
+					//Find the column corresponding to a level with maximum number of zeros which has not been eliminated yet
+					list<unsigned> eliminatedRows;
+					enum ExecutionMode{
+						SERIAL,
+						PARALLEL
+					};
+					map<unsigned, ExecutionMode > executionOrder;
+					list<unsigned> serialExecutionOrder;
+					//Traversing each column
+					while (eliminatedRows.size() < numVectors) {
+						unsigned maxDependenceColumn = 0;
+						bool firstIteration = true;
+						list<unsigned> maximumPositives;
+						unsigned maxColumn;
+						for (i = 0; i < maxLevels; i++) {
+							list<unsigned> positiveEntryRows;
+							for (unsigned j = 0; j < numVectors; j++) {
+								if (distanceVectorArray[j][i] > 0 && (eliminatedRows.empty() || find(eliminatedRows.begin(), eliminatedRows.end(), j) == eliminatedRows.end())) {
+									positiveEntryRows.push_back(j);
+								}
+							}
+							if (firstIteration || maxDependenceColumn <= positiveEntryRows.size()) {
+								firstIteration = false;
+								maxDependenceColumn = positiveEntryRows.size();
+								maxColumn = i;
+								maximumPositives = positiveEntryRows;
+							}
+						}
+
+						executionOrder.insert(make_pair(maxColumn, SERIAL));
+						for (auto eliminatingRowItr = maximumPositives.begin(); eliminatingRowItr != maximumPositives.end(); eliminatingRowItr++) {
+							eliminatedRows.push_back(*eliminatingRowItr);
+						}
+					}
+
+//					errs() << "final order of serialization:";
+//					for (auto serialItr = serialExecutionOrder.begin(); serialItr != serialExecutionOrder.end(); serialItr++) {
+//						errs() << *serialItr << ",";
+//					}
+					for (unsigned i = 0; i < maxLevels; i++) {
+						if (find(serialExecutionOrder.begin(), serialExecutionOrder.end(), i) == serialExecutionOrder.end()) {
+							executionOrder.insert(make_pair(i, PARALLEL));
+						}
+					}
+
+					//Traverse the labels for parallelization and generate code accordingly
+					for (unsigned i = 0; i < maxLevels; i++) {
+						if(executionOrder[i]==PARALLEL){
+							//Create a new function that takes all arguments
+
+						}
+					}
+				}
 			}
 		}
 
