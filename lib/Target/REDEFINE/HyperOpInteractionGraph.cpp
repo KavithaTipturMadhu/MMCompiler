@@ -52,6 +52,7 @@ HyperOp::HyperOp(Function* function) {
 	this->numIncomingSyncEdges = 0;
 	this->unrolledInstance = false;
 	this->instanceof = NULL;
+	this->InRange = false;
 }
 
 HyperOp::~HyperOp() {
