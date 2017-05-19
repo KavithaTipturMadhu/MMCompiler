@@ -575,6 +575,8 @@ void HyperOpEdge::setIsEdgeIgnored(bool isIgnoredEdge) {
 }
 
 HyperOpInteractionGraph::HyperOpInteractionGraph() {
+	columnCount = 1;
+	rowCount = 1;
 }
 
 HyperOpInteractionGraph::~HyperOpInteractionGraph() {
