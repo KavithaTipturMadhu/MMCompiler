@@ -40,7 +40,7 @@
 using namespace llvm;
 
 // Register the AliasAnalysis interface, providing a nice name to refer to.
-INITIALIZE_ANALYSIS_GROUP(AliasAnalysis, "Alias Analysis", NoAA)
+INITIALIZE_ANALYSIS_GROUP(AliasAnalysis, "Alias Analysis", BasicAliasAnalysis)
 char AliasAnalysis::ID = 0;
 
 //===----------------------------------------------------------------------===//
@@ -485,14 +485,14 @@ void AliasAnalysis::InitializeAliasAnalysis(Pass *P) {
   TD = P->getAnalysisIfAvailable<DataLayout>();
   TLI = P->getAnalysisIfAvailable<TargetLibraryInfo>();
   //TODO:	Comment out the following to make basicaa the default pass
-  AA = &P->getAnalysis<AliasAnalysis>();
+//  AA = &P->getAnalysis<AliasAnalysis>();
 }
 
 // getAnalysisUsage - All alias analysis implementations should invoke this
 // directly (using AliasAnalysis::getAnalysisUsage(AU)).
 void AliasAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
 //TODO:	Comment out the following to make basicaa the default pass
-  AU.addRequired<AliasAnalysis>();         // All AA's chain
+//  AU.addRequired<AliasAnalysis>();         // All AA's chain
 }
 
 /// getTypeStoreSize - Return the DataLayout store size for the given type,
