@@ -340,7 +340,6 @@ void REDEFINEMCInstrScheduler::schedule() {
 				}
 			}
 
-			instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, sunitCEIndex));
 			//Mark all parent and child instructions that depend on the current SU for memory as belonging to the same ce
 			for (auto parentItr = parentInstructions.begin(); parentItr != parentInstructions.end(); parentItr++) {
 				if (instructionAndCEMap.find(*parentItr) == instructionAndCEMap.end()) {
@@ -637,6 +636,8 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 	unsigned ceContainingInstruction = ScheduledInstrItr->second;
 	SUnit* SU = ScheduledInstrItr->first;
 	MachineInstr* machineInstruction = SU->getInstr();
+	errs()<<"instr:";
+	machineInstruction->dump();
 	unsigned additionalFanin = 0;
 	for (SmallVector<SDep, 4>::iterator predecessorItr = SU->Preds.begin(); predecessorItr != SU->Preds.end(); predecessorItr++) {
 		for (list<pair<SUnit*, unsigned> >::iterator predecessorInstrItr = instructionAndPHyperOpMapForRegion.begin(); predecessorInstrItr != instructionAndPHyperOpMapForRegion.end(); predecessorInstrItr++) {
