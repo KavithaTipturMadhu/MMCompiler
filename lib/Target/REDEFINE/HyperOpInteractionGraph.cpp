@@ -52,6 +52,7 @@ HyperOp::HyperOp(Function* function) {
 	this->numIncomingSyncEdges = 0;
 	this->unrolledInstance = false;
 	this->instanceof = NULL;
+	this->InRange = false;
 }
 
 HyperOp::~HyperOp() {
@@ -575,6 +576,8 @@ void HyperOpEdge::setIsEdgeIgnored(bool isIgnoredEdge) {
 }
 
 HyperOpInteractionGraph::HyperOpInteractionGraph() {
+	columnCount = 1;
+	rowCount = 1;
 }
 
 HyperOpInteractionGraph::~HyperOpInteractionGraph() {

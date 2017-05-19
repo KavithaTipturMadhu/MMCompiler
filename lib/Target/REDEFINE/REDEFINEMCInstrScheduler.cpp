@@ -340,7 +340,6 @@ void REDEFINEMCInstrScheduler::schedule() {
 				}
 			}
 
-			instructionAndPHyperOpMapForRegion.push_back(make_pair(SU, sunitCEIndex));
 			//Mark all parent and child instructions that depend on the current SU for memory as belonging to the same ce
 			for (auto parentItr = parentInstructions.begin(); parentItr != parentInstructions.end(); parentItr++) {
 				if (instructionAndCEMap.find(*parentItr) == instructionAndCEMap.end()) {
@@ -1494,8 +1493,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 //		firstInstructionOfpHyperOpInRegion.push_back(0);
 //	}
 
-	errs() << "before falloc, state of bb" << BB->getNumber() << ":";
-	BB->dump();
 	DEBUG(dbgs() << "Adding all fallocs first to avoid stalls due to sequential fallocs and fbinds\n");
 	map<HyperOp*, pair<unsigned, unsigned> > registerContainingHyperOpFrameAddressAndCEWithFalloc;
 	unsigned currentCE = 0;
@@ -1626,7 +1623,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					MachineInstrBuilder load = BuildMI(lastBB, lastInstruction, location, TII->get(REDEFINE::LW));
 					load.addReg(tripcountReg, RegState::Define);
 					load.addFrameIndex(memSize);
-					LIS->InsertMachineInstrInMaps(load.operator ->());
 					allInstructionsOfRegion.push_back(make_pair(load.operator llvm::MachineInstr *(), make_pair(ceContainingConsumerFrameAddr, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(load.operator llvm::MachineInstr *());
 					addi.addReg(tripcountReg);
@@ -1735,6 +1731,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			unsigned indVar;
 
 			if (consumer->getInRange()) {
+				errs()<<"I appeared here\n";
 				Value* locationContainingCount;
 				for (auto childEdgeItr = hyperOp->ChildMap.begin(); childEdgeItr != hyperOp->ChildMap.end(); childEdgeItr++) {
 					if (childEdgeItr->second == consumer && childEdgeItr->first->getType() == HyperOpEdge::RANGE) {
