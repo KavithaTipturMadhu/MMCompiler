@@ -916,66 +916,62 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 
 					}
-
-//					errs() << "what is in array?";
-//					for (unsigned i = 0; i < numVectors; i++) {
-//						for (unsigned j = 0; j < maxLevels; j++) {
-//							errs() << distanceVectorArray[i][j] << ",";
-//						}
-//						errs() << "\n";
-//					}
-
-//					errs() << "number of max levels:" << maxLevels << "\n";
 					//Find the column corresponding to a level with maximum number of zeros which has not been eliminated yet
 					list<unsigned> eliminatedRows;
-					enum ExecutionMode{
-						SERIAL,
-						PARALLEL
+					enum ExecutionMode {
+						SERIAL, PARALLEL
 					};
-					map<unsigned, ExecutionMode > executionOrder;
-					list<unsigned> serialExecutionOrder;
+					map<unsigned, ExecutionMode> executionOrder;
 					//Traversing each column
-					while (eliminatedRows.size() < numVectors) {
-						unsigned maxDependenceColumn = 0;
-						bool firstIteration = true;
-						list<unsigned> maximumPositives;
-						unsigned maxColumn;
-						for (i = 0; i < maxLevels; i++) {
-							list<unsigned> positiveEntryRows;
-							for (unsigned j = 0; j < numVectors; j++) {
-								if (distanceVectorArray[j][i] > 0 && (eliminatedRows.empty() || find(eliminatedRows.begin(), eliminatedRows.end(), j) == eliminatedRows.end())) {
-									positiveEntryRows.push_back(j);
-								}
+					for (i = 0; i < maxLevels; i++) {
+						list<unsigned> positiveEntryRows;
+						for (unsigned j = 0; j < numVectors; j++) {
+							if (distanceVectorArray[j][i] > 0 && (eliminatedRows.empty() || find(eliminatedRows.begin(), eliminatedRows.end(), j) == eliminatedRows.end())) {
+								positiveEntryRows.push_back(j);
 							}
-							if (firstIteration || maxDependenceColumn <= positiveEntryRows.size()) {
-								firstIteration = false;
-								maxDependenceColumn = positiveEntryRows.size();
-								maxColumn = i;
-								maximumPositives = positiveEntryRows;
+							if (positiveEntryRows.empty()) {
+								executionOrder.insert(make_pair(i, PARALLEL));
+							} else {
+								std::copy(positiveEntryRows.begin(), positiveEntryRows.end(), std::back_inserter(eliminatedRows));
+								executionOrder.insert(make_pair(i, SERIAL));
 							}
-						}
-
-						executionOrder.insert(make_pair(maxColumn, SERIAL));
-						for (auto eliminatingRowItr = maximumPositives.begin(); eliminatingRowItr != maximumPositives.end(); eliminatingRowItr++) {
-							eliminatedRows.push_back(*eliminatingRowItr);
 						}
 					}
 
-//					errs() << "final order of serialization:";
-//					for (auto serialItr = serialExecutionOrder.begin(); serialItr != serialExecutionOrder.end(); serialItr++) {
-//						errs() << *serialItr << ",";
-//					}
-					for (unsigned i = 0; i < maxLevels; i++) {
-						if (find(serialExecutionOrder.begin(), serialExecutionOrder.end(), i) == serialExecutionOrder.end()) {
-							executionOrder.insert(make_pair(i, PARALLEL));
+					//depth of loop
+					map<unsigned, list<Loop*> > nestedLoopDepth;
+					list<Loop*> loopQueue;
+					loopQueue.push_back(loop);
+					while (!loopQueue.empty()) {
+						Loop* currentLoop = loopQueue.front();
+						loopQueue.pop_front();
+						unsigned currentLoopDepth = currentLoop->getLoopDepth();
+						list<Loop*> loopsAtDepth;
+						if (nestedLoopDepth.find(currentLoopDepth) != nestedLoopDepth.end()) {
+							loopsAtDepth = nestedLoopDepth[currentLoopDepth];
+							nestedLoopDepth.erase(currentLoopDepth);
+						}
+						loopsAtDepth.push_back(currentLoop);
+						nestedLoopDepth.insert(make_pair(currentLoopDepth, loopsAtDepth));
+
+						for (auto subLoopItr = currentLoop->getSubLoops().begin(); subLoopItr != currentLoop->getSubLoops().end(); subLoopItr++) {
+							loopQueue.push_back(*subLoopItr);
 						}
 					}
 
-					//Traverse the labels for parallelization and generate code accordingly
-					for (unsigned i = 0; i < maxLevels; i++) {
-						if(executionOrder[i]==PARALLEL){
-							//Create a new function that takes all arguments
+					for (i = 0; i < maxLevels; i++) {
+						if (executionOrder[i] == PARALLEL) {
+							//Find the bound of the loop at that level
+							ScalarEvolution& SE = getAnalysis<ScalarEvolution>();
+							list<Loop*> loopsAtDepth = nestedLoopDepth[i];
+							Loop* currentLoop = loopsAtDepth.front();
+							if (currentLoop->getExitBlock()!=NULL) {
+								unsigned tripCount = SE.getSmallConstantTripCount(currentLoop, currentLoop->getExitBlock());
+								BasicBlock* header = currentLoop->getHeader();
+								BasicBlock* tail = currentLoop->getExitBlock();
 
+
+							}
 						}
 					}
 				}
