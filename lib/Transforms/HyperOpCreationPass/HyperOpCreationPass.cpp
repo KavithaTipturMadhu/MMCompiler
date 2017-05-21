@@ -65,6 +65,7 @@ struct HyperOpCreationPass: public ModulePass {
 //	AU.addRequired<AliasAnalysis>();
 		AU.addRequired<UnifyFunctionExitNodes>();
 		AU.addRequired<DependenceAnalysis>();
+//		AU.addRequired<ScalarEvolution>();
 	}
 
 	bool pathExistsInCFG(BasicBlock* source, BasicBlock* target, list<BasicBlock*> visitedBasicBlocks) {
@@ -295,7 +296,7 @@ struct HyperOpCreationPass: public ModulePass {
 				//Reverse iterator so that the last store is encountered first
 				for (BasicBlock::reverse_iterator instrItr = originalBB->rbegin(); instrItr != originalBB->rend(); instrItr++) {
 					Instruction* instr = &*instrItr;
-					if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == globalVariable && reachingDefinitions.find(originalBB) == reachingDefinitions.end()) {
+					if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(0) == globalVariable && reachingDefinitions.find(originalBB) == reachingDefinitions.end()) {
 						//Check if the store instruction is reachable to any of the uses of the argument in the accumulated bb list
 						for (Value::use_iterator useItr = globalVariable->use_begin(); useItr != globalVariable->use_end(); useItr++) {
 							User* user = *useItr;
@@ -352,7 +353,7 @@ struct HyperOpCreationPass: public ModulePass {
 					Instruction* instr = instrItr;
 					//Check the uses in BasicBlocks that are predecessors and use allocInstr
 					list<BasicBlock*> visitedBasicBlocks;
-					if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(1) == useInstr && (pathExistsInCFG(useInstr->getParent(), originalBB, visitedBasicBlocks) || useInstr->getParent() == originalBB)) {
+					if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(1) == useInstr && (pathExistsInCFG(useInstr->getParent(), originalBB, visitedBasicBlocks) || useInstr->getParent() == originalBB)) {
 						//Check if there is a path from the current BB to any of the accumulated bbs
 						bool pathExistsToAccumulatedBB = false;
 						for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
@@ -407,7 +408,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 	HyperOpArgumentType supportedArgType(Value* argument, Module &m, Instruction* parentInstruction) {
 		//Memory location needs to be passed as a different type since all its uses need to be replaced with a different type, but it won't see realization in metadata
-		if (isa<StoreInst>(parentInstruction) && ((StoreInst*) parentInstruction)->getOperand(1) == argument) {
+		if (isa < StoreInst > (parentInstruction) &&((StoreInst*) parentInstruction)->getOperand(1) == argument) {
 			return ADDRESS;
 		}
 
@@ -842,6 +843,7 @@ struct HyperOpCreationPass: public ModulePass {
 				for (LoopInfo::iterator loopItr = LI.begin(); loopItr != LI.end(); loopItr++) {
 					list<vector<int> > distanceVectorsList;
 					int distanceVectorArray[100][100];
+					int tempDistanceVectorArray[100][100];
 					unsigned maxLevels = 0;
 					Loop* loop = *loopItr;
 					vector<BasicBlock*> basicBlocksList = loop->getBlocks();
@@ -851,6 +853,10 @@ struct HyperOpCreationPass: public ModulePass {
 							if (isa<StoreInst>(*SrcI) || isa<LoadInst>(*SrcI)) {
 								for (auto DstI = basicBlock->begin(), DstE = basicBlock->end(); DstI != DstE; ++DstI) {
 									if (isa<StoreInst>(*DstI) || isa<LoadInst>(*DstI)) {
+										if(isa<LoadInst>(*SrcI)&&isa<LoadInst>(*DstI)){
+											//Read after read maybe ignored
+											continue;
+										}
 										errs() << "\n----\nda analyze - ";
 										if (isa<StoreInst>(*SrcI) && isa<LoadInst>(*DstI)) {
 											SrcI->print(dbgs());
@@ -914,10 +920,72 @@ struct HyperOpCreationPass: public ModulePass {
 						for (unsigned j = 0; j < vector.size(); j++) {
 							distanceVectorArray[i][j + k] = vector[j];
 						}
-
 					}
-					//Find the column corresponding to a level with maximum number of zeros which has not been eliminated yet
+					errs() << "dependence array:\n";
+					for (i = 0; i < numVectors; i++) {
+						for (unsigned j = 0; j < maxLevels; j++) {
+							errs() << distanceVectorArray[i][j] << ",";
+						}
+						errs() << "\n";
+					}
+
+					//Shuffle the dependence vectors such that the levels carrying most dependences may be moved to the outer levels
+					//Identify the positive only columns and move them in the order of the number of positive entries
+					list<unsigned> positiveColumnsOrder;
 					list<unsigned> eliminatedRows;
+					while (true) {
+						bool firstIteration = true;
+						list<unsigned> maxPositiveEntryRows;
+						unsigned maxColumn;
+						for (i = 0; i < maxLevels; i++) {
+							list<unsigned> positiveEntryRows;
+							bool hasUneleminatedNegativeEntries = false;
+							for (unsigned j = 0; j < numVectors; j++) {
+								if (distanceVectorArray[j][i] > 0 && (eliminatedRows.empty() || find(eliminatedRows.begin(), eliminatedRows.end(), j) == eliminatedRows.end())) {
+									positiveEntryRows.push_back(j);
+								}
+								else if(distanceVectorArray[j][i]<0&&(eliminatedRows.empty() || find(eliminatedRows.begin(), eliminatedRows.end(), j) == eliminatedRows.end())){
+									hasUneleminatedNegativeEntries = true;
+									break;
+								}
+							}
+
+							if(!hasUneleminatedNegativeEntries){
+								if(firstIteration||maxPositiveEntryRows.size()<positiveEntryRows.size()){
+									firstIteration = false;
+									maxPositiveEntryRows = positiveEntryRows;
+									maxColumn = i;
+								}
+							}
+						}
+
+						if(maxPositiveEntryRows.empty()){
+							break;
+						}
+						else{
+							positiveColumnsOrder.push_back(maxColumn);
+							std::copy(maxPositiveEntryRows.begin(), maxPositiveEntryRows.end(), std::back_inserter(eliminatedRows));
+						}
+					}
+
+					for(unsigned i=0;i<maxLevels;i++){
+						if(find(positiveColumnsOrder.begin(), positiveColumnsOrder.end(),i)==positiveColumnsOrder.end()){
+							positiveColumnsOrder.push_back(i);
+						}
+					}
+					//move positive entry rows to the front of dependence array
+					for(auto columnItr = positiveColumnsOrder.begin();columnItr!=positiveColumnsOrder.end();columnItr++){
+						for(i=0;i<numVectors;i++){
+							tempDistanceVectorArray[i][*columnItr]= distanceVectorArray[i][*columnItr];
+						}
+					}
+
+//					Shuffle loop nests according to the new order
+
+
+
+					//Find the column corresponding to a level with maximum number of zeros which has not been eliminated yet
+					eliminatedRows.clear();
 					enum ExecutionMode {
 						SERIAL, PARALLEL
 					};
@@ -926,15 +994,18 @@ struct HyperOpCreationPass: public ModulePass {
 					for (i = 0; i < maxLevels; i++) {
 						list<unsigned> positiveEntryRows;
 						for (unsigned j = 0; j < numVectors; j++) {
-							if (distanceVectorArray[j][i] > 0 && (eliminatedRows.empty() || find(eliminatedRows.begin(), eliminatedRows.end(), j) == eliminatedRows.end())) {
+							if (tempDistanceVectorArray[j][i] > 0 && (eliminatedRows.empty() || find(eliminatedRows.begin(), eliminatedRows.end(), j) == eliminatedRows.end())) {
 								positiveEntryRows.push_back(j);
 							}
-							if (positiveEntryRows.empty()) {
-								executionOrder.insert(make_pair(i, PARALLEL));
-							} else {
-								std::copy(positiveEntryRows.begin(), positiveEntryRows.end(), std::back_inserter(eliminatedRows));
-								executionOrder.insert(make_pair(i, SERIAL));
-							}
+						}
+
+						errs() << "num positive entries at level " << i << ":" << positiveEntryRows.size() << "\n";
+						if (positiveEntryRows.empty()) {
+							executionOrder.insert(make_pair(i, PARALLEL));
+							errs() << "parallel\n";
+						} else {
+							std::copy(positiveEntryRows.begin(), positiveEntryRows.end(), std::back_inserter(eliminatedRows));
+							executionOrder.insert(make_pair(i, SERIAL));
 						}
 					}
 
@@ -965,11 +1036,11 @@ struct HyperOpCreationPass: public ModulePass {
 							ScalarEvolution& SE = getAnalysis<ScalarEvolution>();
 							list<Loop*> loopsAtDepth = nestedLoopDepth[i];
 							Loop* currentLoop = loopsAtDepth.front();
-							if (currentLoop->getExitBlock()!=NULL) {
+							if (currentLoop->getExitBlock() != NULL) {
 								unsigned tripCount = SE.getSmallConstantTripCount(currentLoop, currentLoop->getExitBlock());
+								errs() << "tripcount of loop at level " << i << ":" << tripCount << "\n";
 								BasicBlock* header = currentLoop->getHeader();
 								BasicBlock* tail = currentLoop->getExitBlock();
-
 
 							}
 						}
@@ -1132,9 +1203,9 @@ struct HyperOpCreationPass: public ModulePass {
 							list<Value*> newHyperOpArguments;
 							for (unsigned int i = 0; i < instItr->getNumOperands(); i++) {
 								Value * argument = instItr->getOperand(i);
-								if (!isa<Constant>(argument) && !argument->getType()->isLabelTy()) {
+								if (!isa < Constant > (argument) &&!argument->getType()->isLabelTy()) {
 									//Find the reaching definition of the argument; alloca instruction maybe followed by store instructions to the memory location, we need to identify the set of store instructions to the memory location that reach the current use of the memory location
-									if (isa<Instruction>(argument) && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
+									if (isa < Instruction > (argument) &&find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
 										continue;
 									}
 
@@ -1223,7 +1294,7 @@ struct HyperOpCreationPass: public ModulePass {
 						list<Value*> phiArgs = (*newArgItr).first;
 						for (auto argItr = phiArgs.begin(); argItr != phiArgs.end(); argItr++) {
 							Value* argument = *argItr;
-							if (isa<Instruction>(argument) && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
+							if (isa < Instruction > (argument) &&find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
 								deleteList.push_back(newArgItr);
 								break;
 							}
@@ -1409,7 +1480,7 @@ struct HyperOpCreationPass: public ModulePass {
 			 * (╯°□°)╯︵ ┻━┻
 			 */
 			CallInst* instanceCallSite = callSite.back();
-			if (!callSite.empty() && isa<CallInst>(instanceCallSite) && isHyperOpInstanceInCycle(instanceCallSite, cyclesInCallGraph)) {
+			if (!callSite.empty() && isa < CallInst > (instanceCallSite) &&isHyperOpInstanceInCycle(instanceCallSite, cyclesInCallGraph)) {
 				isStaticHyperOp = false;
 			}
 
@@ -2103,7 +2174,7 @@ struct HyperOpCreationPass: public ModulePass {
 						clonedInst->dump();
 						errs() << "cloned inst belongs to parent:" << clonedInst->getParent()->getName() << "\n";
 					}
-					if (!isa<CallInst>(argOperand) && clonedInst != NULL && isa<LoadInst>(clonedInst) && isa<AllocaInst>(clonedInst->getOperand(0))) {
+					if (!isa < CallInst > (argOperand) &&clonedInst != NULL && isa < LoadInst > (clonedInst) &&isa<AllocaInst>(clonedInst->getOperand(0))) {
 						clonedInst = (AllocaInst*) clonedInst->getOperand(0);
 						//TODO Is this casting correct?
 						replacementArg.insert(make_pair(clonedInst, ((Instruction*) argOperand)->getOperand(0)));
@@ -2325,11 +2396,11 @@ struct HyperOpCreationPass: public ModulePass {
 							Instruction* metadataHost = 0;
 							if (isa<AllocaInst>(clonedDefInst)) {
 								metadataHost = clonedDefInst;
-							} else if (isa<LoadInst>(clonedDefInst) && isArgInList(clonedDefInst->getParent()->getParent(), clonedDefInst->getOperand(0))) {
+							} else if (isa < LoadInst > (clonedDefInst) &&isArgInList(clonedDefInst->getParent()->getParent(), clonedDefInst->getOperand(0))) {
 								//function argument is passed on to another HyperOp, find the first load instruction from the memory location and add metadata to it
 								for (Function::iterator bbItr = clonedDefInst->getParent()->getParent()->begin(); bbItr != clonedDefInst->getParent()->getParent()->end(); bbItr++) {
 									for (BasicBlock::iterator instrItr = bbItr->begin(); instrItr != bbItr->end(); instrItr++) {
-										if (isa<LoadInst>(instrItr) && ((LoadInst*) &instrItr)->getOperand(0) == clonedDefInst->getOperand(0)) {
+										if (isa < LoadInst > (instrItr) &&((LoadInst*) &instrItr)->getOperand(0) == clonedDefInst->getOperand(0)) {
 											metadataHost = instrItr;
 											break;
 										}
@@ -2582,7 +2653,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
-				if (isa<CallInst>(predicateOperand) && predicateOperand == conditionalBranchInst->getOperand(0)) {
+				if (isa < CallInst > (predicateOperand) &&predicateOperand == conditionalBranchInst->getOperand(0)) {
 					continue;
 				}
 				if (isa<Constant>(predicateOperand)) {
