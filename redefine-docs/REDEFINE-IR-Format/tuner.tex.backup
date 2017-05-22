@@ -1,0 +1,23 @@
+In addition to expressing parallelism, a programmer should also be able to reason about performance of the application and tune it for optimality on the underlying hardware. As mentioned previously, we borrow the definition of \textit{Locales} from Chapel\cite{} programming language. Each locale represents a compute node and its associated chunk of distributed memory in the underlying hardware.
+The context of hardware in which the application runs is a set of locales, either composed with affinities defined by the compiler or specified by the user. Programmer may tune the application onto the underlying hardware in the following ways.
+\subsection{Locale Declaration}
+\label{subsec_localeset}
+A set of locales may optionally be specified by the user via a local space declaration in the IR as follows:
+\begin{itemize}
+ \item LocaleSet = ${1:m,1:n}$ which specifies a rectangle of compute resources of size $m\times n$.
+ \item LocaleSet = ${{x1,y1},{x2,y2}..}$ where each ${xi,yi}$ specifies coordinates of the resource in the underlying mesh.
+\end{itemize}
+If not declared, the compiler computes LocaleSet for optimal performance. 
+
+\subsection{Data Layout and Distribution onto Locales}
+Data needs to be redistributed across Locales for locality guarantees in NUMA architectures. Explicit distribution onto locales identified via their {x,y} coordinates is useful in applications with statically enumerable graphs or certain dynamic but regular graphs or applications that don't follow known patterns across data-accesses. Data parallelism exhibited by irregular data dependent applications perform well when distribution techniques such as cyclic, block cyclic distributions are employed. Capturing known data distribution techniques via libraries will be covered subsequently (see section \ref{sec_patterns}). 
+
+A multidimensional array to be distributed across the allocated locales has the following annotations:\\
+\begin{itemize}
+\item {Cyclic, Locale$={LocaleSet Index1, LocaleSet Index2,..}/Local={start index1:end index1, start index2:end index2}$}
+\item {BlockCyclic, blocksize$={n1,n2,..}, Locale={LocaleSet Index1, LocaleSet Index2,..}/Locale={start index1:end index1, start index2:end index2}$}
+\end{itemize}
+Specifying Locales in either case is optional when distributing data since the Locales may not be known at compile time. When the distribution is defined (Cyclic/BlockCyclic) without locales, an implicit iterator for LocaleSet is assumed (which increments along the column and then row when rectangular resource allocation scheme is employed or through the LocaleSet from left to right if the second declaration from \ref{subsec_localeset} is used).
+
+\subsection{Affinity of Computation onto Locales}
+Defining distribution of computations onto locales may either be explicit (using their {x,y} identifier) when mapping them statically or

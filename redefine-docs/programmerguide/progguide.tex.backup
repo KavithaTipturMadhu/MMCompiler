@@ -1,0 +1,48 @@
+\documentclass[12pt]{article}
+\usepackage{amssymb,amsmath,latexsym}
+% % 
+\begin{document}
+\title{A Guide to writing applications and compiling them for REDEFINE}
+\maketitle
+This document describes how to write a C program targeting REDEFINE and compile it to REDEFINE target. The parallel IR document describes what is generated from an optimization pass. A developers' guide to porting known frontends onto IR maybe found in the same IR document. 
+\section{C Program specifications}
+\subsection{Musts}
+\begin{itemize}
+ \item Entry point to a REDEFINE kernel is defined as a function with signature \textit{void redefine\_start\(\)}. It doesn't take command line arguments. In general, functions can't take variable length arguments.
+ \item Arguments to the kernel maybe specified as globals with prefix \textit{redefine\_in}. Outputs from the kernel must be marked as \textit{redefine\_out}. Globals which may need to be marked as both input and output need to be specified as \textit{redefine\_inout}.
+ \item Data types are supported as long as they fit in data width of 32 bits. Floating point immediate values need to be labeled with suffix \textit{f}. For example, 3.0 needs to be used as \textit{3.0f}. Float data variable needn't be prefixed.
+ \item Specifier \textit{volatile} doesn't work. One needs to verify if keywords \textit{register, auto} work. \textit{static} variable is kept alive throughout the program. 
+  \item Special floating point operations such as sin, cos supported in REDEFINE ISA (refer to ISA document) need to be used with a prefix \textit{\_builtin}. For example, when invoking sin, use the call \textit{\_builtin\_sinf\(\)} instead to replace with sin instruction of REDEFINE.
+ \item Dynamic memory management calls (malloc, calloc, realloc, free) are not supported even with statically enumerated graphs and known allocation sizes.
+ \item Inclusion of headers does not work. Every function call which is not a part of a cycle in the call graph (i.e., not a recursive call) gets inlined. One needs to check if this works across multiple files too (unlikely). 
+ \item I/O operations, signals and interrupts are not supported.
+\end{itemize}
+
+\subsection{Dos}
+Most dos here are to ensure that the program does get parallelized. Try following the application skeletons committed in the code to ensure that the generated HIG gets parallelized appropriately.
+\begin{itemize}
+ \item Recursive calls/affine loop nests are the sites for task parallelism. Try to write programs such that they mostly fit in either category. Non recursive calls get inlined and hence, modularity lasts only till IR.
+ \item Try to pass arguments to functions by value. This ensures that the arguments are mapped onto the context frame of the HyperOp.
+ \item Try to write functions such that the scalar arguments (i.e., integers, floating point values, char, unsigned etc) fit in a context frame (<=16 arguments). Passing structs and other composite data types always results in data being passed through memory. (This is with the assumption that passing arguments through context frame is cheaper than through memory. However, in the current state of hardware, a remote write to context frame always results in reconcile, wasting clock cycles. Memory operations tend to be cheaper since only a last sync results in reconcile. Once the choice of reconcile is revisited, context frame writes become cheaper. This document assumes that it indeed is.)
+ \item Try to write recursive calls such that the recursion tree is not very unbalanced. Try not to write degenerate (small) code in the non-recursive part of a function with recursion. 
+ \item Try to write loops such that there aren't any loop carried dependences or the loop carried dependences' distance is large.
+ \item Try to write functions with fewer local variables.
+ \item Ensure that the memory footprint of the application does not exceed the available memory. The compiler generates a warning at the last step in case of dynamically unfolding HIGs.
+ \item Loops with large bounds show significant improvement in performance even if ILP window and degree of ILP offered is small. Try to ensure that loops are not partitioned into seperate HyperOps, take a quick look at the IR to ensure this.
+\end{itemize}
+
+
+\subsection{Don'ts}
+\begin{itemize}
+ \item Avoid using pointers and references as much as possible, be it global or local. Avoid passing pointers as arguments to functions.
+ \item Avoid modifying globals across function calls since this serializes function calls. Try to follow dynamic single assignment as far as possible but within the allowed memory footprint. Globals without data distribution support lead to memory read/write bottlenecks and network bandwidth contention. Try to keep the kernel stateless.
+ \item Avoid using scalars to maintain function states, they stay alive throughout the program.
+ \item Avoid unbalanced control paths from same source node.
+ \item Avoid using large sized globals that are not inputs or outputs. The reason is, these globals get initialized in the kernel code since REDEFINE does not support data segment and loading initial values onto it. 
+\end{itemize}
+
+
+\section{Compiler options}
+\subsection{Frontend}
+Clang frontend is used to generate LLVM IR from C Code. Use the target=redefine switch when invoking clang to generate IR.
+\end{document}
