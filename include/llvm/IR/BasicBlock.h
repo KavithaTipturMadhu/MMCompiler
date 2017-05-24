@@ -184,7 +184,9 @@ public:
   /// switch statement with multiple cases having the same destination).
   BasicBlock *getUniquePredecessor();
   const BasicBlock *getUniquePredecessor() const {
+	 if(this->getUniquePredecessor()!=NULL){
     return const_cast<BasicBlock*>(this)->getUniquePredecessor();
+	 }return NULL;
   }
 
   //===--------------------------------------------------------------------===//

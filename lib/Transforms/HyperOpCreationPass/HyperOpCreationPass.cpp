@@ -26,6 +26,7 @@ using namespace std;
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
+#include "LoopInterchange.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "HyperOpCreationPass"
@@ -63,6 +64,7 @@ struct HyperOpCreationPass: public ModulePass {
 //		AU.addRequired<DominatorTree>();
 //		AU.addRequired<AliasAnalysis>();
 		AU.addRequired<UnifyFunctionExitNodes>();
+		AU.addRequired<ScalarEvolution>();
 		AU.addRequired<DependenceAnalysis>();
 	}
 
@@ -836,7 +838,7 @@ struct HyperOpCreationPass: public ModulePass {
 		errs() << "Module state:";
 		M.dump();
 
-for (Module::iterator func = M.begin(); func != M.end(); func++) {
+		for (Module::iterator func = M.begin(); func != M.end(); func++) {
 			DEBUG(dbgs() << "Finding dependences of function:" << func->getName() << "\n");
 			if (!func->isIntrinsic()) {
 				DependenceAnalysis& depAnalysis = getAnalysis<DependenceAnalysis>(*func);
@@ -847,6 +849,9 @@ for (Module::iterator func = M.begin(); func != M.end(); func++) {
 					int distanceVectorArray[100][100];
 					int tempDistanceVectorArray[100][100];
 					unsigned maxLevels = 0;
+
+					ScalarEvolution& SE = getAnalysis<ScalarEvolution>(*func);
+					DominatorTree & tree = getAnalysis<DominatorTree>(*func);
 					Loop* loop = *loopItr;
 					vector<BasicBlock*> basicBlocksList = loop->getBlocks();
 					for (auto bbItr = basicBlocksList.begin(); bbItr != basicBlocksList.end(); bbItr++) {
@@ -855,7 +860,7 @@ for (Module::iterator func = M.begin(); func != M.end(); func++) {
 							if (isa<StoreInst>(*SrcI) || isa<LoadInst>(*SrcI)) {
 								for (auto DstI = basicBlock->begin(), DstE = basicBlock->end(); DstI != DstE; ++DstI) {
 									if (isa<StoreInst>(*DstI) || isa<LoadInst>(*DstI)) {
-										if(isa<LoadInst>(*SrcI)&&isa<LoadInst>(*DstI)){
+										if (isa<LoadInst>(*SrcI) && isa<LoadInst>(*DstI)) {
 											//Read after read maybe ignored
 											continue;
 										}
@@ -865,6 +870,9 @@ for (Module::iterator func = M.begin(); func != M.end(); func++) {
 											DstI->print(dbgs());
 										}
 										if (Dependence *D = depAnalysis.depends(&*SrcI, &*DstI, true)) {
+											if (D->isConfused()) {
+												errs() << "confused dependence\n";
+											}
 											if (!D->isInput() && !D->isLoopIndependent()) {
 												DEBUG(dbgs() << "Dependence between ");
 												SrcI->print(dbgs());
@@ -893,9 +901,40 @@ for (Module::iterator func = M.begin(); func != M.end(); func++) {
 //													}
 												}
 												if (distanceVector.size() == D->getLevels()) {
-													distanceVectorsList.push_back(distanceVector);
-													if (maxLevels < D->getLevels()) {
-														maxLevels = D->getLevels();
+													//Check if the distance vector has a leading negative value
+													bool leadingNegativeValue = false;
+													errs() << "trying to add new vector with dependence levels " << D->getLevels() << ":";
+													for (unsigned i = 0; i < distanceVector.size(); i++) {
+														errs() << distanceVector[i] << ",";
+													}
+													errs() << "\n";
+													for (auto distanceVectorItr = distanceVector.begin(); distanceVectorItr != distanceVector.end(); distanceVectorItr++) {
+														if ((*distanceVectorItr) > 0) {
+															break;
+														}
+														if ((*distanceVectorItr) < 0) {
+															leadingNegativeValue = true;
+															break;
+														}
+													}
+
+													if (!leadingNegativeValue) {
+														distanceVectorsList.push_back(distanceVector);
+														if (maxLevels < D->getLevels()) {
+															maxLevels = D->getLevels();
+															errs() << "max level:" << maxLevels << "\n";
+														}
+														errs() << "adding new vector with dependence levels " << D->getLevels() << ":";
+														for (unsigned i = 0; i < distanceVector.size(); i++) {
+															errs() << distanceVector[i] << ",";
+														}
+														errs() << "\n";
+													} else {
+														errs() << "ignoring invalid dependence:";
+														for (unsigned i = 0; i < distanceVector.size(); i++) {
+															errs() << distanceVector[i] << ",";
+														}
+														errs() << "\n";
 													}
 												}
 											}
@@ -945,15 +984,14 @@ for (Module::iterator func = M.begin(); func != M.end(); func++) {
 							for (unsigned j = 0; j < numVectors; j++) {
 								if (distanceVectorArray[j][i] > 0 && (eliminatedRows.empty() || find(eliminatedRows.begin(), eliminatedRows.end(), j) == eliminatedRows.end())) {
 									positiveEntryRows.push_back(j);
-								}
-								else if(distanceVectorArray[j][i]<0&&(eliminatedRows.empty() || find(eliminatedRows.begin(), eliminatedRows.end(), j) == eliminatedRows.end())){
+								} else if (distanceVectorArray[j][i] < 0 && (eliminatedRows.empty() || find(eliminatedRows.begin(), eliminatedRows.end(), j) == eliminatedRows.end())) {
 									hasUneleminatedNegativeEntries = true;
 									break;
 								}
 							}
 
-							if(!hasUneleminatedNegativeEntries){
-								if(firstIteration||maxPositiveEntryRows.size()<positiveEntryRows.size()){
+							if (!hasUneleminatedNegativeEntries) {
+								if (firstIteration || maxPositiveEntryRows.size() < positiveEntryRows.size()) {
 									firstIteration = false;
 									maxPositiveEntryRows = positiveEntryRows;
 									maxColumn = i;
@@ -961,29 +999,41 @@ for (Module::iterator func = M.begin(); func != M.end(); func++) {
 							}
 						}
 
-						if(maxPositiveEntryRows.empty()){
+						if (maxPositiveEntryRows.empty()) {
 							break;
-						}
-						else{
+						} else {
 							positiveColumnsOrder.push_back(maxColumn);
 							std::copy(maxPositiveEntryRows.begin(), maxPositiveEntryRows.end(), std::back_inserter(eliminatedRows));
 						}
 					}
 
-					for(unsigned i=0;i<maxLevels;i++){
-						if(find(positiveColumnsOrder.begin(), positiveColumnsOrder.end(),i)==positiveColumnsOrder.end()){
+					for (unsigned i = 0; i < maxLevels; i++) {
+						if (find(positiveColumnsOrder.begin(), positiveColumnsOrder.end(), i) == positiveColumnsOrder.end()) {
 							positiveColumnsOrder.push_back(i);
 						}
 					}
-					//move positive entry rows to the front of dependence array
-					for(auto columnItr = positiveColumnsOrder.begin();columnItr!=positiveColumnsOrder.end();columnItr++){
-						for(i=0;i<numVectors;i++){
-							tempDistanceVectorArray[i][*columnItr]= distanceVectorArray[i][*columnItr];
-						}
+
+					errs() << "final execution order:";
+					for (auto orderItr = positiveColumnsOrder.begin(); orderItr != positiveColumnsOrder.end(); orderItr++) {
+						errs() << (*orderItr) << ",";
 					}
 
-//					Shuffle loop nests according to the new order
-
+					//move positive entry rows to the front of dependence array
+					for (auto columnItr = positiveColumnsOrder.begin(); columnItr != positiveColumnsOrder.end(); columnItr++) {
+						for (i = 0; i < numVectors; i++) {
+							tempDistanceVectorArray[i][*columnItr] = distanceVectorArray[i][*columnItr];
+						}
+					}
+//					errs()<<"what was the loop earlier?\n";
+//					loop->dump();
+////					(Loop *Outer, Loop *Inner, ScalarEvolution *SE,
+////					                           LoopInfo *LI, DominatorTree *DT,
+////					                           BasicBlock *LoopNestExit,
+////					                           bool InnerLoopContainsReductions, Pass* pass)
+//					LoopInterchangeTransform* interchange = new LoopInterchangeTransform(loop, loop->getSubLoopsVector()[0], &SE, &LI, &tree, loop->getExitBlock(), false, this);
+//					errs()<<"what happened in interchange?"<<interchange->transform()<<"\n";
+//					errs()<<"loop now:";
+//					loop->dump();
 
 
 					//Find the column corresponding to a level with maximum number of zeros which has not been eliminated yet
@@ -1001,24 +1051,26 @@ for (Module::iterator func = M.begin(); func != M.end(); func++) {
 							}
 						}
 
-						errs() << "num positive entries at level " << i << ":" << positiveEntryRows.size() << "\n";
 						if (positiveEntryRows.empty()) {
 							executionOrder.insert(make_pair(i, PARALLEL));
-							errs() << "parallel\n";
 						} else {
 							std::copy(positiveEntryRows.begin(), positiveEntryRows.end(), std::back_inserter(eliminatedRows));
 							executionOrder.insert(make_pair(i, SERIAL));
 						}
 					}
 
+					errs() << "final execution order:";
+					for (auto orderItr = executionOrder.begin(); orderItr != executionOrder.end(); orderItr++) {
+						errs() << orderItr->first << ",";
+					}
 					//depth of loop
 					map<unsigned, list<Loop*> > nestedLoopDepth;
 					list<Loop*> loopQueue;
 					loopQueue.push_back(loop);
 					while (!loopQueue.empty()) {
 						Loop* currentLoop = loopQueue.front();
-						loopQueue.pop_front();
 						unsigned currentLoopDepth = currentLoop->getLoopDepth();
+						loopQueue.pop_front();
 						list<Loop*> loopsAtDepth;
 						if (nestedLoopDepth.find(currentLoopDepth) != nestedLoopDepth.end()) {
 							loopsAtDepth = nestedLoopDepth[currentLoopDepth];
@@ -1032,20 +1084,28 @@ for (Module::iterator func = M.begin(); func != M.end(); func++) {
 						}
 					}
 
-					for (i = 0; i < maxLevels; i++) {
-						if (executionOrder[i] == PARALLEL) {
-							//Find the bound of the loop at that level
-							ScalarEvolution& SE = getAnalysis<ScalarEvolution>();
-							list<Loop*> loopsAtDepth = nestedLoopDepth[i];
-							Loop* currentLoop = loopsAtDepth.front();
-							if (currentLoop->getExitBlock() != NULL) {
-								unsigned tripCount = SE.getSmallConstantTripCount(currentLoop, currentLoop->getExitBlock());
-								errs() << "tripcount of loop at level " << i << ":" << tripCount << "\n";
-								BasicBlock* header = currentLoop->getHeader();
-								BasicBlock* tail = currentLoop->getExitBlock();
+					errs() << "\nnested loop and depth map:";
+					for (auto itr = nestedLoopDepth.begin(); itr != nestedLoopDepth.end(); itr++) {
+						errs() << "\nlevel:" << itr->first;
+						itr->second.front()->dump();
+					}
+					errs() << "number of loops:" << nestedLoopDepth.size() << ", maxlevels:" << maxLevels << "\n";
+					for (i = 1; i <= maxLevels; i++) {
+//						if (executionOrder[i] == PARALLEL) {
+						//Find the bound of the loop at that level
+						list<Loop*> loopsAtDepth = nestedLoopDepth[i];
+						Loop* currentLoop = loopsAtDepth.front();
+						errs() << "\n------\ncurrent loop's exit block:" << currentLoop->getExitBlock()->getName() << "\n";
+						if (currentLoop->getExitBlock() != NULL) {
+							//Assuming no overflows in integer, because there's an add 1 in the method invoked in the next line for god knows what reason
+							unsigned tripCount = SE.getSmallConstantTripCount(currentLoop, currentLoop->getExitBlock()) - 1;
+//							errs()<<"number of exit blocks to loop:"<<exitBlocks.size()<<"\n";
+							errs() << "tripcount of loop at level " << i << ":" << tripCount << "\n";
+							BasicBlock* header = currentLoop->getHeader();
+							BasicBlock* tail = currentLoop->getExitBlock();
 
-							}
 						}
+//						}
 					}
 				}
 			}
@@ -3064,7 +3124,7 @@ for (Module::iterator func = M.begin(); func != M.end(); func++) {
 					//We use sync edge here because adding a predicate to the end hyperop
 					createdFunction->begin()->front().setMetadata(HYPEROP_SYNC, mdNode);
 					syncMDNodeList.push_back(newPredicateMetadata);
-					errs()<<"added sync edge between "<<createdFunction->getName()<<" and "<<endHyperOp->getName()<<"\n";
+					errs() << "added sync edge between " << createdFunction->getName() << " and " << endHyperOp->getName() << "\n";
 				}
 			}
 
