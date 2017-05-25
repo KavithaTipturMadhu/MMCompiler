@@ -27,6 +27,7 @@ using namespace std;
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "LoopInterchange.h"
+#include "llvm/Transforms/Utils/CodeExtractor.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "HyperOpCreationPass"
@@ -1018,24 +1019,79 @@ struct HyperOpCreationPass: public ModulePass {
 						errs() << (*orderItr) << ",";
 					}
 
+					errs() << "\ninitializing swaps for max levels:" << maxLevels << "\n";
+					//Find the swaps required to shuffle the vectors into their correct places
+					vector<unsigned> originalVectorFinalLocation;
+					for (i = 0; i < maxLevels; i++) {
+						unsigned finalVectorPosition = 0;
+						for (auto orderItr = positiveColumnsOrder.begin(); orderItr != positiveColumnsOrder.end(); orderItr++, finalVectorPosition++) {
+							if (*orderItr == i) {
+								break;
+							}
+						}
+						originalVectorFinalLocation.push_back(finalVectorPosition);
+						errs() << "\norder:" << finalVectorPosition << "\n";
+					}
+
+					errs() << "recording swaps for vectors " << originalVectorFinalLocation.size() << "\n";
+					//Record swaps
+					list<pair<unsigned, unsigned> > vectorSwapList;
+					if (!originalVectorFinalLocation.empty()) {
+						for (unsigned i = 0; i < originalVectorFinalLocation.size() - 1; i++) {
+							for (unsigned j = 0; j < originalVectorFinalLocation.size() - 1; j++) {
+								if (originalVectorFinalLocation[j] > originalVectorFinalLocation[j + 1]) {
+									int temp = originalVectorFinalLocation[j];
+									originalVectorFinalLocation[j] = originalVectorFinalLocation[j + 1];
+									originalVectorFinalLocation[j + 1] = temp;
+									vectorSwapList.push_back(make_pair(j, j + 1));
+								}
+							}
+						}
+
+						errs() << "number of swaps recorded:" << vectorSwapList.size() << "\n";
+
+						//Perform swaps
+						for (auto swapItr = vectorSwapList.begin(); swapItr != vectorSwapList.end(); swapItr++) {
+							//depth of loop
+							map<unsigned, list<Loop*> > nestedLoopDepth;
+							list<Loop*> loopQueue;
+							loopQueue.push_back(loop);
+							while (!loopQueue.empty()) {
+								Loop* currentLoop = loopQueue.front();
+								unsigned currentLoopDepth = currentLoop->getLoopDepth();
+								loopQueue.pop_front();
+								list<Loop*> loopsAtDepth;
+								if (nestedLoopDepth.find(currentLoopDepth) != nestedLoopDepth.end()) {
+									loopsAtDepth = nestedLoopDepth[currentLoopDepth];
+									nestedLoopDepth.erase(currentLoopDepth);
+								}
+								loopsAtDepth.push_back(currentLoop);
+								nestedLoopDepth.insert(make_pair(currentLoopDepth - 1, loopsAtDepth));
+
+								for (auto subLoopItr = currentLoop->getSubLoops().begin(); subLoopItr != currentLoop->getSubLoops().end(); subLoopItr++) {
+									loopQueue.push_back(*subLoopItr);
+								}
+							}
+
+							unsigned sourceRow = swapItr->first;
+							unsigned targetRow = swapItr->second;
+							Loop* sourceLoop = nestedLoopDepth[sourceRow].front();
+							Loop* targetLoop = nestedLoopDepth[targetRow].front();
+							//TODO Uncomment this after making sure interchange works for sure
+//							LoopInterchangeTransform* interchange = new LoopInterchangeTransform(sourceLoop, targetLoop, &SE, &LI, &tree, loop->getExitBlock(), false, this);
+//							errs()<<"inner loop:";
+//							targetLoop->dump();
+//							errs()<<"\nhow could inner loop's latch be null?"<<(targetLoop->getLoopLatch()->getName())<<"\n";
+//							errs() << "swapped loops:" << interchange->transform() << "\n";
+						}
+					}
+
 					//move positive entry rows to the front of dependence array
 					for (auto columnItr = positiveColumnsOrder.begin(); columnItr != positiveColumnsOrder.end(); columnItr++) {
 						for (i = 0; i < numVectors; i++) {
 							tempDistanceVectorArray[i][*columnItr] = distanceVectorArray[i][*columnItr];
 						}
 					}
-//					errs()<<"what was the loop earlier?\n";
-//					loop->dump();
-////					(Loop *Outer, Loop *Inner, ScalarEvolution *SE,
-////					                           LoopInfo *LI, DominatorTree *DT,
-////					                           BasicBlock *LoopNestExit,
-////					                           bool InnerLoopContainsReductions, Pass* pass)
-//					LoopInterchangeTransform* interchange = new LoopInterchangeTransform(loop, loop->getSubLoopsVector()[0], &SE, &LI, &tree, loop->getExitBlock(), false, this);
-//					errs()<<"what happened in interchange?"<<interchange->transform()<<"\n";
-//					errs()<<"loop now:";
-//					loop->dump();
-
-
 					//Find the column corresponding to a level with maximum number of zeros which has not been eliminated yet
 					eliminatedRows.clear();
 					enum ExecutionMode {
@@ -1061,7 +1117,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 					errs() << "final execution order:";
 					for (auto orderItr = executionOrder.begin(); orderItr != executionOrder.end(); orderItr++) {
-						errs() << orderItr->first << ",";
+						errs() << orderItr->first << ":" << (orderItr->second) << "\n";
 					}
 					//depth of loop
 					map<unsigned, list<Loop*> > nestedLoopDepth;
@@ -1091,21 +1147,27 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 					errs() << "number of loops:" << nestedLoopDepth.size() << ", maxlevels:" << maxLevels << "\n";
 					for (i = 1; i <= maxLevels; i++) {
-//						if (executionOrder[i] == PARALLEL) {
-						//Find the bound of the loop at that level
-						list<Loop*> loopsAtDepth = nestedLoopDepth[i];
-						Loop* currentLoop = loopsAtDepth.front();
-						errs() << "\n------\ncurrent loop's exit block:" << currentLoop->getExitBlock()->getName() << "\n";
-						if (currentLoop->getExitBlock() != NULL) {
-							//Assuming no overflows in integer, because there's an add 1 in the method invoked in the next line for god knows what reason
-							unsigned tripCount = SE.getSmallConstantTripCount(currentLoop, currentLoop->getExitBlock()) - 1;
+						if (executionOrder[i] == PARALLEL) {
+							//Find the bound of the loop at that level
+							list<Loop*> loopsAtDepth = nestedLoopDepth[i];
+							Loop* currentLoop = loopsAtDepth.front();
+							errs() << "\n------\ncurrent loop's exit block:" << currentLoop->getExitBlock()->getName() << "\n";
+							if (currentLoop->getExitBlock() != NULL) {
+								//Assuming no overflows in integer, because there's an add 1 in the method invoked in the next line for god knows what reason
+								if(SE.getExitCount(currentLoop, currentLoop->getExitBlock())==SE.getCouldNotCompute()){
+									PHINode* inductionVariable = loop->getCanonicalInductionVariable();
+									inductionVariable->dump();
+//									inductionVariable->getIncomingValueForBlock(loop->getHeader())->dump();
+								}
+								unsigned tripCount = SE.getSmallConstantTripCount(currentLoop, currentLoop->getExitBlock()) - 1;
 //							errs()<<"number of exit blocks to loop:"<<exitBlocks.size()<<"\n";
-							errs() << "tripcount of loop at level " << i << ":" << tripCount << "\n";
-							BasicBlock* header = currentLoop->getHeader();
-							BasicBlock* tail = currentLoop->getExitBlock();
+								errs() << "tripcount of loop at level " << i << ":" << tripCount << "\n";
+							}
 
+//							if(nestedLoopDepth.find(i+1)!=nestedLoopDepth.end()){
+//								CodeExtractor::nestedLoopDepth[i+1];
+//							}
 						}
-//						}
 					}
 				}
 			}

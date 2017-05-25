@@ -70,10 +70,10 @@ void LoopInterchangeTransform::splitInnerLoopLatch(Instruction *Inc) {
 	BasicBlock *InnerLoopLatch = InnerLoop->getLoopLatch();
 	BasicBlock *InnerLoopLatchPred = InnerLoopLatch;
 	InnerLoopLatch = SplitBlock(InnerLoopLatchPred, Inc, pass);
+	InnerLoop->addBasicBlockToLoop(InnerLoopLatch, LI->getBase());
 }
 
 void LoopInterchangeTransform::splitInnerLoopHeader() {
-
 	// Split the inner loop header out. Here make sure that the reduction PHI's
 	// stay in the innerloop body.
 	BasicBlock *InnerLoopHeader = InnerLoop->getHeader();
@@ -136,6 +136,7 @@ bool LoopInterchangeTransform::transform() {
 	bool Transformed = false;
 	Instruction *InnerIndexVar;
 
+	errs()<<"whats OuterLoopPreHeader before all this?"<<OuterLoop->getLoopPreheader()->getName()<<"\n";
 	if (InnerLoop->getSubLoops().size() == 0) {
 		BasicBlock *InnerLoopPreHeader = InnerLoop->getLoopPreheader();
 		DEBUG(dbgs() << "Calling Split Inner Loop\n");
@@ -155,8 +156,6 @@ bool LoopInterchangeTransform::transform() {
 		// incremented/decremented.
 		// TODO: This splitting logic may not work always. Fix this.
 		splitInnerLoopLatch(InnerIndexVar);
-		DEBUG(dbgs() << "splitInnerLoopLatch done\n");
-
 		// Splits the inner loops phi nodes out into a separate basic block.
 		splitInnerLoopHeader();
 		DEBUG(dbgs() << "splitInnerLoopHeader done\n");
@@ -183,12 +182,14 @@ bool LoopInterchangeTransform::adjustLoopBranches() {
 	BasicBlock *OuterLoopPreHeader = OuterLoop->getLoopPreheader();
 	BasicBlock *InnerLoopPreHeader = InnerLoop->getLoopPreheader();
 	BasicBlock *OuterLoopPredecessor = NULL;
-	errs() << "outer loop preheader is null?" << (OuterLoopPreHeader == NULL) << "\n";
-	if (OuterLoopPreHeader != NULL && OuterLoopPreHeader->getUniquePredecessor() != NULL) {
-		OuterLoopPredecessor = OuterLoopPreHeader->getUniquePredecessor();
+//	if (OuterLoopPreHeader != NULL && OuterLoopPreHeader->getUniquePredecessor() != NULL) {
+	errs()<<"how many preds does outerlooppreheader have?:"<<OuterLoopPreHeader->getName()<<"\n";
+	for(pred_iterator predItr = pred_begin(OuterLoopPreHeader);predItr!=pred_end(OuterLoopPreHeader);predItr++){
+		errs()<<(*predItr)->getName()<<",";
 	}
+		OuterLoopPredecessor = OuterLoopPreHeader->getUniquePredecessor();
+//	}
 	BasicBlock *InnerLoopLatchPredecessor = NULL;
-	errs() << "Inner loop latch:" << (InnerLoopLatch == NULL) << "\n";
 	if (InnerLoopLatch != NULL && InnerLoopLatch->getUniquePredecessor() != NULL) {
 		InnerLoopLatchPredecessor = InnerLoopLatch->getUniquePredecessor();
 	}
@@ -209,8 +210,10 @@ bool LoopInterchangeTransform::adjustLoopBranches() {
 	OuterLoopHeaderBI = dyn_cast<BranchInst>(OuterLoopHeader->getTerminator());
 	InnerLoopHeaderBI = dyn_cast<BranchInst>(InnerLoopHeader->getTerminator());
 
-	if (!OuterLoopPredecessor || !InnerLoopLatchPredecessor || !OuterLoopLatchBI || !InnerLoopLatchBI || !OuterLoopHeaderBI || !InnerLoopHeaderBI)
+	if (!OuterLoopPredecessor || !InnerLoopLatchPredecessor || !OuterLoopLatchBI || !InnerLoopLatchBI || !OuterLoopHeaderBI || !InnerLoopHeaderBI){
+		errs()<<"whats null?"<<(!OuterLoopPredecessor )<<","<< (!InnerLoopLatchPredecessor )<<","<< (!OuterLoopLatchBI )<<","<< (!InnerLoopLatchBI )<<","<< (!OuterLoopHeaderBI )<<","<< (!InnerLoopHeaderBI)<<"\n";
 		return false;
+	}
 
 	BranchInst *InnerLoopLatchPredecessorBI = dyn_cast<BranchInst>(InnerLoopLatchPredecessor->getTerminator());
 	BranchInst *OuterLoopPredecessorBI = dyn_cast<BranchInst>(OuterLoopPredecessor->getTerminator());
@@ -243,10 +246,13 @@ bool LoopInterchangeTransform::adjustLoopBranches() {
 	BranchInst::Create(OuterLoopPreHeader, InnerLoopHeaderBI);
 	InnerLoopHeaderBI->eraseFromParent();
 
+	errs()<<"InnerLoopLatchBI num succ:"<<InnerLoopLatchBI->getNumSuccessors()<<"\n";
+	errs()<<"InnerLoopLatch BI:";
+	InnerLoopLatch->dump();
 	// -------------Adjust loop latches-----------
-	if (InnerLoopLatchBI->getSuccessor(0) == InnerLoopHeader)
-		InnerLoopLatchSuccessor = InnerLoopLatchBI->getSuccessor(1);
-	else
+//	if (InnerLoopLatchBI->getSuccessor(0) == InnerLoopHeader)
+//		InnerLoopLatchSuccessor = InnerLoopLatchBI->getSuccessor(1);
+//	else
 		InnerLoopLatchSuccessor = InnerLoopLatchBI->getSuccessor(0);
 
 	NumSucc = InnerLoopLatchPredecessorBI->getNumSuccessors();
@@ -268,23 +274,24 @@ bool LoopInterchangeTransform::adjustLoopBranches() {
 		P->eraseFromParent();
 	}
 
-	if (OuterLoopLatchBI->getSuccessor(0) == OuterLoopHeader)
-		OuterLoopLatchSuccessor = OuterLoopLatchBI->getSuccessor(1);
-	else
+//	if (OuterLoopLatchBI->getSuccessor(0) == OuterLoopHeader)
+//		OuterLoopLatchSuccessor = OuterLoopLatchBI->getSuccessor(1);
+//	else
 		OuterLoopLatchSuccessor = OuterLoopLatchBI->getSuccessor(0);
 
-	if (InnerLoopLatchBI->getSuccessor(1) == InnerLoopLatchSuccessor)
-		InnerLoopLatchBI->setSuccessor(1, OuterLoopLatchSuccessor);
-	else
+//	if (InnerLoopLatchBI->getSuccessor(1) == InnerLoopLatchSuccessor)
+//		InnerLoopLatchBI->setSuccessor(1, OuterLoopLatchSuccessor);
+//	else
 		InnerLoopLatchBI->setSuccessor(0, OuterLoopLatchSuccessor);
 
 	updateIncomingBlock(OuterLoopLatchSuccessor, OuterLoopLatch, InnerLoopLatch);
 
 	if (OuterLoopLatchBI->getSuccessor(0) == OuterLoopLatchSuccessor) {
 		OuterLoopLatchBI->setSuccessor(0, InnerLoopLatch);
-	} else {
-		OuterLoopLatchBI->setSuccessor(1, InnerLoopLatch);
 	}
+//	else {
+//		OuterLoopLatchBI->setSuccessor(1, InnerLoopLatch);
+//	}
 
 	return true;
 }
@@ -326,3 +333,15 @@ bool LoopInterchangeTransform::adjustLoopLinks() {
 	return Changed;
 }
 
+void LoopInterchangeTransform::updateIncomingBlock(BasicBlock *CurrBlock,
+                                                   BasicBlock *OldPred,
+                                                   BasicBlock *NewPred) {
+  for (auto I = CurrBlock->begin(); isa<PHINode>(I); ++I) {
+    PHINode *PHI = cast<PHINode>(I);
+    unsigned Num = PHI->getNumIncomingValues();
+    for (unsigned i = 0; i < Num; ++i) {
+      if (PHI->getIncomingBlock(i) == OldPred)
+        PHI->setIncomingBlock(i, NewPred);
+    }
+  }
+}
