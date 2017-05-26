@@ -1155,7 +1155,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 					for (i = 0; i < maxLevels; i++) {
 						if (executionOrder[i] == PARALLEL) {
-							errs()<<"we are at the level "<<i<<"\n";
+							errs() << "we are at the level " << i << "\n";
 							//Find the bound of the loop at that level
 							list<Loop*> loopsAtDepth = nestedLoopDepth[i + 1];
 							Loop* currentLoop = loopsAtDepth.front();
@@ -1204,7 +1204,15 @@ struct HyperOpCreationPass: public ModulePass {
 									}
 
 									//Replace whatever is contained in the nestedLoopDepth map with the new loops
-									nestedLoopDepth[i + 2] = tempNestedLoopDepth[1];
+									for (auto nestedLoopItr = nestedLoopDepth.begin(); nestedLoopItr != nestedLoopDepth.end(); nestedLoopItr++) {
+										unsigned key = nestedLoopItr->first;
+										if (key >= i + 2) {
+											nestedLoopDepth[key] = tempNestedLoopDepth[key - i - 2];
+											errs() << "added at key " << (key) << ":";
+											tempNestedLoopDepth[key-i-2].front()->dump();
+										}
+									}
+
 								}
 							}
 						}
