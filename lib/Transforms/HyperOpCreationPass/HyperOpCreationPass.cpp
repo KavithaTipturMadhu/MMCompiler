@@ -836,24 +836,40 @@ struct HyperOpCreationPass: public ModulePass {
 //			InlineFunction(callInst, info);
 		}
 
-		errs() << "Module state:";
-		M.dump();
-
 		for (Module::iterator func = M.begin(); func != M.end(); func++) {
 			DEBUG(dbgs() << "Finding dependences of function:" << func->getName() << "\n");
 			if (!func->isIntrinsic()) {
 				DependenceAnalysis& depAnalysis = getAnalysis<DependenceAnalysis>(*func);
 				LoopInfo& LI = getAnalysis<LoopInfo>(*func);
+				list<Function*> ignoreFunctionList;
 				//Lets check if there are loop carried dependences
 				for (LoopInfo::iterator loopItr = LI.begin(); loopItr != LI.end(); loopItr++) {
+					Function* loopParent = (*loopItr)->getHeader()->getParent();
+					errs() << "loop from parent:" << loopParent->getName() << "\n";
+					if (find(ignoreFunctionList.begin(), ignoreFunctionList.end(), loopParent) != ignoreFunctionList.end()) {
+						continue;
+					}
 					list<vector<int> > distanceVectorsList;
 					int distanceVectorArray[100][100];
 					int tempDistanceVectorArray[100][100];
-					unsigned maxLevels = 0;
-
 					ScalarEvolution& SE = getAnalysis<ScalarEvolution>(*func);
 					DominatorTree & tree = getAnalysis<DominatorTree>(*func);
 					Loop* loop = *loopItr;
+					unsigned maxLevels = 0;
+					list<Loop*> tempLoopList;
+					tempLoopList.push_back(loop);
+					while (!tempLoopList.empty()) {
+						Loop* front = tempLoopList.front();
+						tempLoopList.pop_front();
+						if (maxLevels < front->getLoopDepth()) {
+							maxLevels = front->getLoopDepth();
+						}
+						for (auto subLoopItr : front->getSubLoopsVector()) {
+							tempLoopList.push_back(subLoopItr);
+						}
+					}
+
+					errs() << "max level computed:" << maxLevels << "\n";
 					vector<BasicBlock*> basicBlocksList = loop->getBlocks();
 					for (auto bbItr = basicBlocksList.begin(); bbItr != basicBlocksList.end(); bbItr++) {
 						BasicBlock* basicBlock = *bbItr;
@@ -866,10 +882,8 @@ struct HyperOpCreationPass: public ModulePass {
 											continue;
 										}
 										errs() << "\n----\nda analyze - ";
-										if (isa<StoreInst>(*SrcI) && isa<LoadInst>(*DstI)) {
-											SrcI->print(dbgs());
-											DstI->print(dbgs());
-										}
+										SrcI->print(dbgs());
+										DstI->print(dbgs());
 										if (Dependence *D = depAnalysis.depends(&*SrcI, &*DstI, true)) {
 											if (D->isConfused()) {
 												errs() << "confused dependence\n";
@@ -921,10 +935,6 @@ struct HyperOpCreationPass: public ModulePass {
 
 													if (!leadingNegativeValue) {
 														distanceVectorsList.push_back(distanceVector);
-														if (maxLevels < D->getLevels()) {
-															maxLevels = D->getLevels();
-															errs() << "max level:" << maxLevels << "\n";
-														}
 														errs() << "adding new vector with dependence levels " << D->getLevels() << ":";
 														for (unsigned i = 0; i < distanceVector.size(); i++) {
 															errs() << distanceVector[i] << ",";
@@ -1019,7 +1029,6 @@ struct HyperOpCreationPass: public ModulePass {
 						errs() << (*orderItr) << ",";
 					}
 
-					errs() << "\ninitializing swaps for max levels:" << maxLevels << "\n";
 					//Find the swaps required to shuffle the vectors into their correct places
 					vector<unsigned> originalVectorFinalLocation;
 					for (i = 0; i < maxLevels; i++) {
@@ -1030,10 +1039,8 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 						}
 						originalVectorFinalLocation.push_back(finalVectorPosition);
-						errs() << "\norder:" << finalVectorPosition << "\n";
 					}
 
-					errs() << "recording swaps for vectors " << originalVectorFinalLocation.size() << "\n";
 					//Record swaps
 					list<pair<unsigned, unsigned> > vectorSwapList;
 					if (!originalVectorFinalLocation.empty()) {
@@ -1092,6 +1099,11 @@ struct HyperOpCreationPass: public ModulePass {
 							tempDistanceVectorArray[i][*columnItr] = distanceVectorArray[i][*columnItr];
 						}
 					}
+
+					errs() << "shuffled execution order:";
+					for (auto orderItr = positiveColumnsOrder.begin(); orderItr != positiveColumnsOrder.end(); orderItr++) {
+						errs() << (*orderItr) << ",";
+					}
 					//Find the column corresponding to a level with maximum number of zeros which has not been eliminated yet
 					eliminatedRows.clear();
 					enum ExecutionMode {
@@ -1102,6 +1114,7 @@ struct HyperOpCreationPass: public ModulePass {
 					for (i = 0; i < maxLevels; i++) {
 						list<unsigned> positiveEntryRows;
 						for (unsigned j = 0; j < numVectors; j++) {
+//							if (distanceVectorArray[j][i] > 0 && (eliminatedRows.empty() || find(eliminatedRows.begin(), eliminatedRows.end(), j) == eliminatedRows.end())) {
 							if (tempDistanceVectorArray[j][i] > 0 && (eliminatedRows.empty() || find(eliminatedRows.begin(), eliminatedRows.end(), j) == eliminatedRows.end())) {
 								positiveEntryRows.push_back(j);
 							}
@@ -1140,38 +1153,68 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
-					errs() << "\nnested loop and depth map:";
-					for (auto itr = nestedLoopDepth.begin(); itr != nestedLoopDepth.end(); itr++) {
-						errs() << "\nlevel:" << itr->first;
-						itr->second.front()->dump();
-					}
-					errs() << "number of loops:" << nestedLoopDepth.size() << ", maxlevels:" << maxLevels << "\n";
-					for (i = 1; i <= maxLevels; i++) {
+					for (i = 0; i < maxLevels; i++) {
 						if (executionOrder[i] == PARALLEL) {
+							errs()<<"we are at the level "<<i<<"\n";
 							//Find the bound of the loop at that level
-							list<Loop*> loopsAtDepth = nestedLoopDepth[i];
+							list<Loop*> loopsAtDepth = nestedLoopDepth[i + 1];
 							Loop* currentLoop = loopsAtDepth.front();
-							errs() << "\n------\ncurrent loop's exit block:" << currentLoop->getExitBlock()->getName() << "\n";
 							if (currentLoop->getExitBlock() != NULL) {
 								//Assuming no overflows in integer, because there's an add 1 in the method invoked in the next line for god knows what reason
-								if(SE.getExitCount(currentLoop, currentLoop->getExitBlock())==SE.getCouldNotCompute()){
-									PHINode* inductionVariable = loop->getCanonicalInductionVariable();
+								if (SE.getExitCount(currentLoop, currentLoop->getExitBlock()) == SE.getCouldNotCompute()) {
+									PHINode* inductionVariable = currentLoop->getCanonicalInductionVariable();
 									inductionVariable->dump();
-//									inductionVariable->getIncomingValueForBlock(loop->getHeader())->dump();
+								} else {
+									unsigned tripCount = SE.getSmallConstantTripCount(currentLoop, currentLoop->getExitBlock()) - 1;
+									errs() << "tripcount of loop at level " << i << ":" << tripCount << "\n";
 								}
-								unsigned tripCount = SE.getSmallConstantTripCount(currentLoop, currentLoop->getExitBlock()) - 1;
-//							errs()<<"number of exit blocks to loop:"<<exitBlocks.size()<<"\n";
-								errs() << "tripcount of loop at level " << i << ":" << tripCount << "\n";
 							}
 
-//							if(nestedLoopDepth.find(i+1)!=nestedLoopDepth.end()){
-//								CodeExtractor::nestedLoopDepth[i+1];
-//							}
+							if (nestedLoopDepth.find(i + 2) != nestedLoopDepth.end()) {
+								Loop* innerLoop = nestedLoopDepth[i + 2].front();
+								CodeExtractor* extractor = new CodeExtractor(innerLoop->getBlocks());
+//								errs()<<"creating a new function\n";
+								Function* innerLoopFunction = extractor->extractCodeRegion();
+								errs() << "created new function, leaving module to state:\n";
+								M.dump();
+								ignoreFunctionList.push_back(innerLoopFunction);
+								LoopInfo& innerLoopInfo = getAnalysis<LoopInfo>(*innerLoopFunction);
+//								innerLoopInfo.dump();
+
+								for (auto innerLoopItr = innerLoopInfo.begin(); innerLoopItr != innerLoopInfo.end(); innerLoopItr++) {
+									Loop* innerLoop = *innerLoopItr;
+									map<unsigned, list<Loop*> > tempNestedLoopDepth;
+									list<Loop*> loopQueue;
+									loopQueue.push_back(innerLoop);
+									while (!loopQueue.empty()) {
+										Loop* currentLoop = loopQueue.front();
+										loopQueue.pop_front();
+										unsigned currentLoopDepth = currentLoop->getLoopDepth();
+										list<Loop*> loopsAtDepth;
+										if (tempNestedLoopDepth.find(currentLoopDepth) != tempNestedLoopDepth.end()) {
+											loopsAtDepth = tempNestedLoopDepth[currentLoopDepth];
+											tempNestedLoopDepth.erase(currentLoopDepth);
+										}
+										loopsAtDepth.push_back(currentLoop);
+										tempNestedLoopDepth.insert(make_pair(currentLoopDepth, loopsAtDepth));
+
+										for (auto subLoopItr = currentLoop->getSubLoops().begin(); subLoopItr != currentLoop->getSubLoops().end(); subLoopItr++) {
+											loopQueue.push_back(*subLoopItr);
+										}
+									}
+
+									//Replace whatever is contained in the nestedLoopDepth map with the new loops
+									nestedLoopDepth[i + 2] = tempNestedLoopDepth[1];
+								}
+							}
 						}
 					}
 				}
 			}
 		}
+
+		errs() << "Module state:";
+		M.dump();
 
 		while (!functionList.empty()) {
 			Function* function = functionList.front();
