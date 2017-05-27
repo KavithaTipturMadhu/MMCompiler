@@ -53,6 +53,37 @@ struct HyperOpCreationPass: public ModulePass {
 		SCALAR, LOCAL_REFERENCE, GLOBAL_REFERENCE, ADDRESS
 	};
 
+	class LoopIV {
+	public:
+		enum Type {
+			CONSTANT, INDUCTIONVAR
+		} ivType;
+
+		unsigned constantTripVar;
+		PHINode* inductionVar;
+
+		LoopIV(Type ivType, unsigned constantTripVar) {
+			this->ivType = ivType;
+			this->constantTripVar = constantTripVar;
+		}
+
+		LoopIV(Type ivType, PHINode* inductionVar) {
+			this->ivType = ivType;
+			this->inductionVar = inductionVar;
+		}
+
+		Type getType() {
+			return ivType;
+		}
+		unsigned getConstant() {
+			return constantTripVar;
+		}
+
+		PHINode* getInductionVar() {
+			return inductionVar;
+		}
+	};
+
 	//Map of HyperOp arguments with position as the key
 	typedef list<pair<list<Value*>, HyperOpArgumentType> > HyperOpArgumentList;
 
@@ -836,6 +867,8 @@ struct HyperOpCreationPass: public ModulePass {
 //			InlineFunction(callInst, info);
 		}
 
+		//Parallel loop and its induction variable so that the loop can be flattened into IR
+		map<Loop*, LoopIV*> parallelLoopAndIVMap;
 		for (Module::iterator func = M.begin(); func != M.end(); func++) {
 			DEBUG(dbgs() << "Finding dependences of function:" << func->getName() << "\n");
 			if (!func->isIntrinsic()) {
@@ -1155,31 +1188,29 @@ struct HyperOpCreationPass: public ModulePass {
 
 					for (i = 0; i < maxLevels; i++) {
 						if (executionOrder[i] == PARALLEL) {
-							errs() << "we are at the level " << i << "\n";
 							//Find the bound of the loop at that level
 							list<Loop*> loopsAtDepth = nestedLoopDepth[i + 1];
 							Loop* currentLoop = loopsAtDepth.front();
 							if (currentLoop->getExitBlock() != NULL) {
+
+								LoopIV* ivObject;
 								//Assuming no overflows in integer, because there's an add 1 in the method invoked in the next line for god knows what reason
 								if (SE.getExitCount(currentLoop, currentLoop->getExitBlock()) == SE.getCouldNotCompute()) {
 									PHINode* inductionVariable = currentLoop->getCanonicalInductionVariable();
-									inductionVariable->dump();
+									ivObject = new LoopIV(LoopIV::INDUCTIONVAR, inductionVariable);
 								} else {
 									unsigned tripCount = SE.getSmallConstantTripCount(currentLoop, currentLoop->getExitBlock()) - 1;
-									errs() << "tripcount of loop at level " << i << ":" << tripCount << "\n";
+									ivObject = new LoopIV(LoopIV::CONSTANT, tripCount);
 								}
+								parallelLoopAndIVMap.insert(make_pair(currentLoop, ivObject));
 							}
 
 							if (nestedLoopDepth.find(i + 2) != nestedLoopDepth.end()) {
 								Loop* innerLoop = nestedLoopDepth[i + 2].front();
 								CodeExtractor* extractor = new CodeExtractor(innerLoop->getBlocks());
-//								errs()<<"creating a new function\n";
 								Function* innerLoopFunction = extractor->extractCodeRegion();
-								errs() << "created new function, leaving module to state:\n";
-								M.dump();
 								ignoreFunctionList.push_back(innerLoopFunction);
 								LoopInfo& innerLoopInfo = getAnalysis<LoopInfo>(*innerLoopFunction);
-//								innerLoopInfo.dump();
 
 								for (auto innerLoopItr = innerLoopInfo.begin(); innerLoopItr != innerLoopInfo.end(); innerLoopItr++) {
 									Loop* innerLoop = *innerLoopItr;
@@ -1207,12 +1238,9 @@ struct HyperOpCreationPass: public ModulePass {
 									for (auto nestedLoopItr = nestedLoopDepth.begin(); nestedLoopItr != nestedLoopDepth.end(); nestedLoopItr++) {
 										unsigned key = nestedLoopItr->first;
 										if (key >= i + 2) {
-											nestedLoopDepth[key] = tempNestedLoopDepth[key - i - 2];
-											errs() << "added at key " << (key) << ":";
-											tempNestedLoopDepth[key-i-2].front()->dump();
+											nestedLoopDepth[key] = tempNestedLoopDepth[key - i - 1];
 										}
 									}
-
 								}
 							}
 						}
@@ -1270,7 +1298,7 @@ struct HyperOpCreationPass: public ModulePass {
 					list<BasicBlock*> backEdgePredecessors;
 					for (pred_iterator predecessorItr = pred_begin(bbItr); predecessorItr != pred_end(bbItr); predecessorItr++) {
 						BasicBlock* predecessor = *predecessorItr;
-						errs() << "considering pred " << predecessor->getName() << " for bb " << bbItr->getName() << "\n";
+//						errs() << "considering pred " << predecessor->getName() << " for bb " << bbItr->getName() << "\n";
 						BasicBlock* predecessorDom = 0;
 						bool isBackEdge = false;
 						BasicBlock* tempPredecessor = predecessor;
@@ -1286,7 +1314,7 @@ struct HyperOpCreationPass: public ModulePass {
 							tempPredecessor = predecessorDom;
 						}
 
-						errs() << "is the edge going backwards?" << isBackEdge << "\n";
+//						errs() << "is the edge going backwards?" << isBackEdge << "\n";
 						if (isBackEdge) {
 							backEdgePredecessors.push_back(predecessor);
 							continue;
@@ -1299,9 +1327,9 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 
 					bool allParentsAcquired = (numParentsAcquired == numPredecessors);
-					errs() << "no parent acquired?" << noParentAcquired << ", all parents acquired?" << allParentsAcquired << "\n";
+//					errs() << "no parent acquired?" << noParentAcquired << ", all parents acquired?" << allParentsAcquired << "\n";
 					if (!(noParentAcquired || allParentsAcquired)) {
-						errs() << "stopping hop creation here\n";
+//						errs() << "stopping hop creation here\n";
 						canAcquireBBItr = false;
 					}
 					//Check if the basic block's inclusion results introduces multiple entry points to the same HyperOp
@@ -1467,15 +1495,32 @@ struct HyperOpCreationPass: public ModulePass {
 
 				//Create a new HyperOp
 				if (endOfHyperOp) {
+					errs() << "end of hyperop: hyperOp args:" << hyperOpArguments.size() << "\n";
+					for(auto hyperOpArgItr = hyperOpArguments.begin();hyperOpArgItr!=hyperOpArguments.end();hyperOpArgItr++){
+						hyperOpArgItr->first.front()->dump();
+					}
 					//First remove args due to back edges
 					list<HyperOpArgumentList::iterator> deleteList;
 					for (auto newArgItr = hyperOpArguments.begin(); newArgItr != hyperOpArguments.end(); newArgItr++) {
 						list<Value*> phiArgs = (*newArgItr).first;
 						for (auto argItr = phiArgs.begin(); argItr != phiArgs.end(); argItr++) {
 							Value* argument = *argItr;
-							if (isa<Instruction>(argument) && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
-								deleteList.push_back(newArgItr);
-								break;
+							errs()<<"what is the problem with arg ";
+							argument->dump();
+							if (isa<Instruction>(argument)) {
+								if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
+									deleteList.push_back(newArgItr);
+									break;
+								}
+
+								//Find the call instruction in the accumulated bbs
+								BasicBlock* parentBB = ((Instruction*) argument)->getParent();
+								for (auto loopItr = parallelLoopAndIVMap.begin(); loopItr != parallelLoopAndIVMap.end(); loopItr++) {
+									if (find(loopItr->first->getBlocksVector().begin(), loopItr->first->getBlocksVector().end(), parentBB) != loopItr->first->getBlocksVector().end()) {
+										deleteList.push_back(newArgItr);
+										break;
+									}
+								}
 							}
 						}
 					}
@@ -1483,7 +1528,7 @@ struct HyperOpCreationPass: public ModulePass {
 					for (auto deleteItr = deleteList.begin(); deleteItr != deleteList.end(); deleteItr++) {
 						hyperOpArguments.erase(*deleteItr);
 					}
-					errs() << "hyperOp args:" << hyperOpArguments.size() << "\n";
+					errs() << "after deletion, hyperOp args:" << hyperOpArguments.size() << "\n";
 					//Shuffle the arguments to the HyperOp such that scalar arguments are positioned first and the rest of the arguments are positioned after
 					HyperOpArgumentList tempHyperOpArguments;
 					for (HyperOpArgumentList::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
@@ -1550,6 +1595,7 @@ struct HyperOpCreationPass: public ModulePass {
 					hyperOpArguments.clear();
 					hyperOpArgCount = 0;
 					endOfHyperOp = false;
+//					errs()<<"\n------\ncreated a new hop\n";
 				}
 
 				DEBUG(dbgs() << "Adding basic blocks for traversal in a breadth biased order for function " << function->getName() << "\n");
@@ -1884,7 +1930,7 @@ struct HyperOpCreationPass: public ModulePass {
 			for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 				//Find out if any basic block is predicated
 				BasicBlock* originalBB = *accumulatedBBItr;
-				errs() << "\n---\nacquired bb:" << originalBB->getName() << " from parent:" << originalBB->getParent()->getName() << "\n";
+//				errs() << "\n---\nacquired bb:" << originalBB->getName() << " from parent:" << originalBB->getParent()->getName() << "\n";
 				//Find the immediate dominator
 				DominatorTree& tree = getAnalysis<DominatorTree>(*originalBB->getParent());
 				if (tree.getNode(originalBB) != NULL && tree.getNode(originalBB)->getIDom() != NULL) {
@@ -1908,9 +1954,6 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 						currentBB = idom;
 						idom = tree.getNode(idom)->getIDom()->getBlock();
-					}
-					if (idom != NULL) {
-						errs() << "idom:" << idom->getName() << " from " << idom->getParent()->getName() << " and original idom:" << originalIdom->getName() << "\n";
 					}
 					//if the idom is not in accumulated list, add it as a branch source
 					if (idom != NULL) {
@@ -1936,135 +1979,20 @@ struct HyperOpCreationPass: public ModulePass {
 									conditionalBranchSources.erase(terminator);
 									std::copy(previousSuccessorIndexList.begin(), previousSuccessorIndexList.end(), back_inserter(successorBBList));
 								}
-								errs() << "added conditional branch source that jumps to target " << currentBB->getName() << " that belongs to parent " << currentBB->getParent()->getName() << ":";
-								terminator->dump();
 								conditionalBranchSources[terminator] = successorBBList;
 							}
 						}
 					}
 
-					errs() << "trying to add unconditional jumps\n";
 					//Add all the jump sources of the basic block to point to their return blocks
 					for (auto predItr = pred_begin(originalBB); predItr != pred_end(originalBB); predItr++) {
 						BasicBlock* pred = *predItr;
-						errs() << "from pred:" << pred->getName() << ":" << (pred != idom) << "," << (!idomPredecessor) << " cos original:" << originalIdom->getName() << " and " << (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), pred) == accumulatedBasicBlocks.end()) << "\n";
 						if ((pred != idom || !idomPredecessor) && originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
-//								find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), pred) == accumulatedBasicBlocks.end() && originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
 							assert(pred->getTerminator()->getNumSuccessors() <= 1 && "conditional jump to basic block cannot exist here\n");
-							errs() << "added unconditional jump to be patched\n";
-							pred->getTerminator()->dump();
 							unconditionalBranchSources.push_back(pred->getTerminator());
 						}
 					}
 				}
-
-				//TODO: Predicates are for call sites also and hence, they are not limited to non-entry basic blocks of the original function
-//				for (pred_iterator predecessorItr = pred_begin(originalBB); predecessorItr != pred_end(originalBB); predecessorItr++) {
-//					BasicBlock* predecessor = *predecessorItr;
-//					//Control flow edge originates from a predecessor basic block that does not belong to the same HyperOp
-//					//TODO is the first half of the conditional sufficient?
-//					if ((find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), predecessor) == accumulatedBasicBlocks.end() || find(newlyAcquiredBBList.begin(), newlyAcquiredBBList.end(), originalBB) != newlyAcquiredBBList.end())
-//							&& originalFunctionToHyperOpBBListMap.find(predecessor->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
-//						TerminatorInst* terminator = predecessor->getTerminator();
-//						//If the terminator instruction has only one successor, its an unconditional jump
-//						if (terminator->getNumSuccessors() == 1 && terminator->getSuccessor(0) == originalBB) {
-//							Instruction* originalUnconditionalBranchInstr = terminator;
-//							list<BasicBlock*> parentBBList;
-//
-//							//Get the parent basic block containing the unconditional jump
-//							for (list<pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator bbItr = originalFunctionToHyperOpBBListMap[((Instruction*) originalUnconditionalBranchInstr)->getParent()->getParent()].begin();
-//									bbItr != originalFunctionToHyperOpBBListMap[((Instruction*) originalUnconditionalBranchInstr)->getParent()->getParent()].end(); bbItr++) {
-//								if (find(bbItr->first.begin(), bbItr->first.end(), ((Instruction*) originalUnconditionalBranchInstr)->getParent()) != bbItr->first.end()) {
-//									parentBBList = bbItr->first;
-//									break;
-//								}
-//							}
-//
-//							//Find out whether there is a conditional jump from the same HyperOp to the unconditional jump instruction's bb or has a reaching predicate from elsewhere and add it to the conditional basic block list
-//							list<TerminatorInst*> terminatorInst;
-//							terminatorInst.push_back((TerminatorInst*) terminator);
-//							Instruction* conditionalBranchInstr = 0;
-//							while (!terminatorInst.empty()) {
-//								TerminatorInst* tempTerminator = terminatorInst.front();
-//								terminatorInst.pop_front();
-//								//Check if the terminator itself is conditionally executed
-//								for (pred_iterator terminatorPredItr = pred_begin(tempTerminator->getParent()); terminatorPredItr != pred_end(tempTerminator->getParent()); terminatorPredItr++) {
-//									BasicBlock* terminatorPredecessor = *terminatorPredItr;
-//									//Check if terminatorPredecessor and predecessor are both in the same function to be created
-//									if (find(parentBBList.begin(), parentBBList.end(), terminatorPredecessor) != parentBBList.end()) {
-//										if (terminatorPredecessor->getTerminator()->getNumSuccessors() > 1) {
-//											conditionalBranchInstr = terminatorPredecessor->getTerminator();
-//											break;
-//										} else {
-//											terminatorInst.push_front(terminatorPredecessor->getTerminator());
-//										}
-//									}
-//								}
-//							}
-//							if (conditionalBranchInstr != 0 && isa < BranchInst > (conditionalBranchInstr) &&((BranchInst*) conditionalBranchInstr)->getNumSuccessors() > 1) {
-//								vector<pair<BasicBlock*, int> > successorBBList;
-//								TerminatorInst* terminator = ((TerminatorInst*) conditionalBranchInstr);
-//								successorBBList.push_back(make_pair(((BranchInst*) originalUnconditionalBranchInstr)->getSuccessor(0), -1));
-//								conditionalBranchSources.insert(make_pair(terminator, successorBBList));
-//							} else {
-//								errs() << "finding reaching predicates to " << originalBB->getName() << " of function " << originalBB->getParent()->getName() << ":";
-//								list<list<pair<BasicBlock*, unsigned> > > reachingPred = reachingPredicateChain(originalBB, newlyAcquiredBBList);
-//								for (list<list<pair<BasicBlock*, unsigned> > >::iterator reachingPredItr = reachingPred.begin(); reachingPredItr != reachingPred.end(); reachingPredItr++) {
-//									errs() << "\nreaching pred chain :";
-//									for (list<pair<BasicBlock*, unsigned> >::iterator predItr = reachingPredItr->begin(); predItr != reachingPredItr->end(); predItr++) {
-//										errs() << predItr->first->getName() << "(" << predItr->second << ")->";
-//									}
-//								}
-//								//Take the last conditional predicate in the chain
-//								for (list<list<pair<BasicBlock*, unsigned> > >::iterator reachingPredItr = reachingPred.begin(); reachingPredItr != reachingPred.end(); reachingPredItr++) {
-//									list<pair<BasicBlock*, unsigned> > reachingPredChain = *reachingPredItr;
-//									bool conditionalPredicateDelivered = false;
-//									list<pair<BasicBlock*, unsigned> >::reverse_iterator predicateItr;
-//									for (predicateItr = reachingPredChain.rbegin(); predicateItr != reachingPredChain.rend(); predicateItr++) {
-//										if (predicateItr->first->getTerminator()->getNumSuccessors() > 1) {
-//											conditionalPredicateDelivered = true;
-//											break;
-//										}
-//									}
-//
-//									if (conditionalPredicateDelivered && conditionalBranchSources.find(terminator) == conditionalBranchSources.end()) {
-//										vector<pair<BasicBlock*, int> > successorBBList;
-//										TerminatorInst* terminator = ((TerminatorInst*) predicateItr->first->getTerminator());
-//										successorBBList.push_back(make_pair(((BranchInst*) originalUnconditionalBranchInstr)->getSuccessor(0), -1));
-////										conditionalBranchSources.insert(make_pair(terminator, successorBBList));
-//										conditionalBranchSources[terminator] = successorBBList;
-//									}
-//
-//								}
-//
-//								errs() << "\n";
-//							}
-//							unconditionalBranchSources.push_back(terminator);
-//						} else {
-//							//Get the first operand of terminator instruction corresponding to a branch
-//							vector<pair<BasicBlock*, int> > successorBBList;
-//							for (unsigned i = 0; i < terminator->getNumSuccessors(); i++) {
-//								if (terminator->getSuccessor(i) == originalBB) {
-//									//Add only those successors that correspond to a basic block in the current HyperOp
-//									successorBBList.push_back(make_pair(terminator->getSuccessor(i), i));
-//								}
-//							}
-//							if (successorBBList.size() == terminator->getNumSuccessors()) {
-//								//All successors of the terminator instruction are in the same target HyperOp, mark the jump as unconditional
-//								unconditionalBranchSources.push_back(terminator);
-//							} else {
-//								errs() << "terminator delivering conditional:";
-//								terminator->dump();
-//								if (conditionalBranchSources.find(terminator) != conditionalBranchSources.end()) {
-//									vector<pair<BasicBlock*, int> > previousSuccessorIndexList = conditionalBranchSources[terminator];
-//									conditionalBranchSources.erase(terminator);
-//									std::copy(previousSuccessorIndexList.begin(), previousSuccessorIndexList.end(), back_inserter(successorBBList));
-//								}
-//								conditionalBranchSources[terminator] = successorBBList;
-//							}
-//						}
-//					}
-//				}
 			}
 
 			while (numCallInstrAdded) {
