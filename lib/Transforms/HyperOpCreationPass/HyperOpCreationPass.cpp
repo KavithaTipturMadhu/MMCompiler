@@ -869,6 +869,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 		//Parallel loop and its induction variable so that the loop can be flattened into IR
 		list<pair<list<BasicBlock*>, LoopIV*> > parallelLoopAndIVMap;
+//		list<pair<Loop*, LoopIV*> > parallelLoopAndIVMap;
 		for (Module::iterator func = M.begin(); func != M.end(); func++) {
 			DEBUG(dbgs() << "Finding dependences of function:" << func->getName() << "\n");
 			if (!func->isIntrinsic()) {
@@ -983,7 +984,7 @@ struct HyperOpCreationPass: public ModulePass {
 												}
 											}
 
-											delete D;
+//											delete D;
 										} else {
 											errs() << "no dependence\n";
 										}
@@ -1205,6 +1206,7 @@ struct HyperOpCreationPass: public ModulePass {
 								list<BasicBlock*> currentBBList;
 								std::copy(currentLoop->getBlocks().begin(), currentLoop->getBlocks().end(), std::back_inserter(currentBBList));
 								parallelLoopAndIVMap.push_back(make_pair(currentBBList, ivObject));
+//								parallelLoopAndIVMap.push_back(make_pair(currentLoop, ivObject));
 							}
 
 							if (nestedLoopDepth.find(i + 2) != nestedLoopDepth.end()) {
@@ -1288,6 +1290,30 @@ struct HyperOpCreationPass: public ModulePass {
 				BasicBlock* bbItr = bbTraverser.front();
 				bbTraverser.pop_front();
 				errs() << "acquiring bb " << bbItr->getName() << "\n";
+				//Check if basic block is the header or exit block of a loop
+				LoopInfo& loopInfo = getAnalysis<LoopInfo>(*function);
+				bool exitBlock = false;
+				for (auto loopItr = loopInfo.begin(); loopItr != loopInfo.end(); loopItr++) {
+					Loop* loop = *loopItr;
+					if (bbItr == loop->getExitBlock()) {
+						for (auto parallelLevelItr = parallelLoopAndIVMap.begin(); parallelLevelItr != parallelLoopAndIVMap.end(); parallelLevelItr++) {
+							if(find(parallelLevelItr->first.begin(), parallelLevelItr->first.end(), bbItr)!=parallelLevelItr->first.end()){
+								exitBlock = true;
+								break;
+							}
+						}
+
+						if(exitBlock){
+							break;
+						}
+					}
+				}
+				if (exitBlock) {
+					errs()<<"ignoring bb "<<bbItr->getName()<<"\n";
+					continue;
+					//Ignore the basic block that happens to be marked parallel and
+				}
+
 				bool canAcquireBBItr = true;
 				//If basic block is not the entry block
 				if (bbItr != &(function->getEntryBlock())) {
@@ -2252,8 +2278,6 @@ struct HyperOpCreationPass: public ModulePass {
 					Value* argOperand = callInst->getArgOperand(positionOfFormalArg);
 					Instruction* clonedInst;
 					if (isa<CallInst>(argOperand)) {
-						errs() << "arg operand is a call:";
-						argOperand->dump();
 						CallInst* callInst = (CallInst*) argOperand;
 						Function* calledFunction = callInst->getCalledFunction();
 						list<CallInst*> callSiteCopy;
