@@ -1292,10 +1292,23 @@ struct HyperOpCreationPass: public ModulePass {
 				errs() << "acquiring bb " << bbItr->getName() << "\n";
 				//Check if basic block is the header or exit block of a loop
 				LoopInfo& loopInfo = getAnalysis<LoopInfo>(*function);
-				bool exitBlock = false;
+				list<Loop*> loopsOfFunction;
 				for (auto loopItr = loopInfo.begin(); loopItr != loopInfo.end(); loopItr++) {
+					list<Loop*> loopList;
+					loopList.push_back(*loopItr);
+					while(!loopList.empty()){
+						Loop* currentLoop = loopList.front();
+						loopsOfFunction.push_back(currentLoop);
+						loopList.pop_front();
+						for(auto subLoopItr: currentLoop->getSubLoopsVector()){
+							loopList.push_back(subLoopItr);
+						}
+					}
+				}
+				bool exitBlock = false;
+				for(auto loopItr= loopsOfFunction.begin();loopItr!=loopsOfFunction.end();loopItr++){
 					Loop* loop = *loopItr;
-					if (bbItr == loop->getExitBlock()) {
+					if (bbItr == loop->getLoopLatch()) {
 						for (auto parallelLevelItr = parallelLoopAndIVMap.begin(); parallelLevelItr != parallelLoopAndIVMap.end(); parallelLevelItr++) {
 							if(find(parallelLevelItr->first.begin(), parallelLevelItr->first.end(), bbItr)!=parallelLevelItr->first.end()){
 								exitBlock = true;
@@ -1304,6 +1317,7 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 
 						if(exitBlock){
+							errs()<<"ignoring exit block "<<bbItr->getName()<<"\n";
 							break;
 						}
 					}
