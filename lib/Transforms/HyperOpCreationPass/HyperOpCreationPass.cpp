@@ -742,6 +742,7 @@ struct HyperOpCreationPass: public ModulePass {
 		map<Function*, list<Instruction*> > createdHyperOpAndReachingDefSources;
 		map<Function*, HYPEROP_TYPE> createdHyperOpAndType;
 		list<BasicBlock*> originalLatchBB;
+		list<BasicBlock*> originalHeaderBB;
 
 		//Cloned instructions mapped to their original instruction for each created function
 		map<Function*, map<Instruction*, Instruction*> > functionOriginalToClonedInstructionMap;
@@ -1282,15 +1283,16 @@ struct HyperOpCreationPass: public ModulePass {
 
 			bbTraverser.push_back(function->begin());
 			bool functionHasCalls = false;
+
 			while (!bbTraverser.empty()) {
 				BasicBlock* bbItr = bbTraverser.front();
 				bbTraverser.pop_front();
 				errs() << "acquiring bb " << bbItr->getName() << "\n";
 				//Check if basic block is the header or exit block of a loop
-				LoopInfo& loopInfo = getAnalysis<LoopInfo>(*function);
-				list<Loop*> loopsOfFunction;
 				bool latchBlock = false;
+				list<Loop*> loopsOfFunction;
 				LoopIV* loopIV;
+				LoopInfo& loopInfo = getAnalysis<LoopInfo>(*function);
 				for (auto loopItr = loopInfo.begin(); loopItr != loopInfo.end(); loopItr++) {
 					list<Loop*> loopList;
 					loopList.push_back(*loopItr);
@@ -1305,14 +1307,14 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 				for (auto loopItr = loopsOfFunction.begin(); loopItr != loopsOfFunction.end(); loopItr++) {
 					Loop* loop = *loopItr;
-					if (bbItr == loop->getLoopLatch()) {
-						for (auto parallelLevelItr = parallelLoopAndIVMap.begin(); parallelLevelItr != parallelLoopAndIVMap.end(); parallelLevelItr++) {
-							parallelLevelItr->second.getInductionVar()->dump();
-							if (find(parallelLevelItr->first.begin(), parallelLevelItr->first.end(), bbItr) != parallelLevelItr->first.end()) {
+					for (auto parallelLevelItr = parallelLoopAndIVMap.begin(); parallelLevelItr != parallelLoopAndIVMap.end(); parallelLevelItr++) {
+						if (find(parallelLevelItr->first.begin(), parallelLevelItr->first.end(), bbItr) != parallelLevelItr->first.end()) {
+							if (bbItr == loop->getLoopLatch()) {
 								latchBlock = true;
 								originalLatchBB.push_back(bbItr);
 								loopIV = &(parallelLevelItr->second);
-								break;
+							} else if (bbItr == loop->getHeader()) {
+								originalHeaderBB.push_back(bbItr);
 							}
 						}
 					}
@@ -1896,6 +1898,25 @@ struct HyperOpCreationPass: public ModulePass {
 							continue;
 						}
 						clonedInst = instItr->clone();
+						errs() << "cloned inst:";
+						instItr->dump();
+						if (isa<PHINode>(instItr) && find(originalHeaderBB.begin(), originalHeaderBB.end(), instItr->getParent()) != originalHeaderBB.end()) {
+							Value* setValue;
+							for (unsigned i = 0; i < ((PHINode*) &*instItr)->getNumIncomingValues(); i++) {
+								BasicBlock* incomingBlock = ((PHINode*) &*instItr)->getIncomingBlock(i);
+								if (incomingBlock == instItr->getParent()) {
+									setValue = ((PHINode*) &*instItr)->getIncomingValue(i);
+									break;
+								}
+							}
+							for (unsigned i = 0; i < ((PHINode*) &*instItr)->getNumIncomingValues(); i++) {
+								BasicBlock* incomingBlock = ((PHINode*) &*instItr)->getIncomingBlock(i);
+								if (incomingBlock != instItr->getParent()) {
+									((PHINode*) clonedInst)->setIncomingValue(i, setValue);
+									((PHINode*) clonedInst)->setIncomingBlock(i, instItr->getParent());
+								}
+							}
+						}
 						Instruction * originalInstruction = instItr;
 						originalToClonedInstMap.insert(std::make_pair(originalInstruction, clonedInst));
 						newBB->getInstList().insert(newBB->end(), clonedInst);
@@ -1932,6 +1953,11 @@ struct HyperOpCreationPass: public ModulePass {
 										AllocaInst* localAllocaInst = filteredLocalRefAllocaInst[hyperOpArgIndex];
 										//Replace uses of the alloca variable with the newly allocated variable
 										clonedInst->setOperand(operandIndex, localAllocaInst);
+										if (isa<PHINode>(clonedInst)) {
+											//Find the corresponding branch that leads to phi and patch
+											BasicBlock* sourceBB = ((PHINode*) clonedInst)->getIncomingBlock(operandIndex);
+											((PHINode*) clonedInst)->setIncomingBlock(operandIndex, originalToClonedBasicBlockMap[sourceBB]);
+										}
 									} else {
 										for (list<Value*>::iterator argumentValueItr = individualArguments.begin(); argumentValueItr != individualArguments.end(); argumentValueItr++) {
 											if (*argumentValueItr == operandToBeReplaced) {
@@ -1945,6 +1971,11 @@ struct HyperOpCreationPass: public ModulePass {
 																LoadInst* loadFromRefInst = new LoadInst(argItr);
 																loadFromRefInst->insertBefore(newFunction->front().begin());
 																clonedInst->setOperand(operandIndex, loadFromRefInst);
+																if (isa<PHINode>(clonedInst)) {
+																	//Find the corresponding branch that leads to phi and patch
+																	BasicBlock* sourceBB = ((PHINode*) clonedInst)->getIncomingBlock(operandIndex);
+																	((PHINode*) clonedInst)->setIncomingBlock(operandIndex, originalToClonedBasicBlockMap[sourceBB]);
+																}
 																localRefReplacementArgMap[localHyperOpArgIndex] = (Value*) loadFromRefInst;
 																argUpdated = true;
 																break;
@@ -1953,6 +1984,11 @@ struct HyperOpCreationPass: public ModulePass {
 													} else {
 														Value* replacementArg = localRefReplacementArgMap[localHyperOpArgIndex];
 														clonedInst->setOperand(operandIndex, replacementArg);
+														if (isa<PHINode>(clonedInst)) {
+															//Find the corresponding branch that leads to phi and patch
+															BasicBlock* sourceBB = ((PHINode*) clonedInst)->getIncomingBlock(operandIndex);
+															((PHINode*) clonedInst)->setIncomingBlock(operandIndex, originalToClonedBasicBlockMap[sourceBB]);
+														}
 														argUpdated = true;
 													}
 
@@ -1987,6 +2023,11 @@ struct HyperOpCreationPass: public ModulePass {
 												Instruction* clonedSourceInstr = (Instruction*) originalToClonedInstMap.find(accumulatedInstItr)->second;
 												if (clonedSourceInstr != NULL) {
 													clonedInst->setOperand(operandIndex, clonedSourceInstr);
+													if (isa<PHINode>(clonedInst)) {
+														//Find the corresponding branch that leads to phi and patch
+														BasicBlock* sourceBB = ((PHINode*) clonedInst)->getIncomingBlock(operandIndex);
+														((PHINode*) clonedInst)->setIncomingBlock(operandIndex, originalToClonedBasicBlockMap[sourceBB]);
+													}
 												}
 											}
 										}
