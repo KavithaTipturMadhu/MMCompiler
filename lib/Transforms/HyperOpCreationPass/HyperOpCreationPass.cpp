@@ -869,17 +869,18 @@ struct HyperOpCreationPass: public ModulePass {
 		//Parallel loop and its induction variable so that the loop can be flattened into IR
 		list<pair<list<BasicBlock*>, LoopIV> > parallelLoopAndIVMap;
 //		list<pair<Loop*, LoopIV*> > parallelLoopAndIVMap;
+		//List of all functions created for parallel loops
+		list<Function*> parallelLoopFunctionList;
 		for (Module::iterator func = M.begin(); func != M.end(); func++) {
 			DEBUG(dbgs() << "Finding dependences of function:" << func->getName() << "\n");
 			if (!func->isIntrinsic()) {
 				DependenceAnalysis& depAnalysis = getAnalysis<DependenceAnalysis>(*func);
 				LoopInfo& LI = getAnalysis<LoopInfo>(*func);
-				list<Function*> ignoreFunctionList;
 				//Lets check if there are loop carried dependences
 				for (LoopInfo::iterator loopItr = LI.begin(); loopItr != LI.end(); loopItr++) {
 					Function* loopParent = (*loopItr)->getHeader()->getParent();
 					errs() << "loop from parent:" << loopParent->getName() << "\n";
-					if (find(ignoreFunctionList.begin(), ignoreFunctionList.end(), loopParent) != ignoreFunctionList.end()) {
+					if (find(parallelLoopFunctionList.begin(), parallelLoopFunctionList.end(), loopParent) != parallelLoopFunctionList.end()) {
 						continue;
 					}
 					list<vector<int> > distanceVectorsList;
@@ -1210,7 +1211,7 @@ struct HyperOpCreationPass: public ModulePass {
 								Loop* innerLoop = nestedLoopDepth[i + 2].front();
 								CodeExtractor* extractor = new CodeExtractor(innerLoop->getBlocks());
 								Function* innerLoopFunction = extractor->extractCodeRegion();
-								ignoreFunctionList.push_back(innerLoopFunction);
+								parallelLoopFunctionList.push_back(innerLoopFunction);
 								functionList.push_back(innerLoopFunction);
 								LoopInfo& innerLoopInfo = getAnalysis<LoopInfo>(*innerLoopFunction);
 
@@ -1763,7 +1764,7 @@ struct HyperOpCreationPass: public ModulePass {
 			 * (╯°□°)╯︵ ┻━┻
 			 */
 			CallInst* instanceCallSite = callSite.back();
-			if (!callSite.empty() && isa<CallInst>(instanceCallSite) && isHyperOpInstanceInCycle(instanceCallSite, cyclesInCallGraph)) {
+			if ((!callSite.empty() && isa<CallInst>(instanceCallSite) && isHyperOpInstanceInCycle(instanceCallSite, cyclesInCallGraph)) || find(parallelLoopFunctionList.begin(), parallelLoopFunctionList.end(), instanceCallSite->getCalledFunction()) != parallelLoopFunctionList.end()) {
 				isStaticHyperOp = false;
 			}
 
@@ -2121,6 +2122,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 					//if the idom is not in accumulated list, add it as a branch source
 					if (idom != NULL) {
+						errs() << "idom of " << originalBB->getName() << ":" << idom->getName() << "\n";
 						if (idomPredecessor && (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), idom) == accumulatedBasicBlocks.end() || find(newlyAcquiredBBList.begin(), newlyAcquiredBBList.end(), originalBB) != newlyAcquiredBBList.end())) {
 							//Find the terminator of idom that leads to bbItr
 							vector<pair<BasicBlock*, int> > successorBBList;
@@ -2211,8 +2213,8 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
-				list<unsigned> uniqueIdInCallTree = getHyperOpInstanceTag(callSite, newFunction, createdHyperOpAndCallSite, createdHyperOpAndUniqueId, accumulatedBasicBlocks, createdHyperOpAndOriginalBasicBlockAndArgMap);
 				//Convert the id to a tag string
+				list<unsigned> uniqueIdInCallTree = getHyperOpInstanceTag(callSite, newFunction, createdHyperOpAndCallSite, createdHyperOpAndUniqueId, accumulatedBasicBlocks, createdHyperOpAndOriginalBasicBlockAndArgMap);
 				string tag = "<";
 				for (list<unsigned>::iterator tagItr = uniqueIdInCallTree.begin(); tagItr != uniqueIdInCallTree.end(); tagItr++) {
 					tag.append(itostr(*tagItr));
@@ -2220,6 +2222,47 @@ struct HyperOpCreationPass: public ModulePass {
 						tag.append(",");
 					}
 				}
+
+				//Check if the accumulated bbs are supposed to be a range of HyperOps
+				LoopIV* loopIV = NULL;
+				for (auto accumulatedbbItr = accumulatedBasicBlocks.begin(); accumulatedbbItr != accumulatedBasicBlocks.end(); accumulatedbbItr++) {
+					if (!isa<CallInst>((*accumulatedbbItr)->front())) {
+						Function* originalFunction = (*accumulatedbbItr)->getParent();
+						if (find(parallelLoopFunctionList.begin(), parallelLoopFunctionList.end(), originalFunction) != parallelLoopFunctionList.end()) {
+							//Find the parent generating range of HyperOps
+							for (auto parallelLoopItr = parallelLoopAndIVMap.begin(); parallelLoopItr != parallelLoopAndIVMap.end(); parallelLoopItr++) {
+								list<BasicBlock*> basicBlocksOfParallelLoop = parallelLoopItr->first;
+								//TODO Try replacing the following with set difference instead
+								bool matchFound = true;
+								for (auto bbItr = basicBlocksOfParallelLoop.begin(); bbItr != basicBlocksOfParallelLoop.end(); bbItr++) {
+									if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), *bbItr) != accumulatedBasicBlocks.end()) {
+										matchFound = false;
+										break;
+									}
+								}
+								if (matchFound) {
+									loopIV = &(*parallelLoopItr).second;
+									break;
+								}
+							}
+						}
+
+						if (loopIV != NULL) {
+							break;
+						}
+					}
+				}
+
+				if (loopIV != NULL) {
+					errs()<<"loop IV isnt null\n";
+					tag.append(",");
+					if (loopIV->getType() == LoopIV::CONSTANT) {
+						tag.append(itostr(loopIV->getConstant()));
+					} else {
+						tag.append(loopIV->getInductionVar()->getName());
+					}
+				}
+
 				tag.append(">");
 				values[4] = MDString::get(ctxt, tag);
 				funcAnnotation = MDNode::get(ctxt, values);
@@ -3339,26 +3382,28 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 			}
 
-			//Short-circuit unconditional jump chains within a function
-			for (Function::iterator bbItr = createdFunction->begin(); bbItr != createdFunction->end(); bbItr++) {
-				BasicBlock* originOfJumpChain = bbItr;
-				while (true) {
-					if (isa<BranchInst>(originOfJumpChain->getTerminator()) && ((BranchInst*) originOfJumpChain->getTerminator())->isUnconditional()) {
-						//Unconditional jump would only have one successor
-						originOfJumpChain = originOfJumpChain->getTerminator()->getSuccessor(0);
-					} else {
-						break;
-					}
-				}
-
-				if (originOfJumpChain != bbItr) {
-					bbItr->getTerminator()->setSuccessor(0, originOfJumpChain);
-				}
-			}
+			//TODO commented out because this doesn't take care of data dependences or backedges
+			//Short-circuit unconditional jump chains within a function, the advantage of this step is to eliminate empty unreachable blocks that do
+//			for (Function::iterator bbItr = createdFunction->begin(); bbItr != createdFunction->end(); bbItr++) {
+//				BasicBlock* originOfJumpChain = bbItr;
+//				while (true) {
+//					if (isa<BranchInst>(originOfJumpChain->getTerminator()) && ((BranchInst*) originOfJumpChain->getTerminator())->isUnconditional()) {
+//						//Unconditional jump would only have one successor
+//						originOfJumpChain = originOfJumpChain->getTerminator()->getSuccessor(0);
+//						errs() << "origin of jump chain:" << originOfJumpChain->getName() << "\n";
+//					} else {
+//						break;
+//					}
+//				}
+//
+//				if (originOfJumpChain != bbItr) {
+//					bbItr->getTerminator()->setSuccessor(0, originOfJumpChain);
+//				}
+//			}
 		}
 
-		errs() << "Whats in module after sync?";
-		M.dump();
+//		errs() << "Whats in module after sync?";
+//		M.dump();
 
 		DEBUG(dbgs() << "\n-----------Re-routing sync edges from end hyperop to the newly created end HyperOp-----------\n");
 		//If the end hyperop has 16 arguments, create another end hyperop so that sync (if any) can go to the last HyperOp
