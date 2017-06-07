@@ -1764,7 +1764,7 @@ struct HyperOpCreationPass: public ModulePass {
 			 * (╯°□°)╯︵ ┻━┻
 			 */
 			CallInst* instanceCallSite = callSite.back();
-			if ((!callSite.empty() && isa<CallInst>(instanceCallSite) && isHyperOpInstanceInCycle(instanceCallSite, cyclesInCallGraph)) || find(parallelLoopFunctionList.begin(), parallelLoopFunctionList.end(), instanceCallSite->getCalledFunction()) != parallelLoopFunctionList.end()) {
+			if (instanceCallSite!=NULL && (isa<CallInst>(instanceCallSite) && (isHyperOpInstanceInCycle(instanceCallSite, cyclesInCallGraph) || find(parallelLoopFunctionList.begin(), parallelLoopFunctionList.end(), instanceCallSite->getCalledFunction()) != parallelLoopFunctionList.end()))) {
 				isStaticHyperOp = false;
 			}
 
@@ -2254,7 +2254,6 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 
 				if (loopIV != NULL) {
-					errs()<<"loop IV isnt null\n";
 					tag.append(",");
 					if (loopIV->getType() == LoopIV::CONSTANT) {
 						tag.append(itostr(loopIV->getConstant()));
