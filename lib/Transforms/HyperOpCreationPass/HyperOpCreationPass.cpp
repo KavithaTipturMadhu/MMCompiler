@@ -60,16 +60,18 @@ struct HyperOpCreationPass: public ModulePass {
 			CONSTANT, VARIABLE
 		} ivType;
 
-		unsigned constantTripVar;
+		unsigned constantUpperbound;
+		unsigned constantLowerbound;
 		PHINode* inductionVar;
 		Value* bound;
-		int stride;
+		Value* stride;
 		unsigned operation;
 		const char* operationName;
 
-		LoopIV(Type ivType, unsigned constantTripVar, int stride, PHINode* inductionVar, Value* bound, unsigned operation, const char* operationName) {
+		LoopIV(Type ivType, unsigned constantLowerBound, unsigned constantTripVar, Value* stride, PHINode* inductionVar, Value* bound, unsigned operation, const char* operationName) {
 			this->ivType = ivType;
-			this->constantTripVar = constantTripVar;
+			this->constantUpperbound = constantTripVar;
+			this->constantLowerbound = constantLowerBound;
 			this->inductionVar = inductionVar;
 			this->bound = bound;
 			this->stride = stride;
@@ -80,18 +82,25 @@ struct HyperOpCreationPass: public ModulePass {
 		Type getType() {
 			return ivType;
 		}
-		unsigned getConstant() {
-			return constantTripVar;
+		unsigned getConstantUpperBound() {
+			return constantUpperbound;
+		}
+		unsigned getConstantLowerBound() {
+			return constantLowerbound;
 		}
 
 		PHINode* getInductionVar() {
 			return inductionVar;
 		}
-		Value* getVariableBound() {
+		Value* getVariableUpperBound() {
 			return bound;
 		}
-		int getStride() {
+		Value* getStride() {
 			return stride;
+		}
+
+		const char* getIncOperation() {
+			return this->operationName;
 		}
 	};
 
@@ -884,8 +893,8 @@ struct HyperOpCreationPass: public ModulePass {
 		errs() << "before loop analysis:";
 		M.dump();
 		//Parallel loop and its induction variable so that the loop can be flattened into IR
-		list<pair<list<BasicBlock*>, LoopIV> > parallelLoopAndIVMap;
-		list<pair<list<BasicBlock*>, LoopIV> > originalLoopBB;
+		list<pair<list<BasicBlock*>, LoopIV*> > parallelLoopAndIVMap;
+		list<pair<list<BasicBlock*>, LoopIV*> > originalLoopBB;
 //		list<pair<Loop*, LoopIV*> > parallelLoopAndIVMap;
 		//List of all functions created for parallel loops
 		list<Function*> parallelLoopFunctionList;
@@ -1076,11 +1085,6 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
-					errs() << "final execution order:";
-					for (auto orderItr = positiveColumnsOrder.begin(); orderItr != positiveColumnsOrder.end(); orderItr++) {
-						errs() << (*orderItr) << ",";
-					}
-
 					//Find the swaps required to shuffle the vectors into their correct places
 					vector<unsigned> originalVectorFinalLocation;
 					for (i = 0; i < maxLevels; i++) {
@@ -1207,6 +1211,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 					for (i = 0; i < maxLevels; i++) {
 						if (executionOrder[i] == PARALLEL) {
+							errs() << "which level is parallel exactly?" << i << "\n";
 							//Find the bound of the loop at that level
 							list<Loop*> loopsAtDepth = nestedLoopDepth[i + 1];
 							Loop* currentLoop = loopsAtDepth.front();
@@ -1214,38 +1219,44 @@ struct HyperOpCreationPass: public ModulePass {
 							if (currentLoop->getExitBlock() != NULL) {
 								//Assuming no overflows in integer, because there's an add 1 in the method invoked in the next line for god knows what reason
 								PHINode* inductionVariable = currentLoop->getCanonicalInductionVariable();
-								unsigned tripCount = SE.getSmallConstantTripCount(currentLoop, currentLoop->getExitBlock()) - 1;
-								int stride;
+								unsigned upperBound = SE.getSmallConstantTripCount(currentLoop, currentLoop->getExitBlock()) - 1;
+								unsigned lowerBound;
+								Value* stride;
 								unsigned strideUpdateOperation;
 								const char* strideUpdateOperationName;
-//								//Compute stride over the induction variable
-//								{
-//									map<BasicBlock*, Value*> entryBBToInductionVarPHI;
-//									for (auto phiOperandItr = 0; phiOperandItr != inductionVariable->getNumIncomingValues(); phiOperandItr++) {
-//										BasicBlock* incomingBlock = inductionVariable->getIncomingBlock(phiOperandItr);
-//										if (find(currentLoop->getBlocks().begin(), currentLoop->getBlocks().end(), incomingBlock) != currentLoop->getBlocks().end()) {
-//											entryBBToInductionVarPHI.insert(make_pair(incomingBlock, inductionVariable->getIncomingValue(phiOperandItr)));
-//										}
-//									}
-//									//We can't support multiple strides for parallelism or support any operation other than binary or shift operations
-//									for (auto entryBBItr = entryBBToInductionVarPHI.begin(); entryBBItr != entryBBToInductionVarPHI.end(); entryBBItr++) {
-//										BasicBlock* incomingBlock = entryBBItr->first;
-//										Value* incomingValue = entryBBItr->second;
-//										//Check what the increment on incomingValue is
-//										for (auto instItr = incomingBlock->begin(); instItr != incomingBlock->end(); instItr++) {
-//											if (incomingValue == instItr) {
-//												for (unsigned i = 0; i < instItr->getNumOperands(); i++) {
-//													Value* operand = instItr->getOperand(i);
-//													if (operand != inductionVariable && (instItr->isBinaryOp() || instItr->isShift())) {
-//														strideUpdateOperation = instItr->getOpcode();
-//														strideUpdateOperationName = instItr->getOpcodeName();
-//														break;
-//													}
-//												}
-//											}
-//										}
-//									}
-//								}
+								LoopIV::Type type;
+								//Compute stride over the induction variable
+								map<BasicBlock*, Value*> entryBBToInductionVarPHI;
+								for (auto phiOperandItr = 0; phiOperandItr != inductionVariable->getNumIncomingValues(); phiOperandItr++) {
+									BasicBlock* incomingBlock = inductionVariable->getIncomingBlock(phiOperandItr);
+									if (find(currentLoop->getBlocks().begin(), currentLoop->getBlocks().end(), incomingBlock) != currentLoop->getBlocks().end()) {
+										entryBBToInductionVarPHI.insert(make_pair(incomingBlock, inductionVariable->getIncomingValue(phiOperandItr)));
+//									}else{
+//										//TODO assuming that the lower bound is a constant value for now
+//										assert(isa<ConstantInt>(inductionVariable->getIncomingValue(phiOperandItr))&&"Unsupported variable initial values to induction variables");
+//										lowerBound = ((ConstantInt*)inductionVariable->getIncomingValue(phiOperandItr))->getValue().getSExtValue();
+									}
+								}
+								assert(entryBBToInductionVarPHI.size() == 1 && "Multiple exit block loop unsupported");
+								//We can't support multiple strides for parallelism or support any operation other than binary or shift operations
+								for (auto entryBBItr = entryBBToInductionVarPHI.begin(); entryBBItr != entryBBToInductionVarPHI.end(); entryBBItr++) {
+									BasicBlock* incomingBlock = entryBBItr->first;
+									Value* incomingValue = entryBBItr->second;
+									//Check what the increment on incomingValue is
+									for (auto instItr = incomingBlock->begin(); instItr != incomingBlock->end(); instItr++) {
+										if (incomingValue == instItr) {
+											for (unsigned i = 0; i < instItr->getNumOperands(); i++) {
+												Value* operand = instItr->getOperand(i);
+												if (operand != inductionVariable && (instItr->isBinaryOp() || instItr->isShift())) {
+													strideUpdateOperation = instItr->getOpcode();
+													strideUpdateOperationName = instItr->getOpcodeName();
+													stride = operand;
+													break;
+												}
+											}
+										}
+									}
+								}
 								bool useTripCount = true;
 								if (isa<SCEVConstant>(SE.getBackedgeTakenCount(currentLoop))) {
 									ConstantInt* Result = ((SCEVConstant*) SE.getBackedgeTakenCount(currentLoop))->getValue();
@@ -1319,52 +1330,66 @@ struct HyperOpCreationPass: public ModulePass {
 										}
 									}
 									assert(!undefVal && "Loop bound wasn't initialized to a valid value, this is against ansi c standards, but its incorrect logically anyway\n");
-									LoopIV tempLoopIV(LoopIV::VARIABLE, tripCount - 1, stride, inductionVariable, loopBound, strideUpdateOperation, strideUpdateOperationName);
-									loopIVObject = &tempLoopIV;
+									type = LoopIV::VARIABLE;
 								} else {
-									LoopIV tempLoopIV(LoopIV::CONSTANT, tripCount - 1, stride, inductionVariable, loopBound, strideUpdateOperation, strideUpdateOperationName);
-									loopIVObject = &tempLoopIV;
+									type = LoopIV::CONSTANT;
 								}
+								loopIVObject = new LoopIV(type, lowerBound, upperBound - 1, stride, inductionVariable, loopBound, strideUpdateOperation, strideUpdateOperationName);
 								list<BasicBlock*> loopBBList;
 								std::copy(currentLoop->getBlocks().begin(), currentLoop->getBlocks().end(), std::back_inserter(loopBBList));
-								originalLoopBB.push_back(make_pair(loopBBList, *loopIVObject));
+								originalLoopBB.push_back(make_pair(loopBBList, loopIVObject));
 							}
 
+							vector<BasicBlock*> containedBlocks;
+							bool containsLoop = false;
 							if (nestedLoopDepth.find(i + 2) != nestedLoopDepth.end()) {
 								Loop* innerLoop = nestedLoopDepth[i + 2].front();
-								CodeExtractor* extractor = new CodeExtractor(innerLoop->getBlocks());
-								Function* innerLoopFunction = extractor->extractCodeRegion();
-								parallelLoopFunctionList.push_back(innerLoopFunction);
-								functionList.push_back(innerLoopFunction);
-								LoopInfo& innerLoopInfo = getAnalysis<LoopInfo>(*innerLoopFunction);
-								list<BasicBlock*> currentBBList;
-								for (auto bbItr = innerLoopFunction->getBasicBlockList().begin(); bbItr != innerLoopFunction->getBasicBlockList().end(); bbItr++) {
-									currentBBList.push_back(bbItr);
-								}
-								parallelLoopAndIVMap.push_back(make_pair(currentBBList, *loopIVObject));
-
-								for (auto innerLoopItr = innerLoopInfo.begin(); innerLoopItr != innerLoopInfo.end(); innerLoopItr++) {
-									Loop* innerLoop = *innerLoopItr;
-									map<unsigned, list<Loop*> > tempNestedLoopDepth;
-									list<Loop*> loopQueue;
-									loopQueue.push_back(innerLoop);
-									while (!loopQueue.empty()) {
-										Loop* currentLoop = loopQueue.front();
-										loopQueue.pop_front();
-										unsigned currentLoopDepth = currentLoop->getLoopDepth();
-										list<Loop*> loopsAtDepth;
-										if (tempNestedLoopDepth.find(currentLoopDepth) != tempNestedLoopDepth.end()) {
-											loopsAtDepth = tempNestedLoopDepth[currentLoopDepth];
-											tempNestedLoopDepth.erase(currentLoopDepth);
-										}
-										loopsAtDepth.push_back(currentLoop);
-										tempNestedLoopDepth.insert(make_pair(currentLoopDepth, loopsAtDepth));
-
-										for (auto subLoopItr = currentLoop->getSubLoops().begin(); subLoopItr != currentLoop->getSubLoops().end(); subLoopItr++) {
-											loopQueue.push_back(*subLoopItr);
-										}
+								std::copy(innerLoop->getBlocks().begin(), innerLoop->getBlocks().end(), std::back_inserter(containedBlocks));
+								containsLoop = true;
+							} else {
+								errs() << "which blocks are we adding?\n";
+								for (auto bbItr : currentLoop->getBlocksVector()) {
+									if (bbItr != currentLoop->getLoopLatch() || bbItr != currentLoop->getExitBlock() || bbItr != currentLoop->getHeader()) {
+										errs() << bbItr->getName() << ",";
+										containedBlocks.push_back(bbItr);
 									}
+								}
+								errs() << "\n";
+							}
+							CodeExtractor* extractor = new CodeExtractor(containedBlocks);
+							Function* innerLoopFunction = extractor->extractCodeRegion();
+							parallelLoopFunctionList.push_back(innerLoopFunction);
+							functionList.push_back(innerLoopFunction);
+							LoopInfo& innerLoopInfo = getAnalysis<LoopInfo>(*innerLoopFunction);
+							list<BasicBlock*> currentBBList;
+							for (auto bbItr = innerLoopFunction->getBasicBlockList().begin(); bbItr != innerLoopFunction->getBasicBlockList().end(); bbItr++) {
+								currentBBList.push_back(bbItr);
+							}
+							parallelLoopAndIVMap.push_back(make_pair(currentBBList, loopIVObject));
 
+							for (auto innerLoopItr = innerLoopInfo.begin(); innerLoopItr != innerLoopInfo.end(); innerLoopItr++) {
+								Loop* innerLoop = *innerLoopItr;
+								map<unsigned, list<Loop*> > tempNestedLoopDepth;
+								list<Loop*> loopQueue;
+								loopQueue.push_back(innerLoop);
+								while (!loopQueue.empty()) {
+									Loop* currentLoop = loopQueue.front();
+									loopQueue.pop_front();
+									unsigned currentLoopDepth = currentLoop->getLoopDepth();
+									list<Loop*> loopsAtDepth;
+									if (tempNestedLoopDepth.find(currentLoopDepth) != tempNestedLoopDepth.end()) {
+										loopsAtDepth = tempNestedLoopDepth[currentLoopDepth];
+										tempNestedLoopDepth.erase(currentLoopDepth);
+									}
+									loopsAtDepth.push_back(currentLoop);
+									tempNestedLoopDepth.insert(make_pair(currentLoopDepth, loopsAtDepth));
+
+									for (auto subLoopItr = currentLoop->getSubLoops().begin(); subLoopItr != currentLoop->getSubLoops().end(); subLoopItr++) {
+										loopQueue.push_back(*subLoopItr);
+									}
+								}
+
+								if (containsLoop) {
 									//Replace whatever is contained in the nestedLoopDepth map with the new loops
 									for (auto nestedLoopItr = nestedLoopDepth.begin(); nestedLoopItr != nestedLoopDepth.end(); nestedLoopItr++) {
 										unsigned key = nestedLoopItr->first;
@@ -1441,7 +1466,8 @@ struct HyperOpCreationPass: public ModulePass {
 							if (bbItr == loop->getLoopLatch()) {
 								latchBlock = true;
 								originalLatchBB.push_back(bbItr);
-								loopIV = &(parallelLevelItr->second);
+								loopIV = parallelLevelItr->second;
+								errs() << "latch block was set to true but iv null?" << loopIV << "\n";
 							} else if (bbItr == loop->getHeader()) {
 								originalHeaderBB.push_back(bbItr);
 							}
@@ -1985,7 +2011,7 @@ struct HyperOpCreationPass: public ModulePass {
 				for (auto parallelLoopItr = originalLoopBB.begin(); parallelLoopItr != originalLoopBB.end(); parallelLoopItr++) {
 					list<BasicBlock*> bbList = parallelLoopItr->first;
 					if (find(bbList.begin(), bbList.end(), *accumulatedBBItr) != bbList.end()) {
-						loopIV = &(parallelLoopItr->second);
+						loopIV = parallelLoopItr->second;
 						break;
 					}
 				}
@@ -2302,7 +2328,7 @@ struct HyperOpCreationPass: public ModulePass {
 			MDNode *funcAnnotation;
 			//Keep the following branch structure
 			if (!isStaticHyperOp) {
-				Value * values[5];
+				Value * values[6];
 				values[0] = MDString::get(ctxt, HYPEROP);
 				values[1] = newFunction;
 				values[2] = MDString::get(ctxt, DYNAMIC_HYPEROP);
@@ -2350,7 +2376,10 @@ struct HyperOpCreationPass: public ModulePass {
 						tag.append(",");
 					}
 				}
-
+				tag.append(">");
+				values[4] = MDString::get(ctxt, tag);
+				tag.clear();
+				tag.append("<");
 				//Check if the accumulated bbs are supposed to be a range of HyperOps
 				LoopIV* loopIV = NULL;
 				for (auto accumulatedbbItr = accumulatedBasicBlocks.begin(); accumulatedbbItr != accumulatedBasicBlocks.end(); accumulatedbbItr++) {
@@ -2371,7 +2400,7 @@ struct HyperOpCreationPass: public ModulePass {
 									}
 								}
 								if (matchFound) {
-									loopIV = &(*parallelLoopItr).second;
+									loopIV = parallelLoopItr->second;
 									break;
 								}
 							}
@@ -2384,16 +2413,23 @@ struct HyperOpCreationPass: public ModulePass {
 					tag.append(":");
 					if (loopIV->getType() == LoopIV::CONSTANT) {
 						//Minus 1 for the exact bound
-						tag.append(itostr(loopIV->getConstant() - 1));
+						tag.append(itostr(loopIV->getConstantUpperBound() - 1));
 					} else {
-						errs() << "loop iv bound:";
-						loopIV->getVariableBound()->dump();
-						tag.append(loopIV->getVariableBound()->getName());
+						tag.append(loopIV->getVariableUpperBound()->getName());
 					}
-				}
 
+					tag.append(":");
+					tag.append(loopIV->getIncOperation());
+					tag.append("(");
+					if (isa<ConstantInt>(loopIV->getStride())) {
+						tag.append(itostr(((ConstantInt*) loopIV->getStride())->getUniqueInteger().getSExtValue()));
+					} else {
+						tag.append(loopIV->getStride()->getName());
+					}
+					tag.append(")");
+				}
 				tag.append(">");
-				values[4] = MDString::get(ctxt, tag);
+				values[5] = MDString::get(ctxt, tag);
 				funcAnnotation = MDNode::get(ctxt, values);
 				createdHyperOpAndUniqueId[newFunction] = uniqueIdInCallTree;
 			} else {
@@ -2429,9 +2465,10 @@ struct HyperOpCreationPass: public ModulePass {
 					callSiteCopy.pop_front();
 				}
 			}
-			if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &mainFunction->back()) != accumulatedBasicBlocks.end()) {
-				isKernelExit = true;
-			}
+			//Force a new exit HyperOp
+//			if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &mainFunction->back()) != accumulatedBasicBlocks.end()) {
+//				isKernelExit = true;
+//			}
 			//TODO This bit is commented out because all calls are inlined anyway to reduce the overheads of hyperop launch at the price of code movement cost, only dynamic instances would exist if there are function calls and they shouldn't be left hanging as exit nodes
 			//But one does need to explore the possibility of balancing computation launch overheads with code movement overheads, this can be balanced by some value analysis
 //			//last instruction in redefine_start is a call
