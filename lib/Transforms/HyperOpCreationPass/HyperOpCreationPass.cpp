@@ -894,7 +894,8 @@ struct HyperOpCreationPass: public ModulePass {
 		M.dump();
 		//Parallel loop and its induction variable so that the loop can be flattened into IR
 		list<pair<list<BasicBlock*>, LoopIV*> > parallelLoopAndIVMap;
-		list<pair<list<BasicBlock*>, LoopIV*> > originalLoopBB;
+		list<pair<list<BasicBlock*>, LoopIV*> > originalParallelLoopBB;
+		list<pair<list<BasicBlock*>, LoopIV*> > originalSerialLoopBB;
 //		list<pair<Loop*, LoopIV*> > parallelLoopAndIVMap;
 		//List of all functions created for parallel loops
 		list<Function*> parallelLoopFunctionList;
@@ -904,7 +905,16 @@ struct HyperOpCreationPass: public ModulePass {
 				DependenceAnalysis& depAnalysis = getAnalysis<DependenceAnalysis>(*func);
 				LoopInfo& LI = getAnalysis<LoopInfo>(*func);
 				//Lets check if there are loop carried dependences
-				for (LoopInfo::iterator loopItr = LI.begin(); loopItr != LI.end(); loopItr++) {
+				int count=0;
+				for (LoopInfo::iterator loopItr = LI.begin(); loopItr != LI.end(); loopItr++, count++) {
+				}
+				int loopCountSecond=0;
+				for (LoopInfo::iterator loopItr = LI.begin(); loopItr != LI.end(); loopItr++, loopCountSecond++) {
+					if(loopCountSecond==count){
+						break;
+					}
+					errs()<<"iterating here with loop:";
+					(*loopItr)->dump();
 					Function* loopParent = (*loopItr)->getHeader()->getParent();
 					errs() << "loop from parent:" << loopParent->getName() << "\n";
 					if (find(parallelLoopFunctionList.begin(), parallelLoopFunctionList.end(), loopParent) != parallelLoopFunctionList.end()) {
@@ -1210,134 +1220,133 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 
 					for (i = 0; i < maxLevels; i++) {
-						if (executionOrder[i] == PARALLEL) {
-							errs() << "which level is parallel exactly?" << i << "\n";
-							//Find the bound of the loop at that level
-							list<Loop*> loopsAtDepth = nestedLoopDepth[i + 1];
-							Loop* currentLoop = loopsAtDepth.front();
-							LoopIV* loopIVObject = NULL;
-							if (currentLoop->getExitBlock() != NULL) {
-								//Assuming no overflows in integer, because there's an add 1 in the method invoked in the next line for god knows what reason
-								PHINode* inductionVariable = currentLoop->getCanonicalInductionVariable();
-								unsigned upperBound = SE.getSmallConstantTripCount(currentLoop, currentLoop->getExitBlock()) - 1;
-								unsigned lowerBound;
-								Value* stride;
-								unsigned strideUpdateOperation;
-								const char* strideUpdateOperationName;
-								LoopIV::Type type;
-								//Compute stride over the induction variable
-								map<BasicBlock*, Value*> entryBBToInductionVarPHI;
-								for (auto phiOperandItr = 0; phiOperandItr != inductionVariable->getNumIncomingValues(); phiOperandItr++) {
-									BasicBlock* incomingBlock = inductionVariable->getIncomingBlock(phiOperandItr);
-									if (find(currentLoop->getBlocks().begin(), currentLoop->getBlocks().end(), incomingBlock) != currentLoop->getBlocks().end()) {
-										entryBBToInductionVarPHI.insert(make_pair(incomingBlock, inductionVariable->getIncomingValue(phiOperandItr)));
-//									}else{
-//										//TODO assuming that the lower bound is a constant value for now
-//										assert(isa<ConstantInt>(inductionVariable->getIncomingValue(phiOperandItr))&&"Unsupported variable initial values to induction variables");
-//										lowerBound = ((ConstantInt*)inductionVariable->getIncomingValue(phiOperandItr))->getValue().getSExtValue();
-									}
-								}
-								assert(entryBBToInductionVarPHI.size() == 1 && "Multiple exit block loop unsupported");
-								//We can't support multiple strides for parallelism or support any operation other than binary or shift operations
-								for (auto entryBBItr = entryBBToInductionVarPHI.begin(); entryBBItr != entryBBToInductionVarPHI.end(); entryBBItr++) {
-									BasicBlock* incomingBlock = entryBBItr->first;
-									Value* incomingValue = entryBBItr->second;
-									//Check what the increment on incomingValue is
-									for (auto instItr = incomingBlock->begin(); instItr != incomingBlock->end(); instItr++) {
-										if (incomingValue == instItr) {
-											for (unsigned i = 0; i < instItr->getNumOperands(); i++) {
-												Value* operand = instItr->getOperand(i);
-												if (operand != inductionVariable && (instItr->isBinaryOp() || instItr->isShift())) {
-													strideUpdateOperation = instItr->getOpcode();
-													strideUpdateOperationName = instItr->getOpcodeName();
-													stride = operand;
-													break;
-												}
-											}
+						list<Loop*> loopsAtDepth = nestedLoopDepth[i + 1];
+						Loop* currentLoop = loopsAtDepth.front();
+						LoopIV* loopIVObject = NULL;
+						//Assuming no overflows in integer, because there's an add 1 in the method invoked in the next line for god knows what reason
+						PHINode* inductionVariable = currentLoop->getCanonicalInductionVariable();
+						unsigned upperBound = SE.getSmallConstantTripCount(currentLoop, currentLoop->getExitBlock()) - 1;
+						unsigned lowerBound;
+						Value* stride;
+						unsigned strideUpdateOperation;
+						const char* strideUpdateOperationName;
+						LoopIV::Type type;
+						//Compute stride over the induction variable
+						map<BasicBlock*, Value*> entryBBToInductionVarPHI;
+						for (auto phiOperandItr = 0; phiOperandItr != inductionVariable->getNumIncomingValues(); phiOperandItr++) {
+							BasicBlock* incomingBlock = inductionVariable->getIncomingBlock(phiOperandItr);
+							if (find(currentLoop->getBlocks().begin(), currentLoop->getBlocks().end(), incomingBlock) != currentLoop->getBlocks().end()) {
+								entryBBToInductionVarPHI.insert(make_pair(incomingBlock, inductionVariable->getIncomingValue(phiOperandItr)));
+								//									}else{
+								//										//TODO assuming that the lower bound is a constant value for now
+								//										assert(isa<ConstantInt>(inductionVariable->getIncomingValue(phiOperandItr))&&"Unsupported variable initial values to induction variables");
+								//										lowerBound = ((ConstantInt*)inductionVariable->getIncomingValue(phiOperandItr))->getValue().getSExtValue();
+							}
+						}
+						assert(entryBBToInductionVarPHI.size() == 1 && "Multiple exit block loop unsupported");
+						//We can't support multiple strides for parallelism or support any operation other than binary or shift operations
+						for (auto entryBBItr = entryBBToInductionVarPHI.begin(); entryBBItr != entryBBToInductionVarPHI.end(); entryBBItr++) {
+							BasicBlock* incomingBlock = entryBBItr->first;
+							Value* incomingValue = entryBBItr->second;
+							//Check what the increment on incomingValue is
+							for (auto instItr = incomingBlock->begin(); instItr != incomingBlock->end(); instItr++) {
+								if (incomingValue == instItr) {
+									for (unsigned i = 0; i < instItr->getNumOperands(); i++) {
+										Value* operand = instItr->getOperand(i);
+										if (operand != inductionVariable && (instItr->isBinaryOp() || instItr->isShift())) {
+											strideUpdateOperation = instItr->getOpcode();
+											strideUpdateOperationName = instItr->getOpcodeName();
+											stride = operand;
+											break;
 										}
 									}
 								}
-								bool useTripCount = true;
-								if (isa<SCEVConstant>(SE.getBackedgeTakenCount(currentLoop))) {
-									ConstantInt* Result = ((SCEVConstant*) SE.getBackedgeTakenCount(currentLoop))->getValue();
-									if (!Result || Result->getValue().getActiveBits() > 32 || Result->getValue().getActiveBits() == 0) {
-										useTripCount = false;
-									}
-								} else {
-									useTripCount = false;
-								}
-								errs() << (SE.getBackedgeTakenCount(currentLoop) == SE.getCouldNotCompute()) << ", " << SE.getSmallConstantTripMultiple(currentLoop, currentLoop->getExitBlock()) << "\n";
-								Value* loopBound = NULL;
-								if (!useTripCount) {
-									for (auto instItr = currentLoop->getHeader()->begin(); instItr != currentLoop->getHeader()->end(); instItr++) {
-										if (isa<CmpInst>(instItr)) {
-											bool isBoundCompareInst = false;
-											for (int i = 0; i < instItr->getNumOperands(); i++) {
-												if (instItr->getOperand(i) == inductionVariable) {
-													///Check if the use of this comparison instruction translates to a backedge in the loop
-													for (auto useItr = instItr->use_begin(); useItr != instItr->use_end(); useItr++) {
-														if (isa<BranchInst>(*useItr)) {
-															for (unsigned i = 0; i < ((BranchInst*) *useItr)->getNumSuccessors(); i++) {
-																if (((BranchInst*) *useItr)->getSuccessor(i) == currentLoop->getExitBlock()) {
-																	isBoundCompareInst = true;
-																	break;
-																}
-															}
-															if (isBoundCompareInst) {
-																break;
-															}
+							}
+						}
+						bool useTripCount = true;
+						if (isa<SCEVConstant>(SE.getBackedgeTakenCount(currentLoop))) {
+							ConstantInt* Result = ((SCEVConstant*) SE.getBackedgeTakenCount(currentLoop))->getValue();
+							if (!Result || Result->getValue().getActiveBits() > 32 || Result->getValue().getActiveBits() == 0) {
+								useTripCount = false;
+							}
+						} else {
+							useTripCount = false;
+						}
+						errs() << (SE.getBackedgeTakenCount(currentLoop) == SE.getCouldNotCompute()) << ", " << SE.getSmallConstantTripMultiple(currentLoop, currentLoop->getExitBlock()) << "\n";
+						Value* loopBound = NULL;
+						if (!useTripCount) {
+							for (auto instItr = currentLoop->getHeader()->begin(); instItr != currentLoop->getHeader()->end(); instItr++) {
+								if (isa<CmpInst>(instItr)) {
+									bool isBoundCompareInst = false;
+									for (int i = 0; i < instItr->getNumOperands(); i++) {
+										if (instItr->getOperand(i) == inductionVariable) {
+											///Check if the use of this comparison instruction translates to a backedge in the loop
+											for (auto useItr = instItr->use_begin(); useItr != instItr->use_end(); useItr++) {
+												if (isa<BranchInst>(*useItr)) {
+													for (unsigned i = 0; i < ((BranchInst*) *useItr)->getNumSuccessors(); i++) {
+														if (((BranchInst*) *useItr)->getSuccessor(i) == currentLoop->getExitBlock()) {
+															isBoundCompareInst = true;
+															break;
 														}
 													}
 													if (isBoundCompareInst) {
 														break;
 													}
 												}
-												if (isBoundCompareInst) {
-													break;
-												}
 											}
-
 											if (isBoundCompareInst) {
-												instItr->dump();
-												//Find the operand being compared with
-												for (int i = 0; i < instItr->getNumOperands(); i++) {
-													if (instItr->getOperand(i) != inductionVariable) {
-														loopBound = instItr->getOperand(i);
-														break;
-													}
-												}
+												break;
 											}
 										}
-										if (loopBound != NULL) {
+										if (isBoundCompareInst) {
 											break;
 										}
 									}
-									assert(loopBound!=NULL&&"Loop bound can't be null\n");
-									//Check if loopbound is undefined recursively
-									bool undefVal = false;
-									list<Value*> traverseOperands;
-									traverseOperands.push_back(loopBound);
-									while (!traverseOperands.empty()) {
-										Value* val = traverseOperands.front();
-										traverseOperands.pop_front();
-										if (val->getValueID() == Value::UndefValueVal) {
-											undefVal = true;
-											break;
-										}
 
-										for (auto operandCount = 0; operandCount != ((Instruction*) val)->getNumOperands(); operandCount++) {
-											traverseOperands.push_back(((Instruction*) val)->getOperand(operandCount));
+									if (isBoundCompareInst) {
+										instItr->dump();
+										//Find the operand being compared with
+										for (int i = 0; i < instItr->getNumOperands(); i++) {
+											if (instItr->getOperand(i) != inductionVariable) {
+												loopBound = instItr->getOperand(i);
+												break;
+											}
 										}
 									}
-									assert(!undefVal && "Loop bound wasn't initialized to a valid value, this is against ansi c standards, but its incorrect logically anyway\n");
-									type = LoopIV::VARIABLE;
-								} else {
-									type = LoopIV::CONSTANT;
 								}
-								loopIVObject = new LoopIV(type, lowerBound, upperBound - 1, stride, inductionVariable, loopBound, strideUpdateOperation, strideUpdateOperationName);
-								list<BasicBlock*> loopBBList;
-								std::copy(currentLoop->getBlocks().begin(), currentLoop->getBlocks().end(), std::back_inserter(loopBBList));
-								originalLoopBB.push_back(make_pair(loopBBList, loopIVObject));
+								if (loopBound != NULL) {
+									break;
+								}
+							}
+							assert(loopBound!=NULL&&"Loop bound can't be null\n");
+							//Check if loopbound is undefined recursively
+							bool undefVal = false;
+							list<Value*> traverseOperands;
+							traverseOperands.push_back(loopBound);
+							while (!traverseOperands.empty()) {
+								Value* val = traverseOperands.front();
+								traverseOperands.pop_front();
+								if (val->getValueID() == Value::UndefValueVal) {
+									undefVal = true;
+									break;
+								}
+
+								for (auto operandCount = 0; operandCount != ((Instruction*) val)->getNumOperands(); operandCount++) {
+									traverseOperands.push_back(((Instruction*) val)->getOperand(operandCount));
+								}
+							}
+							assert(!undefVal && "Loop bound wasn't initialized to a valid value, this is against ansi c standards, but its incorrect logically anyway\n");
+							type = LoopIV::VARIABLE;
+						} else {
+							type = LoopIV::CONSTANT;
+						}
+						loopIVObject = new LoopIV(type, lowerBound, upperBound - 1, stride, inductionVariable, loopBound, strideUpdateOperation, strideUpdateOperationName);
+						list<BasicBlock*> loopBBList;
+						std::copy(currentLoop->getBlocks().begin(), currentLoop->getBlocks().end(), std::back_inserter(loopBBList));
+						if (executionOrder[i] == PARALLEL) {
+							//Find the bound of the loop at that level
+							if (currentLoop->getExitBlock() != NULL) {
+								originalParallelLoopBB.push_back(make_pair(loopBBList, loopIVObject));
 							}
 
 							vector<BasicBlock*> containedBlocks;
@@ -1347,9 +1356,9 @@ struct HyperOpCreationPass: public ModulePass {
 								std::copy(innerLoop->getBlocks().begin(), innerLoop->getBlocks().end(), std::back_inserter(containedBlocks));
 								containsLoop = true;
 							} else {
-								errs() << "which blocks are we adding?\n";
+//								errs() << "which blocks are we adding WHILE EXCLUDING "<<currentLoop->getLoopLatch()->getName()<<","<<currentLoop->getExitBlock()->getName()<<", "<<currentLoop->getHeader()->getName()<<"\n"
 								for (auto bbItr : currentLoop->getBlocksVector()) {
-									if (bbItr != currentLoop->getLoopLatch() || bbItr != currentLoop->getExitBlock() || bbItr != currentLoop->getHeader()) {
+									if (bbItr != currentLoop->getLoopLatch() && bbItr != currentLoop->getExitBlock() && bbItr != currentLoop->getHeader()) {
 										errs() << bbItr->getName() << ",";
 										containedBlocks.push_back(bbItr);
 									}
@@ -1358,6 +1367,8 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 							CodeExtractor* extractor = new CodeExtractor(containedBlocks);
 							Function* innerLoopFunction = extractor->extractCodeRegion();
+							errs() << "inner loop function:";
+							innerLoopFunction->dump();
 							parallelLoopFunctionList.push_back(innerLoopFunction);
 							functionList.push_back(innerLoopFunction);
 							LoopInfo& innerLoopInfo = getAnalysis<LoopInfo>(*innerLoopFunction);
@@ -1367,29 +1378,29 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 							parallelLoopAndIVMap.push_back(make_pair(currentBBList, loopIVObject));
 
-							for (auto innerLoopItr = innerLoopInfo.begin(); innerLoopItr != innerLoopInfo.end(); innerLoopItr++) {
-								Loop* innerLoop = *innerLoopItr;
-								map<unsigned, list<Loop*> > tempNestedLoopDepth;
-								list<Loop*> loopQueue;
-								loopQueue.push_back(innerLoop);
-								while (!loopQueue.empty()) {
-									Loop* currentLoop = loopQueue.front();
-									loopQueue.pop_front();
-									unsigned currentLoopDepth = currentLoop->getLoopDepth();
-									list<Loop*> loopsAtDepth;
-									if (tempNestedLoopDepth.find(currentLoopDepth) != tempNestedLoopDepth.end()) {
-										loopsAtDepth = tempNestedLoopDepth[currentLoopDepth];
-										tempNestedLoopDepth.erase(currentLoopDepth);
-									}
-									loopsAtDepth.push_back(currentLoop);
-									tempNestedLoopDepth.insert(make_pair(currentLoopDepth, loopsAtDepth));
+							if (containsLoop) {
+								for (auto innerLoopItr = innerLoopInfo.begin(); innerLoopItr != innerLoopInfo.end(); innerLoopItr++) {
+									Loop* innerLoop = *innerLoopItr;
+									map<unsigned, list<Loop*> > tempNestedLoopDepth;
+									list<Loop*> loopQueue;
+									loopQueue.push_back(innerLoop);
+									while (!loopQueue.empty()) {
+										Loop* currentLoop = loopQueue.front();
+										loopQueue.pop_front();
+										unsigned currentLoopDepth = currentLoop->getLoopDepth();
+										list<Loop*> loopsAtDepth;
+										if (tempNestedLoopDepth.find(currentLoopDepth) != tempNestedLoopDepth.end()) {
+											loopsAtDepth = tempNestedLoopDepth[currentLoopDepth];
+											tempNestedLoopDepth.erase(currentLoopDepth);
+										}
+										loopsAtDepth.push_back(currentLoop);
+										tempNestedLoopDepth.insert(make_pair(currentLoopDepth, loopsAtDepth));
 
-									for (auto subLoopItr = currentLoop->getSubLoops().begin(); subLoopItr != currentLoop->getSubLoops().end(); subLoopItr++) {
-										loopQueue.push_back(*subLoopItr);
+										for (auto subLoopItr = currentLoop->getSubLoops().begin(); subLoopItr != currentLoop->getSubLoops().end(); subLoopItr++) {
+											loopQueue.push_back(*subLoopItr);
+										}
 									}
-								}
 
-								if (containsLoop) {
 									//Replace whatever is contained in the nestedLoopDepth map with the new loops
 									for (auto nestedLoopItr = nestedLoopDepth.begin(); nestedLoopItr != nestedLoopDepth.end(); nestedLoopItr++) {
 										unsigned key = nestedLoopItr->first;
@@ -1397,6 +1408,15 @@ struct HyperOpCreationPass: public ModulePass {
 											nestedLoopDepth[key] = tempNestedLoopDepth[key - i - 1];
 										}
 									}
+								}
+							}
+						} else {
+							//if the loop contains parallel loops within
+							for (unsigned j = i + 1; j < maxLevels; j++) {
+								if (executionOrder[j] == PARALLEL) {
+									list<Loop*> loopsAtDepth = nestedLoopDepth[i + 1];
+									originalSerialLoopBB.push_back(make_pair(loopBBList, loopIVObject));
+									break;
 								}
 							}
 						}
@@ -1452,6 +1472,7 @@ struct HyperOpCreationPass: public ModulePass {
 					loopList.push_back(*loopItr);
 					while (!loopList.empty()) {
 						Loop* currentLoop = loopList.front();
+						errs() << "caching loop with latch:" << currentLoop->getLoopLatch()->getName() << "\n";
 						loopsOfFunction.push_back(currentLoop);
 						loopList.pop_front();
 						for (auto subLoopItr : currentLoop->getSubLoopsVector()) {
@@ -1459,15 +1480,17 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 				}
+				list<pair<list<BasicBlock*>, LoopIV*> > tempLoopBlocks;
+				std::copy(originalParallelLoopBB.begin(), originalParallelLoopBB.end(), std::back_inserter(tempLoopBlocks));
+				std::copy(originalSerialLoopBB.begin(), originalSerialLoopBB.end(), std::back_inserter(tempLoopBlocks));
 				for (auto loopItr = loopsOfFunction.begin(); loopItr != loopsOfFunction.end(); loopItr++) {
 					Loop* loop = *loopItr;
-					for (auto parallelLevelItr = originalLoopBB.begin(); parallelLevelItr != originalLoopBB.end(); parallelLevelItr++) {
+					for (auto parallelLevelItr = tempLoopBlocks.begin(); parallelLevelItr != tempLoopBlocks.end(); parallelLevelItr++) {
 						if (find(parallelLevelItr->first.begin(), parallelLevelItr->first.end(), bbItr) != parallelLevelItr->first.end()) {
 							if (bbItr == loop->getLoopLatch()) {
 								latchBlock = true;
 								originalLatchBB.push_back(bbItr);
 								loopIV = parallelLevelItr->second;
-								errs() << "latch block was set to true but iv null?" << loopIV << "\n";
 							} else if (bbItr == loop->getHeader()) {
 								originalHeaderBB.push_back(bbItr);
 							}
@@ -1475,6 +1498,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
+				errs() << "is a latch" << latchBlock << "\n";
 				bool canAcquireBBItr = true;
 				//If basic block is not the entry block
 				if (bbItr != &(function->getEntryBlock())) {
@@ -1722,7 +1746,10 @@ struct HyperOpCreationPass: public ModulePass {
 
 								//Find the call instruction in the accumulated bbs
 								BasicBlock* parentBB = ((Instruction*) argument)->getParent();
-								for (auto loopItr = originalLoopBB.begin(); loopItr != originalLoopBB.end(); loopItr++) {
+								list<pair<list<BasicBlock*>, LoopIV*> > tempLoopBlocks;
+								std::copy(originalParallelLoopBB.begin(), originalParallelLoopBB.end(), std::back_inserter(tempLoopBlocks));
+								std::copy(originalSerialLoopBB.begin(), originalSerialLoopBB.end(), std::back_inserter(tempLoopBlocks));
+								for (auto loopItr = tempLoopBlocks.begin(); loopItr != tempLoopBlocks.end(); loopItr++) {
 									auto loopList = loopItr->first;
 									if (find(loopList.begin(), loopList.end(), parentBB) != loopList.end()) {
 										deleteList.push_back(newArgItr);
@@ -2008,7 +2035,10 @@ struct HyperOpCreationPass: public ModulePass {
 					latchBB = true;
 				}
 
-				for (auto parallelLoopItr = originalLoopBB.begin(); parallelLoopItr != originalLoopBB.end(); parallelLoopItr++) {
+				list<pair<list<BasicBlock*>, LoopIV*> > tempLoopBlocks;
+				std::copy(originalParallelLoopBB.begin(), originalParallelLoopBB.end(), std::back_inserter(tempLoopBlocks));
+				std::copy(originalSerialLoopBB.begin(), originalSerialLoopBB.end(), std::back_inserter(tempLoopBlocks));
+				for (auto parallelLoopItr = tempLoopBlocks.begin(); parallelLoopItr != tempLoopBlocks.end(); parallelLoopItr++) {
 					list<BasicBlock*> bbList = parallelLoopItr->first;
 					if (find(bbList.begin(), bbList.end(), *accumulatedBBItr) != bbList.end()) {
 						loopIV = parallelLoopItr->second;
@@ -3286,11 +3316,18 @@ struct HyperOpCreationPass: public ModulePass {
 						conditionalBranchSourceItr->first->dump();
 						errs() << "how many operands?" << conditionalBranchSourceItr->second.size() << "\n";
 						//Update the conditional branch only if the source of jump instruction is in the same HyperOp and is not an indirect jump from elsewhere since we try to deliver only the predicate that needs to be passed
-						if (find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), conditionalBranchSourceItr->second[branchOperandIndex].first) != accumulatedOriginalBasicBlocks.end() && conditionalBranchSourceItr->second[branchOperandIndex].second != -1) {
+//						if (find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), conditionalBranchSourceItr->second[branchOperandIndex].first) != accumulatedOriginalBasicBlocks.end() && conditionalBranchSourceItr->second[branchOperandIndex].second != -1) {
+						if (conditionalBranchSourceItr->second[branchOperandIndex].second != -1) {
 							//Update the cloned conditional branch instruction with the right target
 							int positionToBeUpdated = ConstantInt::get(ctxt, APInt(32, conditionalBranchSourceItr->second[branchOperandIndex].second))->getZExtValue();
 							Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
 							((BranchInst*) clonedInstr)->setSuccessor(positionToBeUpdated, retInstOfProducer->getParent());
+						}else{
+							errs()<<"accumulated bbs in which we are looking for "<<conditionalBranchSourceItr->second[branchOperandIndex].first->getName()<<":";
+							for(auto accumulatedBBItr = accumulatedOriginalBasicBlocks.begin(); accumulatedBBItr!=accumulatedOriginalBasicBlocks.end();accumulatedBBItr++){
+								errs()<<(*accumulatedBBItr)->getName()<<"\n";
+							}
+							errs()<<"bb not in accumulated bb list?"<<(find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), conditionalBranchSourceItr->second[branchOperandIndex].first)!= accumulatedOriginalBasicBlocks.end())<<", second half of conditional:"<<(conditionalBranchSourceItr->second[branchOperandIndex].second != -1)<<"\n";
 						}
 					}
 
