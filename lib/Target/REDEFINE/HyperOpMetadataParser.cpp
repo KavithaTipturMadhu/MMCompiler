@@ -6,6 +6,7 @@
  */
 
 #include "HyperOpMetadataParser.h"
+#include "llvm/Support/Debug.h"
 
 HyperOpMetadataParser::HyperOpMetadataParser() {
 	// TODO Auto-generated constructor stub
@@ -52,17 +53,17 @@ AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Instruction* sourceIns
 	return NULL;
 }
 
-list<StringRef> parseInstanceIdString(StringRef instanceTag) {
+list<StringRef> parseInstanceIdString(StringRef instanceTag, char seperator = ',') {
 	list<StringRef> instanceId;
 //Parse string to get a list of identifiers
 	instanceTag = instanceTag.drop_back();
 	instanceTag = instanceTag.drop_front();
 	StringRef tempString = instanceTag;
 	while (!tempString.empty()) {
-		pair<StringRef, StringRef> tokens = tempString.split(',');
+		pair<StringRef, StringRef> tokens = tempString.split(seperator);
 		StringRef idPart = tokens.first;
-		tempString = tokens.second;
 		instanceId.push_back(idPart);
+		tempString = tokens.second;
 	}
 	return instanceId;
 }
@@ -71,23 +72,21 @@ bool inline hyperOpInList(HyperOp* hyperOp, list<HyperOp*> traversedList) {
 	return (std::find(traversedList.begin(), traversedList.end(), hyperOp) != traversedList.end());
 }
 
-pair<list<unsigned>, bool > parseInstanceId(StringRef instanceTag) {
+list<unsigned> parseInstanceId(StringRef instanceTag) {
 	list<StringRef> parsedList = parseInstanceIdString(instanceTag);
 	list<unsigned> parsedIntegerList;
-	bool isRange = false;
+//	bool isRange = false;
 	for (list<StringRef>::iterator stringItr = parsedList.begin(); stringItr != parsedList.end(); stringItr++) {
 		APInt id;
 		pair<StringRef, StringRef> splitString = stringItr->split(',');
 		splitString.first.getAsInteger(0, id);
-		if(stringItr->find(',')!=StringRef::npos){
-			isRange = true;
-		}
+//		if(stringItr->find(':')!=StringRef::npos){
+//			isRange = true;
+//		}
 		parsedIntegerList.push_back(id.getZExtValue());
 	}
-	pair<list<unsigned>, bool > instanceIdWithRange;
-	instanceIdWithRange = make_pair(parsedIntegerList, isRange);
 
-	return instanceIdWithRange;
+	return parsedIntegerList;
 }
 
 //Take care of unrolling here so that unrolling is performed in a target aware manner instead of at the front end which doesn't know what the target params are
@@ -119,14 +118,26 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					hyperOp->setInstanceof((Function *) hyperOpMDNode->getOperand(3));
 					hyperOp->setFbindRequired(true);
 					StringRef instanceTag = ((MDString*) hyperOpMDNode->getOperand(4))->getName();
-					pair<list<unsigned> , bool> parsedId = parseInstanceId(instanceTag);
-					hyperOp->setInstanceId(parsedId.first);
-					if(parsedId.second){
+					list<unsigned> parsedId = parseInstanceId(instanceTag);
+					hyperOp->setInstanceId(parsedId);
+					if (hyperOpMDNode->getNumOperands() > 5) {
 						hyperOp->setInRange();
+						StringRef rangeTag = ((MDString*) hyperOpMDNode->getOperand(5))->getName();
+						list<StringRef> parsedList = parseInstanceIdString(rangeTag, ':');
+						assert(parsedList.size() == 3 && "Invalid range format");
+						StringRef lowerBound = parsedList.front().data();
+						parsedList.pop_front();
+						StringRef upperBound = parsedList.front().data();
+						parsedList.pop_front();
+						StringRef strideFunction = parsedList.front();
+						pair<StringRef, StringRef> functionAndStride = strideFunction.split('(');
+						StringRef function = functionAndStride.first;
+						pair<StringRef, StringRef> strideSplit = functionAndStride.second.split(")");
+						StringRef stride = strideSplit.first;
 					}
 				}
 				graph->addHyperOp(hyperOp);
-				errs() << "new hyop#" << hyperOp->getHyperOpId() << ":" << hyperOp->asString() << "\n";
+				DEBUG(dbgs() << "new hyop#" << hyperOp->getHyperOpId() << ":" << hyperOp->asString() << "\n");
 				hyperOpMetadataMap.insert(std::make_pair(hyperOpMDNode, hyperOp));
 				functionMetadataMap.insert(std::make_pair(function, hyperOpMDNode));
 			}
@@ -401,10 +412,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 						}
 					}
 					MDNode* rangeMDNode = instr->getMetadata(HYPEROP_RANGE);
-					if(rangeMDNode!=0){
+					if (rangeMDNode != 0) {
 						for (unsigned rangeMDNodeIndex = 0; rangeMDNodeIndex != rangeMDNode->getNumOperands(); rangeMDNodeIndex++) {
 							MDNode* indirectionNode = (MDNode*) rangeMDNode->getOperand(rangeMDNodeIndex);
-							if(indirectionNode!=0){
+							if (indirectionNode != 0) {
 								MDNode* hyperOpMDNode = (MDNode*) indirectionNode->getOperand(0);
 								HyperOp* consumerDynamicHyperOp = hyperOpMetadataMap[hyperOpMDNode];
 								//Add an edge from the HyperOp housing the range node

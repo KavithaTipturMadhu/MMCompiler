@@ -200,6 +200,7 @@ PHyperOpInteractionGraph HyperOp::getpHyperOpDependenceMap() {
 void HyperOp::setpHyperOpDependenceMap(PHyperOpInteractionGraph dependenceMap) {
 	this->pHopDependenceMap = dependenceMap;
 }
+
 void HyperOp::setHyperOpId(unsigned hyperOpId) {
 	this->hyperOpId = hyperOpId;
 }
@@ -292,10 +293,10 @@ void HyperOp::setPredicatedHyperOp() {
 	this->IsPredicated = true;
 }
 
-void HyperOp::setInRange(){
+void HyperOp::setInRange() {
 	this->InRange = true;
 }
-bool HyperOp::getInRange(){
+bool HyperOp::getInRange() {
 	return this->InRange;
 }
 bool HyperOp::isStartHyperOp() {
@@ -537,6 +538,29 @@ void HyperOp::setFrameNeedsGC(bool gcRequired) {
 
 list<unsigned int> HyperOp::getTopLevel() {
 	return this->topLevel;
+}
+unsigned HyperOp::getInductionVarUpdateFunc(){
+	return inductionVarUpdateFunc;
+}
+
+void HyperOp::setInductionVarUpdateFunc(unsigned inductionVarUpdateFunc) {
+	this->inductionVarUpdateFunc = inductionVarUpdateFunc;
+}
+
+Value* HyperOp::getRangeUpperBound(){
+	return rangeUpperBound;
+}
+
+void HyperOp::setRangeUpperBound(Value* rangeUpperBound) {
+	this->rangeUpperBound = rangeUpperBound;
+}
+
+Value* HyperOp::getStride() {
+	return stride;
+}
+
+void HyperOp::setStride(Value* stride) {
+	this->stride = stride;
 }
 
 HyperOpEdge::HyperOpEdge() {
@@ -1131,7 +1155,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 			//Address also needs to be forwarded to the HyperOp deleting the context frame
 			if ((*tempItr)->isPredicatedHyperOp() && liveEndOfVertex != 0 && liveEndOfVertex == vertex && *tempItr != vertex && find(originalDomFrontier.begin(), originalDomFrontier.end(), *tempItr) == originalDomFrontier.end()) {
 //						&& !(*tempItr)->isStaticHyperOp() && ) {
-				errs() << "added for deletion:"<<(*tempItr)->asString()<<"\n";
+				errs() << "added for deletion:" << (*tempItr)->asString() << "\n";
 				vertexDomFrontier.push_back(*tempItr);
 			}
 		}
@@ -3805,7 +3829,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			errs() << "updating node with incoming sync edges " << hyperOp->asString() << "\n";
 			list<HyperOp*> syncSourceList;
 			for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
-				if (!parentItr->second->getInRange()&&parentItr->first->getType() == HyperOpEdge::SYNC && find(syncSourceList.begin(), syncSourceList.end(), parentItr->second) == syncSourceList.end()) {
+				if (!parentItr->second->getInRange() && parentItr->first->getType() == HyperOpEdge::SYNC && find(syncSourceList.begin(), syncSourceList.end(), parentItr->second) == syncSourceList.end()) {
 					syncSourceList.push_back(parentItr->second);
 				}
 			}
@@ -3912,8 +3936,8 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 					os << "order";
 				} else if (edge->Type == HyperOpEdge::SYNC) {
 					os << "sync";
-				}else if(edge->Type == HyperOpEdge::RANGE){
-					os<<"range";
+				} else if (edge->Type == HyperOpEdge::RANGE) {
+					os << "range";
 				}
 				os << "];\n";
 			}

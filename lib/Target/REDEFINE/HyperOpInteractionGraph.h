@@ -112,6 +112,10 @@ class HyperOp {
 	bool IsIntermediate;
 	bool IsPredicated;
 	bool InRange;
+	Value* rangeUpperBound;
+	Value* rangeLowerBound;
+	Value* stride;
+	unsigned inductionVarUpdateFunc;
 	unsigned int TargetResource;
 	unsigned contextFrame;
 	list<unsigned int> executionTimeEstimate;
@@ -206,6 +210,12 @@ public:
 	void setFunction(Function* function);
 	PHyperOpInteractionGraph getpHyperOpDependenceMap();
 	void setpHyperOpDependenceMap(PHyperOpInteractionGraph);
+	unsigned getInductionVarUpdateFunc() ;
+	void setInductionVarUpdateFunc(unsigned inductionVarUpdateFunc);
+	Value* getRangeUpperBound() ;
+	void setRangeUpperBound(Value* rangeUpperBound);
+	Value* getStride();
+	void setStride(Value* stride);
 };
 
 class HyperOpInteractionGraph {
