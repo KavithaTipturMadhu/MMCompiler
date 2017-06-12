@@ -348,7 +348,7 @@ struct HyperOpCreationPass: public ModulePass {
 				//Reverse iterator so that the last store is encountered first
 				for (BasicBlock::reverse_iterator instrItr = originalBB->rbegin(); instrItr != originalBB->rend(); instrItr++) {
 					Instruction* instr = &*instrItr;
-					if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(0) == globalVariable && reachingDefinitions.find(originalBB) == reachingDefinitions.end()) {
+					if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(0) == globalVariable && reachingDefinitions.find(originalBB) == reachingDefinitions.end()) {
 						//Check if the store instruction is reachable to any of the uses of the argument in the accumulated bb list
 						for (Value::use_iterator useItr = globalVariable->use_begin(); useItr != globalVariable->use_end(); useItr++) {
 							User* user = *useItr;
@@ -405,7 +405,7 @@ struct HyperOpCreationPass: public ModulePass {
 					Instruction* instr = instrItr;
 					//Check the uses in BasicBlocks that are predecessors and use allocInstr
 					list<BasicBlock*> visitedBasicBlocks;
-					if (isa<StoreInst>(instr) && ((StoreInst*) instr)->getOperand(1) == useInstr && (pathExistsInCFG(useInstr->getParent(), originalBB, visitedBasicBlocks) || useInstr->getParent() == originalBB)) {
+					if (isa < StoreInst > (instr) &&((StoreInst*) instr)->getOperand(1) == useInstr && (pathExistsInCFG(useInstr->getParent(), originalBB, visitedBasicBlocks) || useInstr->getParent() == originalBB)) {
 						//Check if there is a path from the current BB to any of the accumulated bbs
 						bool pathExistsToAccumulatedBB = false;
 						for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
@@ -460,7 +460,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 	HyperOpArgumentType supportedArgType(Value* argument, Module &m, Instruction* parentInstruction) {
 		//Memory location needs to be passed as a different type since all its uses need to be replaced with a different type, but it won't see realization in metadata
-		if (isa<StoreInst>(parentInstruction) && ((StoreInst*) parentInstruction)->getOperand(1) == argument) {
+		if (isa < StoreInst > (parentInstruction) &&((StoreInst*) parentInstruction)->getOperand(1) == argument) {
 			return ADDRESS;
 		}
 
@@ -905,15 +905,15 @@ struct HyperOpCreationPass: public ModulePass {
 				DependenceAnalysis& depAnalysis = getAnalysis<DependenceAnalysis>(*func);
 				LoopInfo& LI = getAnalysis<LoopInfo>(*func);
 				//Lets check if there are loop carried dependences
-				int count=0;
+				int count = 0;
 				for (LoopInfo::iterator loopItr = LI.begin(); loopItr != LI.end(); loopItr++, count++) {
 				}
-				int loopCountSecond=0;
+				int loopCountSecond = 0;
 				for (LoopInfo::iterator loopItr = LI.begin(); loopItr != LI.end(); loopItr++, loopCountSecond++) {
-					if(loopCountSecond==count){
+					if (loopCountSecond == count) {
 						break;
 					}
-					errs()<<"iterating here with loop:";
+					errs() << "iterating here with loop:";
 					(*loopItr)->dump();
 					Function* loopParent = (*loopItr)->getHeader()->getParent();
 					errs() << "loop from parent:" << loopParent->getName() << "\n";
@@ -1220,6 +1220,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 
 					for (i = 0; i < maxLevels; i++) {
+						errs() << "\n---------\nat level " << i << "\n";
 						list<Loop*> loopsAtDepth = nestedLoopDepth[i + 1];
 						Loop* currentLoop = loopsAtDepth.front();
 						LoopIV* loopIVObject = NULL;
@@ -1343,83 +1344,104 @@ struct HyperOpCreationPass: public ModulePass {
 						loopIVObject = new LoopIV(type, lowerBound, upperBound - 1, stride, inductionVariable, loopBound, strideUpdateOperation, strideUpdateOperationName);
 						list<BasicBlock*> loopBBList;
 						std::copy(currentLoop->getBlocks().begin(), currentLoop->getBlocks().end(), std::back_inserter(loopBBList));
-						if (executionOrder[i] == PARALLEL) {
-							//Find the bound of the loop at that level
-							if (currentLoop->getExitBlock() != NULL) {
-								originalParallelLoopBB.push_back(make_pair(loopBBList, loopIVObject));
-							}
-
-							vector<BasicBlock*> containedBlocks;
-							bool containsLoop = false;
-							if (nestedLoopDepth.find(i + 2) != nestedLoopDepth.end()) {
-								Loop* innerLoop = nestedLoopDepth[i + 2].front();
-								std::copy(innerLoop->getBlocks().begin(), innerLoop->getBlocks().end(), std::back_inserter(containedBlocks));
-								containsLoop = true;
-							} else {
-//								errs() << "which blocks are we adding WHILE EXCLUDING "<<currentLoop->getLoopLatch()->getName()<<","<<currentLoop->getExitBlock()->getName()<<", "<<currentLoop->getHeader()->getName()<<"\n"
-								for (auto bbItr : currentLoop->getBlocksVector()) {
-									if (bbItr != currentLoop->getLoopLatch() && bbItr != currentLoop->getExitBlock() && bbItr != currentLoop->getHeader()) {
-										errs() << bbItr->getName() << ",";
-										containedBlocks.push_back(bbItr);
-									}
-								}
-								errs() << "\n";
-							}
-							CodeExtractor* extractor = new CodeExtractor(containedBlocks);
-							Function* innerLoopFunction = extractor->extractCodeRegion();
-							errs() << "inner loop function:";
-							innerLoopFunction->dump();
-							parallelLoopFunctionList.push_back(innerLoopFunction);
-							functionList.push_back(innerLoopFunction);
-							LoopInfo& innerLoopInfo = getAnalysis<LoopInfo>(*innerLoopFunction);
-							list<BasicBlock*> currentBBList;
-							for (auto bbItr = innerLoopFunction->getBasicBlockList().begin(); bbItr != innerLoopFunction->getBasicBlockList().end(); bbItr++) {
-								currentBBList.push_back(bbItr);
-							}
-							parallelLoopAndIVMap.push_back(make_pair(currentBBList, loopIVObject));
-
-							if (containsLoop) {
-								for (auto innerLoopItr = innerLoopInfo.begin(); innerLoopItr != innerLoopInfo.end(); innerLoopItr++) {
-									Loop* innerLoop = *innerLoopItr;
-									map<unsigned, list<Loop*> > tempNestedLoopDepth;
-									list<Loop*> loopQueue;
-									loopQueue.push_back(innerLoop);
-									while (!loopQueue.empty()) {
-										Loop* currentLoop = loopQueue.front();
-										loopQueue.pop_front();
-										unsigned currentLoopDepth = currentLoop->getLoopDepth();
-										list<Loop*> loopsAtDepth;
-										if (tempNestedLoopDepth.find(currentLoopDepth) != tempNestedLoopDepth.end()) {
-											loopsAtDepth = tempNestedLoopDepth[currentLoopDepth];
-											tempNestedLoopDepth.erase(currentLoopDepth);
-										}
-										loopsAtDepth.push_back(currentLoop);
-										tempNestedLoopDepth.insert(make_pair(currentLoopDepth, loopsAtDepth));
-
-										for (auto subLoopItr = currentLoop->getSubLoops().begin(); subLoopItr != currentLoop->getSubLoops().end(); subLoopItr++) {
-											loopQueue.push_back(*subLoopItr);
-										}
-									}
-
-									//Replace whatever is contained in the nestedLoopDepth map with the new loops
-									for (auto nestedLoopItr = nestedLoopDepth.begin(); nestedLoopItr != nestedLoopDepth.end(); nestedLoopItr++) {
-										unsigned key = nestedLoopItr->first;
-										if (key >= i + 2) {
-											nestedLoopDepth[key] = tempNestedLoopDepth[key - i - 1];
-										}
-									}
-								}
-							}
-						} else {
-							//if the loop contains parallel loops within
+						bool nestedParallelLoop = false;
+						if (executionOrder[i] == SERIAL) {
 							for (unsigned j = i + 1; j < maxLevels; j++) {
 								if (executionOrder[j] == PARALLEL) {
-									list<Loop*> loopsAtDepth = nestedLoopDepth[i + 1];
+									nestedParallelLoop = true;
 									originalSerialLoopBB.push_back(make_pair(loopBBList, loopIVObject));
 									break;
 								}
 							}
+						} else {
+							errs() << "level itself is marked as parallel " << i << "\n";
 						}
+
+						errs()<<"execution order:"<<executionOrder[i]<<", nested?"<<nestedParallelLoop<<", conditional:"<<(executionOrder[i] == SERIAL && !nestedParallelLoop)<<"\n";
+						if (executionOrder[i] == SERIAL && !nestedParallelLoop) {
+							continue;
+						}
+						errs() << "level " << i << " is parallel\n";
+						//Find the bound of the loop at that level
+						if (currentLoop->getExitBlock() != NULL) {
+							originalParallelLoopBB.push_back(make_pair(loopBBList, loopIVObject));
+						}
+
+						vector<BasicBlock*> containedBlocks;
+						bool containsLoop = false;
+						if (nestedLoopDepth.find(i + 2) != nestedLoopDepth.end()) {
+							Loop* innerLoop = nestedLoopDepth[i + 2].front();
+							std::copy(innerLoop->getBlocks().begin(), innerLoop->getBlocks().end(), std::back_inserter(containedBlocks));
+							containsLoop = true;
+						} else {
+							for (auto bbItr : currentLoop->getBlocksVector()) {
+								if (bbItr != currentLoop->getLoopLatch() && bbItr != currentLoop->getExitBlock() && bbItr != currentLoop->getHeader()) {
+									errs() << bbItr->getName() << ",";
+									containedBlocks.push_back(bbItr);
+								}
+							}
+							errs() << "\n";
+						}
+						CodeExtractor* extractor = new CodeExtractor(containedBlocks);
+						Function* innerLoopFunction = extractor->extractCodeRegion();
+						errs() << "inner loop function:";
+						innerLoopFunction->dump();
+						parallelLoopFunctionList.push_back(innerLoopFunction);
+						functionList.push_back(innerLoopFunction);
+						LoopInfo& innerLoopInfo = getAnalysis<LoopInfo>(*innerLoopFunction);
+						list<BasicBlock*> currentBBList;
+						for (auto bbItr = innerLoopFunction->getBasicBlockList().begin(); bbItr != innerLoopFunction->getBasicBlockList().end(); bbItr++) {
+							currentBBList.push_back(bbItr);
+						}
+						parallelLoopAndIVMap.push_back(make_pair(currentBBList, loopIVObject));
+
+						if (containsLoop) {
+							for (auto innerLoopItr = innerLoopInfo.begin(); innerLoopItr != innerLoopInfo.end(); innerLoopItr++) {
+								Loop* innerLoop = *innerLoopItr;
+								map<unsigned, list<Loop*> > tempNestedLoopDepth;
+								list<Loop*> loopQueue;
+								loopQueue.push_back(innerLoop);
+								while (!loopQueue.empty()) {
+									Loop* currentLoop = loopQueue.front();
+									loopQueue.pop_front();
+									unsigned currentLoopDepth = currentLoop->getLoopDepth();
+									list<Loop*> loopsAtDepth;
+									if (tempNestedLoopDepth.find(currentLoopDepth) != tempNestedLoopDepth.end()) {
+										loopsAtDepth = tempNestedLoopDepth[currentLoopDepth];
+										tempNestedLoopDepth.erase(currentLoopDepth);
+									}
+									loopsAtDepth.push_back(currentLoop);
+									tempNestedLoopDepth.insert(make_pair(currentLoopDepth, loopsAtDepth));
+
+									for (auto subLoopItr = currentLoop->getSubLoops().begin(); subLoopItr != currentLoop->getSubLoops().end(); subLoopItr++) {
+										loopQueue.push_back(*subLoopItr);
+									}
+								}
+
+								//Replace whatever is contained in the nestedLoopDepth map with the new loops
+								for (auto nestedLoopItr = nestedLoopDepth.begin(); nestedLoopItr != nestedLoopDepth.end(); nestedLoopItr++) {
+									unsigned key = nestedLoopItr->first;
+									if (key >= i + 2) {
+										nestedLoopDepth[key] = tempNestedLoopDepth[key - i - 1];
+									}
+								}
+							}
+						}
+//						} else {
+//							//if the loop contains parallel loops within
+//							for (unsigned j = i + 1; j < maxLevels; j++) {
+//								if (executionOrder[j] == PARALLEL) {
+//									list<Loop*> loopsAtDepth = nestedLoopDepth[i + 1];
+//									errs() << "adding level i's nodes for parallelism nested inside with bbs:";
+//									for (auto loopBBItr = loopBBList.begin(); loopBBItr != loopBBList.end(); loopBBItr++) {
+//										errs() << (*loopBBItr)->getName() << ",";
+//									}
+//									errs() << "\n";
+//									originalSerialLoopBB.push_back(make_pair(loopBBList, loopIVObject));
+//									break;
+//								}
+//							}
+//						}
 					}
 				}
 			}
@@ -1482,7 +1504,7 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 				list<pair<list<BasicBlock*>, LoopIV*> > tempLoopBlocks;
 				std::copy(originalParallelLoopBB.begin(), originalParallelLoopBB.end(), std::back_inserter(tempLoopBlocks));
-				std::copy(originalSerialLoopBB.begin(), originalSerialLoopBB.end(), std::back_inserter(tempLoopBlocks));
+//				std::copy(originalSerialLoopBB.begin(), originalSerialLoopBB.end(), std::back_inserter(tempLoopBlocks));
 				for (auto loopItr = loopsOfFunction.begin(); loopItr != loopsOfFunction.end(); loopItr++) {
 					Loop* loop = *loopItr;
 					for (auto parallelLevelItr = tempLoopBlocks.begin(); parallelLevelItr != tempLoopBlocks.end(); parallelLevelItr++) {
@@ -1491,14 +1513,14 @@ struct HyperOpCreationPass: public ModulePass {
 								latchBlock = true;
 								originalLatchBB.push_back(bbItr);
 								loopIV = parallelLevelItr->second;
-							} else if (bbItr == loop->getHeader()) {
-								originalHeaderBB.push_back(bbItr);
 							}
 						}
 					}
+					if (bbItr == loop->getHeader()) {
+						originalHeaderBB.push_back(bbItr);
+					}
 				}
 
-				errs() << "is a latch" << latchBlock << "\n";
 				bool canAcquireBBItr = true;
 				//If basic block is not the entry block
 				if (bbItr != &(function->getEntryBlock())) {
@@ -1561,7 +1583,6 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 				}
-
 				if (!canAcquireBBItr) {
 					//Create a HyperOp at this boundary
 					endOfHyperOp = true;
@@ -1644,9 +1665,9 @@ struct HyperOpCreationPass: public ModulePass {
 										continue;
 									}
 								}
-								if (!isa<Constant>(argument) && !argument->getType()->isLabelTy()) {
+								if (!isa < Constant > (argument) &&!argument->getType()->isLabelTy()) {
 									//Find the reaching definition of the argument; alloca instruction maybe followed by store instructions to the memory location, we need to identify the set of store instructions to the memory location that reach the current use of the memory location
-									if (isa<Instruction>(argument) && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
+									if (isa < Instruction > (argument) &&find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), ((Instruction*) argument)->getParent()) != accumulatedBasicBlocks.end()) {
 										continue;
 									}
 
@@ -1748,7 +1769,7 @@ struct HyperOpCreationPass: public ModulePass {
 								BasicBlock* parentBB = ((Instruction*) argument)->getParent();
 								list<pair<list<BasicBlock*>, LoopIV*> > tempLoopBlocks;
 								std::copy(originalParallelLoopBB.begin(), originalParallelLoopBB.end(), std::back_inserter(tempLoopBlocks));
-								std::copy(originalSerialLoopBB.begin(), originalSerialLoopBB.end(), std::back_inserter(tempLoopBlocks));
+//								std::copy(originalSerialLoopBB.begin(), originalSerialLoopBB.end(), std::back_inserter(tempLoopBlocks));
 								for (auto loopItr = tempLoopBlocks.begin(); loopItr != tempLoopBlocks.end(); loopItr++) {
 									auto loopList = loopItr->first;
 									if (find(loopList.begin(), loopList.end(), parentBB) != loopList.end()) {
@@ -1945,7 +1966,7 @@ struct HyperOpCreationPass: public ModulePass {
 			 * (╯°□°)╯︵ ┻━┻
 			 */
 			CallInst* instanceCallSite = callSite.back();
-			if (!callSite.empty() && (isa<CallInst>(instanceCallSite) && (isHyperOpInstanceInCycle(instanceCallSite, cyclesInCallGraph) || find(parallelLoopFunctionList.begin(), parallelLoopFunctionList.end(), instanceCallSite->getCalledFunction()) != parallelLoopFunctionList.end()))) {
+			if (!callSite.empty() && (isa < CallInst > (instanceCallSite) &&(isHyperOpInstanceInCycle(instanceCallSite, cyclesInCallGraph) || find(parallelLoopFunctionList.begin(), parallelLoopFunctionList.end(), instanceCallSite->getCalledFunction()) != parallelLoopFunctionList.end()))) {
 				isStaticHyperOp = false;
 			}
 
@@ -2037,7 +2058,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 				list<pair<list<BasicBlock*>, LoopIV*> > tempLoopBlocks;
 				std::copy(originalParallelLoopBB.begin(), originalParallelLoopBB.end(), std::back_inserter(tempLoopBlocks));
-				std::copy(originalSerialLoopBB.begin(), originalSerialLoopBB.end(), std::back_inserter(tempLoopBlocks));
+//				std::copy(originalSerialLoopBB.begin(), originalSerialLoopBB.end(), std::back_inserter(tempLoopBlocks));
 				for (auto parallelLoopItr = tempLoopBlocks.begin(); parallelLoopItr != tempLoopBlocks.end(); parallelLoopItr++) {
 					list<BasicBlock*> bbList = parallelLoopItr->first;
 					if (find(bbList.begin(), bbList.end(), *accumulatedBBItr) != bbList.end()) {
@@ -2086,7 +2107,7 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 						clonedInst = instItr->clone();
 						errs() << "cloned inst:";
-						if (isa<PHINode>(instItr) && find(originalHeaderBB.begin(), originalHeaderBB.end(), instItr->getParent()) != originalHeaderBB.end()) {
+						if (isa < PHINode > (instItr) &&find(originalHeaderBB.begin(), originalHeaderBB.end(), instItr->getParent()) != originalHeaderBB.end()) {
 							Value* setValue = NULL;
 							BasicBlock* incomingPhiBlock;
 							//There's atleast one incoming phi node
@@ -2212,7 +2233,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 							//Find the definitions added previously which reach the use
 							if (!argUpdated) {
-								if (isa<Constant>(operandToBeReplaced) && isa<PHINode>(instItr)) {
+								if (isa < Constant > (operandToBeReplaced) &&isa<PHINode>(instItr)) {
 									BasicBlock* sourceBB = ((PHINode*) &*instItr)->getIncomingBlock(operandIndex);
 									((PHINode*) clonedInst)->setIncomingBlock(operandIndex, originalToClonedBasicBlockMap[sourceBB]);
 									errs() << "updated to ";
@@ -2700,7 +2721,7 @@ struct HyperOpCreationPass: public ModulePass {
 					} else {
 						clonedInst = getClonedArgument(argOperand, callSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
 					}
-					if (!isa<CallInst>(argOperand) && clonedInst != NULL && isa<LoadInst>(clonedInst) && isa<AllocaInst>(clonedInst->getOperand(0))) {
+					if (!isa < CallInst > (argOperand) &&clonedInst != NULL && isa < LoadInst > (clonedInst) &&isa<AllocaInst>(clonedInst->getOperand(0))) {
 						clonedInst = (AllocaInst*) clonedInst->getOperand(0);
 						//TODO Is this casting correct?
 						replacementArg.insert(make_pair(clonedInst, ((Instruction*) argOperand)->getOperand(0)));
@@ -2923,11 +2944,11 @@ struct HyperOpCreationPass: public ModulePass {
 							Instruction* metadataHost = 0;
 							if (isa<AllocaInst>(clonedDefInst)) {
 								metadataHost = clonedDefInst;
-							} else if (isa<LoadInst>(clonedDefInst) && isArgInList(clonedDefInst->getParent()->getParent(), clonedDefInst->getOperand(0))) {
+							} else if (isa < LoadInst > (clonedDefInst) &&isArgInList(clonedDefInst->getParent()->getParent(), clonedDefInst->getOperand(0))) {
 								//function argument is passed on to another HyperOp, find the first load instruction from the memory location and add metadata to it
 								for (Function::iterator bbItr = clonedDefInst->getParent()->getParent()->begin(); bbItr != clonedDefInst->getParent()->getParent()->end(); bbItr++) {
 									for (BasicBlock::iterator instrItr = bbItr->begin(); instrItr != bbItr->end(); instrItr++) {
-										if (isa<LoadInst>(instrItr) && ((LoadInst*) &instrItr)->getOperand(0) == clonedDefInst->getOperand(0)) {
+										if (isa < LoadInst > (instrItr) &&((LoadInst*) &instrItr)->getOperand(0) == clonedDefInst->getOperand(0)) {
 											metadataHost = instrItr;
 											break;
 										}
@@ -3179,7 +3200,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
-				if (isa<CallInst>(predicateOperand) && predicateOperand == conditionalBranchInst->getOperand(0)) {
+				if (isa < CallInst > (predicateOperand) &&predicateOperand == conditionalBranchInst->getOperand(0)) {
 					continue;
 				}
 				if (isa<Constant>(predicateOperand)) {
@@ -3322,12 +3343,13 @@ struct HyperOpCreationPass: public ModulePass {
 							int positionToBeUpdated = ConstantInt::get(ctxt, APInt(32, conditionalBranchSourceItr->second[branchOperandIndex].second))->getZExtValue();
 							Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
 							((BranchInst*) clonedInstr)->setSuccessor(positionToBeUpdated, retInstOfProducer->getParent());
-						}else{
-							errs()<<"accumulated bbs in which we are looking for "<<conditionalBranchSourceItr->second[branchOperandIndex].first->getName()<<":";
-							for(auto accumulatedBBItr = accumulatedOriginalBasicBlocks.begin(); accumulatedBBItr!=accumulatedOriginalBasicBlocks.end();accumulatedBBItr++){
-								errs()<<(*accumulatedBBItr)->getName()<<"\n";
+						} else {
+							errs() << "accumulated bbs in which we are looking for " << conditionalBranchSourceItr->second[branchOperandIndex].first->getName() << ":";
+							for (auto accumulatedBBItr = accumulatedOriginalBasicBlocks.begin(); accumulatedBBItr != accumulatedOriginalBasicBlocks.end(); accumulatedBBItr++) {
+								errs() << (*accumulatedBBItr)->getName() << "\n";
 							}
-							errs()<<"bb not in accumulated bb list?"<<(find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), conditionalBranchSourceItr->second[branchOperandIndex].first)!= accumulatedOriginalBasicBlocks.end())<<", second half of conditional:"<<(conditionalBranchSourceItr->second[branchOperandIndex].second != -1)<<"\n";
+							errs() << "bb not in accumulated bb list?" << (find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), conditionalBranchSourceItr->second[branchOperandIndex].first) != accumulatedOriginalBasicBlocks.end()) << ", second half of conditional:"
+									<< (conditionalBranchSourceItr->second[branchOperandIndex].second != -1) << "\n";
 						}
 					}
 
