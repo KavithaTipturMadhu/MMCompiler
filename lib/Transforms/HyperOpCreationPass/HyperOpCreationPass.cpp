@@ -487,19 +487,44 @@ struct HyperOpCreationPass: public ModulePass {
 		return SCALAR;
 	}
 
-	unsigned distanceToExitBlock(BasicBlock* basicBlock, list<BasicBlock*> visitedBasicBlocks) {
+	unsigned distanceToExitBlock(BasicBlock* basicBlock, list<BasicBlock*> visitedBlocks) {
 		//Merge return assumed here
 		unsigned depthOfSuccessor = 0;
 		bool first = true;
-		visitedBasicBlocks.push_back(basicBlock);
-		for (unsigned i = 0; i < basicBlock->getTerminator()->getNumSuccessors(); i++) {
-			BasicBlock* succBB = basicBlock->getTerminator()->getSuccessor(i);
-			if (find(visitedBasicBlocks.begin(), visitedBasicBlocks.end(), succBB) == visitedBasicBlocks.end() && (first || depthOfSuccessor > distanceToExitBlock(succBB, visitedBasicBlocks))) {
-				depthOfSuccessor = distanceToExitBlock(succBB, visitedBasicBlocks);
+		list<BasicBlock*> backedgePreds;
+		visitedBlocks.push_back(basicBlock);
+		DominatorTree& tree = getAnalysis<DominatorTree>(*basicBlock->getParent());
+		for (succ_iterator successorItr = succ_begin(basicBlock); successorItr != succ_end(basicBlock); successorItr++) {
+			BasicBlock* successor = *successorItr;
+			BasicBlock* successorDom = 0;
+			bool isBackEdge = false;
+			BasicBlock* tempSuccessor = basicBlock;
+			while (true) {
+				if (tree.getNode(tempSuccessor)->getIDom() == NULL) {
+					break;
+				}
+				successorDom = tree.getNode(tempSuccessor)->getIDom()->getBlock();
+				if (successorDom == successor) {
+					isBackEdge = true;
+					break;
+				}
+				tempSuccessor = successorDom;
+			}
+
+			if (isBackEdge) {
+				backedgePreds.push_back(successor);
+			}
+		}
+
+		for (succ_iterator succBBItr = succ_begin(basicBlock); succBBItr != succ_end(basicBlock); succBBItr++) {
+			BasicBlock* succBB = *succBBItr;
+			if (find(visitedBlocks.begin(), visitedBlocks.end(), succBB) == visitedBlocks.end() && find(backedgePreds.begin(), backedgePreds.end(), succBB) == backedgePreds.end() && (first || depthOfSuccessor < distanceToExitBlock(succBB, visitedBlocks))) {
+				depthOfSuccessor = distanceToExitBlock(succBB, visitedBlocks);
 				first = false;
 			}
 		}
-		return 1 + depthOfSuccessor;
+
+		return depthOfSuccessor + 1;
 	}
 
 	list<Function*> getFunctionAtCallSite(list<CallInst*> callSite, map<Function*, list<CallInst*> > createdHyperOpAndCallSite) {
@@ -767,6 +792,7 @@ struct HyperOpCreationPass: public ModulePass {
 		map<Function*, HYPEROP_TYPE> createdHyperOpAndType;
 		list<BasicBlock*> originalLatchBB;
 		list<BasicBlock*> originalHeaderBB;
+		list<BasicBlock*> originalExitBB;
 
 		//Cloned instructions mapped to their original instruction for each created function
 		map<Function*, map<Instruction*, Instruction*> > functionOriginalToClonedInstructionMap;
@@ -1357,13 +1383,12 @@ struct HyperOpCreationPass: public ModulePass {
 							errs() << "level itself is marked as parallel " << i << "\n";
 						}
 
-						errs()<<"execution order:"<<executionOrder[i]<<", nested?"<<nestedParallelLoop<<", conditional:"<<(executionOrder[i] == SERIAL && !nestedParallelLoop)<<"\n";
+						errs() << "execution order:" << executionOrder[i] << ", nested?" << nestedParallelLoop << ", conditional:" << (executionOrder[i] == SERIAL && !nestedParallelLoop) << "\n";
 						if (executionOrder[i] == SERIAL && !nestedParallelLoop) {
 							continue;
 						}
-						errs() << "level " << i << " is parallel\n";
 						//Find the bound of the loop at that level
-						if (currentLoop->getExitBlock() != NULL) {
+						else if (executionOrder[i] == PARALLEL) {
 							originalParallelLoopBB.push_back(make_pair(loopBBList, loopIVObject));
 						}
 
@@ -1427,21 +1452,6 @@ struct HyperOpCreationPass: public ModulePass {
 								}
 							}
 						}
-//						} else {
-//							//if the loop contains parallel loops within
-//							for (unsigned j = i + 1; j < maxLevels; j++) {
-//								if (executionOrder[j] == PARALLEL) {
-//									list<Loop*> loopsAtDepth = nestedLoopDepth[i + 1];
-//									errs() << "adding level i's nodes for parallelism nested inside with bbs:";
-//									for (auto loopBBItr = loopBBList.begin(); loopBBItr != loopBBList.end(); loopBBItr++) {
-//										errs() << (*loopBBItr)->getName() << ",";
-//									}
-//									errs() << "\n";
-//									originalSerialLoopBB.push_back(make_pair(loopBBList, loopIVObject));
-//									break;
-//								}
-//							}
-//						}
 					}
 				}
 			}
@@ -1494,7 +1504,7 @@ struct HyperOpCreationPass: public ModulePass {
 					loopList.push_back(*loopItr);
 					while (!loopList.empty()) {
 						Loop* currentLoop = loopList.front();
-						errs() << "caching loop with latch:" << currentLoop->getLoopLatch()->getName() << "\n";
+//						errs() << "caching loop with latch:" << currentLoop->getLoopLatch()->getName() << "\n";
 						loopsOfFunction.push_back(currentLoop);
 						loopList.pop_front();
 						for (auto subLoopItr : currentLoop->getSubLoopsVector()) {
@@ -1502,12 +1512,9 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 				}
-				list<pair<list<BasicBlock*>, LoopIV*> > tempLoopBlocks;
-				std::copy(originalParallelLoopBB.begin(), originalParallelLoopBB.end(), std::back_inserter(tempLoopBlocks));
-//				std::copy(originalSerialLoopBB.begin(), originalSerialLoopBB.end(), std::back_inserter(tempLoopBlocks));
 				for (auto loopItr = loopsOfFunction.begin(); loopItr != loopsOfFunction.end(); loopItr++) {
 					Loop* loop = *loopItr;
-					for (auto parallelLevelItr = tempLoopBlocks.begin(); parallelLevelItr != tempLoopBlocks.end(); parallelLevelItr++) {
+					for (auto parallelLevelItr = originalParallelLoopBB.begin(); parallelLevelItr != originalParallelLoopBB.end(); parallelLevelItr++) {
 						if (find(parallelLevelItr->first.begin(), parallelLevelItr->first.end(), bbItr) != parallelLevelItr->first.end()) {
 							if (bbItr == loop->getLoopLatch()) {
 								latchBlock = true;
@@ -1519,9 +1526,13 @@ struct HyperOpCreationPass: public ModulePass {
 					if (bbItr == loop->getHeader()) {
 						originalHeaderBB.push_back(bbItr);
 					}
+					if(bbItr==loop->getExitBlock()){
+						originalExitBB.push_back(loop->getExitBlock());
+					}
 				}
 
 				bool canAcquireBBItr = true;
+				list<BasicBlock*> backEdgePredecessors;
 				//If basic block is not the entry block
 				if (bbItr != &(function->getEntryBlock())) {
 					//Check if all the parent nodes of the basic block are in the same HyperOp
@@ -1531,7 +1542,6 @@ struct HyperOpCreationPass: public ModulePass {
 					int numPredecessors = 0;
 					//Check if dependence leads to a back-edge
 					DominatorTree & dom = getAnalysis<DominatorTree>(*function);
-					list<BasicBlock*> backEdgePredecessors;
 					for (pred_iterator predecessorItr = pred_begin(bbItr); predecessorItr != pred_end(bbItr); predecessorItr++) {
 						BasicBlock* predecessor = *predecessorItr;
 //						errs() << "considering pred " << predecessor->getName() << " for bb " << bbItr->getName() << "\n";
@@ -1567,18 +1577,51 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 					//Check if the basic block's inclusion results introduces multiple entry points to the same HyperOp
 					if (canAcquireBBItr && !accumulatedBasicBlocks.empty()) {
+						list<Loop*> loopsOfFunction;
+						LoopIV* loopIV;
+						LoopInfo& loopInfo = getAnalysis<LoopInfo>(*function);
+						for (auto loopItr = loopInfo.begin(); loopItr != loopInfo.end(); loopItr++) {
+							list<Loop*> loopList;
+							loopList.push_back(*loopItr);
+							while (!loopList.empty()) {
+								Loop* currentLoop = loopList.front();
+								loopsOfFunction.push_back(currentLoop);
+								loopList.pop_front();
+								for (auto subLoopItr : currentLoop->getSubLoopsVector()) {
+									loopList.push_back(subLoopItr);
+								}
+							}
+						}
 						//Find the basic blocks that jump to the basic block being acquired
 						for (Function::iterator sourceBBItr = function->begin(); sourceBBItr != function->end(); sourceBBItr++) {
-							for (unsigned i = 0; i < sourceBBItr->getTerminator()->getNumSuccessors(); i++) {
-								BasicBlock* successor = sourceBBItr->getTerminator()->getSuccessor(i);
-								if (successor == bbItr && find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), sourceBBItr) == accumulatedBasicBlocks.end() && find(backEdgePredecessors.begin(), backEdgePredecessors.end(), sourceBBItr) == backEdgePredecessors.end()) {
-									//Predicate to the basic block in the current set that comes from outside the basic block set accumulated for the current HyperOp
-									canAcquireBBItr = false;
+							for (auto successorItr = succ_begin(sourceBBItr); successorItr != succ_end(sourceBBItr); successorItr++) {
+								BasicBlock* successor = *successorItr;
+								if (successor == bbItr) {
+									if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), sourceBBItr) == accumulatedBasicBlocks.end() && find(backEdgePredecessors.begin(), backEdgePredecessors.end(), sourceBBItr) == backEdgePredecessors.end()) {
+										//Predicate to the basic block in the current set that comes from outside the basic block set accumulated for the current HyperOp
+										canAcquireBBItr = false;
+										break;
+									}
+								}
+								if (!canAcquireBBItr) {
 									break;
 								}
 							}
 							if (!canAcquireBBItr) {
 								break;
+							}
+						}
+
+						if (canAcquireBBItr) {
+							//Check if bb is the header of a serial or a parallel loop
+							list<pair<list<BasicBlock*>, LoopIV*> > tempLoopBlocks;
+							std::copy(originalParallelLoopBB.begin(), originalParallelLoopBB.end(), std::back_inserter(tempLoopBlocks));
+							std::copy(originalSerialLoopBB.begin(), originalSerialLoopBB.end(), std::back_inserter(tempLoopBlocks));
+							for (auto loopItr = tempLoopBlocks.begin(); loopItr != tempLoopBlocks.end(); loopItr++) {
+								if (find(loopItr->first.begin(), loopItr->first.end(), bbItr) != loopItr->first.end() && (find(originalHeaderBB.begin(), originalHeaderBB.end(), bbItr) != originalHeaderBB.end()||find(originalExitBB.begin(), originalExitBB.end(), bbItr)!=originalExitBB.end())) {
+									canAcquireBBItr = false;
+									break;
+								}
 							}
 						}
 					}
@@ -1750,13 +1793,18 @@ struct HyperOpCreationPass: public ModulePass {
 
 				//Create a new HyperOp
 				if (endOfHyperOp) {
+					errs() << "creating a new HyperOp\n";
 					//First remove args due to back edges
 					list<HyperOpArgumentList::iterator> deleteList;
 
 					for (auto newArgItr = hyperOpArguments.begin(); newArgItr != hyperOpArguments.end(); newArgItr++) {
 						list<Value*> phiArgs = (*newArgItr).first;
 						errs() << "trying to delete arg:";
-						phiArgs.front()->dump();
+						for (auto phiArgItr = phiArgs.begin(); phiArgItr != phiArgs.end(); phiArgItr++) {
+							(*phiArgItr)->dump();
+							errs() << ",";
+						}
+						errs() << "\n";
 						for (auto argItr = phiArgs.begin(); argItr != phiArgs.end(); argItr++) {
 							Value* argument = *argItr;
 							if (isa<Instruction>(argument)) {
@@ -1876,8 +1924,9 @@ struct HyperOpCreationPass: public ModulePass {
 				for (auto successorTraverser = tempTraversalList.begin(); successorTraverser != tempTraversalList.end(); successorTraverser++) {
 					BasicBlock* succBB = *successorTraverser;
 					if (find(traversedBasicBlocks.begin(), traversedBasicBlocks.end(), succBB) == traversedBasicBlocks.end() && find(bbTraverser.begin(), bbTraverser.end(), succBB) == bbTraverser.end()) {
-						list<BasicBlock*> visitedBasicBlockList;
-						unsigned distanceFromExitBlock = distanceToExitBlock(succBB, visitedBasicBlockList);
+						errs() << "finding distance of " << succBB->getName() << "\n";
+						list<BasicBlock*> visitedBlocks;
+						unsigned distanceFromExitBlock = distanceToExitBlock(succBB, visitedBlocks);
 						list<BasicBlock*> basicBlockList;
 						if (untraversedBasicBlocks.find(distanceFromExitBlock) != untraversedBasicBlocks.end()) {
 							basicBlockList = untraversedBasicBlocks.find(distanceFromExitBlock)->second;
@@ -1907,12 +1956,15 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
+				errs() << "traversal order now :";
 				for (unsigned i = 0; i < distanceToExit.size(); i++) {
 					list<BasicBlock*> succBBList = untraversedBasicBlocks.find(distanceToExit[i])->second;
 					for (list<BasicBlock*>::iterator succBBItr = succBBList.begin(); succBBItr != succBBList.end(); succBBItr++) {
 						bbTraverser.push_back(*succBBItr);
+						errs() << (*succBBItr)->getName() << ":" << distanceToExit[i] << ",";
 					}
 				}
+				errs() << "\n";
 			}
 			originalFunctionToHyperOpBBListMap[function] = hyperOpBBAndArgs;
 		}
