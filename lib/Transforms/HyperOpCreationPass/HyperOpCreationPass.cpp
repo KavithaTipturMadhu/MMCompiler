@@ -2535,7 +2535,21 @@ struct HyperOpCreationPass: public ModulePass {
 					tag.append(">");
 					values[5] = MDString::get(ctxt, tag);
 				}
-				funcAnnotation = MDNode::get(ctxt, values);
+
+				//Dirty stuff, replace with dynamic allocation of values array
+				if (loopIV == NULL) {
+					Value* tempValues[5];
+					for (unsigned i = 0; i < 5; i++) {
+						tempValues[i] = values[i];
+					}
+					funcAnnotation = MDNode::get(ctxt, tempValues);
+				} else {
+					Value* tempValues[6];
+					for (unsigned i = 0; i < 6; i++) {
+						tempValues[i] = values[i];
+					}
+					funcAnnotation = MDNode::get(ctxt, tempValues);
+				}
 				createdHyperOpAndUniqueId[newFunction] = uniqueIdInCallTree;
 			} else {
 				Value * values[3];
