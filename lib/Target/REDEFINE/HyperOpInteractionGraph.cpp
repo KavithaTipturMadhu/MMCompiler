@@ -179,11 +179,13 @@ string HyperOp::asString(bool ignorePeriod) {
 //			}
 		}
 	}
-//	if (ignorePeriod) {
-//		return retVal.str().erase('.');
-//	} else {
+	if (ignorePeriod) {
+		string str = retVal.str();
+		str.erase(std::remove(str.begin(), str.end(), '.'), str.end());
+		return str;
+	} else {
 		return retVal.str();
-//	}
+	}
 }
 bool HyperOp::isUnrolledInstance() {
 	return unrolledInstance;
