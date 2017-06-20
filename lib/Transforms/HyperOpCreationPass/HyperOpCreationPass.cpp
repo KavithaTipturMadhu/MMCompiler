@@ -799,6 +799,7 @@ struct HyperOpCreationPass: public ModulePass {
 		map<Function*, list<Instruction*> > createdHyperOpAndUnconditionalBranchSources;
 		map<Function*, list<Instruction*> > createdHyperOpAndReachingDefSources;
 		map<Function*, HYPEROP_TYPE> createdHyperOpAndType;
+		list<BasicBlock*> originalParallelLatchBB;
 		list<BasicBlock*> originalLatchBB;
 		list<BasicBlock*> originalHeaderBB;
 		list<BasicBlock*> originalExitBB;
@@ -1383,12 +1384,13 @@ struct HyperOpCreationPass: public ModulePass {
 							for (unsigned j = i + 1; j < maxLevels; j++) {
 								if (executionOrder[j] == PARALLEL) {
 									nestedParallelLoop = true;
+									loopBBList.push_back(currentLoop->getExitBlock());
 									originalSerialLoopBB.push_back(make_pair(loopBBList, loopIVObject));
 									break;
 								}
 							}
-						} else {
-							errs() << "level itself is marked as parallel " << i << "\n";
+//						} else {
+//							errs() << "level itself is marked as parallel " << i << "\n";
 						}
 
 						errs() << "execution order:" << executionOrder[i] << ", nested?" << nestedParallelLoop << ", conditional:" << (executionOrder[i] == SERIAL && !nestedParallelLoop) << "\n";
@@ -1409,11 +1411,9 @@ struct HyperOpCreationPass: public ModulePass {
 						} else {
 							for (auto bbItr : currentLoop->getBlocksVector()) {
 								if (bbItr != currentLoop->getLoopLatch() && bbItr != currentLoop->getExitBlock() && bbItr != currentLoop->getHeader()) {
-									errs() << bbItr->getName() << ",";
 									containedBlocks.push_back(bbItr);
 								}
 							}
-							errs() << "\n";
 						}
 						CodeExtractor* extractor = new CodeExtractor(containedBlocks);
 						Function* innerLoopFunction = extractor->extractCodeRegion();
@@ -1525,7 +1525,8 @@ struct HyperOpCreationPass: public ModulePass {
 						if (find(parallelLevelItr->first.begin(), parallelLevelItr->first.end(), bbItr) != parallelLevelItr->first.end()) {
 							if (bbItr == loop->getLoopLatch()) {
 								latchBlock = true;
-								originalLatchBB.push_back(bbItr);
+								errs() << "original latch:" << (*bbItr).getName() << "\n";
+								originalParallelLatchBB.push_back(bbItr);
 								loopIV = parallelLevelItr->second;
 							}
 						}
@@ -1534,7 +1535,10 @@ struct HyperOpCreationPass: public ModulePass {
 						originalHeaderBB.push_back(bbItr);
 					}
 					if (bbItr == loop->getExitBlock()) {
-						originalExitBB.push_back(loop->getExitBlock());
+						originalExitBB.push_back(bbItr);
+					}
+					if (bbItr == loop->getLoopLatch()) {
+						originalLatchBB.push_back(bbItr);
 					}
 				}
 
@@ -1968,6 +1972,7 @@ struct HyperOpCreationPass: public ModulePass {
 			list<CallInst*> emptyCallList;
 			traversalList.push_back(make_pair(*mainItr, emptyCallList));
 		}
+
 		//Create hyperops
 		unsigned index = 0;
 		while (!traversalList.empty()) {
@@ -2017,6 +2022,7 @@ struct HyperOpCreationPass: public ModulePass {
 				for (auto nestedLoopItr = originalSerialLoopBB.begin(); nestedLoopItr != originalSerialLoopBB.end(); nestedLoopItr++) {
 					list<BasicBlock*> loopBB = nestedLoopItr->first;
 					for (auto accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
+						errs() << "accumulated hop:" << (*accumulatedBBItr)->getName() << "\n";
 						if (find(loopBB.begin(), loopBB.end(), *accumulatedBBItr) != loopBB.end()) {
 							isStaticHyperOp = false;
 							break;
@@ -2110,7 +2116,7 @@ struct HyperOpCreationPass: public ModulePass {
 			for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 				bool latchBB = false;
 				LoopIV* loopIV;
-				if (find(originalLatchBB.begin(), originalLatchBB.end(), *accumulatedBBItr) != originalLatchBB.end()) {
+				if (find(originalParallelLatchBB.begin(), originalParallelLatchBB.end(), *accumulatedBBItr) != originalParallelLatchBB.end()) {
 					latchBB = true;
 				}
 
@@ -2130,7 +2136,6 @@ struct HyperOpCreationPass: public ModulePass {
 				bbName.append((*accumulatedBBItr)->getName());
 				BasicBlock *newBB = BasicBlock::Create(getGlobalContext(), bbName, newFunction, retBB);
 				originalToClonedBasicBlockMap.insert(make_pair(*accumulatedBBItr, newBB));
-				errs() << "\ncreated a new bb to substitute for " << (*accumulatedBBItr)->getName() << " as " << newBB->getName() << "\n";
 
 				//Cloning instructions in the reverse order so that the user instructions are cloned before the definition instructions
 				for (BasicBlock::iterator instItr = (*accumulatedBBItr)->begin(); instItr != (*accumulatedBBItr)->end(); instItr++) {
@@ -2164,26 +2169,16 @@ struct HyperOpCreationPass: public ModulePass {
 							continue;
 						}
 						clonedInst = instItr->clone();
-						errs() << "cloned inst:";
-						clonedInst->dump();
 						if (isa<PHINode>(instItr) && find(originalHeaderBB.begin(), originalHeaderBB.end(), instItr->getParent()) != originalHeaderBB.end()) {
-							errs() << "is it header?\n";
 							Value* setValue = NULL;
 							BasicBlock* incomingPhiBlock;
 							//There's atleast one incoming phi node
 //							bool atleastOneIncomingEdge = false;
-							errs() << "what was accumulated before?\n";
-							for (auto bbItr = accumulatedBasicBlocks.begin(); bbItr != accumulatedBasicBlocks.end(); bbItr++) {
-								errs() << (*bbItr)->getName() << ",";
-							}
-							errs() << "\n";
 							for (unsigned i = 0; i < ((PHINode*) &*instItr)->getNumIncomingValues(); i++) {
 								BasicBlock* incomingBlock = ((PHINode*) &*instItr)->getIncomingBlock(i);
 								//Kind of hackish, the second part
 								if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), incomingBlock) != accumulatedBasicBlocks.end() || isa<Constant>(((PHINode*) &*instItr)->getIncomingValue(i))) {
 									setValue = ((PHINode*) &*instItr)->getIncomingValue(i);
-									errs() << "value to be set to ";
-									setValue->dump();
 									incomingPhiBlock = incomingBlock;
 //								} else {
 //									errs() << "was never accumulated:" << incomingBlock->getName() << "\n";
@@ -2215,12 +2210,12 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 					if (!isa<ReturnInst>(instItr)) {
 						Instruction* clonedInst = (Instruction*) originalToClonedInstMap.find(instItr)->second;
-						errs() << "replacing operands of ";
-						clonedInst->dump();
+//						errs() << "replacing operands of ";
+//						clonedInst->dump();
 						//						errs()<<"number of cloned inst operands:"<<clonedInst->getNumOperands()<<"\n";
 						for (unsigned operandIndex = 0; operandIndex < clonedInst->getNumOperands(); operandIndex++) {
 							Value* operandToBeReplaced = clonedInst->getOperand(operandIndex);
-							errs() << "replacing operand:" << operandToBeReplaced->getName() << "\n";
+//							errs() << "replacing operand:" << operandToBeReplaced->getName() << "\n";
 							//If the instruction operand is an argument to the HyperOp
 							unsigned hyperOpArgIndex = 0;
 							bool argUpdated = false;
@@ -2428,8 +2423,6 @@ struct HyperOpCreationPass: public ModulePass {
 //								&& originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
 //						if ((pred != idom || !idomPredecessor) && originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
 							assert(pred->getTerminator()->getNumSuccessors() <= 1 && "conditional jump to basic block cannot exist here\n");
-							errs() << "unconditional branch added:";
-							pred->getTerminator()->dump();
 							unconditionalBranchSources.push_back(pred->getTerminator());
 						}
 					}
@@ -2507,7 +2500,6 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 					if (!mismatch) {
 						loopIV = parallelLoopItr->second;
-						errs() << "has a loop iv\n";
 						break;
 					}
 				}
@@ -2636,13 +2628,7 @@ struct HyperOpCreationPass: public ModulePass {
 				redefineAnnotationsNode->addOperand(hyperOpDescMDNode);
 			}
 
-			errs() << "created func:" << newFunction->getName() << ", printing contents:\n";
-			for (auto bbItr = newFunction->begin(); bbItr != newFunction->end(); bbItr++) {
-				errs() << bbItr->getName() << ":\n";
-				for (auto instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
-					instItr->dump();
-				}
-			}
+			errs() << "created func:" << newFunction->getName() << " which happens to be static?" << (isStaticHyperOp) << "\n";
 			createdHyperOpAndOriginalBasicBlockAndArgMap[newFunction] = make_pair(accumulatedBasicBlocks, hyperOpArguments);
 			createdHyperOpAndCallSite[newFunction] = callSite;
 			createdHyperOpAndConditionalBranchSources[newFunction] = conditionalBranchSources;
@@ -2683,8 +2669,6 @@ struct HyperOpCreationPass: public ModulePass {
 		}
 		//End of creation of hyperops
 
-		errs() << "before patching stuff:";
-		M.dump();
 		list<MDNode*> syncMDNodeList;
 		DEBUG(dbgs() << "\n----------Adding dependences across created HyperOps----------\n");
 		//Add metadata: This code is moved here to ensure that all the functions (corresponding to HyperOps) that need to be created have already been created
@@ -2978,8 +2962,35 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 							//Is the producer static?
 							MDNode * consumedByMetadata;
+
+							//producer and consumer may both be marked dynamic in case of back edges of loop
+							bool backedgeOfLoop = false;
+							for (auto serialNestedLoopItr = originalSerialLoopBB.begin(); serialNestedLoopItr != originalSerialLoopBB.end(); serialNestedLoopItr++) {
+								//All this wouldn't be necessary if loop itself was cached
+								list<BasicBlock*> serialLoopBBList = serialNestedLoopItr->first;
+								for (auto accumulatedBBItr = accumulatedOriginalBasicBlocks.begin(); accumulatedBBItr != accumulatedOriginalBasicBlocks.end(); accumulatedBBItr++) {
+									if (find(serialLoopBBList.begin(), serialLoopBBList.end(), *accumulatedBBItr) != serialLoopBBList.end() && find(originalHeaderBB.begin(), originalHeaderBB.end(), *accumulatedBBItr) != originalHeaderBB.end()) {
+										//check if the latch node is in the producer's list of bbs
+										list<BasicBlock*> producerBBList = createdHyperOpAndOriginalBasicBlockAndArgMap[producerFunction].first;
+										for (auto producerBBItr = producerBBList.begin(); producerBBItr != producerBBList.end(); producerBBItr++) {
+											if (find(serialLoopBBList.begin(), serialLoopBBList.end(), *producerBBItr) != serialLoopBBList.end() && find(originalLatchBB.begin(), originalLatchBB.end(), *producerBBItr) != originalLatchBB.end()) {
+												backedgeOfLoop = true;
+												errs() << "is backedge\n";
+												break;
+											}
+										}
+										if (backedgeOfLoop) {
+											break;
+										}
+									}
+								}
+								if (backedgeOfLoop) {
+									break;
+								}
+							}
 							//TODO this isn't enough for nested recursion cycles
-							if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
+							bool staticMD = (isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp && !backedgeOfLoop);
+							if (staticMD) {
 								//Add "consumedby" metadata to the function locals that need to be passed to other HyperOps
 								Value * values[3];
 								values[0] = funcAnnotation;
@@ -2992,6 +3003,7 @@ struct HyperOpCreationPass: public ModulePass {
 								values[2] = ConstantInt::get(ctxt, APInt(32, hyperOpArgumentIndex));
 								consumedByMetadata = MDNode::get(ctxt, values);
 							} else {
+								errs() << "dynamic md being added\n";
 								//Add "consumedby" metadata to the function locals that need to be passed to other HyperOps
 								Value * values[4];
 								values[0] = funcAnnotation;
@@ -3002,7 +3014,7 @@ struct HyperOpCreationPass: public ModulePass {
 								}
 								//Local reference args don't need a context slot but we are adding them here anyway since they tail the arguments of a function and are required during metadata parsing
 								values[2] = ConstantInt::get(ctxt, APInt(32, hyperOpArgumentIndex));
-								if (isProducerStatic && !isStaticHyperOp) {
+								if ((isProducerStatic && !isStaticHyperOp) || backedgeOfLoop) {
 									list<unsigned> tagId = createdHyperOpAndUniqueId[createdFunction];
 									//Create a new dynamic tag
 									string tag = "<id,";
@@ -3069,11 +3081,9 @@ struct HyperOpCreationPass: public ModulePass {
 							MDNode* newMDNode = MDNode::get(ctxt, mdNodeArrayRef);
 
 							metadataHost->setMetadata(HYPEROP_CONSUMED_BY, newMDNode);
-							errs() << "added metadata on instruction that belongs to parent " << metadataHost->getParent()->getParent()->getName() << " and is mapped to slot " << hyperOpArgumentIndex << " when the function has " << createdFunction->getArgumentList().size() << " and is of type:"
-									<< hyperOpArgItr->second << ":";
-							metadataHost->dump();
-							//Parent function buffered to ensure that unnecessary control dependences need not exist
-							if (isProducerStatic && find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), metadataHost->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
+
+							//Parent function buffered to ensure that unnecessary control dependences
+							if (staticMD && find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), metadataHost->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
 								addedParentsToCurrentHyperOp.push_back(metadataHost->getParent()->getParent());
 							}
 
@@ -3165,7 +3175,33 @@ struct HyperOpCreationPass: public ModulePass {
 								//Label the instruction with predicates metadata
 								MDNode* newPredicateMetadata;
 								//TODO this isn't enough for nested recursion cycles
-								if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
+								bool backedgeOfLoop = false;
+								for (auto serialNestedLoopItr = originalSerialLoopBB.begin(); serialNestedLoopItr != originalSerialLoopBB.end(); serialNestedLoopItr++) {
+									//All this wouldn't be necessary if loop itself was cached
+									list<BasicBlock*> serialLoopBBList = serialNestedLoopItr->first;
+									for (auto accumulatedBBItr = accumulatedOriginalBasicBlocks.begin(); accumulatedBBItr != accumulatedOriginalBasicBlocks.end(); accumulatedBBItr++) {
+										if (find(serialLoopBBList.begin(), serialLoopBBList.end(), *accumulatedBBItr) != serialLoopBBList.end() && find(originalHeaderBB.begin(), originalHeaderBB.end(), *accumulatedBBItr) != originalHeaderBB.end()) {
+											//check if the latch node is in the producer's list of bbs
+											list<BasicBlock*> producerBBList = createdHyperOpAndOriginalBasicBlockAndArgMap[producerFunction].first;
+											for (auto producerBBItr = producerBBList.begin(); producerBBItr != producerBBList.end(); producerBBItr++) {
+												if (find(serialLoopBBList.begin(), serialLoopBBList.end(), *producerBBItr) != serialLoopBBList.end() && find(originalLatchBB.begin(), originalLatchBB.end(), *producerBBItr) != originalLatchBB.end()) {
+													backedgeOfLoop = true;
+													errs() << "is backedge\n";
+													break;
+												}
+											}
+											if (backedgeOfLoop) {
+												break;
+											}
+										}
+									}
+									if (backedgeOfLoop) {
+										break;
+									}
+								}
+								//TODO this isn't enough for nested recursion cycles
+								bool staticMD = (isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp && !backedgeOfLoop);
+								if (staticMD) {
 									Value * values[2];
 									values[0] = funcAnnotation;
 									values[1] = MDString::get(ctxt, StringRef("1"));
@@ -3187,7 +3223,6 @@ struct HyperOpCreationPass: public ModulePass {
 										tag.append(">");
 										values[2] = MDString::get(ctxt, tag);
 									} else {
-										errs() << "producer static?" << isProducerStatic << "and consumer static?" << isStaticHyperOp << "\n";
 										values[2] = MDString::get(ctxt, "<prefixId>");
 									}
 									newPredicateMetadata = MDNode::get(ctxt, values);
@@ -3383,7 +3418,33 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 					//TODO this isn't enough for nested recursion cycles
-					if ((isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp)) {
+					bool backedgeOfLoop = false;
+					for (auto serialNestedLoopItr = originalSerialLoopBB.begin(); serialNestedLoopItr != originalSerialLoopBB.end(); serialNestedLoopItr++) {
+						//All this wouldn't be necessary if loop itself was cached
+						list<BasicBlock*> serialLoopBBList = serialNestedLoopItr->first;
+						for (auto accumulatedBBItr = accumulatedOriginalBasicBlocks.begin(); accumulatedBBItr != accumulatedOriginalBasicBlocks.end(); accumulatedBBItr++) {
+							if (find(serialLoopBBList.begin(), serialLoopBBList.end(), *accumulatedBBItr) != serialLoopBBList.end() && find(originalHeaderBB.begin(), originalHeaderBB.end(), *accumulatedBBItr) != originalHeaderBB.end()) {
+								//check if the latch node is in the producer's list of bbs
+								list<BasicBlock*> producerBBList = createdHyperOpAndOriginalBasicBlockAndArgMap[producerFunction].first;
+								for (auto producerBBItr = producerBBList.begin(); producerBBItr != producerBBList.end(); producerBBItr++) {
+									if (find(serialLoopBBList.begin(), serialLoopBBList.end(), *producerBBItr) != serialLoopBBList.end() && find(originalLatchBB.begin(), originalLatchBB.end(), *producerBBItr) != originalLatchBB.end()) {
+										backedgeOfLoop = true;
+										errs() << "is backedge\n";
+										break;
+									}
+								}
+								if (backedgeOfLoop) {
+									break;
+								}
+							}
+						}
+						if (backedgeOfLoop) {
+							break;
+						}
+					}
+					//TODO this isn't enough for nested recursion cycles
+					bool staticMD = (isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp && !backedgeOfLoop);
+					if (staticMD) {
 						Value * values[2];
 						values[0] = funcAnnotation;
 						//TODO predicate
@@ -3416,9 +3477,9 @@ struct HyperOpCreationPass: public ModulePass {
 					metadataHost->setMetadata(HYPEROP_CONTROLS, predicatesRelation);
 
 					for (unsigned branchOperandIndex = 0; branchOperandIndex != conditionalBranchSourceItr->second.size(); branchOperandIndex++) {
-						errs() << "patching conditional:";
-						conditionalBranchSourceItr->first->dump();
-						errs() << "how many operands?" << conditionalBranchSourceItr->second.size() << "\n";
+//						errs() << "patching conditional:";
+//						conditionalBranchSourceItr->first->dump();
+//						errs() << "how many operands?" << conditionalBranchSourceItr->second.size() << "\n";
 						//Update the conditional branch only if the source of jump instruction is in the same HyperOp and is not an indirect jump from elsewhere since we try to deliver only the predicate that needs to be passed
 //						if (find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), conditionalBranchSourceItr->second[branchOperandIndex].first) != accumulatedOriginalBasicBlocks.end() && conditionalBranchSourceItr->second[branchOperandIndex].second != -1) {
 						if (conditionalBranchSourceItr->second[branchOperandIndex].second != -1) {
@@ -3426,13 +3487,13 @@ struct HyperOpCreationPass: public ModulePass {
 							int positionToBeUpdated = ConstantInt::get(ctxt, APInt(32, conditionalBranchSourceItr->second[branchOperandIndex].second))->getZExtValue();
 							Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
 							((BranchInst*) clonedInstr)->setSuccessor(positionToBeUpdated, retInstOfProducer->getParent());
-						} else {
-							errs() << "accumulated bbs in which we are looking for " << conditionalBranchSourceItr->second[branchOperandIndex].first->getName() << ":";
-							for (auto accumulatedBBItr = accumulatedOriginalBasicBlocks.begin(); accumulatedBBItr != accumulatedOriginalBasicBlocks.end(); accumulatedBBItr++) {
-								errs() << (*accumulatedBBItr)->getName() << "\n";
-							}
-							errs() << "bb not in accumulated bb list?" << (find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), conditionalBranchSourceItr->second[branchOperandIndex].first) != accumulatedOriginalBasicBlocks.end()) << ", second half of conditional:"
-									<< (conditionalBranchSourceItr->second[branchOperandIndex].second != -1) << "\n";
+//						} else {
+//							errs() << "accumulated bbs in which we are looking for " << conditionalBranchSourceItr->second[branchOperandIndex].first->getName() << ":";
+//							for (auto accumulatedBBItr = accumulatedOriginalBasicBlocks.begin(); accumulatedBBItr != accumulatedOriginalBasicBlocks.end(); accumulatedBBItr++) {
+//								errs() << (*accumulatedBBItr)->getName() << "\n";
+//							}
+//							errs() << "bb not in accumulated bb list?" << (find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), conditionalBranchSourceItr->second[branchOperandIndex].first) != accumulatedOriginalBasicBlocks.end()) << ", second half of conditional:"
+//									<< (conditionalBranchSourceItr->second[branchOperandIndex].second != -1) << "\n";
 						}
 					}
 
@@ -3452,10 +3513,8 @@ struct HyperOpCreationPass: public ModulePass {
 //						clonedInstr->dump();
 //						clonedInstr->eraseFromParent();
 //					}
-					if (isProducerStatic) {
-						if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), metadataHost->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
-							addedParentsToCurrentHyperOp.push_back(metadataHost->getParent()->getParent());
-						}
+					if (isProducerStatic && find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), metadataHost->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
+						addedParentsToCurrentHyperOp.push_back(metadataHost->getParent()->getParent());
 					}
 					if (find(predicateProducers.begin(), predicateProducers.end(), metadataHost->getParent()->getParent()) == predicateProducers.end()) {
 						predicateProducers.push_back(metadataHost->getParent()->getParent());
@@ -3464,12 +3523,9 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 
 			DEBUG(dbgs() << "\n----------Dealing with unconditional branches from other HyperOps----------\n");
-			errs() << "number of unconditional jump sources:" << unconditionalBranchSources.size() << "\n";
 			//Remove unconditional branch instruction, add the annotation to the alloca instruction of the branch
 			for (list<Instruction*>::iterator unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
 				Value* unconditionalBranchInstr = *unconditionalBranchSourceItr;
-				errs() << "unconditional branch source from " << (*unconditionalBranchSourceItr)->getParent()->getName() << ":";
-				unconditionalBranchInstr->dump();
 				Value* originalUnconditionalBranchInstr = unconditionalBranchInstr;
 				BasicBlock* targetBB = ((BranchInst*) unconditionalBranchInstr)->getSuccessor(0);
 				Instruction* clonedInstr;
@@ -3516,10 +3572,6 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 						if (createdHyperOpAndReturnValue.find(replicatedCalledFunction) != createdHyperOpAndReturnValue.end()) {
 							unconditionalBranchInstr = createdHyperOpAndReturnValue[replicatedCalledFunction];
-//							errs() << "updated unconditional branch from ";
-//							originalUnconditionalBranchInstr->dump();
-//							errs() << "to ";
-							unconditionalBranchInstr->dump();
 						}
 
 						if (unconditionalBranchInstr == 0) {
@@ -3592,13 +3644,52 @@ struct HyperOpCreationPass: public ModulePass {
 				for (list<Instruction*>::iterator clonedInstItr = clonedInstructionsToBeLabeled.begin(); clonedInstItr != clonedInstructionsToBeLabeled.end(); clonedInstItr++) {
 					Instruction* clonedInstr = *clonedInstItr;
 					Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
+					BasicBlock* targetBB = (BasicBlock*) clonedInstr->getOperand(0);
 					if (isa<BranchInst>(clonedInstr)) {
 						//Update the branch instruction to jump to the return basic block
 						clonedInstr->setOperand(0, retInstOfProducer->getParent());
-						errs() << "updated clone:";
-						clonedInstr->dump();
 					}
 					//Check if the branch is to a loop, ensure that the edges are added
+					list<pair<list<BasicBlock*>, LoopIV*> > tempLoopList;
+					std::copy(originalParallelLoopBB.begin(), originalParallelLoopBB.end(), std::back_inserter(tempLoopList));
+					std::copy(originalSerialLoopBB.begin(), originalSerialLoopBB.end(), std::back_inserter(tempLoopList));
+					bool syncRequired = false;
+					bool isProducerStatic = createdHyperOpAndType[clonedInstr->getParent()->getParent()];
+					for (auto tempLoopItr = tempLoopList.begin(); tempLoopItr != tempLoopList.end(); tempLoopItr++) {
+						list<BasicBlock*> loopBBList = tempLoopItr->first;
+						if (find(loopBBList.begin(), loopBBList.end(), targetBB) != loopBBList.end()) {
+							//check if there already exists some other dependence between the source and the target
+							if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), clonedInstr->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()
+									&& find(predicateProducers.begin(), predicateProducers.end(), clonedInstr->getParent()->getParent()) == predicateProducers.end()) {
+								syncRequired = true;
+								break;
+							}
+						}
+					}
+
+					if (syncRequired) {
+						errs() << "syncing between " << clonedInstr->getParent()->getParent()->getName() << " and " << createdFunction->getName() << "\n";
+						//Branch instruction's first operand
+						vector<Value*> nodeList;
+						Value* values[1];
+						values[0] = hyperOpAndAnnotationMap[createdFunction];
+						MDNode* newPredicateMetadata = MDNode::get(ctxt, values);
+						nodeList.push_back(newPredicateMetadata);
+						MDNode* node = MDNode::get(ctxt, nodeList);
+						AllocaInst* ai = new AllocaInst(Type::getInt1Ty(ctxt));
+						ai->setAlignment(4);
+						ai->insertBefore(clonedInstr->getParent()->getParent()->front().getFirstInsertionPt());
+						StoreInst* storeInst = new StoreInst(ConstantInt::get(ctxt, APInt(1, 1)), ai);
+						storeInst->setAlignment(4);
+						storeInst->insertBefore(retInstMap[clonedInstr->getParent()->getParent()]);
+						ai->setMetadata(HYPEROP_SYNC, node);
+						if (isProducerStatic && find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), ai->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
+							addedParentsToCurrentHyperOp.push_back(ai->getParent()->getParent());
+						}
+						if (find(predicateProducers.begin(), predicateProducers.end(), ai->getParent()->getParent()) == predicateProducers.end()) {
+							predicateProducers.push_back(ai->getParent()->getParent());
+						}
+					}
 				}
 			}
 
@@ -3635,7 +3726,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 			}
-			if (addedParentsToCurrentHyperOp.empty() && startHyperOp != createdFunction && isStaticHyperOp) {
+			if (addedParentsToCurrentHyperOp.empty() && startHyperOp != createdFunction) {
 				errs() << "Adding sync edge to hyperop " << createdFunction->getName() << "\n";
 				//There are no incoming edge to the hyperop, add a predicate edge from the entry HyperOp
 				vector<Value*> nodeList;
@@ -3830,7 +3921,7 @@ struct HyperOpCreationPass: public ModulePass {
 							break;
 						}
 					}
-					if (!hasPredecessor && find(originalLatchBB.begin(), originalLatchBB.end(), originalBB) == originalLatchBB.end()) {
+					if (!hasPredecessor && find(originalParallelLatchBB.begin(), originalParallelLatchBB.end(), originalBB) == originalParallelLatchBB.end()) {
 						bbForDelete.push_back(bb);
 					}
 				}
