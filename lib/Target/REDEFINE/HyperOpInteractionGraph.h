@@ -204,7 +204,7 @@ public:
 	void setInstanceId(list<unsigned> instanceId);
 	Function* getInstanceof();
 	void setInstanceof(Function* instanceof);
-	string asString();
+	string asString(bool ignorePeriod = true);
 	bool isUnrolledInstance();
 	void setIsUnrolledInstance(bool isUnrolledInstance);
 	void setFunction(Function* function);

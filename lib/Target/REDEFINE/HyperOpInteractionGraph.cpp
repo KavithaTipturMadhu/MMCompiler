@@ -161,7 +161,7 @@ void HyperOp::setInstanceof(Function* instanceof) {
 	this->instanceof = instanceof;
 }
 
-string HyperOp::asString() {
+string HyperOp::asString(bool ignorePeriod) {
 	stringstream retVal;
 	if (isStaticHyperOp()) {
 		retVal << function->getName().data();
@@ -179,7 +179,11 @@ string HyperOp::asString() {
 //			}
 		}
 	}
-	return retVal.str();
+//	if (ignorePeriod) {
+//		return retVal.str().erase('.');
+//	} else {
+		return retVal.str();
+//	}
 }
 bool HyperOp::isUnrolledInstance() {
 	return unrolledInstance;
@@ -539,7 +543,7 @@ void HyperOp::setFrameNeedsGC(bool gcRequired) {
 list<unsigned int> HyperOp::getTopLevel() {
 	return this->topLevel;
 }
-unsigned HyperOp::getInductionVarUpdateFunc(){
+unsigned HyperOp::getInductionVarUpdateFunc() {
 	return inductionVarUpdateFunc;
 }
 
@@ -547,7 +551,7 @@ void HyperOp::setInductionVarUpdateFunc(unsigned inductionVarUpdateFunc) {
 	this->inductionVarUpdateFunc = inductionVarUpdateFunc;
 }
 
-Value* HyperOp::getRangeUpperBound(){
+Value* HyperOp::getRangeUpperBound() {
 	return rangeUpperBound;
 }
 
@@ -667,7 +671,7 @@ list<TileCoordinates> HyperOpInteractionGraph::getEdgePathOnNetwork(HyperOp* sou
 	list<TileCoordinates> path;
 	TileCoordinates sourceCoordinates = make_pair(source->getTargetResource() / columnCount, source->getTargetResource() % columnCount);
 	TileCoordinates targetCoordinates = make_pair(source->getTargetResource() / columnCount, source->getTargetResource() % columnCount);
-	//Set path along column
+//Set path along column
 	unsigned col;
 //	errs() << "col from " << sourceCoordinates.second << " to " << targetCoordinates.second << "\n";
 	if (columnCount == 1) {
@@ -709,7 +713,7 @@ void HyperOpInteractionGraph::addHyperOp(HyperOp *Vertex) {
 }
 
 void HyperOpInteractionGraph::removeHyperOp(HyperOp * vertex) {
-	//Find the parent edges that need to be marked for removal
+//Find the parent edges that need to be marked for removal
 	for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = vertex->ParentMap.begin(); parentItr != vertex->ParentMap.end(); parentItr++) {
 		parentItr->second->removeChildEdge(parentItr->first);
 	}
@@ -804,7 +808,7 @@ void HyperOpInteractionGraph::computePostImmediateDominatorInfo() {
 		}
 	} while (change);
 
-	//Compute immediate post-dominator for each node
+//Compute immediate post-dominator for each node
 	map<HyperOp*, list<HyperOp*> > temporaryPostIdomMap;
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		list<HyperOp*> postDominatorForVertex = postDominatorMap.find(*vertexIterator)->second;
@@ -839,7 +843,7 @@ void HyperOpInteractionGraph::computePostImmediateDominatorInfo() {
 			(*temporaryIdomIterator).first->setImmediatePostDominator(*((*temporaryIdomIterator).second.begin()));
 		}
 	}
-	//End of computing immediate post-dominator
+//End of computing immediate post-dominator
 }
 
 void HyperOpInteractionGraph::computeImmediateDominatorInfo() {
@@ -890,7 +894,7 @@ void HyperOpInteractionGraph::computeImmediateDominatorInfo() {
 		}
 	} while (change);
 
-	//Compute immediate dominator for each node
+//Compute immediate dominator for each node
 	map<HyperOp*, list<HyperOp*> > temporaryIdomMap;
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		list<HyperOp*> dominatorForVertex = dominatorMap.find(*vertexIterator)->second;
@@ -924,9 +928,9 @@ void HyperOpInteractionGraph::computeImmediateDominatorInfo() {
 			(*temporaryIdomIterator).first->setImmediateDominator(*((*temporaryIdomIterator).second.begin()));
 		}
 	}
-	//End of computing immediate dominator
+//End of computing immediate dominator
 
-	//Compute and set dominance frontier
+//Compute and set dominance frontier
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		HyperOp* vertex = *vertexIterator;
 		list<HyperOp*> dominanceFrontier;
@@ -1135,7 +1139,7 @@ void HyperOpInteractionGraph::makeGraphStructured() {
  * Indicates additional edges corresponding to WriteCM instructions for forwarding context frame addresses
  */
 void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
-	//Forward addresses to producers that have a HyperOp in their dominance frontier and to the HyperOps that delete the context frame
+//Forward addresses to producers that have a HyperOp in their dominance frontier and to the HyperOps that delete the context frame
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		HyperOp* vertex = *vertexIterator;
 		list<HyperOp*> vertexDomFrontier;
@@ -1984,7 +1988,7 @@ void printDS(list<HyperOp*> dominantSequence) {
 void HyperOpInteractionGraph::clusterNodes() {
 	errs() << "rowcount:" << this->rowCount << " and column count:" << columnCount << "\n";
 
-	//Create a wrapper to HyperOp class to hierarchically cluster nodes
+//Create a wrapper to HyperOp class to hierarchically cluster nodes
 	class HIGSubtree {
 	public:
 		list<HyperOp*> hyperOpsInCluster;
@@ -2238,27 +2242,27 @@ void HyperOpInteractionGraph::clusterNodes() {
 //		printDS(dominantSequence);
 	};
 
-	//	pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > controlFlowGraphAndOriginalHopMap = getCFG(this);
-	//	map<HyperOp*, HyperOp*> originalToCFGVertexMap = controlFlowGraphAndOriginalHopMap.second;
-	//	HyperOpInteractionGraph* cfg = controlFlowGraphAndOriginalHopMap.first;
-	//	cfg->computeDominatorInfo();
-	//	//Find subtrees in cfg
-	//	for(auto vertex:cfg->Vertices){
-	//		//Check if any of the children of the vertex is predicated
-	//		bool hasPredicatedChildren = false;
-	//		for(auto childVertex:vertex->ChildMap){
-	//			if(childVertex.second->isPredicatedHyperOp()){
-	//				hasPredicatedChildren = true;
-	//				break;
-	//			}
-	//		}
-	//
-	//		if(hasPredicatedChildren){
-	//			//Treat the vertex as the root of a subtree and
-	//		}
-	//	}
+//	pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > controlFlowGraphAndOriginalHopMap = getCFG(this);
+//	map<HyperOp*, HyperOp*> originalToCFGVertexMap = controlFlowGraphAndOriginalHopMap.second;
+//	HyperOpInteractionGraph* cfg = controlFlowGraphAndOriginalHopMap.first;
+//	cfg->computeDominatorInfo();
+//	//Find subtrees in cfg
+//	for(auto vertex:cfg->Vertices){
+//		//Check if any of the children of the vertex is predicated
+//		bool hasPredicatedChildren = false;
+//		for(auto childVertex:vertex->ChildMap){
+//			if(childVertex.second->isPredicatedHyperOp()){
+//				hasPredicatedChildren = true;
+//				break;
+//			}
+//		}
+//
+//		if(hasPredicatedChildren){
+//			//Treat the vertex as the root of a subtree and
+//		}
+//	}
 
-	//Add the edge to examined list;
+//Add the edge to examined list;
 
 //TODO uncomment the following
 //Merge clusters till the number of compute resources matches the number of clusters created
@@ -3875,7 +3879,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 	if (!this->Vertices.empty()) {
 		for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 			HyperOp* vertex = *vertexIterator;
-			os << vertex->asString();
+			os << vertex->asString(true);
 			os << "[";
 			if (!vertex->isStaticHyperOp()) {
 				os << "style=filled,";
@@ -3885,8 +3889,8 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 					os << "fillcolor=gray,";
 				}
 			}
-			os << "label=\"Name:" << vertex->asString() << ",";
-
+			os << "label=\"Name:" << vertex->asString(true) << ",";
+			os << "range=" << vertex->getInRange() << ",";
 			string dom, postdom;
 			if ((*vertexIterator)->getImmediateDominator() != 0) {
 				dom = (*vertexIterator)->getImmediateDominator()->getFunction()->getName();
