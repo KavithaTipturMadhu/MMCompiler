@@ -3891,32 +3891,32 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 					os << "fillcolor=gray,";
 				}
 			}
-			os << "label=\"Name:" << vertex->asString(true) << ",";
+			os << "label=\"Name:" << vertex->asString(true) << ",\n";
 			os << "range=" << vertex->getInRange() << ",";
-			string dom, postdom;
-			if ((*vertexIterator)->getImmediateDominator() != 0) {
-				dom = (*vertexIterator)->getImmediateDominator()->getFunction()->getName();
-			} else {
-				dom = "NULL";
-			}
-			if ((*vertexIterator)->getImmediatePostDominator() != 0) {
-				postdom = (*vertexIterator)->getImmediatePostDominator()->getFunction()->getName();
-			} else {
-				postdom = "NULL";
-			}
-
-			os << "Dom:" << dom << ", PostDom:" << postdom << ",";
-			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
-			os << "SyncCount:" << (*vertexIterator)->getSyncCount();
-			/*
-			 os << "Domf:";
-			 if (!vertex->getDominanceFrontier().empty()) {
-			 list<HyperOp*> domf = vertex->getDominanceFrontier();
-			 for (list<HyperOp*>::iterator domfItr = domf.begin(); domfItr != domf.end(); domfItr++) {
-			 os << (*domfItr)->getFunction()->getName() << ";";
-			 }
-			 }
-			 */
+//			string dom, postdom;
+//			if ((*vertexIterator)->getImmediateDominator() != 0) {
+//				dom = (*vertexIterator)->getImmediateDominator()->getFunction()->getName();
+//			} else {
+//				dom = "NULL";
+//			}
+//			if ((*vertexIterator)->getImmediatePostDominator() != 0) {
+//				postdom = (*vertexIterator)->getImmediatePostDominator()->getFunction()->getName();
+//			} else {
+//				postdom = "NULL";
+//			}
+//
+//			os << "Dom:" << dom << ", PostDom:" << postdom << ",";
+//			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
+//			os << "SyncCount:" << (*vertexIterator)->getSyncCount();
+//			/*
+//			 os << "Domf:";
+//			 if (!vertex->getDominanceFrontier().empty()) {
+//			 list<HyperOp*> domf = vertex->getDominanceFrontier();
+//			 for (list<HyperOp*>::iterator domfItr = domf.begin(); domfItr != domf.end(); domfItr++) {
+//			 os << (*domfItr)->getFunction()->getName() << ";";
+//			 }
+//			 }
+//			 */
 			os << "\"];\n";
 
 			map<HyperOpEdge*, HyperOp*> children = vertex->ChildMap;
