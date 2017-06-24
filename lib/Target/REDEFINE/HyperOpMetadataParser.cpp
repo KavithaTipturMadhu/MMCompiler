@@ -122,18 +122,18 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					hyperOp->setInstanceId(parsedId);
 					if (hyperOpMDNode->getNumOperands() > 5) {
 						hyperOp->setInRange();
-						StringRef rangeTag = ((MDString*) hyperOpMDNode->getOperand(5))->getName();
-						list<StringRef> parsedList = parseInstanceIdString(rangeTag, ':');
-						assert(parsedList.size() == 3 && "Invalid range format");
-						StringRef lowerBound = parsedList.front().data();
-						parsedList.pop_front();
-						StringRef upperBound = parsedList.front().data();
-						parsedList.pop_front();
-						StringRef strideFunction = parsedList.front();
-						pair<StringRef, StringRef> functionAndStride = strideFunction.split('(');
-						StringRef function = functionAndStride.first;
-						pair<StringRef, StringRef> strideSplit = functionAndStride.second.split(")");
-						StringRef stride = strideSplit.first;
+//						StringRef rangeTag = ((MDString*) hyperOpMDNode->getOperand(5))->getName();
+//						list<StringRef> parsedList = parseInstanceIdString(rangeTag, ':');
+//						assert(parsedList.size() == 3 && "Invalid range format");
+//						StringRef lowerBound = parsedList.front().data();
+//						parsedList.pop_front();
+//						StringRef upperBound = parsedList.front().data();
+//						parsedList.pop_front();
+//						StringRef strideFunction = parsedList.front();
+//						pair<StringRef, StringRef> functionAndStride = strideFunction.split('(');
+//						StringRef function = functionAndStride.first;
+//						pair<StringRef, StringRef> strideSplit = functionAndStride.second.split(")");
+//						StringRef stride = strideSplit.first;
 					}
 				}
 				graph->addHyperOp(hyperOp);
@@ -206,7 +206,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 							MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(consumerMDNodeIndex);
 							StringRef dataType = ((MDString*) consumerMDNode->getOperand(1))->getName();
 							unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue();
-
 							if (consumerMDNode->getNumOperands() > 3) {
 								//An instance is consuming the data
 								StringRef parseString = ((MDString*) consumerMDNode->getOperand(3))->getName();
@@ -227,7 +226,18 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
 										}
 									} else if (consumerInstanceId.front().compare("prefixId") == 0) {
-										consumerHyperOpId.pop_back();
+										unsigned prefixCount = 1;
+										if (consumerInstanceId.size() == 2) {
+											consumerInstanceId.pop_front();
+											if (consumerInstanceId.front().compare("id") == 0) {
+												prefixCount = consumerHyperOpId.size() - 1;
+											} else {
+												prefixCount = atoi(consumerInstanceId.front().data());
+											}
+										}
+										while (prefixCount--) {
+											consumerHyperOpId.pop_back();
+										}
 										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
 										if (staticFlag.compare("Static") == 0) {
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
@@ -304,7 +314,18 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
 										}
 									} else if (consumerInstanceId.front().compare("prefixId") == 0) {
-										consumerHyperOpId.pop_back();
+										unsigned prefixCount = 1;
+										if (consumerInstanceId.size() == 2) {
+											consumerInstanceId.pop_front();
+											if (consumerInstanceId.front().compare("id") == 0) {
+												prefixCount = consumerHyperOpId.size() - 1;
+											} else {
+												prefixCount = atoi(consumerInstanceId.front().data());
+											}
+										}
+										while (prefixCount--) {
+											consumerHyperOpId.pop_back();
+										}
 										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
 										if (staticFlag.compare("Static") == 0) {
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
@@ -377,7 +398,18 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
 										}
 									} else if (consumerInstanceId.front().compare("prefixId") == 0) {
-										consumerHyperOpId.pop_back();
+										unsigned prefixCount = 1;
+										if (consumerInstanceId.size() == 2) {
+											consumerInstanceId.pop_front();
+											if (consumerInstanceId.front().compare("id") == 0) {
+												prefixCount = consumerHyperOpId.size() - 1;
+											} else {
+												prefixCount = atoi(consumerInstanceId.front().data());
+											}
+										}
+										while (prefixCount--) {
+											consumerHyperOpId.pop_back();
+										}
 										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
 										if (staticFlag.compare("Static") == 0) {
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
@@ -434,6 +466,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 			maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
 		}
 	}
+	errs() << "before deleting nodes:";
+	graph->print(errs());
 
 	//This had to be written as follows because removal of one node may cause other nodes to go hanging
 	while (true) {
@@ -462,6 +496,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 			break;
 		}
 	}
+
+	errs() << "number of vertices:" << graph->Vertices.size() << "\n";
 
 	graph->setMaxMemFrameSize(maxFrameSizeOfHyperOp);
 	graph->print(errs());
