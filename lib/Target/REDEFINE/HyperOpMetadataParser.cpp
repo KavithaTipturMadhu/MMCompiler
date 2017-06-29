@@ -221,6 +221,9 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 										consumerHyperOpId.push_back(id.getZExtValue());
 										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
 										if (staticFlag.compare("Static") == 0) {
+											if (!consumerHyperOpId.empty()) {
+												consumerHyperOpId.clear();
+											}
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
 										} else {
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
@@ -240,6 +243,9 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 										}
 										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
 										if (staticFlag.compare("Static") == 0) {
+											if (!consumerHyperOpId.empty()) {
+												consumerHyperOpId.clear();
+											}
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
 											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
 										} else {
@@ -307,6 +313,9 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 										consumerHyperOpId.push_back(id.getZExtValue());
 										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
 										if (staticFlag.compare("Static") == 0) {
+											if (!consumerHyperOpId.empty()) {
+												consumerHyperOpId.clear();
+											}
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
 											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
 										} else {
@@ -328,6 +337,9 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 										}
 										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
 										if (staticFlag.compare("Static") == 0) {
+											if (!consumerHyperOpId.empty()) {
+												consumerHyperOpId.clear();
+											}
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
 											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
 										} else {
@@ -391,6 +403,9 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 										consumerHyperOpId.push_back(id.getZExtValue());
 										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
 										if (staticFlag.compare("Static") == 0) {
+											if (!consumerHyperOpId.empty()) {
+												consumerHyperOpId.clear();
+											}
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
 											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
 										} else {
@@ -412,11 +427,15 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 										}
 										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
 										if (staticFlag.compare("Static") == 0) {
+											//Hack
+											if (!consumerHyperOpId.empty()) {
+												consumerHyperOpId.clear();
+											}
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
-											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
+											errs() << "static consumer:" << consumerHyperOp->asString() << "\n";
 										} else {
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
-											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
+											errs() << "dynamic consumer:" << consumerHyperOp->asString() << "\n";
 										}
 									}
 								}
