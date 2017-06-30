@@ -3831,9 +3831,9 @@ struct HyperOpCreationPass: public ModulePass {
 							MDNode* newPredicateMetadata;
 							Value* predicateValue = NULL;
 							bool addPredicate = false;
-							if (!tempPredicateProducers.empty()) {
+							if (!predicateProducers.empty()) {
 								//find the predicate value, there can only be one
-								predicateValue = predicateProducerValueMap[tempPredicateProducers.front()];
+								predicateValue = predicateProducerValueMap[predicateProducers.front()];
 								addPredicate = true;
 							}
 
