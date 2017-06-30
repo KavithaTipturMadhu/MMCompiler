@@ -3582,7 +3582,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 					if (staticMD && find(predicateProducers.begin(), predicateProducers.end(), metadataHost->getParent()->getParent()) == predicateProducers.end()) {
 						predicateProducers.push_back(metadataHost->getParent()->getParent());
-						predicateProducerValueMap[metadataHost->getParent()->getParent()] = (Value*)expectedPredicate;
+						predicateProducerValueMap[metadataHost->getParent()->getParent()] = (Value*) expectedPredicate;
 					}
 				}
 			}
@@ -3801,7 +3801,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 						Function* producerFunction;
 						Function* consumerFunction;
-						list<Function*> tempPredicateProducers=predicateProducers;
+						list<Function*> tempPredicateProducers = predicateProducers;
 						if (!backedgeOfSerialLoop && !backedgeOfParallelLoop) {
 							producerFunction = clonedInstr->getParent()->getParent();
 							consumerFunction = createdFunction;
@@ -3833,13 +3833,13 @@ struct HyperOpCreationPass: public ModulePass {
 							bool addPredicate = false;
 							if (!predicateProducers.empty()) {
 								//find the predicate value, there can only be one
-								predicateValue = predicateProducerValueMap[predicateProducers.front()];
+								predicateValue = predicateProducerValueMap[tempPredicateProducers.front()];
 								addPredicate = true;
 							}
 
 							int predicateExpected = 1;
-							if(addPredicate){
-								predicateExpected = atoi(((MDString*)predicateValue)->getString().data());
+							if (addPredicate) {
+								predicateExpected = atoi(((MDString*) predicateValue)->getString().data());
 							}
 							if (staticMD) {
 								if (addPredicate) {
@@ -3902,9 +3902,9 @@ struct HyperOpCreationPass: public ModulePass {
 							StoreInst* storeInst = new StoreInst(ConstantInt::get(ctxt, APInt(predicateExpected, 1)), ai);
 							storeInst->setAlignment(4);
 							storeInst->insertBefore(retInstMap[producerFunction]);
-							if(addPredicate){
+							if (addPredicate) {
 								ai->setMetadata(HYPEROP_CONTROLS, node);
-							}else{
+							} else {
 								ai->setMetadata(HYPEROP_SYNC, node);
 							}
 							if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), ai->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
@@ -4000,6 +4000,8 @@ struct HyperOpCreationPass: public ModulePass {
 										MDNode* consumer = (MDNode*) ((MDNode*) (consumedByMDNode->getOperand(i)))->getOperand(0);
 										if (funcAnnotation == consumer) {
 											bool dynamicInstance = false;
+											errs() << "consumed by md node:";
+											consumedByMDNode->dump();
 											if (((MDNode*) (consumedByMDNode->getOperand(i)))->getNumOperands() == 4) {
 												dynamicInstance = true;
 												StringRef dynamicInstanceId = ((MDString*) ((MDNode*) (consumedByMDNode->getOperand(i)))->getOperand(4))->getString();
@@ -4024,6 +4026,8 @@ struct HyperOpCreationPass: public ModulePass {
 										MDNode* consumer = (MDNode*) ((MDNode*) (controlledByMDNode->getOperand(i)))->getOperand(0);
 										if (funcAnnotation == consumer) {
 											bool dynamicInstance = false;
+											errs() << "controls by md node:";
+											controlledByMDNode->dump();
 											if (((MDNode*) (controlledByMDNode->getOperand(i)))->getNumOperands() == 2) {
 												dynamicInstance = true;
 												StringRef dynamicInstanceId = ((MDString*) ((MDNode*) (controlledByMDNode->getOperand(i)))->getOperand(2))->getString();
@@ -4048,9 +4052,11 @@ struct HyperOpCreationPass: public ModulePass {
 										MDNode* consumer = (MDNode*) ((MDNode*) (syncMDNode->getOperand(i)))->getOperand(0);
 										if (funcAnnotation == consumer) {
 											bool dynamicInstance = false;
-											if (((MDNode*) (syncMDNode->getOperand(i)))->getNumOperands() == 1) {
+											errs() << "sync by md node "<<(((MDNode*) (syncMDNode->getOperand(i)))->getNumOperands())<<"\n";
+											syncMDNode->dump();
+											if (((MDNode*) (syncMDNode->getOperand(i)))->getNumOperands() == 2) {
 												dynamicInstance = true;
-												StringRef dynamicInstanceId = ((MDString*) ((MDNode*) (syncMDNode->getOperand(i)))->getOperand(1))->getString();
+												StringRef dynamicInstanceId = ((MDString*) ((MDNode*) (syncMDNode->getOperand(i)))->getOperand(2))->getString();
 												list<StringRef> parsedId = parseInstanceIdString(dynamicInstanceId);
 												//This is clearly not complete
 												if (parsedId.back().compare("id") == 0 || isStaticHyperOp) {
