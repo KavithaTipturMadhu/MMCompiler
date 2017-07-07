@@ -867,7 +867,7 @@ struct HyperOpCreationPass: public ModulePass {
 											DstI->dump();
 											D->dump(errs());
 											list<unsigned> distanceVector;
-											for(unsigned i=0;i<D->getLevels();i++){
+											for (unsigned i = 0; i < D->getLevels(); i++) {
 //												distanceVector.push_back(D->getDistance(i)->);
 //												D->
 											}
@@ -1273,6 +1273,8 @@ struct HyperOpCreationPass: public ModulePass {
 			originalFunctionToHyperOpBBListMap[function] = hyperOpBBAndArgs;
 		}
 
+		errs() << "before partitioning:";
+		M.dump();
 		//Done partitioning basic blocks of all functions into multiple HyperOps
 		DEBUG(dbgs() << "-----------Creating HyperOps from partitioned functions-----------\n");
 		list<pair<pair<list<BasicBlock*>, HyperOpArgumentList>, list<CallInst*> > > traversalList;
@@ -1547,7 +1549,7 @@ struct HyperOpCreationPass: public ModulePass {
 			for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 				//Find out if any basic block is predicated
 				BasicBlock* originalBB = *accumulatedBBItr;
-				errs() << "\n---\nacquired bb:" << originalBB->getName() << " from parent:" << originalBB->getParent()->getName() << "\n";
+				errs() << "acquired bb:" << originalBB->getName() << " from parent:" << originalBB->getParent()->getName() << "\n";
 				//Find the immediate dominator
 				DominatorTree& tree = getAnalysis<DominatorTree>(*originalBB->getParent());
 				if (tree.getNode(originalBB) != NULL && tree.getNode(originalBB)->getIDom() != NULL) {
@@ -1591,8 +1593,9 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 							if (successorBBList.size() == terminator->getNumSuccessors()) {
 								//All successors of the terminator instruction are in the same target HyperOp, mark the jump as unconditional
-								terminator->dump();
 								unconditionalBranchSources.push_back(terminator);
+								errs() << "added unconditional branch source:";
+								terminator->dump();
 							} else {
 								if (conditionalBranchSources.find(terminator) != conditionalBranchSources.end()) {
 									vector<pair<BasicBlock*, int> > previousSuccessorIndexList = conditionalBranchSources[terminator];
@@ -1610,12 +1613,16 @@ struct HyperOpCreationPass: public ModulePass {
 					//Add all the jump sources of the basic block to point to their return blocks
 					for (auto predItr = pred_begin(originalBB); predItr != pred_end(originalBB); predItr++) {
 						BasicBlock* pred = *predItr;
-						errs() << "from pred:" << pred->getName() << ":" << (pred != idom) << "," << (!idomPredecessor) << " cos original:" << originalIdom->getName() << " and " << (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), pred) == accumulatedBasicBlocks.end()) << "\n";
-						if ((pred != idom || !idomPredecessor) && originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
-//								find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), pred) == accumulatedBasicBlocks.end() && originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
+						errs() << "from pred:" << pred->getName() << "\n";
+						M.dump();
+						if ((pred != idom || !idomPredecessor) && originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()
+								&& (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), pred) == accumulatedBasicBlocks.end() || find(newlyAcquiredBBList.begin(), newlyAcquiredBBList.end(), pred->getTerminator()->getSuccessor(0)) != newlyAcquiredBBList.end())
+								&& originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
 							assert(pred->getTerminator()->getNumSuccessors() <= 1 && "conditional jump to basic block cannot exist here\n");
-							errs() << "added unconditional jump to be patched\n";
+							errs() << "pred:";
+							pred->dump();
 							pred->getTerminator()->dump();
+							errs() << "added unconditional jump to be patched\n";
 							unconditionalBranchSources.push_back(pred->getTerminator());
 						}
 					}
@@ -2900,26 +2907,10 @@ struct HyperOpCreationPass: public ModulePass {
 					//We use sync edge here because adding a predicate to the end hyperop
 					createdFunction->begin()->front().setMetadata(HYPEROP_SYNC, mdNode);
 					syncMDNodeList.push_back(newPredicateMetadata);
-					errs()<<"added sync edge between "<<createdFunction->getName()<<" and "<<endHyperOp->getName()<<"\n";
+					errs() << "added sync edge between " << createdFunction->getName() << " and " << endHyperOp->getName() << "\n";
 				}
 			}
 
-			//Short-circuit unconditional jump chains within a function
-			for (Function::iterator bbItr = createdFunction->begin(); bbItr != createdFunction->end(); bbItr++) {
-				BasicBlock* originOfJumpChain = bbItr;
-				while (true) {
-					if (isa<BranchInst>(originOfJumpChain->getTerminator()) && ((BranchInst*) originOfJumpChain->getTerminator())->isUnconditional()) {
-						//Unconditional jump would only have one successor
-						originOfJumpChain = originOfJumpChain->getTerminator()->getSuccessor(0);
-					} else {
-						break;
-					}
-				}
-
-				if (originOfJumpChain != bbItr) {
-					bbItr->getTerminator()->setSuccessor(0, originOfJumpChain);
-				}
-			}
 		}
 
 		DEBUG(dbgs() << "\n-----------Re-routing sync edges from end hyperop to the newly created end HyperOp-----------\n");
@@ -2985,25 +2976,21 @@ struct HyperOpCreationPass: public ModulePass {
 			Function* newFunction = createdHyperOpItr->first;
 			list<BasicBlock*> bbForDelete;
 			for (Function::iterator bbItr = newFunction->begin(); bbItr != newFunction->end(); bbItr++) {
-				//If bbItr is not the entry block and has no predecessors or multiple predecessors (this check is in place to avoid considering basic blocks which have a single predecessor, an optimization)
-				if (&*bbItr != &newFunction->getEntryBlock()) {
-					BasicBlock* bb = &*bbItr;
-					bool hasPredecessor = false;
-					for (Function::iterator secondBBItr = newFunction->begin(); secondBBItr != newFunction->end(); secondBBItr++) {
-						for (unsigned i = 0; i < secondBBItr->getTerminator()->getNumSuccessors(); i++) {
-							BasicBlock* successor = secondBBItr->getTerminator()->getSuccessor(i);
-							if (successor == bb) {
-								hasPredecessor = true;
-								break;
+				BasicBlock* bb = bbItr;
+				int numPreds = 0;
+				for (Function::iterator secondBBItr = newFunction->begin(); secondBBItr != newFunction->end(); secondBBItr++) {
+					BasicBlock* secondBB = secondBBItr;
+					if (isa<BranchInst>(secondBB->getTerminator())) {
+						BranchInst* terminatorInst = (BranchInst*) secondBB->getTerminator();
+						for (int branchTarget = 0; branchTarget != terminatorInst->getNumSuccessors(); branchTarget++) {
+							if (terminatorInst->getSuccessor(branchTarget) == bb) {
+								numPreds++;
 							}
 						}
-						if (hasPredecessor) {
-							break;
-						}
 					}
-					if (!hasPredecessor) {
-						bbForDelete.push_back(bb);
-					}
+				}
+				if (bb != &newFunction->getEntryBlock() && numPreds == 0) {
+					bbForDelete.push_back(bb);
 				}
 			}
 
