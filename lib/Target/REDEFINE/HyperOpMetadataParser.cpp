@@ -420,6 +420,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 			}
 		}
 		if (maxFrameSizeOfHyperOp < frameSizeOfHyperOp) {
+			errs()<<"frame size for hop "<<sourceHyperOp->asString()<<":"<<frameSizeOfHyperOp<<"\n";
 			maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
 		}
 	}

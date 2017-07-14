@@ -20,6 +20,7 @@ using namespace std;
 #include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
 #include "llvm/Analysis/DependenceAnalysis.h"
 #include "llvm/Analysis/Dominators.h"
+#include "llvm/Analysis/PostDominators.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/ADT/StringExtras.h"
@@ -58,10 +59,10 @@ struct HyperOpCreationPass: public ModulePass {
 
 	virtual void getAnalysisUsage(AnalysisUsage &AU) const {
 		//Mandatory merge return to be invoked on each function
-//		AU.addRequired<DominatorTree>();
 //		AU.addRequired<AliasAnalysis>();
 		AU.addRequired<UnifyFunctionExitNodes>();
 		AU.addRequired<DependenceAnalysis>();
+		AU.addRequired<PostDominatorTree>();
 	}
 
 	bool pathExistsInCFG(BasicBlock* source, BasicBlock* target, list<BasicBlock*> visitedBasicBlocks) {
@@ -828,7 +829,7 @@ struct HyperOpCreationPass: public ModulePass {
 			errs() << "inling function call:";
 			callInst->dump();
 			InlineFunctionInfo info;
-//			InlineFunction(callInst, info);
+			InlineFunction(callInst, info);
 		}
 
 		errs() << "Module state:";
@@ -992,7 +993,6 @@ struct HyperOpCreationPass: public ModulePass {
 					//Place the bbItr back in its place
 					bbTraverser.push_front(bbItr);
 				} else {
-					errs() << "managed to acquire bb :" << bbItr->getName() << "\n";
 					accumulatedBasicBlocks.push_back(bbItr);
 					unsigned bbIndex = 0;
 					for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
@@ -1127,6 +1127,57 @@ struct HyperOpCreationPass: public ModulePass {
 						endOfHyperOp = true;
 					}
 				}
+
+//				if (!endOfHyperOp) {
+//					bool conditionalJumpToBB = false;
+//					errs() << "checking if something is conditionally executed:" << bbItr->getName() << "\n";
+//					for (auto predItr = pred_begin(bbItr); predItr != pred_end(bbItr); predItr++) {
+//						BasicBlock* predecessor = *predItr;
+//						if (isa<BranchInst>(predecessor->getTerminator()) && ((BranchInst*) predecessor->getTerminator())->getNumSuccessors() > 1) {
+//							conditionalJumpToBB = true;
+//							break;
+//						}
+//					}
+//
+//					if (conditionalJumpToBB) {
+//						errs() << "conditional jump\n";
+//						//Check if one of the children contains a recursive call or may unfold into dynamic instances
+//						DominatorTree & domTree = getAnalysis<DominatorTree>(*bbItr->getParent());
+//						PostDominatorTree& postdomtree = getAnalysis<PostDominatorTree>(*bbItr->getParent());
+//						if (domTree.getNode(bbItr)->getIDom()!=NULL&&postdomtree.getNode(domTree.getNode(bbItr)->getIDom()->getBlock())->getIDom()!=NULL) {
+//							list<BasicBlock*> childNodesToBeExamined;
+//							BasicBlock* traverseEnd = postdomtree.getNode(domTree.getNode(bbItr)->getIDom()->getBlock())->getIDom()->getBlock();
+//							list<BasicBlock*> tempStack;
+//							tempStack.push_back(bbItr);
+//							while(!tempStack.empty()){
+//								BasicBlock* subTreeBB= tempStack.back();
+//								tempStack.pop_back();
+//								for(auto childItr = succ_begin(subTreeBB);childItr!=succ_end(subTreeBB);childItr++){
+//									BasicBlock* childBB = *childItr;
+//									if(childBB==traverseEnd){
+//										continue;
+//									}
+//									if(find(childNodesToBeExamined.begin(), childNodesToBeExamined.end(), childBB)==childNodesToBeExamined.end()){
+//										tempStack.push_back(childBB);
+//										childNodesToBeExamined.push_back(childBB);
+//									}
+//								}
+//							}
+//							errs()<<"examining child nodes:\n";
+//							for(auto childBBItr = childNodesToBeExamined.begin(); childBBItr!=childNodesToBeExamined.end();childBBItr++){
+//								BasicBlock* childBB = *childBBItr;
+//								errs()<<childBB->getName()<<",";
+//								for(auto instItr=childBB->begin();instItr!=childBB->end();instItr++){
+//									Instruction* inst = instItr;
+//									if(isa<CallInst>(inst)){
+//										endOfHyperOp = true;
+//										break;
+//									}
+//								}
+//							}
+//						}
+//					}
+//				}
 
 				//Create a new HyperOp
 				if (endOfHyperOp) {
