@@ -636,7 +636,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 	unsigned ceContainingInstruction = ScheduledInstrItr->second;
 	SUnit* SU = ScheduledInstrItr->first;
 	MachineInstr* machineInstruction = SU->getInstr();
-	errs()<<"instr:";
+	errs() << "instr:";
 	machineInstruction->dump();
 	unsigned additionalFanin = 0;
 	for (SmallVector<SDep, 4>::iterator predecessorItr = SU->Preds.begin(); predecessorItr != SU->Preds.end(); predecessorItr++) {
@@ -1322,6 +1322,8 @@ for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::reverse_iterator ins
 
 void REDEFINEMCInstrScheduler::finishBlock() {
 //If the basic block is the terminator
+errs() << "mf contains what?\n";
+MF.dump();
 if (BB->getName().compare(MF.back().getName()) == 0) {
 //TODO:Assuming here that there is only one exit block since we merge return, make sure this is indeed correct
 	MachineBasicBlock& lastBB = MF.back();
@@ -2916,6 +2918,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					writeInstructionsToConsumer.push_back(writeToContextFrame.operator ->());
 					writeInstrToContextFrame.insert(make_pair(consumerFunction, writeInstructionsToConsumer));
 					edge->setEdgeSource(writeToContextFrame.operator ->());
+//					errs()<<"whats the problem exactly?\n";
 				} else if (edge->getType() == HyperOpEdge::SCALAR) {
 					//position is multiplied by 4 since the context memory is byte addressable
 					unsigned contextFrameOffset = edge->getPositionOfContextSlot() * datawidth;
@@ -3434,20 +3437,22 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	DEBUG(dbgs() << "Adding endHyperOp instructions to each pHyperOp\n");
 //End HyperOp and the two NOPs that follow are kinda like a new region that gets shuffled next
 	vector<MachineInstr*> endHyperOpInstructionRegion;
-//Add endHyperOp instruction and 2 nops in each pHyperOp
+	//Add endHyperOp instruction and 2 nops in each pHyperOp
 	for (unsigned i = 0; i < ceCount; i++) {
-		MachineInstrBuilder endInstruction = BuildMI(*BB, BB->end(), BB->begin()->getDebugLoc(), TII->get(REDEFINE::END));
+		MachineInstrBuilder endInstruction = BuildMI(*BB, BB->end(), MF.begin()->begin()->getDebugLoc(), TII->get(REDEFINE::END));
 		endInstruction.addImm(0);
 		endHyperOpInstructionRegion.push_back(endInstruction.operator ->());
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(endInstruction.operator llvm::MachineInstr *());
 		allInstructionsOfBB.push_back(make_pair(endInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
-
+		errs()<<"why is there a problem adding end hyperop instruction?";
+		endInstruction.operator ->()->dump();
 		for (unsigned j = 0; j < 2; j++) {
-			MachineInstrBuilder nopInstruction = BuildMI(*BB, BB->end(), BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
+			MachineInstrBuilder nopInstruction = BuildMI(*BB, BB->end(), MF.begin()->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
 			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
 			nopInstruction.addReg(REDEFINE::zero);
 			nopInstruction.addImm(0);
 			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
+			nopInstruction.operator llvm::MachineInstr *()->dump();
 			allInstructionsOfBB.push_back(make_pair(nopInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 		}
 	}

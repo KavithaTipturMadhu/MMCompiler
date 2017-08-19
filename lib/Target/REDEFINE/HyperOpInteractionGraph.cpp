@@ -649,7 +649,7 @@ list<TileCoordinates> HyperOpInteractionGraph::getEdgePathOnNetwork(HyperOp* sou
 	if (columnCount == 1) {
 		path.push_back(make_pair(sourceCoordinates.first, 0));
 	} else {
-		if (abs(sourceCoordinates.second - targetCoordinates.second) < columnCount / 2) {
+		if (fabs(sourceCoordinates.second - targetCoordinates.second) < columnCount / 2) {
 			for (col = sourceCoordinates.second; col != (targetCoordinates.second + 1); col = (col + 1) % columnCount) {
 				path.push_back(make_pair(sourceCoordinates.first, col));
 			}
@@ -664,7 +664,7 @@ list<TileCoordinates> HyperOpInteractionGraph::getEdgePathOnNetwork(HyperOp* sou
 	}
 	if (rowCount > 1) {
 //		errs() << "row from " << sourceCoordinates.first << " to " << targetCoordinates.first << "\n";
-		if (abs(sourceCoordinates.first - targetCoordinates.first) < columnCount / 2) {
+		if (fabs(sourceCoordinates.first - targetCoordinates.first) < columnCount / 2) {
 			for (unsigned row = sourceCoordinates.first; row != (targetCoordinates.first + 1); row = (row + 1) % rowCount) {
 				path.push_back(make_pair(row, col));
 			}
