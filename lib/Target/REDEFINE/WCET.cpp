@@ -5,6 +5,7 @@
  *      Author: tarun
  */
 #include "WCET.h"
+#include "llvm/ADT/StringExtras.h"
 using namespace WCET;
 using namespace std;
 
@@ -1219,9 +1220,9 @@ template<class T> void DWGraph< T >::xdot()
 {
 	std::ofstream df;
 	std::string file( "graph" );
-	file.append( std::to_string( WCET::get_gidx() ) );
+	file.append( itostr((int64_t)WCET::get_gidx()) );
 	file.append( ".dot" );
-	df.open( file );
+	df.open( file.c_str() );
 	df << "digraph{\n";
 	for ( typename DWG::iterator itr = this->G.begin() ; itr != this->G.end() ; ++itr )
 	{
@@ -1693,9 +1694,9 @@ template<class T> void DWAGraph< T >::xdot_CriticalPath()
 
 	std::ofstream df;
 	std::string file( "graph" );
-	file.append( std::to_string( WCET::get_gidx() ) );
+	file.append( itostr( WCET::get_gidx() ) );
 	file.append( ".dot" );
-	df.open( file );
+	df.open( file.c_str() );
 	df << "digraph{\n";
 	if( XDOTRANK )
 		df << "\trankdir=LR;\n";
@@ -1764,9 +1765,9 @@ template<class T> void DWAGraph< T >::xdot_ShortestPath()
 
 	std::ofstream df;
 	std::string file( "graph" );
-	file.append( std::to_string( WCET::get_gidx() ) );
+	file.append( itostr( WCET::get_gidx() ) );
 	file.append( ".dot" );
-	df.open( file );
+	df.open( file.c_str() );
 	df << "digraph{\n";
 	if( XDOTRANK )
 		df << "\trankdir=LR;\n";

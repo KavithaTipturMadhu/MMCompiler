@@ -1321,6 +1321,7 @@ for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::reverse_iterator ins
 }
 
 void REDEFINEMCInstrScheduler::finishBlock() {
+
 //If the basic block is the terminator
 if (BB->getName().compare(MF.back().getName()) == 0) {
 //TODO:Assuming here that there is only one exit block since we merge return, make sure this is indeed correct
@@ -3442,8 +3443,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		endHyperOpInstructionRegion.push_back(endInstruction.operator ->());
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(endInstruction.operator llvm::MachineInstr *());
 		allInstructionsOfBB.push_back(make_pair(endInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
-		errs()<<"why is there a problem adding end hyperop instruction?";
-		endInstruction.operator ->()->dump();
 		for (unsigned j = 0; j < 2; j++) {
 			MachineInstrBuilder nopInstruction = BuildMI(*BB, BB->end(), dl, TII->get(REDEFINE::ADDI));
 			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
@@ -3524,7 +3523,7 @@ for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != B
 LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), registersUsedInBB);
 //Create instruction bundles corresponding to pHyperOps
 if (!firstInstructionInCE.empty()) {
-	DEBUG(dbgs() << "Creating pHyperOp bundles for CEs\n");
+	DEBUG(dbgs() << "Creating pHyperOp bundles for CEs for bb"<<BB->getNumber()<<"\n");
 	for (unsigned i = 0; i < ceCount; i++) {
 		MachineInstr* firstInstructionofCE = firstInstructionInCE[i].first;
 		MachineInstr* firstInstructionInNextCE = 0;
@@ -3538,7 +3537,7 @@ if (!firstInstructionInCE.empty()) {
 		if (firstInstructionofCE == BB->end() || firstInstructionofCE == 0) {
 //			continue;
 			//pHyperOp is empty, add a nop
-			MachineInstrBuilder nopInstruction = BuildMI(*BB, firstInstructionInNextCE, BB->front().getDebugLoc(), TII->get(REDEFINE::ADDI));
+			MachineInstrBuilder nopInstruction = BuildMI(*BB, firstInstructionInNextCE, MF.begin()->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
 			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
 			nopInstruction.addReg(REDEFINE::zero);
 			nopInstruction.addImm(0);
@@ -3549,7 +3548,9 @@ if (!firstInstructionInCE.empty()) {
 		if (firstInstructionInNextCE != BB->end()) {
 			firstInstructionInNextCE->dump();
 		}
-		MIBundleBuilder* bundleBuilder = new MIBundleBuilder(*BB, firstInstructionofCE, firstInstructionInNextCE);
+		errs()<<"starting at ";
+		firstInstructionofCE->dump();
+		MIBundleBuilder* bundleBuilder = new MIBundleBuilder(*BB, (MachineBasicBlock::instr_iterator)firstInstructionofCE, (MachineBasicBlock::instr_iterator)firstInstructionInNextCE);
 	}
 }
 DEBUG(dbgs() << "After bundling, state of BB" << BB->getNumber() << ":");
