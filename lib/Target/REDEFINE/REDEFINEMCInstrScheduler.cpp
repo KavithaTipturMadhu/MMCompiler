@@ -2017,19 +2017,30 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 				//Map of primitive data types and their memory locations
 				list<pair<Type*, unsigned> > primitiveTypesMap;
-				list<Type*> containedTypesForTraversal;
-				containedTypesForTraversal.push_front(dataType);
+				list<pair<Type*, int> > containedTypesForTraversal;
+				if (dataType->isArrayTy()) {
+					containedTypesForTraversal.push_front(make_pair(dataType, dataType->getArrayNumElements()));
+				} else {
+					containedTypesForTraversal.push_front(make_pair(dataType, 1));
+				}
 				unsigned memoryOfType = 0;
 				//Find the primitive types of allocatedDataType
 				while (!containedTypesForTraversal.empty()) {
-					Type* traversingType = containedTypesForTraversal.front();
+					Type* traversingType = containedTypesForTraversal.front().first;
+					int typeCount =  containedTypesForTraversal.front().second;
 					containedTypesForTraversal.pop_front();
 					if (!traversingType->isAggregateType()) {
-						primitiveTypesMap.push_back(make_pair(traversingType, memoryOfType));
-						memoryOfType += 32 / 8;
+						for(int i=0;i<typeCount;i++){
+							primitiveTypesMap.push_back(make_pair(traversingType, memoryOfType));
+							memoryOfType += (32 / 8);
+						}
 					} else {
-						for (unsigned i = 0; i < traversingType->getNumContainedTypes(); i++) {
-							containedTypesForTraversal.push_back(traversingType->getContainedType(i));
+						if (traversingType->isArrayTy()) {
+							containedTypesForTraversal.push_back(make_pair(traversingType->getArrayElementType(), traversingType->getArrayNumElements()));
+						} else {
+							for (unsigned i = 0; i < traversingType->getNumContainedTypes(); i++) {
+								containedTypesForTraversal.push_back(make_pair(traversingType->getContainedType(i), 1));
+							}
 						}
 					}
 				}
@@ -2245,7 +2256,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 							MachineInstrBuilder store = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::FSW));
 							store.addReg(floatingPointRegister).addReg(registerContainingMemBase).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData);
-
 							allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(store.operator llvm::MachineInstr *());
 						} else {
@@ -2265,6 +2275,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 							MachineInstrBuilder store = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::SW));
 							store.addReg(integerRegister).addReg(registerContainingMemBase).addImm(allocatedDataIndex * memoryOfType + containedPrimitiveItr->second + frameLocationOfTargetData);
+							errs() << "localref sw to " << childItr->second->asString() << ":";
+							store.operator ->()->dump();
 							//Adding edge source instruction for WCET
 							edge->setEdgeSource(store.operator ->());
 							allInstructionsOfRegion.push_back(make_pair(store.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
@@ -3523,7 +3535,7 @@ for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != B
 LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), registersUsedInBB);
 //Create instruction bundles corresponding to pHyperOps
 if (!firstInstructionInCE.empty()) {
-	DEBUG(dbgs() << "Creating pHyperOp bundles for CEs for bb"<<BB->getNumber()<<"\n");
+	DEBUG(dbgs() << "Creating pHyperOp bundles for CEs for bb" << BB->getNumber() << "\n");
 	for (unsigned i = 0; i < ceCount; i++) {
 		MachineInstr* firstInstructionofCE = firstInstructionInCE[i].first;
 		MachineInstr* firstInstructionInNextCE = 0;
@@ -3548,9 +3560,9 @@ if (!firstInstructionInCE.empty()) {
 		if (firstInstructionInNextCE != BB->end()) {
 			firstInstructionInNextCE->dump();
 		}
-		errs()<<"starting at ";
+		errs() << "starting at ";
 		firstInstructionofCE->dump();
-		MIBundleBuilder* bundleBuilder = new MIBundleBuilder(*BB, (MachineBasicBlock::instr_iterator)firstInstructionofCE, (MachineBasicBlock::instr_iterator)firstInstructionInNextCE);
+		MIBundleBuilder* bundleBuilder = new MIBundleBuilder(*BB, (MachineBasicBlock::instr_iterator) firstInstructionofCE, (MachineBasicBlock::instr_iterator) firstInstructionInNextCE);
 	}
 }
 DEBUG(dbgs() << "After bundling, state of BB" << BB->getNumber() << ":");
