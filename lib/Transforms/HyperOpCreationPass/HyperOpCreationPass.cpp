@@ -1218,11 +1218,6 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 
 					hyperOpBBAndArgs.push_back(make_pair(tempBBList, tempHyperOpArguments));
-					errs() << "bbs forming new hop:\n";
-					for (auto bbItr = tempBBList.begin(); bbItr != tempBBList.end(); bbItr++) {
-						errs() << (*bbItr)->getName() << ",";
-					}
-					errs() << "\n";
 					accumulatedBasicBlocks.clear();
 					hyperOpArguments.clear();
 					hyperOpArgCount = 0;
@@ -1492,7 +1487,6 @@ struct HyperOpCreationPass: public ModulePass {
 												} else {
 													//Get Value object of the newly created function's argument corresponding to the replacement
 													for (Function::arg_iterator argItr = newFunction->arg_begin(); argItr != newFunction->arg_end(); argItr++) {
-														(*argItr).dump();
 														if ((*argItr).getArgNo() == localHyperOpArgIndex) {
 															clonedInst->setOperand(operandIndex, argItr);
 															argUpdated = true;
@@ -1591,9 +1585,6 @@ struct HyperOpCreationPass: public ModulePass {
 						currentBB = idom;
 						idom = tree.getNode(idom)->getIDom()->getBlock();
 					}
-					if (idom != NULL) {
-						errs() << "idom:" << idom->getName() << " from " << idom->getParent()->getName() << " and original idom:" << originalIdom->getName() << "\n";
-					}
 					//if the idom is not in accumulated list, add it as a branch source
 					if (idom != NULL) {
 						if (idomPredecessor && (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), idom) == accumulatedBasicBlocks.end() || find(newlyAcquiredBBList.begin(), newlyAcquiredBBList.end(), originalBB) != newlyAcquiredBBList.end())) {
@@ -1601,11 +1592,9 @@ struct HyperOpCreationPass: public ModulePass {
 							vector<pair<BasicBlock*, int> > successorBBList;
 							TerminatorInst* terminator = idom->getTerminator();
 							for (unsigned i = 0; i < terminator->getNumSuccessors(); i++) {
-								if (terminator->getSuccessor(i) == originalBB) {
+								if (terminator->getSuccessor(i) == originalBB || terminator->getSuccessor(i) == currentBB) {
 									//Add only those successors that correspond to a basic block in the current HyperOp
 									successorBBList.push_back(make_pair(originalBB, i));
-								} else if (terminator->getSuccessor(i) == currentBB) {
-									successorBBList.push_back(make_pair(originalBB, -1));
 								}
 							}
 							bool branchAdded = false;
@@ -1646,10 +1635,6 @@ struct HyperOpCreationPass: public ModulePass {
 								&& originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
 							vector<pair<BasicBlock*, int> > successorBBList;
 							assert(pred->getTerminator()->getNumSuccessors() <= 1 && "conditional jump to basic block cannot exist here\n");
-//							errs() << "pred:";
-//							pred->dump();
-//							pred->getTerminator()->dump();
-//							errs() << "added unconditional jump to be patched\n";
 							unconditionalBranchSources[pred->getTerminator()] = successorBBList;
 						}
 					}
@@ -2528,7 +2513,7 @@ struct HyperOpCreationPass: public ModulePass {
 						//Are there only two operands in a branch instruction always or are there more?
 						assert(conditionalBranchSourceItr->second.size() == 1 && "there are more than two targets to branch");
 						unsigned positionToBeUpdated = ConstantInt::get(ctxt, APInt(32, conditionalBranchSourceItr->second[0].second))->getZExtValue();
-						if (positionToBeUpdated == 0 || positionToBeUpdated == -1) {
+						if (positionToBeUpdated == 0) {
 							expectedPredicate = MDString::get(ctxt, StringRef("1"));
 						} else {
 							expectedPredicate = MDString::get(ctxt, StringRef("0"));
@@ -2568,19 +2553,16 @@ struct HyperOpCreationPass: public ModulePass {
 					metadataHost->setMetadata(HYPEROP_CONTROLS, predicatesRelation);
 
 					for (unsigned branchOperandIndex = 0; branchOperandIndex != conditionalBranchSourceItr->second.size(); branchOperandIndex++) {
-//						errs() << "patching conditional:";
-//						conditionalBranchSourceItr->first->dump();
-//						errs() << "how many operands?" << conditionalBranchSourceItr->second[branchOperandIndex].first->getName() << "\n";
 						//Update the conditional branch only if the source of jump instruction is in the same HyperOp and is not an indirect jump from elsewhere since we try to deliver only the predicate that needs to be passed
 //						if (find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), conditionalBranchSourceItr->second[branchOperandIndex].first) == accumulatedOriginalBasicBlocks.end() && conditionalBranchSourceItr->second[branchOperandIndex].second != -1) {
-						if (conditionalBranchSourceItr->second[branchOperandIndex].second != -1) {
-							//Update the cloned conditional branch instruction with the right target
-							int positionToBeUpdated = ConstantInt::get(ctxt, APInt(32, conditionalBranchSourceItr->second[branchOperandIndex].second))->getZExtValue();
-							Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
-							((BranchInst*) clonedInstr)->setSuccessor(positionToBeUpdated, retInstOfProducer->getParent());
-//							errs() << "updated cloned instruction to ";
-//							clonedInstr->dump();
+						int conditionalSlot = conditionalBranchSourceItr->second[branchOperandIndex].second;
+						BasicBlock* targetBB = ((BranchInst*) conditionalBranchInst)->getSuccessor(conditionalSlot);
+						if (find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), targetBB) == accumulatedOriginalBasicBlocks.end()) {
+							continue;
 						}
+						int positionToBeUpdated = ConstantInt::get(ctxt, APInt(32, conditionalSlot))->getZExtValue();
+						Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
+						((BranchInst*) clonedInstr)->setSuccessor(positionToBeUpdated, retInstOfProducer->getParent());
 					}
 
 					//Fold the branch instruction if all jumps are to the same bb
