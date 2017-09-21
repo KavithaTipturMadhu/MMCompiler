@@ -53,6 +53,7 @@ HyperOp::HyperOp(Function* function) {
 	this->unrolledInstance = false;
 	this->instanceof = NULL;
 	this->InRange = false;
+	this->numInputsPerCE.reserve(4);
 }
 
 HyperOp::~HyperOp() {
@@ -272,6 +273,10 @@ HyperOp* HyperOp::getImmediatePostDominator() {
 
 void HyperOp::setStartHyperOp() {
 	this->IsStart = true;
+	this->incrementIncomingSyncCount();
+	this->setBarrierHyperOp();
+	errs()<<"problems setting inputs?\n";
+	this->setNumCEInputs(0, 1);
 }
 void HyperOp::setEndHyperOp() {
 	this->IsEnd = true;
