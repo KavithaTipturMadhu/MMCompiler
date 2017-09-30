@@ -1575,18 +1575,32 @@ struct HyperOpCreationPass: public ModulePass {
 						for (auto predItr = pred_begin(currentBB); predItr != pred_end(currentBB); predItr++) {
 							BasicBlock* predecessor = *predItr;
 							if (predecessor == idom && (predecessor->getTerminator()->getNumSuccessors() > 1 || (isa<BranchInst>(predecessor->getTerminator()) && ((BranchInst*) predecessor->getTerminator())->isConditional()))) {
-								idomPredecessor = true;
-								break;
+								bool isConditionalJumpFromLoop = false;
+								for (LoopInfo* loopInfoItr : loopCache) {
+									for (LoopInfo::iterator loopItr = loopInfoItr->begin(); loopItr != loopInfoItr->end(); loopItr++) {
+										vector<BasicBlock*> loopBBList = (*loopItr)->getBlocks();
+										if ((*loopItr)->getHeader() == idom && find(loopBBList.begin(), loopBBList.end(), currentBB) == loopBBList.end()) {
+											isConditionalJumpFromLoop = true;
+											break;
+										}
+									}
+								}
+								if (!isConditionalJumpFromLoop) {
+									idomPredecessor = true;
+									break;
+								}
 							}
 						}
 						if (idomPredecessor || tree.getNode(idom) == NULL || tree.getNode(idom)->getIDom() == NULL) {
 							break;
 						}
+
 						currentBB = idom;
 						idom = tree.getNode(idom)->getIDom()->getBlock();
 					}
 					//if the idom is not in accumulated list, add it as a branch source
 					if (idom != NULL) {
+						errs() << "idom " << idom->getName() << " to pred " << originalBB->getName() << "\n";
 						if (idomPredecessor && (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), idom) == accumulatedBasicBlocks.end() || find(newlyAcquiredBBList.begin(), newlyAcquiredBBList.end(), originalBB) != newlyAcquiredBBList.end())) {
 							//Find the terminator of idom that leads to bbItr
 							vector<pair<BasicBlock*, int> > successorBBList;
@@ -1597,26 +1611,10 @@ struct HyperOpCreationPass: public ModulePass {
 									successorBBList.push_back(make_pair(originalBB, i));
 								}
 							}
-							bool branchAdded = false;
 							if (successorBBList.size() == terminator->getNumSuccessors()) {
 								//All successors of the terminator instruction are in the same target HyperOp, mark the jump as unconditional
 								unconditionalBranchSources[terminator] = successorBBList;
-								branchAdded = true;
 							} else {
-								//Check if the idom is a loop header and the target is not in the loop, add it as an unconditional jump that needs a branch to be patched
-								for (LoopInfo* loopInfoItr : loopCache) {
-									for (LoopInfo::iterator loopItr = loopInfoItr->begin(); loopItr != loopInfoItr->end(); loopItr++) {
-										vector<BasicBlock*> loopBBList = (*loopItr)->getBlocks();
-										if ((*loopItr)->getHeader() == idom && find(loopBBList.begin(), loopBBList.end(), originalBB) == loopBBList.end()) {
-											unconditionalBranchSources[terminator] = successorBBList;
-											branchAdded = true;
-											break;
-										}
-									}
-
-								}
-							}
-							if (!branchAdded) {
 								if (conditionalBranchSources.find(terminator) != conditionalBranchSources.end()) {
 									vector<pair<BasicBlock*, int> > previousSuccessorIndexList = conditionalBranchSources[terminator];
 									conditionalBranchSources.erase(terminator);

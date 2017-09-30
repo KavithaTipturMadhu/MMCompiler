@@ -127,7 +127,10 @@ class HyperOp {
 	bool gcRequired;
 	unsigned hyperOpId;
 	vector<unsigned> numInputsPerCE;
-	unsigned int numIncomingSyncEdges;
+	//map of predicate value to sync count
+	 unsigned numIncomingSyncEdges[2];
+	 bool hasMutexSyncSources;
+	 Value* predicateForSyncSource[2];
 	//Map of source instruction in a CE and the first consumer instruction in a different CE
 	PHyperOpInteractionGraph pHopDependenceMap;
 
@@ -193,9 +196,10 @@ public:
 	void setFbindRequired(bool fbindRequired);
 	bool isStaticHyperOp() const;
 	void setStaticHyperOp(bool staticHyperOp);
-	void incrementIncomingSyncCount();
-	void decrementIncomingSyncCount();
-	unsigned getSyncCount();
+	void setIncomingSyncCount(unsigned predicateValue, unsigned syncCount);
+	void incrementIncomingSyncCount(unsigned predicateValue);
+	void decrementIncomingSyncCount(unsigned predicateValue);
+	unsigned getSyncCount(unsigned predicateValue);
 	list<unsigned> getInstanceId();
 	void setInstanceId(list<unsigned> instanceId);
 	Function* getInstanceof();
@@ -206,6 +210,10 @@ public:
 	void setFunction(Function* function);
 	PHyperOpInteractionGraph getpHyperOpDependenceMap();
 	void setpHyperOpDependenceMap(PHyperOpInteractionGraph);
+	bool isHasMutexSyncSources() const ;
+	void setHasMutexSyncSources(bool hasMutexSyncSources);
+	void setIncomingSyncPredicate(unsigned predicateValue, Value* predicate);
+	Value* getIncomingSyncPredicate(unsigned predicateValue);
 };
 
 class HyperOpInteractionGraph {

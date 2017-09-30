@@ -49,7 +49,8 @@ HyperOp::HyperOp(Function* function) {
 	this->fbindRequired = false;
 	this->gcRequired = false;
 	this->staticHyperOp = true;
-	this->numIncomingSyncEdges = 0;
+	this->numIncomingSyncEdges[0] = 0;
+	this->numIncomingSyncEdges[1] = 0;
 	this->unrolledInstance = false;
 	this->instanceof = NULL;
 	this->InRange = false;
@@ -132,15 +133,27 @@ void HyperOp::setStaticHyperOp(bool staticHyperOp) {
 	this->staticHyperOp = staticHyperOp;
 }
 
-void HyperOp::incrementIncomingSyncCount() {
-	this->numIncomingSyncEdges++;
+void HyperOp::incrementIncomingSyncCount(unsigned predicateValue) {
+	this->numIncomingSyncEdges[predicateValue]++;
 }
 
-void HyperOp::decrementIncomingSyncCount() {
-	this->numIncomingSyncEdges--;
+void HyperOp::setIncomingSyncCount(unsigned predicateValue, unsigned syncCount) {
+	this->numIncomingSyncEdges[predicateValue] = syncCount;
 }
-unsigned HyperOp::getSyncCount() {
-	return this->numIncomingSyncEdges;
+
+void HyperOp::setIncomingSyncPredicate(unsigned predicateValue, Value* predicate) {
+	this->predicateForSyncSource[predicateValue] = predicate;
+}
+
+Value* HyperOp::getIncomingSyncPredicate(unsigned predicateValue) {
+	return this->predicateForSyncSource[predicateValue];
+}
+
+void HyperOp::decrementIncomingSyncCount(unsigned predicateValue) {
+	this->numIncomingSyncEdges[predicateValue]--;
+}
+unsigned HyperOp::getSyncCount(unsigned predicateValue) {
+	return this->numIncomingSyncEdges[predicateValue];
 }
 
 list<unsigned> HyperOp::getInstanceId() {
@@ -201,6 +214,16 @@ PHyperOpInteractionGraph HyperOp::getpHyperOpDependenceMap() {
 void HyperOp::setpHyperOpDependenceMap(PHyperOpInteractionGraph dependenceMap) {
 	this->pHopDependenceMap = dependenceMap;
 }
+
+
+bool HyperOp::isHasMutexSyncSources() const {
+	return hasMutexSyncSources;
+}
+
+void HyperOp::setHasMutexSyncSources(bool hasMutexSyncSources) {
+	this->hasMutexSyncSources = hasMutexSyncSources;
+}
+
 void HyperOp::setHyperOpId(unsigned hyperOpId) {
 	this->hyperOpId = hyperOpId;
 }
@@ -273,9 +296,8 @@ HyperOp* HyperOp::getImmediatePostDominator() {
 
 void HyperOp::setStartHyperOp() {
 	this->IsStart = true;
-	this->incrementIncomingSyncCount();
+	this->incrementIncomingSyncCount(0);
 	this->setBarrierHyperOp();
-	errs()<<"problems setting inputs?\n";
 	this->setNumCEInputs(0, 1);
 }
 void HyperOp::setEndHyperOp() {
@@ -1798,7 +1820,7 @@ list<HyperOp*> getIntersection(list<HyperOp*> first, list<HyperOp*> second) {
  * Returns execution time of the merged cluster
  */
 pair<list<unsigned int>, list<pair<list<HyperOp*>, unsigned int> > > mergeNodesAndReturnExecutionTime(HyperOp* startHyperOp, pair<list<HyperOp*>, unsigned int> sourceClusterPair, pair<list<HyperOp*>, unsigned int> targetClusterPair, list<pair<list<HyperOp*>, unsigned int> > clusterList,
-		bool revert) {
+bool revert) {
 	list<HyperOp*> sourceCluster = sourceClusterPair.first;
 	list<HyperOp*> targetCluster = targetClusterPair.first;
 	list<HyperOpEdge*> stateChangedEdges;
@@ -3314,15 +3336,44 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp * currentHyperOp)
 	while (!currentHyperOp->isStartHyperOp()) {
 		HyperOp* immediateDominator = currentHyperOp->getImmediateDominator();
 		//Check if the current HyperOp is an immediate child of the immediateDom HyperOp
-		HyperOpEdge* parentEdge = 0;
+		list<HyperOpEdge*> parentEdgeList;
 		for (auto childItr = immediateDominator->ChildMap.begin(); childItr != immediateDominator->ChildMap.end(); childItr++) {
 			if (childItr->second == currentHyperOp) {
-				parentEdge = childItr->first;
+				parentEdgeList.push_back(childItr->first);
 			}
 		}
 
-		if (parentEdge != 0 && parentEdge->getType() == HyperOpEdge::PREDICATE) {
-			reachingPredicateChain.push_back(make_pair(parentEdge, immediateDominator));
+		for (auto parentEdgeItr = parentEdgeList.begin(); parentEdgeItr != parentEdgeList.end(); parentEdgeItr++) {
+			if ((*parentEdgeItr)->getType() == HyperOpEdge::PREDICATE) {
+				reachingPredicateChain.push_back(make_pair((*parentEdgeItr), immediateDominator));
+				break;
+			}
+		}
+		currentHyperOp = immediateDominator;
+	}
+
+	return reachingPredicateChain;
+}
+
+//Returns predicate from the argument parent hyperop
+list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInputUptoParent(HyperOp * currentHyperOp, HyperOp* parentHyperOp) {
+//Now we find the shortest predicate chain
+	list<pair<HyperOpEdge*, HyperOp*> > reachingPredicateChain;
+	while (currentHyperOp!=parentHyperOp) {
+		HyperOp* immediateDominator = currentHyperOp->getImmediateDominator();
+		//Check if the current HyperOp is an immediate child of the immediateDom HyperOp
+		list<HyperOpEdge*> parentEdgeList;
+		for (auto childItr = immediateDominator->ChildMap.begin(); childItr != immediateDominator->ChildMap.end(); childItr++) {
+			if (childItr->second == currentHyperOp) {
+				parentEdgeList.push_back(childItr->first);
+			}
+		}
+
+		for (auto parentEdgeItr = parentEdgeList.begin(); parentEdgeItr != parentEdgeList.end(); parentEdgeItr++) {
+			if ((*parentEdgeItr)->getType() == HyperOpEdge::PREDICATE) {
+				reachingPredicateChain.push_back(make_pair((*parentEdgeItr), immediateDominator));
+				break;
+			}
 		}
 		currentHyperOp = immediateDominator;
 	}
@@ -3504,7 +3555,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					producerHyperOp->addChildEdge(syncEdge, consumerHyperOp);
 					consumerHyperOp->addParentEdge(syncEdge, producerHyperOp);
 					consumerHyperOp->setBarrierHyperOp();
-					consumerHyperOp->incrementIncomingSyncCount();
+					consumerHyperOp->incrementIncomingSyncCount(0);
 				} else if ((originalAndReplacementFunctionMap.find(consumerHyperOp->getFunction()) == originalAndReplacementFunctionMap.end() && consumerHyperOp->getFunction()->getNumOperands() < this->getMaxMemFrameSize())
 						|| originalAndReplacementFunctionMap[consumerHyperOp->getFunction()]->getNumOperands() < this->getMaxContextFrameSize()) {
 					DEBUG(dbgs() << "adding sync via context frame from " << producerHyperOp->asString() << " to " << consumerHyperOp->asString() << "\n");
@@ -3626,9 +3677,9 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 						originalAndReplacementFunctionMap.erase(consumerHyperOp->getFunction());
 					}
 					originalAndReplacementFunctionMap[consumerHyperOp->getFunction()] = replacementFunction;
-				} else {
-					//TODO Not enough slots in context frame
-					DEBUG(dbgs() << "adding a hyperop that can sync  via context frame from " << producerHyperOp->asString() << " to " << consumerHyperOp->asString() << "\n");
+//				} else {
+//					//TODO Not enough slots in context frame
+//					DEBUG(dbgs() << "adding a hyperop that can sync  via context frame from " << producerHyperOp->asString() << " to " << consumerHyperOp->asString() << "\n");
 
 				}
 
@@ -3670,9 +3721,9 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 //Update the edges of outgoing edges of consumer hyperOp
 		for (map<HyperOpEdge*, HyperOp*>::iterator edgeItr = hyperOpForUpdate->ChildMap.begin(); edgeItr != hyperOpForUpdate->ChildMap.end(); edgeItr++) {
 			if (edgeItr->first->getValue() != NULL) {
-				errs() << "edge whose type is " << edgeItr->first->getType() << ", updated edge to contain value from " << ((Instruction*) edgeItr->first->getValue())->getParent()->getParent()->getName() << "\n";
+//				errs() << "edge whose type is " << edgeItr->first->getType() << ", updated edge to contain value from " << ((Instruction*) edgeItr->first->getValue())->getParent()->getParent()->getName() << "\n";
 				edgeItr->first->setValue(originalInstAndCloneMap[(Instruction*) edgeItr->first->getValue()]);
-				errs() << "to instead contain value from " << ((Instruction*) edgeItr->first->getValue())->getParent()->getParent()->getName() << "\n";
+//				errs() << "to instead contain value from " << ((Instruction*) edgeItr->first->getValue())->getParent()->getParent()->getName() << "\n";
 			}
 		}
 
@@ -3721,9 +3772,9 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		HyperOp* hyperOp = *hopItr;
 		if (hyperOp->isPredicatedHyperOp()) {
 			HyperOp* immediateDominator = hyperOp->getImmediateDominator();
-			errs() << "finding the last predicate input to " << hyperOp->asString() << "\n";
+//			errs() << "finding the last predicate input to " << hyperOp->asString() << "\n";
 			list<pair<HyperOpEdge*, HyperOp*> > parentPredicateChain = lastPredicateInput(controlFlowGraphAndOriginalHopMap.second[hyperOp]);
-			errs() << "computed predicate length " << parentPredicateChain.size() << "\n";
+//			errs() << "computed predicate length " << parentPredicateChain.size() << "\n";
 			pair<HyperOpEdge*, HyperOp*> parentPredicate;
 			if (parentPredicateChain.empty()) {
 				errs() << "empty predicate\n";
@@ -3787,34 +3838,70 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		HyperOp* hyperOp = *hopItr;
 		if (hyperOp->isBarrierHyperOp()) {
 			errs() << "updating node with incoming sync edges " << hyperOp->asString() << "\n";
+			//Initialize every incoming path with the same count so that decrements can be performed later
+			hyperOp->setIncomingSyncCount(1, hyperOp->getSyncCount(0));
+
 			list<HyperOp*> syncSourceList;
 			for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
 				if (!parentItr->second->getInRange() && parentItr->first->getType() == HyperOpEdge::SYNC && find(syncSourceList.begin(), syncSourceList.end(), parentItr->second) == syncSourceList.end()) {
 					syncSourceList.push_back(parentItr->second);
 				}
 			}
+//
+//			//Find out if there are predicates complimentary to each other
+//			for (list<HyperOp*>::iterator syncSourceItr = syncSourceList.begin(); syncSourceItr != syncSourceList.end(); syncSourceItr++) {
+//				if (*syncSourceItr != syncSourceList.back()) {
+//					list<HyperOp*>::iterator secondSyncSourceItr = syncSourceItr;
+//					secondSyncSourceItr++;
+//					for (; secondSyncSourceItr != syncSourceList.end(); secondSyncSourceItr++) {
+//						//Check if predicates are mutually exclusive
+//						errs() << "checking for mutual exclusion of " << (*syncSourceItr)->asString() << " and " << (*secondSyncSourceItr)->asString() << "\n";
+//						if (mutuallyExclusiveHyperOps(controlFlowGraphAndOriginalHopMap.second[*syncSourceItr], controlFlowGraphAndOriginalHopMap.second[*secondSyncSourceItr])) {
+//							errs() << "they are exclusive!\n";
+//							hyperOp->decrementIncomingSyncCount(0);
+//							errs() << "decremented sync count of " << hyperOp->asString() << "\n";
+//						} else {
+//							errs() << "checking for mutual exclusion of " << (*syncSourceItr)->asString() << " and " << (*secondSyncSourceItr)->asString() << "\n";
+//							errs() << "they are not exclusive!\n";
+//						}
+//					}
+//				}
+//			}
 
-			//Find out if there are predicates complimentary to each other
+			//Identify the number of sync tokens expected on each path to a sync barrier hyperop
+			unsigned syncOnPredicate[2];
+			syncOnPredicate[0] = 0;
+			syncOnPredicate[1] = 0;
+			bool syncFromPredicatedSources = false;
 			for (list<HyperOp*>::iterator syncSourceItr = syncSourceList.begin(); syncSourceItr != syncSourceList.end(); syncSourceItr++) {
-				if (*syncSourceItr != syncSourceList.back()) {
-					list<HyperOp*>::iterator secondSyncSourceItr = syncSourceItr;
-					secondSyncSourceItr++;
-					for (; secondSyncSourceItr != syncSourceList.end(); secondSyncSourceItr++) {
-						//Check if predicates are mutually exclusive
-						errs() << "checking for mutual exclusion of " << (*syncSourceItr)->asString() << " and " << (*secondSyncSourceItr)->asString() << "\n";
-						if (mutuallyExclusiveHyperOps(controlFlowGraphAndOriginalHopMap.second[*syncSourceItr], controlFlowGraphAndOriginalHopMap.second[*secondSyncSourceItr])) {
-							errs() << "they are exclusive!\n";
-//							TODO moar: sync count on mutually exclusive paths need not be equal
-							hyperOp->decrementIncomingSyncCount();
-							errs() << "decremented sync count of " << hyperOp->asString() << "\n";
-						} else {
-							errs() << "checking for mutual exclusion of " << (*syncSourceItr)->asString() << " and " << (*secondSyncSourceItr)->asString() << "\n";
-							errs() << "they are not exclusive!\n";
-						}
-					}
+				errs() << "source of synchronization:" << (*syncSourceItr)->asString() << "\n";
+				auto predicateChain = lastPredicateInputUptoParent(*syncSourceItr, hyperOp->getImmediateDominator());
+				errs() << "predicate chain to syncsource:" << predicateChain.size() << "\n";
+				auto predicateChainCopy = predicateChain;
+
+				while (!predicateChainCopy.empty()) {
+					errs() << "predicate:" << predicateChainCopy.front().second->asString() << "\n";
+					predicateChainCopy.pop_front();
 				}
 
+				while (!predicateChain.empty() && predicateChain.front().first->getType() != HyperOpEdge::PREDICATE) {
+					errs() << "predicate:" << predicateChain.front().second->asString() << "\n";
+					predicateChain.pop_front();
+				}
+				if (!predicateChain.empty()) {
+					assert(predicateChain.front().first->getType() == HyperOpEdge::PREDICATE && "Non predicate edge in predicate chain");
+					syncOnPredicate[predicateChain.front().first->getPredicateValue()]++;
+					hyperOp->setIncomingSyncPredicate(predicateChain.front().first->getPredicateValue(), predicateChain.front().first->getValue());
+					syncFromPredicatedSources = true;
+				}
 			}
+			if(syncFromPredicatedSources && hyperOp->getParentList().size()>syncSourceList.size()){
+				hyperOp->setHasMutexSyncSources(true);
+			}else{
+				hyperOp->setHasMutexSyncSources(false);
+			}
+			hyperOp->setIncomingSyncCount(0, syncOnPredicate[0]);
+			hyperOp->setIncomingSyncCount(1, syncOnPredicate[1]);
 		}
 	}
 
@@ -3861,7 +3948,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 
 			os << "Dom:" << dom << ", PostDom:" << postdom << ",";
 			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
-			os << "SyncCount:" << (*vertexIterator)->getSyncCount();
+			os << "SyncCount:" << (*vertexIterator)->getSyncCount(0);
 			/*
 			 os << "Domf:";
 			 if (!vertex->getDominanceFrontier().empty()) {

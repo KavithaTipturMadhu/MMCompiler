@@ -1529,8 +1529,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						//load trip count from memory location onto a register
 						unsigned tripcountReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 						MachineInstrBuilder load = BuildMI(lastBB, lastInstruction, dl, TII->get(REDEFINE::LW));
+						load.addReg(tripcountReg, RegState::Define);
 						load.addFrameIndex(memSize);
-						load.addReg(tripcountReg);
 						LIS->InsertMachineInstrInMaps(load.operator ->());
 						//generate a loop?!?! to create HyperOps in blocks
 						allInstructionsOfRegion.push_back(make_pair(load.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
@@ -1591,8 +1591,50 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				unsigned registerContainingConsumerFrameAddr = registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr)->second.first;
 				unsigned ceContainingConsumerFrameAddr = registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr)->second.second;
 				unsigned registerWithSyncCount = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-				MachineInstrBuilder addi = BuildMI(lastBB, lastInstruction, dl, TII->get(REDEFINE::ADDI));
-				addi.addReg(registerWithSyncCount, RegState::Define);
+				//Mutually exclusive sync sources, add instructions to multiply the predicate values that reaches the sync producer with the
+				MachineInstrBuilder addi;
+				if ((*childHyperOpItr)->isHasMutexSyncSources()) {
+
+					Value* firstPredicate = (*childHyperOpItr)->getIncomingSyncPredicate(0);
+					unsigned firstPredicateValue = (*childHyperOpItr)->getSyncCount(0);
+					Value* secondPredicate = (*childHyperOpItr)->getIncomingSyncPredicate(1);
+					unsigned secondPredicateValue = (*childHyperOpItr)->getSyncCount(1);
+
+					unsigned firstPredMemSize, secondPredMemSize, memsize = 0;
+					for (unsigned int i = 0; i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
+						if (MF.getFrameInfo()->getObjectAllocation(i) == firstPredicate) {
+							firstPredMemSize = memsize;
+						}
+						if (MF.getFrameInfo()->getObjectAllocation(i) == secondPredicate) {
+							secondPredMemSize = memsize;
+						}
+						memsize += REDEFINEUtils::getSizeOfType(MF.getFrameInfo()->getObjectAllocation(i)->getType());
+					}
+
+					unsigned firstPred = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+					MachineInstrBuilder firstSyncPredLoad = BuildMI(lastBB, lastInstruction, dl, TII->get(REDEFINE::LW));
+					firstSyncPredLoad.addReg(firstPred, RegState::Define).addFrameIndex(firstPredMemSize);
+					allInstructionsOfRegion.push_back(make_pair(firstSyncPredLoad.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+					LIS->getSlotIndexes()->insertMachineInstrInMaps(firstSyncPredLoad.operator llvm::MachineInstr *());
+
+					unsigned secondPred;
+					if (firstPredicate == secondPredicate) {
+						secondPred = firstPred;
+					} else {
+						secondPred = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder secondSyncPredLoad = BuildMI(lastBB, lastInstruction, dl, TII->get(REDEFINE::LW));
+						secondSyncPredLoad.addReg(secondPred, RegState::Define).addFrameIndex(secondPredMemSize);
+						allInstructionsOfRegion.push_back(make_pair(secondSyncPredLoad.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(secondSyncPredLoad.operator llvm::MachineInstr *());
+					}
+
+					//Invert secondPredicate in another register
+					MachineInstrBuilder firstSyncCount = BuildMI(lastBB, lastInstruction, dl, TII->get(REDEFINE::MUL));
+					MachineInstrBuilder secondSyncCount;
+				} else {
+					addi = BuildMI(lastBB, lastInstruction, dl, TII->get(REDEFINE::ADDI));
+					addi.addReg(registerWithSyncCount, RegState::Define);
+				}
 				//Find whether there are any range hops being input
 				//TODO need to add more code for dynamic hyperops synchronizing with the same sync barrier
 				list<HyperOp*> parentsWithRanges;
@@ -1633,7 +1675,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(load.operator llvm::MachineInstr *());
 					addi.addReg(tripcountReg);
 				}
-				addi.addImm((*childHyperOpItr)->getSyncCount());
+				addi.addImm((*childHyperOpItr)->getSyncCount(0));
 				allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(ceContainingConsumerFrameAddr, insertPosition++)));
 				if (firstInstructionOfpHyperOpInRegion[ceContainingConsumerFrameAddr] == 0) {
 					firstInstructionOfpHyperOpInRegion[ceContainingConsumerFrameAddr] = addi.operator llvm::MachineInstr *();
@@ -1642,7 +1684,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				MachineInstrBuilder writecm = BuildMI(lastBB, lastInstruction, dl, TII->get(REDEFINE::WRITECM));
 				writecm.addReg(registerContainingConsumerFrameAddr);
 				writecm.addReg(registerWithSyncCount);
-				writecm.addImm(60);
+				writecm.addImm(SYNC_SLOT_OFFSET);
 
 				//Add the writecm instructions to the function map so that they can be patched for the right context frame location later
 				Function* consumerFunction = (*childHyperOpItr)->getFunction();
@@ -1755,8 +1797,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				//load trip count from memory location onto a register
 				unsigned tripcountReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 				MachineInstrBuilder load = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::LW));
+				load.addReg(tripcountReg, RegState::Define);
 				load.addFrameIndex(memSize);
-				load.addReg(tripcountReg);
 				LIS->InsertMachineInstrInMaps(load.operator ->());
 				insertedInstructions.push_back(load.operator ->());
 
@@ -2027,10 +2069,10 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				//Find the primitive types of allocatedDataType
 				while (!containedTypesForTraversal.empty()) {
 					Type* traversingType = containedTypesForTraversal.front().first;
-					int typeCount =  containedTypesForTraversal.front().second;
+					int typeCount = containedTypesForTraversal.front().second;
 					containedTypesForTraversal.pop_front();
 					if (!traversingType->isAggregateType()) {
-						for(int i=0;i<typeCount;i++){
+						for (int i = 0; i < typeCount; i++) {
 							primitiveTypesMap.push_back(make_pair(traversingType, memoryOfType));
 							memoryOfType += (32 / 8);
 						}
@@ -2950,7 +2992,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					MachineInstrBuilder loadInstr = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::LW));
 					loadInstr.addReg(registerContainingData, RegState::Define);
 //				loadInstr.addReg(virtualRegistersForInstAddr[targetCE].second);
-					loadInstr.addReg(REDEFINE::t5);
 					loadInstr.addFrameIndex(objectIndex);
 					allInstructionsOfRegion.push_back(make_pair(loadInstr.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(loadInstr.operator llvm::MachineInstr *());
@@ -3047,8 +3088,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				//load trip count from memory location onto a register
 				unsigned tripcountReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 				MachineInstrBuilder load = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::LW));
+				load.addReg(tripcountReg, RegState::Define);
 				load.addFrameIndex(memSize);
-				load.addReg(tripcountReg);
 				LIS->InsertMachineInstrInMaps(load.operator ->());
 				insertedInstructions.push_back(load.operator ->());
 
@@ -3298,7 +3339,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 						MachineInstrBuilder loadInstr = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::LW));
 						loadInstr.addReg(registerContainingPredicateData, RegState::Define);
-						loadInstr.addReg(REDEFINE::t5);
 						loadInstr.addFrameIndex(objectIndex);
 						if (firstInstructionOfpHyperOpInRegion[targetCE] == 0) {
 							firstInstructionOfpHyperOpInRegion[targetCE] = loadInstr.operator llvm::MachineInstr *();
@@ -3343,7 +3383,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					edge->setEdgeSource(writeToContextFrame.operator ->());
 				} else if (edge->getType() == HyperOpEdge::SYNC) {
 					//sync always goes to the 15th slot
-					unsigned contextFrameOffset = 60;
+					unsigned contextFrameOffset = SYNC_SLOT_OFFSET;
 
 					//decrement the barrier by 1
 					unsigned registerContainingData = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
