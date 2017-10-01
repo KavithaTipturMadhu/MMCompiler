@@ -439,9 +439,12 @@ struct HyperOpCreationPass: public ModulePass {
 		visitedBasicBlocks.push_back(basicBlock);
 		for (unsigned i = 0; i < basicBlock->getTerminator()->getNumSuccessors(); i++) {
 			BasicBlock* succBB = basicBlock->getTerminator()->getSuccessor(i);
-			if (find(visitedBasicBlocks.begin(), visitedBasicBlocks.end(), succBB) == visitedBasicBlocks.end() && (first || depthOfSuccessor > distanceToExitBlock(succBB, visitedBasicBlocks))) {
-				depthOfSuccessor = distanceToExitBlock(succBB, visitedBasicBlocks);
-				first = false;
+			if (find(visitedBasicBlocks.begin(), visitedBasicBlocks.end(), succBB) == visitedBasicBlocks.end()) {
+				unsigned tempDepth = distanceToExitBlock(succBB, visitedBasicBlocks);
+				if (first || tempDepth > depthOfSuccessor){
+					depthOfSuccessor = tempDepth;
+					first = false;
+				}
 			}
 		}
 		return 1 + depthOfSuccessor;
@@ -874,7 +877,7 @@ struct HyperOpCreationPass: public ModulePass {
 			while (!bbTraverser.empty()) {
 				BasicBlock* bbItr = bbTraverser.front();
 				bbTraverser.pop_front();
-				errs() << "acquiring bb " << bbItr->getName() << "\n";
+				errs() << "\n-------\nAcquiring bb " << bbItr->getName() << "\n";
 				bool canAcquireBBItr = true;
 				//If basic block is not the entry block
 				if (bbItr != &(function->getEntryBlock())) {
@@ -1229,20 +1232,25 @@ struct HyperOpCreationPass: public ModulePass {
 				map<unsigned, list<BasicBlock*> > untraversedBasicBlocks;
 				list<BasicBlock*> tempTraversalList;
 				std::copy(bbTraverser.begin(), bbTraverser.end(), std::back_inserter(tempTraversalList));
+				errs()<<"added to succ list:";
 				for (unsigned succIndex = 0; succIndex < bbItr->getTerminator()->getNumSuccessors(); succIndex++) {
 					BasicBlock* succBB = bbItr->getTerminator()->getSuccessor(succIndex);
 					if (find(traversedBasicBlocks.begin(), traversedBasicBlocks.end(), succBB) == traversedBasicBlocks.end() && find(bbTraverser.begin(), bbTraverser.end(), succBB) == bbTraverser.end()
 							&& find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), succBB) == accumulatedBasicBlocks.end()) {
 						tempTraversalList.push_back(succBB);
+						errs()<<succBB->getName()<<",";
+					}else{
+						errs()<<"didn't add "<<succBB->getName()<<"\n";
 					}
 				}
 				bbTraverser.clear();
-
+				errs()<<"\n";
 				for (auto successorTraverser = tempTraversalList.begin(); successorTraverser != tempTraversalList.end(); successorTraverser++) {
 					BasicBlock* succBB = *successorTraverser;
 					if (find(traversedBasicBlocks.begin(), traversedBasicBlocks.end(), succBB) == traversedBasicBlocks.end() && find(bbTraverser.begin(), bbTraverser.end(), succBB) == bbTraverser.end()) {
 						list<BasicBlock*> visitedBasicBlockList;
 						unsigned distanceFromExitBlock = distanceToExitBlock(succBB, visitedBasicBlockList);
+						errs()<<"distance of "<<succBB->getName()<<" to exit "<<distanceFromExitBlock<<"\n";
 						list<BasicBlock*> basicBlockList;
 						if (untraversedBasicBlocks.find(distanceFromExitBlock) != untraversedBasicBlocks.end()) {
 							basicBlockList = untraversedBasicBlocks.find(distanceFromExitBlock)->second;
@@ -1560,7 +1568,7 @@ struct HyperOpCreationPass: public ModulePass {
 			for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 				//Find out if any basic block is predicated
 				BasicBlock* originalBB = *accumulatedBBItr;
-				errs() << "acquired bb:" << originalBB->getName() << " from parent:" << originalBB->getParent()->getName() << "\n";
+				errs() << "\n--------\nAcquired bb:" << originalBB->getName() << " from parent:" << originalBB->getParent()->getName() << "\n";
 				//Find the immediate dominator
 				DominatorTree& tree = getAnalysis<DominatorTree>(*originalBB->getParent());
 				if (tree.getNode(originalBB) != NULL && tree.getNode(originalBB)->getIDom() != NULL) {
