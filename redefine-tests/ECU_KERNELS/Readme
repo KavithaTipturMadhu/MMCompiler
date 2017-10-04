@@ -1,0 +1,20 @@
+Kernels currently working 
+
+	DATA_ACQUISITION
+		-data_acquisition.as
+
+	EICAS
+		-eicas_0.as
+		-eicas_1.as
+
+	RUNNING_MODES
+		-runningprotection.as
+
+	STARTUP_MODES
+		-startupfuelvalves.as
+		-startupglowplugs.as
+
+	TPU
+		-tpu_init.as
+
+all_make.sh compiles all the kernels 
