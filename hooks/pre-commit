@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+for d in ./*/
+do
+     for i in $d*.c
+     do
+         echo "#########################################################"
+         echo "make ref TARGET=$i"
+         make ref TARGET=$i
+         echo "#########################################################"
+     done
+ 
+     for i in $d*.ref
+     do
+         rm $i
+     done
+ done
