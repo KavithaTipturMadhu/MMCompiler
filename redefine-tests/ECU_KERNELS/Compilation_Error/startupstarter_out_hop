@@ -1,0 +1,2634 @@
+Args: /home/arka/Workspace/work/Git_Compiler_Repo/redefine-tests/ECU_KERNELS/../../..//MM_Compiler_latest/build/Release+Asserts/bin/opt -debug --load /home/arka/Workspace/work/Git_Compiler_Repo/redefine-tests/ECU_KERNELS/../../..//MM_Compiler_latest/build/Release+Asserts/bin/../lib/HyperOpCreationPass.so --HyperOpCreationPass -S ./Compilation_Error/startupstarter.ll -o ./Compilation_Error/startupstarter_HyOpPass.ll 
+
+Features:
+CPU:REDEFINE
+
+Found cycles?0
+
+-----------
+Partitioning function:startup_starter
+
+-------
+Acquiring bb entry
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:if.then,if.else,
+distance of if.then to exit 2
+distance of if.else to exit 14
+
+-------
+Acquiring bb if.else
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:if.then5,if.else6,
+distance of if.then to exit 2
+distance of if.then5 to exit 3
+distance of if.else6 to exit 13
+
+-------
+Acquiring bb if.else6
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:if.then9,if.else11,
+distance of if.then5 to exit 3
+distance of if.then to exit 2
+distance of if.then9 to exit 4
+distance of if.else11 to exit 12
+
+-------
+Acquiring bb if.else11
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:if.then15,if.else28,
+distance of if.then9 to exit 4
+distance of if.then5 to exit 3
+distance of if.then to exit 2
+distance of if.then15 to exit 11
+distance of if.else28 to exit 5
+
+-------
+Acquiring bb if.then15
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:if.then19,if.end27,
+distance of if.else28 to exit 5
+distance of if.then9 to exit 4
+distance of if.then5 to exit 3
+distance of if.then to exit 2
+distance of if.then19 to exit 10
+distance of if.end27 to exit 5
+
+-------
+Acquiring bb if.then19
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:if.then22,if.end,
+distance of if.else28 to exit 5
+distance of if.end27 to exit 5
+distance of if.then9 to exit 4
+distance of if.then5 to exit 3
+distance of if.then to exit 2
+distance of if.then22 to exit 9
+distance of if.end to exit 8
+
+-------
+Acquiring bb if.then22
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:didn't add if.end
+
+distance of if.end to exit 8
+distance of if.else28 to exit 5
+distance of if.end27 to exit 5
+distance of if.then9 to exit 4
+distance of if.then5 to exit 3
+distance of if.then to exit 2
+
+-------
+Acquiring bb if.end
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:if.then25,if.end26,
+distance of if.else28 to exit 5
+distance of if.end27 to exit 5
+distance of if.then9 to exit 4
+distance of if.then5 to exit 3
+distance of if.then to exit 2
+distance of if.then25 to exit 7
+distance of if.end26 to exit 6
+
+-------
+Acquiring bb if.then25
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:didn't add if.end26
+
+distance of if.end26 to exit 6
+distance of if.else28 to exit 5
+distance of if.end27 to exit 5
+distance of if.then9 to exit 4
+distance of if.then5 to exit 3
+distance of if.then to exit 2
+
+-------
+Acquiring bb if.end26
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:didn't add if.end27
+
+distance of if.else28 to exit 5
+distance of if.end27 to exit 5
+distance of if.then9 to exit 4
+distance of if.then5 to exit 3
+distance of if.then to exit 2
+
+-------
+Acquiring bb if.else28
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:if.end29,
+distance of if.end27 to exit 5
+distance of if.then9 to exit 4
+distance of if.then5 to exit 3
+distance of if.then to exit 2
+distance of if.end29 to exit 4
+
+-------
+Acquiring bb if.end27
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:didn't add if.end29
+
+distance of if.then9 to exit 4
+distance of if.end29 to exit 4
+distance of if.then5 to exit 3
+distance of if.then to exit 2
+
+-------
+Acquiring bb if.then9
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:if.end30,
+distance of if.end29 to exit 4
+distance of if.then5 to exit 3
+distance of if.then to exit 2
+distance of if.end30 to exit 3
+
+-------
+Acquiring bb if.end29
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:didn't add if.end30
+
+distance of if.then5 to exit 3
+distance of if.end30 to exit 3
+distance of if.then to exit 2
+
+-------
+Acquiring bb if.then5
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:if.end31,
+distance of if.end30 to exit 3
+distance of if.then to exit 2
+distance of if.end31 to exit 2
+
+-------
+Acquiring bb if.end30
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:didn't add if.end31
+
+distance of if.then to exit 2
+distance of if.end31 to exit 2
+
+-------
+Acquiring bb if.then
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:if.end32,
+distance of if.end31 to exit 2
+distance of if.end32 to exit 1
+
+-------
+Acquiring bb if.end31
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:didn't add if.end32
+
+distance of if.end32 to exit 1
+
+-------
+Acquiring bb if.end32
+entered end hop for function startup_starter
+Adding basic blocks for traversal in a breadth biased order for function startup_starter
+added to succ list:
+adding to creation map bbargs of size 1
+
+-----------
+Partitioning function:redefine_start
+
+-------
+Acquiring bb entry
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:newName0,
+distance of newName0 to exit 1
+
+-------
+Acquiring bb newName0
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:newName01,
+distance of newName01 to exit 1
+
+-------
+Acquiring bb newName01
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:
+adding to creation map bbargs of size 3
+before partitioning:; ModuleID = './Compilation_Error/startupstarter.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@SG_RAMP_MAX = global float 0x3FE3333340000000, align 4
+@SG_MAX = global float 0x3FECCCCCC0000000, align 4
+@NH_STARTER_SHUTOFF = global i32 17000, align 4
+@SG_MAX_RPM = global i32 15000, align 4
+@glob_sg_bit0 = common global i32 0, align 4
+@glob_sg_bit1 = common global i32 0, align 4
+@nh_fin_de_rampe = common global float 0.000000e+00, align 4
+@redefine_in_a = common global [6 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [2 x float] zeroinitializer, align 4
+@redefine_out_c = common global [2 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define float @startup_starter(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %current_nh = alloca float, align 4
+  %sg_cmd = alloca float, align 4
+  %first = alloca i32, align 4
+  %second = alloca i32, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %current_nh, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 2
+  %4 = bitcast i32* %arrayidx1 to float*
+  %5 = load float* %4, align 4
+  store float %5, float* %sg_cmd, align 4
+  store i32 350, i32* %first, align 4
+  store i32 850, i32* %second, align 4
+  %6 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %6, i32 1
+  %7 = load i32* %arrayidx2, align 4
+  %cmp = icmp eq i32 %7, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  store float 0.000000e+00, float* %sg_cmd, align 4
+  store i32 1, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %if.end32
+
+if.else:                                          ; preds = %entry
+  %8 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %8, i32 1
+  %9 = load i32* %arrayidx3, align 4
+  %10 = load i32* %first, align 4
+  %cmp4 = icmp slt i32 %9, %10
+  br i1 %cmp4, label %if.then5, label %if.else6
+
+if.then5:                                         ; preds = %if.else
+  br label %if.end31
+
+if.else6:                                         ; preds = %if.else
+  %11 = load i32** %input.addr, align 4
+  %arrayidx7 = getelementptr inbounds i32* %11, i32 1
+  %12 = load i32* %arrayidx7, align 4
+  %13 = load i32* %second, align 4
+  %cmp8 = icmp sle i32 %12, %13
+  br i1 %cmp8, label %if.then9, label %if.else11
+
+if.then9:                                         ; preds = %if.else6
+  %14 = load float* @SG_RAMP_MAX, align 4
+  %15 = load i32** %input.addr, align 4
+  %arrayidx10 = getelementptr inbounds i32* %15, i32 1
+  %16 = load i32* %arrayidx10, align 4
+  %sub = sub nsw i32 %16, 350
+  %conv = sitofp i32 %sub to float
+  %mul = fmul float %14, %conv
+  %div = fdiv float %mul, 5.000000e+02
+  store float %div, float* %sg_cmd, align 4
+  %17 = load float* %current_nh, align 4
+  store float %17, float* @nh_fin_de_rampe, align 4
+  br label %if.end30
+
+if.else11:                                        ; preds = %if.else6
+  %18 = load float* %current_nh, align 4
+  %19 = load i32* @NH_STARTER_SHUTOFF, align 4
+  %conv12 = sitofp i32 %19 to float
+  %cmp13 = fcmp olt float %18, %conv12
+  br i1 %cmp13, label %if.then15, label %if.else28
+
+if.then15:                                        ; preds = %if.else11
+  %20 = load float* %current_nh, align 4
+  %21 = load i32* @SG_MAX_RPM, align 4
+  %conv16 = sitofp i32 %21 to float
+  %cmp17 = fcmp olt float %20, %conv16
+  br i1 %cmp17, label %if.then19, label %if.end27
+
+if.then19:                                        ; preds = %if.then15
+  %22 = load float* %sg_cmd, align 4
+  %23 = load float* @SG_RAMP_MAX, align 4
+  %cmp20 = fcmp olt float %22, %23
+  br i1 %cmp20, label %if.then22, label %if.end
+
+if.then22:                                        ; preds = %if.then19
+  %24 = load float* @SG_RAMP_MAX, align 4
+  store float %24, float* %sg_cmd, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.then22, %if.then19
+  %25 = load float* %sg_cmd, align 4
+  %26 = load float* @SG_MAX, align 4
+  %cmp23 = fcmp ogt float %25, %26
+  br i1 %cmp23, label %if.then25, label %if.end26
+
+if.then25:                                        ; preds = %if.end
+  %27 = load float* @SG_MAX, align 4
+  store float %27, float* %sg_cmd, align 4
+  br label %if.end26
+
+if.end26:                                         ; preds = %if.then25, %if.end
+  br label %if.end27
+
+if.end27:                                         ; preds = %if.end26, %if.then15
+  br label %if.end29
+
+if.else28:                                        ; preds = %if.else11
+  store float 0.000000e+00, float* %sg_cmd, align 4
+  store i32 0, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %if.end29
+
+if.end29:                                         ; preds = %if.else28, %if.end27
+  br label %if.end30
+
+if.end30:                                         ; preds = %if.end29, %if.then9
+  br label %if.end31
+
+if.end31:                                         ; preds = %if.end30, %if.then5
+  br label %if.end32
+
+if.end32:                                         ; preds = %if.end31, %if.then
+  %28 = load float* %sg_cmd, align 4
+  ret float %28
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = getelementptr inbounds float* @SG_RAMP_MAX, i32 0
+  store float 0x3FE3333340000000, float* %0, align 4
+  %1 = getelementptr inbounds float* @SG_MAX, i32 0
+  store float 0x3FECCCCCC0000000, float* %1, align 4
+  %2 = getelementptr inbounds i32* @NH_STARTER_SHUTOFF, i32 0
+  store i32 17000, i32* %2, align 4
+  %3 = getelementptr inbounds i32* @SG_MAX_RPM, i32 0
+  store i32 15000, i32* %3, align 4
+  %4 = getelementptr inbounds i32* @glob_sg_bit0, i32 0
+  store i32 0, i32* %4, align 4
+  %5 = getelementptr inbounds i32* @glob_sg_bit1, i32 0
+  store i32 0, i32* %5, align 4
+  %6 = getelementptr inbounds float* @nh_fin_de_rampe, i32 0
+  store float 0.000000e+00, float* %6, align 4
+  %7 = alloca i32*, align 4
+  %8 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 3), align 4
+  store i32 %8, i32* @glob_sg_bit0, align 4
+  %9 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 4), align 4
+  store i32 %9, i32* @glob_sg_bit1, align 4
+  %10 = load float* bitcast (i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 5) to float*), align 4
+  store float %10, float* @nh_fin_de_rampe, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %7
+  %11 = load i32** %7
+  br label %newName0
+
+newName0:                                         ; preds = %entry
+  %call = call float @startup_starter(i32* %11)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store float %call, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 0), align 4
+  %12 = load float* @nh_fin_de_rampe, align 4
+  store float %12, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 1), align 4
+  %13 = load i32* @glob_sg_bit0, align 4
+  store i32 %13, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 0), align 4
+  %14 = load i32* @glob_sg_bit1, align 4
+  store i32 %14, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 1), align 4
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{}
+-----------Creating HyperOps from partitioned functions-----------
+added to traversallist:entry
+added to traversallist:newName0
+added to traversallist:newName01
+now at func:entry
+
+-----------Creating a new HyperOp for function:redefine_start-----------
+
+--------
+Acquired bb:entry from parent:redefine_start
+created func:redefine_start1
+now at func:newName0
+now at func:newName01
+
+-----------Creating a new HyperOp for function:redefine_start-----------
+
+--------
+Acquired bb:newName01 from parent:redefine_start
+created func:redefine_start2
+now at func:entry
+
+-----------Creating a new HyperOp for function:startup_starter-----------
+newName0,
+--------
+Acquired bb:entry from parent:startup_starter
+
+--------
+Acquired bb:if.else from parent:startup_starter
+
+--------
+Acquired bb:if.else6 from parent:startup_starter
+
+--------
+Acquired bb:if.else11 from parent:startup_starter
+
+--------
+Acquired bb:if.then15 from parent:startup_starter
+
+--------
+Acquired bb:if.then19 from parent:startup_starter
+
+--------
+Acquired bb:if.then22 from parent:startup_starter
+
+--------
+Acquired bb:if.end from parent:startup_starter
+
+--------
+Acquired bb:if.then25 from parent:startup_starter
+
+--------
+Acquired bb:if.end26 from parent:startup_starter
+
+--------
+Acquired bb:if.else28 from parent:startup_starter
+
+--------
+Acquired bb:if.end27 from parent:startup_starter
+
+--------
+Acquired bb:if.then9 from parent:startup_starter
+
+--------
+Acquired bb:if.end29 from parent:startup_starter
+
+--------
+Acquired bb:if.then5 from parent:startup_starter
+
+--------
+Acquired bb:if.end30 from parent:startup_starter
+
+--------
+Acquired bb:if.then from parent:startup_starter
+
+--------
+Acquired bb:if.end31 from parent:startup_starter
+
+--------
+Acquired bb:if.end32 from parent:startup_starter
+
+--------
+Acquired bb:newName0 from parent:redefine_start
+created func:startup_starter3
+before patching stuff:; ModuleID = './Compilation_Error/startupstarter.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@SG_RAMP_MAX = global float 0x3FE3333340000000, align 4
+@SG_MAX = global float 0x3FECCCCCC0000000, align 4
+@NH_STARTER_SHUTOFF = global i32 17000, align 4
+@SG_MAX_RPM = global i32 15000, align 4
+@glob_sg_bit0 = common global i32 0, align 4
+@glob_sg_bit1 = common global i32 0, align 4
+@nh_fin_de_rampe = common global float 0.000000e+00, align 4
+@redefine_in_a = common global [6 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [2 x float] zeroinitializer, align 4
+@redefine_out_c = common global [2 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define float @startup_starter(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %current_nh = alloca float, align 4
+  %sg_cmd = alloca float, align 4
+  %first = alloca i32, align 4
+  %second = alloca i32, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %current_nh, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 2
+  %4 = bitcast i32* %arrayidx1 to float*
+  %5 = load float* %4, align 4
+  store float %5, float* %sg_cmd, align 4
+  store i32 350, i32* %first, align 4
+  store i32 850, i32* %second, align 4
+  %6 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %6, i32 1
+  %7 = load i32* %arrayidx2, align 4
+  %cmp = icmp eq i32 %7, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  store float 0.000000e+00, float* %sg_cmd, align 4
+  store i32 1, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %if.end32
+
+if.else:                                          ; preds = %entry
+  %8 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %8, i32 1
+  %9 = load i32* %arrayidx3, align 4
+  %10 = load i32* %first, align 4
+  %cmp4 = icmp slt i32 %9, %10
+  br i1 %cmp4, label %if.then5, label %if.else6
+
+if.then5:                                         ; preds = %if.else
+  br label %if.end31
+
+if.else6:                                         ; preds = %if.else
+  %11 = load i32** %input.addr, align 4
+  %arrayidx7 = getelementptr inbounds i32* %11, i32 1
+  %12 = load i32* %arrayidx7, align 4
+  %13 = load i32* %second, align 4
+  %cmp8 = icmp sle i32 %12, %13
+  br i1 %cmp8, label %if.then9, label %if.else11
+
+if.then9:                                         ; preds = %if.else6
+  %14 = load float* @SG_RAMP_MAX, align 4
+  %15 = load i32** %input.addr, align 4
+  %arrayidx10 = getelementptr inbounds i32* %15, i32 1
+  %16 = load i32* %arrayidx10, align 4
+  %sub = sub nsw i32 %16, 350
+  %conv = sitofp i32 %sub to float
+  %mul = fmul float %14, %conv
+  %div = fdiv float %mul, 5.000000e+02
+  store float %div, float* %sg_cmd, align 4
+  %17 = load float* %current_nh, align 4
+  store float %17, float* @nh_fin_de_rampe, align 4
+  br label %if.end30
+
+if.else11:                                        ; preds = %if.else6
+  %18 = load float* %current_nh, align 4
+  %19 = load i32* @NH_STARTER_SHUTOFF, align 4
+  %conv12 = sitofp i32 %19 to float
+  %cmp13 = fcmp olt float %18, %conv12
+  br i1 %cmp13, label %if.then15, label %if.else28
+
+if.then15:                                        ; preds = %if.else11
+  %20 = load float* %current_nh, align 4
+  %21 = load i32* @SG_MAX_RPM, align 4
+  %conv16 = sitofp i32 %21 to float
+  %cmp17 = fcmp olt float %20, %conv16
+  br i1 %cmp17, label %if.then19, label %if.end27
+
+if.then19:                                        ; preds = %if.then15
+  %22 = load float* %sg_cmd, align 4
+  %23 = load float* @SG_RAMP_MAX, align 4
+  %cmp20 = fcmp olt float %22, %23
+  br i1 %cmp20, label %if.then22, label %if.end
+
+if.then22:                                        ; preds = %if.then19
+  %24 = load float* @SG_RAMP_MAX, align 4
+  store float %24, float* %sg_cmd, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.then22, %if.then19
+  %25 = load float* %sg_cmd, align 4
+  %26 = load float* @SG_MAX, align 4
+  %cmp23 = fcmp ogt float %25, %26
+  br i1 %cmp23, label %if.then25, label %if.end26
+
+if.then25:                                        ; preds = %if.end
+  %27 = load float* @SG_MAX, align 4
+  store float %27, float* %sg_cmd, align 4
+  br label %if.end26
+
+if.end26:                                         ; preds = %if.then25, %if.end
+  br label %if.end27
+
+if.end27:                                         ; preds = %if.end26, %if.then15
+  br label %if.end29
+
+if.else28:                                        ; preds = %if.else11
+  store float 0.000000e+00, float* %sg_cmd, align 4
+  store i32 0, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %if.end29
+
+if.end29:                                         ; preds = %if.else28, %if.end27
+  br label %if.end30
+
+if.end30:                                         ; preds = %if.end29, %if.then9
+  br label %if.end31
+
+if.end31:                                         ; preds = %if.end30, %if.then5
+  br label %if.end32
+
+if.end32:                                         ; preds = %if.end31, %if.then
+  %28 = load float* %sg_cmd, align 4
+  ret float %28
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = getelementptr inbounds float* @SG_RAMP_MAX, i32 0
+  store float 0x3FE3333340000000, float* %0, align 4
+  %1 = getelementptr inbounds float* @SG_MAX, i32 0
+  store float 0x3FECCCCCC0000000, float* %1, align 4
+  %2 = getelementptr inbounds i32* @NH_STARTER_SHUTOFF, i32 0
+  store i32 17000, i32* %2, align 4
+  %3 = getelementptr inbounds i32* @SG_MAX_RPM, i32 0
+  store i32 15000, i32* %3, align 4
+  %4 = getelementptr inbounds i32* @glob_sg_bit0, i32 0
+  store i32 0, i32* %4, align 4
+  %5 = getelementptr inbounds i32* @glob_sg_bit1, i32 0
+  store i32 0, i32* %5, align 4
+  %6 = getelementptr inbounds float* @nh_fin_de_rampe, i32 0
+  store float 0.000000e+00, float* %6, align 4
+  %7 = alloca i32*, align 4
+  %8 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 3), align 4
+  store i32 %8, i32* @glob_sg_bit0, align 4
+  %9 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 4), align 4
+  store i32 %9, i32* @glob_sg_bit1, align 4
+  %10 = load float* bitcast (i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 5) to float*), align 4
+  store float %10, float* @nh_fin_de_rampe, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %7
+  %11 = load i32** %7
+  br label %newName0
+
+newName0:                                         ; preds = %redefine_start1.entry, %entry
+  %call = call float @startup_starter(i32* %11)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store float %call, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 0), align 4
+  %12 = load float* @nh_fin_de_rampe, align 4
+  store float %12, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 1), align 4
+  %13 = load i32* @glob_sg_bit0, align 4
+  store i32 %13, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 0), align 4
+  %14 = load i32* @glob_sg_bit1, align 4
+  store i32 %14, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 1), align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = getelementptr inbounds float* @SG_RAMP_MAX, i32 0
+  store float 0x3FE3333340000000, float* %0, align 4
+  %1 = getelementptr inbounds float* @SG_MAX, i32 0
+  store float 0x3FECCCCCC0000000, float* %1, align 4
+  %2 = getelementptr inbounds i32* @NH_STARTER_SHUTOFF, i32 0
+  store i32 17000, i32* %2, align 4
+  %3 = getelementptr inbounds i32* @SG_MAX_RPM, i32 0
+  store i32 15000, i32* %3, align 4
+  %4 = getelementptr inbounds i32* @glob_sg_bit0, i32 0
+  store i32 0, i32* %4, align 4
+  %5 = getelementptr inbounds i32* @glob_sg_bit1, i32 0
+  store i32 0, i32* %5, align 4
+  %6 = getelementptr inbounds float* @nh_fin_de_rampe, i32 0
+  store float 0.000000e+00, float* %6, align 4
+  %7 = alloca i32*, align 4
+  %8 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 3), align 4
+  store i32 %8, i32* @glob_sg_bit0, align 4
+  %9 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 4), align 4
+  store i32 %9, i32* @glob_sg_bit1, align 4
+  %10 = load float* bitcast (i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 5) to float*), align 4
+  store float %10, float* @nh_fin_de_rampe, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %7
+  %11 = load i32** %7
+  br label %newName0
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(float*) {
+redefine_start2.newName01:
+  %1 = load float* %0
+  store float %1, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 0), align 4
+  %2 = load float* @nh_fin_de_rampe, align 4
+  store float %2, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 1), align 4
+  %3 = load i32* @glob_sg_bit0, align 4
+  store i32 %3, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 0), align 4
+  %4 = load i32* @glob_sg_bit1, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 1), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @startup_starter3(i32*) {
+startup_starter3.entry:
+  %1 = alloca i32*, align 4
+  %2 = alloca float, align 4
+  %3 = alloca float, align 4
+  %4 = alloca i32, align 4
+  %5 = alloca i32, align 4
+  store i32* %0, i32** %1, align 4
+  %6 = load i32** %1, align 4
+  %7 = getelementptr inbounds i32* %6, i32 0
+  %8 = bitcast i32* %7 to float*
+  %9 = load float* %8, align 4
+  store float %9, float* %2, align 4
+  %10 = load i32** %1, align 4
+  %11 = getelementptr inbounds i32* %10, i32 2
+  %12 = bitcast i32* %11 to float*
+  %13 = load float* %12, align 4
+  store float %13, float* %3, align 4
+  store i32 350, i32* %4, align 4
+  store i32 850, i32* %5, align 4
+  %14 = load i32** %1, align 4
+  %15 = getelementptr inbounds i32* %14, i32 1
+  %16 = load i32* %15, align 4
+  %17 = icmp eq i32 %16, 0
+  br i1 %17, label %startup_starter3.if.then, label %startup_starter3.if.else
+
+startup_starter3.if.else:                         ; preds = %startup_starter3.entry
+  %18 = load i32** %1, align 4
+  %19 = getelementptr inbounds i32* %18, i32 1
+  %20 = load i32* %19, align 4
+  %21 = load i32* %4, align 4
+  %22 = icmp slt i32 %20, %21
+  br i1 %22, label %startup_starter3.if.then5, label %startup_starter3.if.else6
+
+startup_starter3.if.else6:                        ; preds = %startup_starter3.if.else
+  %23 = load i32** %1, align 4
+  %24 = getelementptr inbounds i32* %23, i32 1
+  %25 = load i32* %24, align 4
+  %26 = load i32* %5, align 4
+  %27 = icmp sle i32 %25, %26
+  br i1 %27, label %startup_starter3.if.then9, label %startup_starter3.if.else11
+
+startup_starter3.if.else11:                       ; preds = %startup_starter3.if.else6
+  %28 = load float* %2, align 4
+  %29 = load i32* @NH_STARTER_SHUTOFF, align 4
+  %30 = sitofp i32 %29 to float
+  %31 = fcmp olt float %28, %30
+  br i1 %31, label %startup_starter3.if.then15, label %startup_starter3.if.else28
+
+startup_starter3.if.then15:                       ; preds = %startup_starter3.if.else11
+  %32 = load float* %2, align 4
+  %33 = load i32* @SG_MAX_RPM, align 4
+  %34 = sitofp i32 %33 to float
+  %35 = fcmp olt float %32, %34
+  br i1 %35, label %startup_starter3.if.then19, label %startup_starter3.if.end27
+
+startup_starter3.if.then19:                       ; preds = %startup_starter3.if.then15
+  %36 = load float* %3, align 4
+  %37 = load float* @SG_RAMP_MAX, align 4
+  %38 = fcmp olt float %36, %37
+  br i1 %38, label %startup_starter3.if.then22, label %startup_starter3.if.end
+
+startup_starter3.if.then22:                       ; preds = %startup_starter3.if.then19
+  %39 = load float* @SG_RAMP_MAX, align 4
+  store float %39, float* %3, align 4
+  br label %startup_starter3.if.end
+
+startup_starter3.if.end:                          ; preds = %startup_starter3.if.then22, %startup_starter3.if.then19
+  %40 = load float* %3, align 4
+  %41 = load float* @SG_MAX, align 4
+  %42 = fcmp ogt float %40, %41
+  br i1 %42, label %startup_starter3.if.then25, label %startup_starter3.if.end26
+
+startup_starter3.if.then25:                       ; preds = %startup_starter3.if.end
+  %43 = load float* @SG_MAX, align 4
+  store float %43, float* %3, align 4
+  br label %startup_starter3.if.end26
+
+startup_starter3.if.end26:                        ; preds = %startup_starter3.if.then25, %startup_starter3.if.end
+  br label %startup_starter3.if.end27
+
+startup_starter3.if.else28:                       ; preds = %startup_starter3.if.else11
+  store float 0.000000e+00, float* %3, align 4
+  store i32 0, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %startup_starter3.if.end29
+
+startup_starter3.if.end27:                        ; preds = %startup_starter3.if.end26, %startup_starter3.if.then15
+  br label %startup_starter3.if.end29
+
+startup_starter3.if.then9:                        ; preds = %startup_starter3.if.else6
+  %44 = load float* @SG_RAMP_MAX, align 4
+  %45 = load i32** %1, align 4
+  %46 = getelementptr inbounds i32* %45, i32 1
+  %47 = load i32* %46, align 4
+  %48 = sub nsw i32 %47, 350
+  %49 = sitofp i32 %48 to float
+  %50 = fmul float %44, %49
+  %51 = fdiv float %50, 5.000000e+02
+  store float %51, float* %3, align 4
+  %52 = load float* %2, align 4
+  store float %52, float* @nh_fin_de_rampe, align 4
+  br label %startup_starter3.if.end30
+
+startup_starter3.if.end29:                        ; preds = %startup_starter3.if.end27, %startup_starter3.if.else28
+  br label %startup_starter3.if.end30
+
+startup_starter3.if.then5:                        ; preds = %startup_starter3.if.else
+  br label %startup_starter3.if.end31
+
+startup_starter3.if.end30:                        ; preds = %startup_starter3.if.end29, %startup_starter3.if.then9
+  br label %startup_starter3.if.end31
+
+startup_starter3.if.then:                         ; preds = %startup_starter3.entry
+  store float 0.000000e+00, float* %3, align 4
+  store i32 1, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %startup_starter3.if.end32
+
+startup_starter3.if.end31:                        ; preds = %startup_starter3.if.end30, %startup_starter3.if.then5
+  br label %startup_starter3.if.end32
+
+startup_starter3.if.end32:                        ; preds = %startup_starter3.if.end31, %startup_starter3.if.then
+  %53 = load float* %3, align 4
+  br label %startup_starter3.return
+
+startup_starter3.return:                          ; preds = %startup_starter3.if.end32
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (float*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @startup_starter3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+
+----------Adding dependences across created HyperOps----------
+
+-----------Patching created function redefine_start1--------------
+accumulated bbs:
+entry,
+
+----------Adding consumed by metadata----------
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:0
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function redefine_start1, module:; ModuleID = './Compilation_Error/startupstarter.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@SG_RAMP_MAX = global float 0x3FE3333340000000, align 4
+@SG_MAX = global float 0x3FECCCCCC0000000, align 4
+@NH_STARTER_SHUTOFF = global i32 17000, align 4
+@SG_MAX_RPM = global i32 15000, align 4
+@glob_sg_bit0 = common global i32 0, align 4
+@glob_sg_bit1 = common global i32 0, align 4
+@nh_fin_de_rampe = common global float 0.000000e+00, align 4
+@redefine_in_a = common global [6 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [2 x float] zeroinitializer, align 4
+@redefine_out_c = common global [2 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define float @startup_starter(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %current_nh = alloca float, align 4
+  %sg_cmd = alloca float, align 4
+  %first = alloca i32, align 4
+  %second = alloca i32, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %current_nh, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 2
+  %4 = bitcast i32* %arrayidx1 to float*
+  %5 = load float* %4, align 4
+  store float %5, float* %sg_cmd, align 4
+  store i32 350, i32* %first, align 4
+  store i32 850, i32* %second, align 4
+  %6 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %6, i32 1
+  %7 = load i32* %arrayidx2, align 4
+  %cmp = icmp eq i32 %7, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  store float 0.000000e+00, float* %sg_cmd, align 4
+  store i32 1, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %if.end32
+
+if.else:                                          ; preds = %entry
+  %8 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %8, i32 1
+  %9 = load i32* %arrayidx3, align 4
+  %10 = load i32* %first, align 4
+  %cmp4 = icmp slt i32 %9, %10
+  br i1 %cmp4, label %if.then5, label %if.else6
+
+if.then5:                                         ; preds = %if.else
+  br label %if.end31
+
+if.else6:                                         ; preds = %if.else
+  %11 = load i32** %input.addr, align 4
+  %arrayidx7 = getelementptr inbounds i32* %11, i32 1
+  %12 = load i32* %arrayidx7, align 4
+  %13 = load i32* %second, align 4
+  %cmp8 = icmp sle i32 %12, %13
+  br i1 %cmp8, label %if.then9, label %if.else11
+
+if.then9:                                         ; preds = %if.else6
+  %14 = load float* @SG_RAMP_MAX, align 4
+  %15 = load i32** %input.addr, align 4
+  %arrayidx10 = getelementptr inbounds i32* %15, i32 1
+  %16 = load i32* %arrayidx10, align 4
+  %sub = sub nsw i32 %16, 350
+  %conv = sitofp i32 %sub to float
+  %mul = fmul float %14, %conv
+  %div = fdiv float %mul, 5.000000e+02
+  store float %div, float* %sg_cmd, align 4
+  %17 = load float* %current_nh, align 4
+  store float %17, float* @nh_fin_de_rampe, align 4
+  br label %if.end30
+
+if.else11:                                        ; preds = %if.else6
+  %18 = load float* %current_nh, align 4
+  %19 = load i32* @NH_STARTER_SHUTOFF, align 4
+  %conv12 = sitofp i32 %19 to float
+  %cmp13 = fcmp olt float %18, %conv12
+  br i1 %cmp13, label %if.then15, label %if.else28
+
+if.then15:                                        ; preds = %if.else11
+  %20 = load float* %current_nh, align 4
+  %21 = load i32* @SG_MAX_RPM, align 4
+  %conv16 = sitofp i32 %21 to float
+  %cmp17 = fcmp olt float %20, %conv16
+  br i1 %cmp17, label %if.then19, label %if.end27
+
+if.then19:                                        ; preds = %if.then15
+  %22 = load float* %sg_cmd, align 4
+  %23 = load float* @SG_RAMP_MAX, align 4
+  %cmp20 = fcmp olt float %22, %23
+  br i1 %cmp20, label %if.then22, label %if.end
+
+if.then22:                                        ; preds = %if.then19
+  %24 = load float* @SG_RAMP_MAX, align 4
+  store float %24, float* %sg_cmd, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.then22, %if.then19
+  %25 = load float* %sg_cmd, align 4
+  %26 = load float* @SG_MAX, align 4
+  %cmp23 = fcmp ogt float %25, %26
+  br i1 %cmp23, label %if.then25, label %if.end26
+
+if.then25:                                        ; preds = %if.end
+  %27 = load float* @SG_MAX, align 4
+  store float %27, float* %sg_cmd, align 4
+  br label %if.end26
+
+if.end26:                                         ; preds = %if.then25, %if.end
+  br label %if.end27
+
+if.end27:                                         ; preds = %if.end26, %if.then15
+  br label %if.end29
+
+if.else28:                                        ; preds = %if.else11
+  store float 0.000000e+00, float* %sg_cmd, align 4
+  store i32 0, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %if.end29
+
+if.end29:                                         ; preds = %if.else28, %if.end27
+  br label %if.end30
+
+if.end30:                                         ; preds = %if.end29, %if.then9
+  br label %if.end31
+
+if.end31:                                         ; preds = %if.end30, %if.then5
+  br label %if.end32
+
+if.end32:                                         ; preds = %if.end31, %if.then
+  %28 = load float* %sg_cmd, align 4
+  ret float %28
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = getelementptr inbounds float* @SG_RAMP_MAX, i32 0
+  store float 0x3FE3333340000000, float* %0, align 4
+  %1 = getelementptr inbounds float* @SG_MAX, i32 0
+  store float 0x3FECCCCCC0000000, float* %1, align 4
+  %2 = getelementptr inbounds i32* @NH_STARTER_SHUTOFF, i32 0
+  store i32 17000, i32* %2, align 4
+  %3 = getelementptr inbounds i32* @SG_MAX_RPM, i32 0
+  store i32 15000, i32* %3, align 4
+  %4 = getelementptr inbounds i32* @glob_sg_bit0, i32 0
+  store i32 0, i32* %4, align 4
+  %5 = getelementptr inbounds i32* @glob_sg_bit1, i32 0
+  store i32 0, i32* %5, align 4
+  %6 = getelementptr inbounds float* @nh_fin_de_rampe, i32 0
+  store float 0.000000e+00, float* %6, align 4
+  %7 = alloca i32*, align 4
+  %8 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 3), align 4
+  store i32 %8, i32* @glob_sg_bit0, align 4
+  %9 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 4), align 4
+  store i32 %9, i32* @glob_sg_bit1, align 4
+  %10 = load float* bitcast (i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 5) to float*), align 4
+  store float %10, float* @nh_fin_de_rampe, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %7
+  %11 = load i32** %7
+  br label %newName0
+
+newName0:                                         ; preds = %redefine_start1.entry, %entry
+  %call = call float @startup_starter(i32* %11)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store float %call, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 0), align 4
+  %12 = load float* @nh_fin_de_rampe, align 4
+  store float %12, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 1), align 4
+  %13 = load i32* @glob_sg_bit0, align 4
+  store i32 %13, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 0), align 4
+  %14 = load i32* @glob_sg_bit1, align 4
+  store i32 %14, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 1), align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = getelementptr inbounds float* @SG_RAMP_MAX, i32 0
+  store float 0x3FE3333340000000, float* %0, align 4
+  %1 = getelementptr inbounds float* @SG_MAX, i32 0
+  store float 0x3FECCCCCC0000000, float* %1, align 4
+  %2 = getelementptr inbounds i32* @NH_STARTER_SHUTOFF, i32 0
+  store i32 17000, i32* %2, align 4
+  %3 = getelementptr inbounds i32* @SG_MAX_RPM, i32 0
+  store i32 15000, i32* %3, align 4
+  %4 = getelementptr inbounds i32* @glob_sg_bit0, i32 0
+  store i32 0, i32* %4, align 4
+  %5 = getelementptr inbounds i32* @glob_sg_bit1, i32 0
+  store i32 0, i32* %5, align 4
+  %6 = getelementptr inbounds float* @nh_fin_de_rampe, i32 0
+  store float 0.000000e+00, float* %6, align 4
+  %7 = alloca i32*, align 4
+  %8 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 3), align 4
+  store i32 %8, i32* @glob_sg_bit0, align 4
+  %9 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 4), align 4
+  store i32 %9, i32* @glob_sg_bit1, align 4
+  %10 = load float* bitcast (i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 5) to float*), align 4
+  store float %10, float* @nh_fin_de_rampe, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %7
+  %11 = load i32** %7
+  br label %newName0
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(float*) {
+redefine_start2.newName01:
+  %1 = load float* %0
+  store float %1, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 0), align 4
+  %2 = load float* @nh_fin_de_rampe, align 4
+  store float %2, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 1), align 4
+  %3 = load i32* @glob_sg_bit0, align 4
+  store i32 %3, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 0), align 4
+  %4 = load i32* @glob_sg_bit1, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 1), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @startup_starter3(i32*) {
+startup_starter3.entry:
+  %1 = alloca i32*, align 4
+  %2 = alloca float, align 4
+  %3 = alloca float, align 4
+  %4 = alloca i32, align 4
+  %5 = alloca i32, align 4
+  store i32* %0, i32** %1, align 4
+  %6 = load i32** %1, align 4
+  %7 = getelementptr inbounds i32* %6, i32 0
+  %8 = bitcast i32* %7 to float*
+  %9 = load float* %8, align 4
+  store float %9, float* %2, align 4
+  %10 = load i32** %1, align 4
+  %11 = getelementptr inbounds i32* %10, i32 2
+  %12 = bitcast i32* %11 to float*
+  %13 = load float* %12, align 4
+  store float %13, float* %3, align 4
+  store i32 350, i32* %4, align 4
+  store i32 850, i32* %5, align 4
+  %14 = load i32** %1, align 4
+  %15 = getelementptr inbounds i32* %14, i32 1
+  %16 = load i32* %15, align 4
+  %17 = icmp eq i32 %16, 0
+  br i1 %17, label %startup_starter3.if.then, label %startup_starter3.if.else
+
+startup_starter3.if.else:                         ; preds = %startup_starter3.entry
+  %18 = load i32** %1, align 4
+  %19 = getelementptr inbounds i32* %18, i32 1
+  %20 = load i32* %19, align 4
+  %21 = load i32* %4, align 4
+  %22 = icmp slt i32 %20, %21
+  br i1 %22, label %startup_starter3.if.then5, label %startup_starter3.if.else6
+
+startup_starter3.if.else6:                        ; preds = %startup_starter3.if.else
+  %23 = load i32** %1, align 4
+  %24 = getelementptr inbounds i32* %23, i32 1
+  %25 = load i32* %24, align 4
+  %26 = load i32* %5, align 4
+  %27 = icmp sle i32 %25, %26
+  br i1 %27, label %startup_starter3.if.then9, label %startup_starter3.if.else11
+
+startup_starter3.if.else11:                       ; preds = %startup_starter3.if.else6
+  %28 = load float* %2, align 4
+  %29 = load i32* @NH_STARTER_SHUTOFF, align 4
+  %30 = sitofp i32 %29 to float
+  %31 = fcmp olt float %28, %30
+  br i1 %31, label %startup_starter3.if.then15, label %startup_starter3.if.else28
+
+startup_starter3.if.then15:                       ; preds = %startup_starter3.if.else11
+  %32 = load float* %2, align 4
+  %33 = load i32* @SG_MAX_RPM, align 4
+  %34 = sitofp i32 %33 to float
+  %35 = fcmp olt float %32, %34
+  br i1 %35, label %startup_starter3.if.then19, label %startup_starter3.if.end27
+
+startup_starter3.if.then19:                       ; preds = %startup_starter3.if.then15
+  %36 = load float* %3, align 4
+  %37 = load float* @SG_RAMP_MAX, align 4
+  %38 = fcmp olt float %36, %37
+  br i1 %38, label %startup_starter3.if.then22, label %startup_starter3.if.end
+
+startup_starter3.if.then22:                       ; preds = %startup_starter3.if.then19
+  %39 = load float* @SG_RAMP_MAX, align 4
+  store float %39, float* %3, align 4
+  br label %startup_starter3.if.end
+
+startup_starter3.if.end:                          ; preds = %startup_starter3.if.then22, %startup_starter3.if.then19
+  %40 = load float* %3, align 4
+  %41 = load float* @SG_MAX, align 4
+  %42 = fcmp ogt float %40, %41
+  br i1 %42, label %startup_starter3.if.then25, label %startup_starter3.if.end26
+
+startup_starter3.if.then25:                       ; preds = %startup_starter3.if.end
+  %43 = load float* @SG_MAX, align 4
+  store float %43, float* %3, align 4
+  br label %startup_starter3.if.end26
+
+startup_starter3.if.end26:                        ; preds = %startup_starter3.if.then25, %startup_starter3.if.end
+  br label %startup_starter3.if.end27
+
+startup_starter3.if.else28:                       ; preds = %startup_starter3.if.else11
+  store float 0.000000e+00, float* %3, align 4
+  store i32 0, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %startup_starter3.if.end29
+
+startup_starter3.if.end27:                        ; preds = %startup_starter3.if.end26, %startup_starter3.if.then15
+  br label %startup_starter3.if.end29
+
+startup_starter3.if.then9:                        ; preds = %startup_starter3.if.else6
+  %44 = load float* @SG_RAMP_MAX, align 4
+  %45 = load i32** %1, align 4
+  %46 = getelementptr inbounds i32* %45, i32 1
+  %47 = load i32* %46, align 4
+  %48 = sub nsw i32 %47, 350
+  %49 = sitofp i32 %48 to float
+  %50 = fmul float %44, %49
+  %51 = fdiv float %50, 5.000000e+02
+  store float %51, float* %3, align 4
+  %52 = load float* %2, align 4
+  store float %52, float* @nh_fin_de_rampe, align 4
+  br label %startup_starter3.if.end30
+
+startup_starter3.if.end29:                        ; preds = %startup_starter3.if.end27, %startup_starter3.if.else28
+  br label %startup_starter3.if.end30
+
+startup_starter3.if.then5:                        ; preds = %startup_starter3.if.else
+  br label %startup_starter3.if.end31
+
+startup_starter3.if.end30:                        ; preds = %startup_starter3.if.end29, %startup_starter3.if.then9
+  br label %startup_starter3.if.end31
+
+startup_starter3.if.then:                         ; preds = %startup_starter3.entry
+  store float 0.000000e+00, float* %3, align 4
+  store i32 1, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %startup_starter3.if.end32
+
+startup_starter3.if.end31:                        ; preds = %startup_starter3.if.end30, %startup_starter3.if.then5
+  br label %startup_starter3.if.end32
+
+startup_starter3.if.end32:                        ; preds = %startup_starter3.if.end31, %startup_starter3.if.then
+  %53 = load float* %3, align 4
+  br label %startup_starter3.return
+
+startup_starter3.return:                          ; preds = %startup_starter3.if.end32
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (float*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @startup_starter3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+
+-----------Patching created function redefine_start2--------------
+accumulated bbs:
+newName01,
+
+----------Adding consumed by metadata----------
+  %call = call float @startup_starter(i32* %11)
+cloned inst second:  %28 = load float* %sg_cmd, align 4
+producer function:startup_starter3
+how many clones?1
+added metadata on instruction that belongs to parent startup_starter3 and is mapped to slot 0 when the function has 1 and is of type:1:  %1 = alloca float, align 4, !ConsumedBy !6
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:1
+what was callsite size earlier??0
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function redefine_start2, module:; ModuleID = './Compilation_Error/startupstarter.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@SG_RAMP_MAX = global float 0x3FE3333340000000, align 4
+@SG_MAX = global float 0x3FECCCCCC0000000, align 4
+@NH_STARTER_SHUTOFF = global i32 17000, align 4
+@SG_MAX_RPM = global i32 15000, align 4
+@glob_sg_bit0 = common global i32 0, align 4
+@glob_sg_bit1 = common global i32 0, align 4
+@nh_fin_de_rampe = common global float 0.000000e+00, align 4
+@redefine_in_a = common global [6 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [2 x float] zeroinitializer, align 4
+@redefine_out_c = common global [2 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define float @startup_starter(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %current_nh = alloca float, align 4
+  %sg_cmd = alloca float, align 4
+  %first = alloca i32, align 4
+  %second = alloca i32, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %current_nh, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 2
+  %4 = bitcast i32* %arrayidx1 to float*
+  %5 = load float* %4, align 4
+  store float %5, float* %sg_cmd, align 4
+  store i32 350, i32* %first, align 4
+  store i32 850, i32* %second, align 4
+  %6 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %6, i32 1
+  %7 = load i32* %arrayidx2, align 4
+  %cmp = icmp eq i32 %7, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  store float 0.000000e+00, float* %sg_cmd, align 4
+  store i32 1, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %if.end32
+
+if.else:                                          ; preds = %entry
+  %8 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %8, i32 1
+  %9 = load i32* %arrayidx3, align 4
+  %10 = load i32* %first, align 4
+  %cmp4 = icmp slt i32 %9, %10
+  br i1 %cmp4, label %if.then5, label %if.else6
+
+if.then5:                                         ; preds = %if.else
+  br label %if.end31
+
+if.else6:                                         ; preds = %if.else
+  %11 = load i32** %input.addr, align 4
+  %arrayidx7 = getelementptr inbounds i32* %11, i32 1
+  %12 = load i32* %arrayidx7, align 4
+  %13 = load i32* %second, align 4
+  %cmp8 = icmp sle i32 %12, %13
+  br i1 %cmp8, label %if.then9, label %if.else11
+
+if.then9:                                         ; preds = %if.else6
+  %14 = load float* @SG_RAMP_MAX, align 4
+  %15 = load i32** %input.addr, align 4
+  %arrayidx10 = getelementptr inbounds i32* %15, i32 1
+  %16 = load i32* %arrayidx10, align 4
+  %sub = sub nsw i32 %16, 350
+  %conv = sitofp i32 %sub to float
+  %mul = fmul float %14, %conv
+  %div = fdiv float %mul, 5.000000e+02
+  store float %div, float* %sg_cmd, align 4
+  %17 = load float* %current_nh, align 4
+  store float %17, float* @nh_fin_de_rampe, align 4
+  br label %if.end30
+
+if.else11:                                        ; preds = %if.else6
+  %18 = load float* %current_nh, align 4
+  %19 = load i32* @NH_STARTER_SHUTOFF, align 4
+  %conv12 = sitofp i32 %19 to float
+  %cmp13 = fcmp olt float %18, %conv12
+  br i1 %cmp13, label %if.then15, label %if.else28
+
+if.then15:                                        ; preds = %if.else11
+  %20 = load float* %current_nh, align 4
+  %21 = load i32* @SG_MAX_RPM, align 4
+  %conv16 = sitofp i32 %21 to float
+  %cmp17 = fcmp olt float %20, %conv16
+  br i1 %cmp17, label %if.then19, label %if.end27
+
+if.then19:                                        ; preds = %if.then15
+  %22 = load float* %sg_cmd, align 4
+  %23 = load float* @SG_RAMP_MAX, align 4
+  %cmp20 = fcmp olt float %22, %23
+  br i1 %cmp20, label %if.then22, label %if.end
+
+if.then22:                                        ; preds = %if.then19
+  %24 = load float* @SG_RAMP_MAX, align 4
+  store float %24, float* %sg_cmd, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.then22, %if.then19
+  %25 = load float* %sg_cmd, align 4
+  %26 = load float* @SG_MAX, align 4
+  %cmp23 = fcmp ogt float %25, %26
+  br i1 %cmp23, label %if.then25, label %if.end26
+
+if.then25:                                        ; preds = %if.end
+  %27 = load float* @SG_MAX, align 4
+  store float %27, float* %sg_cmd, align 4
+  br label %if.end26
+
+if.end26:                                         ; preds = %if.then25, %if.end
+  br label %if.end27
+
+if.end27:                                         ; preds = %if.end26, %if.then15
+  br label %if.end29
+
+if.else28:                                        ; preds = %if.else11
+  store float 0.000000e+00, float* %sg_cmd, align 4
+  store i32 0, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %if.end29
+
+if.end29:                                         ; preds = %if.else28, %if.end27
+  br label %if.end30
+
+if.end30:                                         ; preds = %if.end29, %if.then9
+  br label %if.end31
+
+if.end31:                                         ; preds = %if.end30, %if.then5
+  br label %if.end32
+
+if.end32:                                         ; preds = %if.end31, %if.then
+  %28 = load float* %sg_cmd, align 4
+  ret float %28
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = getelementptr inbounds float* @SG_RAMP_MAX, i32 0
+  store float 0x3FE3333340000000, float* %0, align 4
+  %1 = getelementptr inbounds float* @SG_MAX, i32 0
+  store float 0x3FECCCCCC0000000, float* %1, align 4
+  %2 = getelementptr inbounds i32* @NH_STARTER_SHUTOFF, i32 0
+  store i32 17000, i32* %2, align 4
+  %3 = getelementptr inbounds i32* @SG_MAX_RPM, i32 0
+  store i32 15000, i32* %3, align 4
+  %4 = getelementptr inbounds i32* @glob_sg_bit0, i32 0
+  store i32 0, i32* %4, align 4
+  %5 = getelementptr inbounds i32* @glob_sg_bit1, i32 0
+  store i32 0, i32* %5, align 4
+  %6 = getelementptr inbounds float* @nh_fin_de_rampe, i32 0
+  store float 0.000000e+00, float* %6, align 4
+  %7 = alloca i32*, align 4
+  %8 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 3), align 4
+  store i32 %8, i32* @glob_sg_bit0, align 4
+  %9 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 4), align 4
+  store i32 %9, i32* @glob_sg_bit1, align 4
+  %10 = load float* bitcast (i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 5) to float*), align 4
+  store float %10, float* @nh_fin_de_rampe, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %7
+  %11 = load i32** %7
+  br label %newName0
+
+newName0:                                         ; preds = %redefine_start1.entry, %entry
+  %call = call float @startup_starter(i32* %11)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store float %call, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 0), align 4
+  %12 = load float* @nh_fin_de_rampe, align 4
+  store float %12, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 1), align 4
+  %13 = load i32* @glob_sg_bit0, align 4
+  store i32 %13, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 0), align 4
+  %14 = load i32* @glob_sg_bit1, align 4
+  store i32 %14, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 1), align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = getelementptr inbounds float* @SG_RAMP_MAX, i32 0
+  store float 0x3FE3333340000000, float* %0, align 4
+  %1 = getelementptr inbounds float* @SG_MAX, i32 0
+  store float 0x3FECCCCCC0000000, float* %1, align 4
+  %2 = getelementptr inbounds i32* @NH_STARTER_SHUTOFF, i32 0
+  store i32 17000, i32* %2, align 4
+  %3 = getelementptr inbounds i32* @SG_MAX_RPM, i32 0
+  store i32 15000, i32* %3, align 4
+  %4 = getelementptr inbounds i32* @glob_sg_bit0, i32 0
+  store i32 0, i32* %4, align 4
+  %5 = getelementptr inbounds i32* @glob_sg_bit1, i32 0
+  store i32 0, i32* %5, align 4
+  %6 = getelementptr inbounds float* @nh_fin_de_rampe, i32 0
+  store float 0.000000e+00, float* %6, align 4
+  %7 = alloca i32*, align 4
+  %8 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 3), align 4
+  store i32 %8, i32* @glob_sg_bit0, align 4
+  %9 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 4), align 4
+  store i32 %9, i32* @glob_sg_bit1, align 4
+  %10 = load float* bitcast (i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 5) to float*), align 4
+  store float %10, float* @nh_fin_de_rampe, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %7
+  %11 = load i32** %7
+  br label %newName0
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(float*) {
+redefine_start2.newName01:
+  %1 = load float* %0
+  store float %1, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 0), align 4
+  %2 = load float* @nh_fin_de_rampe, align 4
+  store float %2, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 1), align 4
+  %3 = load i32* @glob_sg_bit0, align 4
+  store i32 %3, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 0), align 4
+  %4 = load i32* @glob_sg_bit1, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 1), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @startup_starter3(i32*) {
+startup_starter3.entry:
+  %1 = alloca float, align 4, !ConsumedBy !6
+  %2 = alloca i32*, align 4
+  %3 = alloca float, align 4
+  %4 = alloca float, align 4
+  %5 = alloca i32, align 4
+  %6 = alloca i32, align 4
+  store i32* %0, i32** %2, align 4
+  %7 = load i32** %2, align 4
+  %8 = getelementptr inbounds i32* %7, i32 0
+  %9 = bitcast i32* %8 to float*
+  %10 = load float* %9, align 4
+  store float %10, float* %3, align 4
+  %11 = load i32** %2, align 4
+  %12 = getelementptr inbounds i32* %11, i32 2
+  %13 = bitcast i32* %12 to float*
+  %14 = load float* %13, align 4
+  store float %14, float* %4, align 4
+  store i32 350, i32* %5, align 4
+  store i32 850, i32* %6, align 4
+  %15 = load i32** %2, align 4
+  %16 = getelementptr inbounds i32* %15, i32 1
+  %17 = load i32* %16, align 4
+  %18 = icmp eq i32 %17, 0
+  br i1 %18, label %startup_starter3.if.then, label %startup_starter3.if.else
+
+startup_starter3.if.else:                         ; preds = %startup_starter3.entry
+  %19 = load i32** %2, align 4
+  %20 = getelementptr inbounds i32* %19, i32 1
+  %21 = load i32* %20, align 4
+  %22 = load i32* %5, align 4
+  %23 = icmp slt i32 %21, %22
+  br i1 %23, label %startup_starter3.if.then5, label %startup_starter3.if.else6
+
+startup_starter3.if.else6:                        ; preds = %startup_starter3.if.else
+  %24 = load i32** %2, align 4
+  %25 = getelementptr inbounds i32* %24, i32 1
+  %26 = load i32* %25, align 4
+  %27 = load i32* %6, align 4
+  %28 = icmp sle i32 %26, %27
+  br i1 %28, label %startup_starter3.if.then9, label %startup_starter3.if.else11
+
+startup_starter3.if.else11:                       ; preds = %startup_starter3.if.else6
+  %29 = load float* %3, align 4
+  %30 = load i32* @NH_STARTER_SHUTOFF, align 4
+  %31 = sitofp i32 %30 to float
+  %32 = fcmp olt float %29, %31
+  br i1 %32, label %startup_starter3.if.then15, label %startup_starter3.if.else28
+
+startup_starter3.if.then15:                       ; preds = %startup_starter3.if.else11
+  %33 = load float* %3, align 4
+  %34 = load i32* @SG_MAX_RPM, align 4
+  %35 = sitofp i32 %34 to float
+  %36 = fcmp olt float %33, %35
+  br i1 %36, label %startup_starter3.if.then19, label %startup_starter3.if.end27
+
+startup_starter3.if.then19:                       ; preds = %startup_starter3.if.then15
+  %37 = load float* %4, align 4
+  %38 = load float* @SG_RAMP_MAX, align 4
+  %39 = fcmp olt float %37, %38
+  br i1 %39, label %startup_starter3.if.then22, label %startup_starter3.if.end
+
+startup_starter3.if.then22:                       ; preds = %startup_starter3.if.then19
+  %40 = load float* @SG_RAMP_MAX, align 4
+  store float %40, float* %4, align 4
+  br label %startup_starter3.if.end
+
+startup_starter3.if.end:                          ; preds = %startup_starter3.if.then22, %startup_starter3.if.then19
+  %41 = load float* %4, align 4
+  %42 = load float* @SG_MAX, align 4
+  %43 = fcmp ogt float %41, %42
+  br i1 %43, label %startup_starter3.if.then25, label %startup_starter3.if.end26
+
+startup_starter3.if.then25:                       ; preds = %startup_starter3.if.end
+  %44 = load float* @SG_MAX, align 4
+  store float %44, float* %4, align 4
+  br label %startup_starter3.if.end26
+
+startup_starter3.if.end26:                        ; preds = %startup_starter3.if.then25, %startup_starter3.if.end
+  br label %startup_starter3.if.end27
+
+startup_starter3.if.else28:                       ; preds = %startup_starter3.if.else11
+  store float 0.000000e+00, float* %4, align 4
+  store i32 0, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %startup_starter3.if.end29
+
+startup_starter3.if.end27:                        ; preds = %startup_starter3.if.end26, %startup_starter3.if.then15
+  br label %startup_starter3.if.end29
+
+startup_starter3.if.then9:                        ; preds = %startup_starter3.if.else6
+  %45 = load float* @SG_RAMP_MAX, align 4
+  %46 = load i32** %2, align 4
+  %47 = getelementptr inbounds i32* %46, i32 1
+  %48 = load i32* %47, align 4
+  %49 = sub nsw i32 %48, 350
+  %50 = sitofp i32 %49 to float
+  %51 = fmul float %45, %50
+  %52 = fdiv float %51, 5.000000e+02
+  store float %52, float* %4, align 4
+  %53 = load float* %3, align 4
+  store float %53, float* @nh_fin_de_rampe, align 4
+  br label %startup_starter3.if.end30
+
+startup_starter3.if.end29:                        ; preds = %startup_starter3.if.end27, %startup_starter3.if.else28
+  br label %startup_starter3.if.end30
+
+startup_starter3.if.then5:                        ; preds = %startup_starter3.if.else
+  br label %startup_starter3.if.end31
+
+startup_starter3.if.end30:                        ; preds = %startup_starter3.if.end29, %startup_starter3.if.then9
+  br label %startup_starter3.if.end31
+
+startup_starter3.if.then:                         ; preds = %startup_starter3.entry
+  store float 0.000000e+00, float* %4, align 4
+  store i32 1, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %startup_starter3.if.end32
+
+startup_starter3.if.end31:                        ; preds = %startup_starter3.if.end30, %startup_starter3.if.then5
+  br label %startup_starter3.if.end32
+
+startup_starter3.if.end32:                        ; preds = %startup_starter3.if.end31, %startup_starter3.if.then
+  %54 = load float* %4, align 4
+  store float %54, float* %1, align 4
+  br label %startup_starter3.return
+
+startup_starter3.return:                          ; preds = %startup_starter3.if.end32
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (float*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @startup_starter3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !2, metadata !"LocalReference", i32 0}
+
+-----------Patching created function startup_starter3--------------
+accumulated bbs:
+entry,if.else,if.else6,if.else11,if.then15,if.then19,if.then22,if.end,if.then25,if.end26,if.else28,if.end27,if.then9,if.end29,if.then5,if.end30,if.then,if.end31,if.end32,
+
+----------Adding consumed by metadata----------
+cloned inst second:  %7 = alloca i32*, align 4
+producer function:redefine_start1
+how many clones?1
+added metadata on instruction that belongs to parent redefine_start1 and is mapped to slot 0 when the function has 1 and is of type:1:  %7 = alloca i32*, align 4, !ConsumedBy !6
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:1
+what was callsite size earlier??1
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function startup_starter3, module:; ModuleID = './Compilation_Error/startupstarter.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@SG_RAMP_MAX = global float 0x3FE3333340000000, align 4
+@SG_MAX = global float 0x3FECCCCCC0000000, align 4
+@NH_STARTER_SHUTOFF = global i32 17000, align 4
+@SG_MAX_RPM = global i32 15000, align 4
+@glob_sg_bit0 = common global i32 0, align 4
+@glob_sg_bit1 = common global i32 0, align 4
+@nh_fin_de_rampe = common global float 0.000000e+00, align 4
+@redefine_in_a = common global [6 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [2 x float] zeroinitializer, align 4
+@redefine_out_c = common global [2 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define float @startup_starter(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %current_nh = alloca float, align 4
+  %sg_cmd = alloca float, align 4
+  %first = alloca i32, align 4
+  %second = alloca i32, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %current_nh, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 2
+  %4 = bitcast i32* %arrayidx1 to float*
+  %5 = load float* %4, align 4
+  store float %5, float* %sg_cmd, align 4
+  store i32 350, i32* %first, align 4
+  store i32 850, i32* %second, align 4
+  %6 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %6, i32 1
+  %7 = load i32* %arrayidx2, align 4
+  %cmp = icmp eq i32 %7, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  store float 0.000000e+00, float* %sg_cmd, align 4
+  store i32 1, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %if.end32
+
+if.else:                                          ; preds = %entry
+  %8 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %8, i32 1
+  %9 = load i32* %arrayidx3, align 4
+  %10 = load i32* %first, align 4
+  %cmp4 = icmp slt i32 %9, %10
+  br i1 %cmp4, label %if.then5, label %if.else6
+
+if.then5:                                         ; preds = %if.else
+  br label %if.end31
+
+if.else6:                                         ; preds = %if.else
+  %11 = load i32** %input.addr, align 4
+  %arrayidx7 = getelementptr inbounds i32* %11, i32 1
+  %12 = load i32* %arrayidx7, align 4
+  %13 = load i32* %second, align 4
+  %cmp8 = icmp sle i32 %12, %13
+  br i1 %cmp8, label %if.then9, label %if.else11
+
+if.then9:                                         ; preds = %if.else6
+  %14 = load float* @SG_RAMP_MAX, align 4
+  %15 = load i32** %input.addr, align 4
+  %arrayidx10 = getelementptr inbounds i32* %15, i32 1
+  %16 = load i32* %arrayidx10, align 4
+  %sub = sub nsw i32 %16, 350
+  %conv = sitofp i32 %sub to float
+  %mul = fmul float %14, %conv
+  %div = fdiv float %mul, 5.000000e+02
+  store float %div, float* %sg_cmd, align 4
+  %17 = load float* %current_nh, align 4
+  store float %17, float* @nh_fin_de_rampe, align 4
+  br label %if.end30
+
+if.else11:                                        ; preds = %if.else6
+  %18 = load float* %current_nh, align 4
+  %19 = load i32* @NH_STARTER_SHUTOFF, align 4
+  %conv12 = sitofp i32 %19 to float
+  %cmp13 = fcmp olt float %18, %conv12
+  br i1 %cmp13, label %if.then15, label %if.else28
+
+if.then15:                                        ; preds = %if.else11
+  %20 = load float* %current_nh, align 4
+  %21 = load i32* @SG_MAX_RPM, align 4
+  %conv16 = sitofp i32 %21 to float
+  %cmp17 = fcmp olt float %20, %conv16
+  br i1 %cmp17, label %if.then19, label %if.end27
+
+if.then19:                                        ; preds = %if.then15
+  %22 = load float* %sg_cmd, align 4
+  %23 = load float* @SG_RAMP_MAX, align 4
+  %cmp20 = fcmp olt float %22, %23
+  br i1 %cmp20, label %if.then22, label %if.end
+
+if.then22:                                        ; preds = %if.then19
+  %24 = load float* @SG_RAMP_MAX, align 4
+  store float %24, float* %sg_cmd, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.then22, %if.then19
+  %25 = load float* %sg_cmd, align 4
+  %26 = load float* @SG_MAX, align 4
+  %cmp23 = fcmp ogt float %25, %26
+  br i1 %cmp23, label %if.then25, label %if.end26
+
+if.then25:                                        ; preds = %if.end
+  %27 = load float* @SG_MAX, align 4
+  store float %27, float* %sg_cmd, align 4
+  br label %if.end26
+
+if.end26:                                         ; preds = %if.then25, %if.end
+  br label %if.end27
+
+if.end27:                                         ; preds = %if.end26, %if.then15
+  br label %if.end29
+
+if.else28:                                        ; preds = %if.else11
+  store float 0.000000e+00, float* %sg_cmd, align 4
+  store i32 0, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %if.end29
+
+if.end29:                                         ; preds = %if.else28, %if.end27
+  br label %if.end30
+
+if.end30:                                         ; preds = %if.end29, %if.then9
+  br label %if.end31
+
+if.end31:                                         ; preds = %if.end30, %if.then5
+  br label %if.end32
+
+if.end32:                                         ; preds = %if.end31, %if.then
+  %28 = load float* %sg_cmd, align 4
+  ret float %28
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = getelementptr inbounds float* @SG_RAMP_MAX, i32 0
+  store float 0x3FE3333340000000, float* %0, align 4
+  %1 = getelementptr inbounds float* @SG_MAX, i32 0
+  store float 0x3FECCCCCC0000000, float* %1, align 4
+  %2 = getelementptr inbounds i32* @NH_STARTER_SHUTOFF, i32 0
+  store i32 17000, i32* %2, align 4
+  %3 = getelementptr inbounds i32* @SG_MAX_RPM, i32 0
+  store i32 15000, i32* %3, align 4
+  %4 = getelementptr inbounds i32* @glob_sg_bit0, i32 0
+  store i32 0, i32* %4, align 4
+  %5 = getelementptr inbounds i32* @glob_sg_bit1, i32 0
+  store i32 0, i32* %5, align 4
+  %6 = getelementptr inbounds float* @nh_fin_de_rampe, i32 0
+  store float 0.000000e+00, float* %6, align 4
+  %7 = alloca i32*, align 4
+  %8 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 3), align 4
+  store i32 %8, i32* @glob_sg_bit0, align 4
+  %9 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 4), align 4
+  store i32 %9, i32* @glob_sg_bit1, align 4
+  %10 = load float* bitcast (i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 5) to float*), align 4
+  store float %10, float* @nh_fin_de_rampe, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %7
+  %11 = load i32** %7
+  br label %newName0
+
+newName0:                                         ; preds = %entry
+  %call = call float @startup_starter(i32* %11)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store float %call, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 0), align 4
+  %12 = load float* @nh_fin_de_rampe, align 4
+  store float %12, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 1), align 4
+  %13 = load i32* @glob_sg_bit0, align 4
+  store i32 %13, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 0), align 4
+  %14 = load i32* @glob_sg_bit1, align 4
+  store i32 %14, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 1), align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = getelementptr inbounds float* @SG_RAMP_MAX, i32 0
+  store float 0x3FE3333340000000, float* %0, align 4
+  %1 = getelementptr inbounds float* @SG_MAX, i32 0
+  store float 0x3FECCCCCC0000000, float* %1, align 4
+  %2 = getelementptr inbounds i32* @NH_STARTER_SHUTOFF, i32 0
+  store i32 17000, i32* %2, align 4
+  %3 = getelementptr inbounds i32* @SG_MAX_RPM, i32 0
+  store i32 15000, i32* %3, align 4
+  %4 = getelementptr inbounds i32* @glob_sg_bit0, i32 0
+  store i32 0, i32* %4, align 4
+  %5 = getelementptr inbounds i32* @glob_sg_bit1, i32 0
+  store i32 0, i32* %5, align 4
+  %6 = getelementptr inbounds float* @nh_fin_de_rampe, i32 0
+  store float 0.000000e+00, float* %6, align 4
+  %7 = alloca i32*, align 4, !ConsumedBy !6
+  %8 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 3), align 4
+  store i32 %8, i32* @glob_sg_bit0, align 4
+  %9 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 4), align 4
+  store i32 %9, i32* @glob_sg_bit1, align 4
+  %10 = load float* bitcast (i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 5) to float*), align 4
+  store float %10, float* @nh_fin_de_rampe, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %7
+  %11 = load i32** %7
+  br label %redefine_start1.return
+
+redefine_start1.return:                           ; preds = %redefine_start1.entry
+  ret void
+}
+
+define void @redefine_start2(float*) {
+redefine_start2.newName01:
+  %1 = load float* %0
+  store float %1, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 0), align 4
+  %2 = load float* @nh_fin_de_rampe, align 4
+  store float %2, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 1), align 4
+  %3 = load i32* @glob_sg_bit0, align 4
+  store i32 %3, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 0), align 4
+  %4 = load i32* @glob_sg_bit1, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 1), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @startup_starter3(i32*) {
+startup_starter3.entry:
+  %1 = alloca float, align 4, !ConsumedBy !8
+  %2 = alloca i32*, align 4
+  %3 = alloca float, align 4
+  %4 = alloca float, align 4
+  %5 = alloca i32, align 4
+  %6 = alloca i32, align 4
+  store i32* %0, i32** %2, align 4
+  %7 = load i32** %2, align 4
+  %8 = getelementptr inbounds i32* %7, i32 0
+  %9 = bitcast i32* %8 to float*
+  %10 = load float* %9, align 4
+  store float %10, float* %3, align 4
+  %11 = load i32** %2, align 4
+  %12 = getelementptr inbounds i32* %11, i32 2
+  %13 = bitcast i32* %12 to float*
+  %14 = load float* %13, align 4
+  store float %14, float* %4, align 4
+  store i32 350, i32* %5, align 4
+  store i32 850, i32* %6, align 4
+  %15 = load i32** %2, align 4
+  %16 = getelementptr inbounds i32* %15, i32 1
+  %17 = load i32* %16, align 4
+  %18 = icmp eq i32 %17, 0
+  br i1 %18, label %startup_starter3.if.then, label %startup_starter3.if.else
+
+startup_starter3.if.else:                         ; preds = %startup_starter3.entry
+  %19 = load i32** %2, align 4
+  %20 = getelementptr inbounds i32* %19, i32 1
+  %21 = load i32* %20, align 4
+  %22 = load i32* %5, align 4
+  %23 = icmp slt i32 %21, %22
+  br i1 %23, label %startup_starter3.if.then5, label %startup_starter3.if.else6
+
+startup_starter3.if.else6:                        ; preds = %startup_starter3.if.else
+  %24 = load i32** %2, align 4
+  %25 = getelementptr inbounds i32* %24, i32 1
+  %26 = load i32* %25, align 4
+  %27 = load i32* %6, align 4
+  %28 = icmp sle i32 %26, %27
+  br i1 %28, label %startup_starter3.if.then9, label %startup_starter3.if.else11
+
+startup_starter3.if.else11:                       ; preds = %startup_starter3.if.else6
+  %29 = load float* %3, align 4
+  %30 = load i32* @NH_STARTER_SHUTOFF, align 4
+  %31 = sitofp i32 %30 to float
+  %32 = fcmp olt float %29, %31
+  br i1 %32, label %startup_starter3.if.then15, label %startup_starter3.if.else28
+
+startup_starter3.if.then15:                       ; preds = %startup_starter3.if.else11
+  %33 = load float* %3, align 4
+  %34 = load i32* @SG_MAX_RPM, align 4
+  %35 = sitofp i32 %34 to float
+  %36 = fcmp olt float %33, %35
+  br i1 %36, label %startup_starter3.if.then19, label %startup_starter3.if.end27
+
+startup_starter3.if.then19:                       ; preds = %startup_starter3.if.then15
+  %37 = load float* %4, align 4
+  %38 = load float* @SG_RAMP_MAX, align 4
+  %39 = fcmp olt float %37, %38
+  br i1 %39, label %startup_starter3.if.then22, label %startup_starter3.if.end
+
+startup_starter3.if.then22:                       ; preds = %startup_starter3.if.then19
+  %40 = load float* @SG_RAMP_MAX, align 4
+  store float %40, float* %4, align 4
+  br label %startup_starter3.if.end
+
+startup_starter3.if.end:                          ; preds = %startup_starter3.if.then22, %startup_starter3.if.then19
+  %41 = load float* %4, align 4
+  %42 = load float* @SG_MAX, align 4
+  %43 = fcmp ogt float %41, %42
+  br i1 %43, label %startup_starter3.if.then25, label %startup_starter3.if.end26
+
+startup_starter3.if.then25:                       ; preds = %startup_starter3.if.end
+  %44 = load float* @SG_MAX, align 4
+  store float %44, float* %4, align 4
+  br label %startup_starter3.if.end26
+
+startup_starter3.if.end26:                        ; preds = %startup_starter3.if.then25, %startup_starter3.if.end
+  br label %startup_starter3.if.end27
+
+startup_starter3.if.else28:                       ; preds = %startup_starter3.if.else11
+  store float 0.000000e+00, float* %4, align 4
+  store i32 0, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %startup_starter3.if.end29
+
+startup_starter3.if.end27:                        ; preds = %startup_starter3.if.end26, %startup_starter3.if.then15
+  br label %startup_starter3.if.end29
+
+startup_starter3.if.then9:                        ; preds = %startup_starter3.if.else6
+  %45 = load float* @SG_RAMP_MAX, align 4
+  %46 = load i32** %2, align 4
+  %47 = getelementptr inbounds i32* %46, i32 1
+  %48 = load i32* %47, align 4
+  %49 = sub nsw i32 %48, 350
+  %50 = sitofp i32 %49 to float
+  %51 = fmul float %45, %50
+  %52 = fdiv float %51, 5.000000e+02
+  store float %52, float* %4, align 4
+  %53 = load float* %3, align 4
+  store float %53, float* @nh_fin_de_rampe, align 4
+  br label %startup_starter3.if.end30
+
+startup_starter3.if.end29:                        ; preds = %startup_starter3.if.end27, %startup_starter3.if.else28
+  br label %startup_starter3.if.end30
+
+startup_starter3.if.then5:                        ; preds = %startup_starter3.if.else
+  br label %startup_starter3.if.end31
+
+startup_starter3.if.end30:                        ; preds = %startup_starter3.if.end29, %startup_starter3.if.then9
+  br label %startup_starter3.if.end31
+
+startup_starter3.if.then:                         ; preds = %startup_starter3.entry
+  store float 0.000000e+00, float* %4, align 4
+  store i32 1, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %startup_starter3.if.end32
+
+startup_starter3.if.end31:                        ; preds = %startup_starter3.if.end30, %startup_starter3.if.then5
+  br label %startup_starter3.if.end32
+
+startup_starter3.if.end32:                        ; preds = %startup_starter3.if.end31, %startup_starter3.if.then
+  %54 = load float* %4, align 4
+  store float %54, float* %1, align 4
+  br label %startup_starter3.return
+
+startup_starter3.return:                          ; preds = %startup_starter3.if.end32
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (float*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @startup_starter3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !4, metadata !"LocalReference", i32 0}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !2, metadata !"LocalReference", i32 0}
+
+----------Adding sync edges to dangling HyperOps----------
+
+-----------Re-routing sync edges from end hyperop to the newly created end HyperOp-----------
+whats in module now?; ModuleID = './Compilation_Error/startupstarter.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@SG_RAMP_MAX = global float 0x3FE3333340000000, align 4
+@SG_MAX = global float 0x3FECCCCCC0000000, align 4
+@NH_STARTER_SHUTOFF = global i32 17000, align 4
+@SG_MAX_RPM = global i32 15000, align 4
+@glob_sg_bit0 = common global i32 0, align 4
+@glob_sg_bit1 = common global i32 0, align 4
+@nh_fin_de_rampe = common global float 0.000000e+00, align 4
+@redefine_in_a = common global [6 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [2 x float] zeroinitializer, align 4
+@redefine_out_c = common global [2 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define float @startup_starter(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %current_nh = alloca float, align 4
+  %sg_cmd = alloca float, align 4
+  %first = alloca i32, align 4
+  %second = alloca i32, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %current_nh, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 2
+  %4 = bitcast i32* %arrayidx1 to float*
+  %5 = load float* %4, align 4
+  store float %5, float* %sg_cmd, align 4
+  store i32 350, i32* %first, align 4
+  store i32 850, i32* %second, align 4
+  %6 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %6, i32 1
+  %7 = load i32* %arrayidx2, align 4
+  %cmp = icmp eq i32 %7, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  store float 0.000000e+00, float* %sg_cmd, align 4
+  store i32 1, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %if.end32
+
+if.else:                                          ; preds = %entry
+  %8 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %8, i32 1
+  %9 = load i32* %arrayidx3, align 4
+  %10 = load i32* %first, align 4
+  %cmp4 = icmp slt i32 %9, %10
+  br i1 %cmp4, label %if.then5, label %if.else6
+
+if.then5:                                         ; preds = %if.else
+  br label %if.end31
+
+if.else6:                                         ; preds = %if.else
+  %11 = load i32** %input.addr, align 4
+  %arrayidx7 = getelementptr inbounds i32* %11, i32 1
+  %12 = load i32* %arrayidx7, align 4
+  %13 = load i32* %second, align 4
+  %cmp8 = icmp sle i32 %12, %13
+  br i1 %cmp8, label %if.then9, label %if.else11
+
+if.then9:                                         ; preds = %if.else6
+  %14 = load float* @SG_RAMP_MAX, align 4
+  %15 = load i32** %input.addr, align 4
+  %arrayidx10 = getelementptr inbounds i32* %15, i32 1
+  %16 = load i32* %arrayidx10, align 4
+  %sub = sub nsw i32 %16, 350
+  %conv = sitofp i32 %sub to float
+  %mul = fmul float %14, %conv
+  %div = fdiv float %mul, 5.000000e+02
+  store float %div, float* %sg_cmd, align 4
+  %17 = load float* %current_nh, align 4
+  store float %17, float* @nh_fin_de_rampe, align 4
+  br label %if.end30
+
+if.else11:                                        ; preds = %if.else6
+  %18 = load float* %current_nh, align 4
+  %19 = load i32* @NH_STARTER_SHUTOFF, align 4
+  %conv12 = sitofp i32 %19 to float
+  %cmp13 = fcmp olt float %18, %conv12
+  br i1 %cmp13, label %if.then15, label %if.else28
+
+if.then15:                                        ; preds = %if.else11
+  %20 = load float* %current_nh, align 4
+  %21 = load i32* @SG_MAX_RPM, align 4
+  %conv16 = sitofp i32 %21 to float
+  %cmp17 = fcmp olt float %20, %conv16
+  br i1 %cmp17, label %if.then19, label %if.end27
+
+if.then19:                                        ; preds = %if.then15
+  %22 = load float* %sg_cmd, align 4
+  %23 = load float* @SG_RAMP_MAX, align 4
+  %cmp20 = fcmp olt float %22, %23
+  br i1 %cmp20, label %if.then22, label %if.end
+
+if.then22:                                        ; preds = %if.then19
+  %24 = load float* @SG_RAMP_MAX, align 4
+  store float %24, float* %sg_cmd, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.then22, %if.then19
+  %25 = load float* %sg_cmd, align 4
+  %26 = load float* @SG_MAX, align 4
+  %cmp23 = fcmp ogt float %25, %26
+  br i1 %cmp23, label %if.then25, label %if.end26
+
+if.then25:                                        ; preds = %if.end
+  %27 = load float* @SG_MAX, align 4
+  store float %27, float* %sg_cmd, align 4
+  br label %if.end26
+
+if.end26:                                         ; preds = %if.then25, %if.end
+  br label %if.end27
+
+if.end27:                                         ; preds = %if.end26, %if.then15
+  br label %if.end29
+
+if.else28:                                        ; preds = %if.else11
+  store float 0.000000e+00, float* %sg_cmd, align 4
+  store i32 0, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %if.end29
+
+if.end29:                                         ; preds = %if.else28, %if.end27
+  br label %if.end30
+
+if.end30:                                         ; preds = %if.end29, %if.then9
+  br label %if.end31
+
+if.end31:                                         ; preds = %if.end30, %if.then5
+  br label %if.end32
+
+if.end32:                                         ; preds = %if.end31, %if.then
+  %28 = load float* %sg_cmd, align 4
+  ret float %28
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = getelementptr inbounds float* @SG_RAMP_MAX, i32 0
+  store float 0x3FE3333340000000, float* %0, align 4
+  %1 = getelementptr inbounds float* @SG_MAX, i32 0
+  store float 0x3FECCCCCC0000000, float* %1, align 4
+  %2 = getelementptr inbounds i32* @NH_STARTER_SHUTOFF, i32 0
+  store i32 17000, i32* %2, align 4
+  %3 = getelementptr inbounds i32* @SG_MAX_RPM, i32 0
+  store i32 15000, i32* %3, align 4
+  %4 = getelementptr inbounds i32* @glob_sg_bit0, i32 0
+  store i32 0, i32* %4, align 4
+  %5 = getelementptr inbounds i32* @glob_sg_bit1, i32 0
+  store i32 0, i32* %5, align 4
+  %6 = getelementptr inbounds float* @nh_fin_de_rampe, i32 0
+  store float 0.000000e+00, float* %6, align 4
+  %7 = alloca i32*, align 4
+  %8 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 3), align 4
+  store i32 %8, i32* @glob_sg_bit0, align 4
+  %9 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 4), align 4
+  store i32 %9, i32* @glob_sg_bit1, align 4
+  %10 = load float* bitcast (i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 5) to float*), align 4
+  store float %10, float* @nh_fin_de_rampe, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %7
+  %11 = load i32** %7
+  br label %newName0
+
+newName0:                                         ; preds = %entry
+  %call = call float @startup_starter(i32* %11)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store float %call, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 0), align 4
+  %12 = load float* @nh_fin_de_rampe, align 4
+  store float %12, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 1), align 4
+  %13 = load i32* @glob_sg_bit0, align 4
+  store i32 %13, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 0), align 4
+  %14 = load i32* @glob_sg_bit1, align 4
+  store i32 %14, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 1), align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = getelementptr inbounds float* @SG_RAMP_MAX, i32 0
+  store float 0x3FE3333340000000, float* %0, align 4
+  %1 = getelementptr inbounds float* @SG_MAX, i32 0
+  store float 0x3FECCCCCC0000000, float* %1, align 4
+  %2 = getelementptr inbounds i32* @NH_STARTER_SHUTOFF, i32 0
+  store i32 17000, i32* %2, align 4
+  %3 = getelementptr inbounds i32* @SG_MAX_RPM, i32 0
+  store i32 15000, i32* %3, align 4
+  %4 = getelementptr inbounds i32* @glob_sg_bit0, i32 0
+  store i32 0, i32* %4, align 4
+  %5 = getelementptr inbounds i32* @glob_sg_bit1, i32 0
+  store i32 0, i32* %5, align 4
+  %6 = getelementptr inbounds float* @nh_fin_de_rampe, i32 0
+  store float 0.000000e+00, float* %6, align 4
+  %7 = alloca i32*, align 4, !ConsumedBy !6
+  %8 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 3), align 4
+  store i32 %8, i32* @glob_sg_bit0, align 4
+  %9 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 4), align 4
+  store i32 %9, i32* @glob_sg_bit1, align 4
+  %10 = load float* bitcast (i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 5) to float*), align 4
+  store float %10, float* @nh_fin_de_rampe, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %7
+  %11 = load i32** %7
+  br label %redefine_start1.return
+
+redefine_start1.return:                           ; preds = %redefine_start1.entry
+  ret void
+}
+
+define void @redefine_start2(float*) {
+redefine_start2.newName01:
+  %1 = load float* %0
+  store float %1, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 0), align 4
+  %2 = load float* @nh_fin_de_rampe, align 4
+  store float %2, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 1), align 4
+  %3 = load i32* @glob_sg_bit0, align 4
+  store i32 %3, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 0), align 4
+  %4 = load i32* @glob_sg_bit1, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 1), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @startup_starter3(i32*) {
+startup_starter3.entry:
+  %1 = alloca float, align 4, !ConsumedBy !8
+  %2 = alloca i32*, align 4
+  %3 = alloca float, align 4
+  %4 = alloca float, align 4
+  %5 = alloca i32, align 4
+  %6 = alloca i32, align 4
+  store i32* %0, i32** %2, align 4
+  %7 = load i32** %2, align 4
+  %8 = getelementptr inbounds i32* %7, i32 0
+  %9 = bitcast i32* %8 to float*
+  %10 = load float* %9, align 4
+  store float %10, float* %3, align 4
+  %11 = load i32** %2, align 4
+  %12 = getelementptr inbounds i32* %11, i32 2
+  %13 = bitcast i32* %12 to float*
+  %14 = load float* %13, align 4
+  store float %14, float* %4, align 4
+  store i32 350, i32* %5, align 4
+  store i32 850, i32* %6, align 4
+  %15 = load i32** %2, align 4
+  %16 = getelementptr inbounds i32* %15, i32 1
+  %17 = load i32* %16, align 4
+  %18 = icmp eq i32 %17, 0
+  br i1 %18, label %startup_starter3.if.then, label %startup_starter3.if.else
+
+startup_starter3.if.else:                         ; preds = %startup_starter3.entry
+  %19 = load i32** %2, align 4
+  %20 = getelementptr inbounds i32* %19, i32 1
+  %21 = load i32* %20, align 4
+  %22 = load i32* %5, align 4
+  %23 = icmp slt i32 %21, %22
+  br i1 %23, label %startup_starter3.if.then5, label %startup_starter3.if.else6
+
+startup_starter3.if.else6:                        ; preds = %startup_starter3.if.else
+  %24 = load i32** %2, align 4
+  %25 = getelementptr inbounds i32* %24, i32 1
+  %26 = load i32* %25, align 4
+  %27 = load i32* %6, align 4
+  %28 = icmp sle i32 %26, %27
+  br i1 %28, label %startup_starter3.if.then9, label %startup_starter3.if.else11
+
+startup_starter3.if.else11:                       ; preds = %startup_starter3.if.else6
+  %29 = load float* %3, align 4
+  %30 = load i32* @NH_STARTER_SHUTOFF, align 4
+  %31 = sitofp i32 %30 to float
+  %32 = fcmp olt float %29, %31
+  br i1 %32, label %startup_starter3.if.then15, label %startup_starter3.if.else28
+
+startup_starter3.if.then15:                       ; preds = %startup_starter3.if.else11
+  %33 = load float* %3, align 4
+  %34 = load i32* @SG_MAX_RPM, align 4
+  %35 = sitofp i32 %34 to float
+  %36 = fcmp olt float %33, %35
+  br i1 %36, label %startup_starter3.if.then19, label %startup_starter3.if.end27
+
+startup_starter3.if.then19:                       ; preds = %startup_starter3.if.then15
+  %37 = load float* %4, align 4
+  %38 = load float* @SG_RAMP_MAX, align 4
+  %39 = fcmp olt float %37, %38
+  br i1 %39, label %startup_starter3.if.then22, label %startup_starter3.if.end
+
+startup_starter3.if.then22:                       ; preds = %startup_starter3.if.then19
+  %40 = load float* @SG_RAMP_MAX, align 4
+  store float %40, float* %4, align 4
+  br label %startup_starter3.if.end
+
+startup_starter3.if.end:                          ; preds = %startup_starter3.if.then22, %startup_starter3.if.then19
+  %41 = load float* %4, align 4
+  %42 = load float* @SG_MAX, align 4
+  %43 = fcmp ogt float %41, %42
+  br i1 %43, label %startup_starter3.if.then25, label %startup_starter3.if.end26
+
+startup_starter3.if.then25:                       ; preds = %startup_starter3.if.end
+  %44 = load float* @SG_MAX, align 4
+  store float %44, float* %4, align 4
+  br label %startup_starter3.if.end26
+
+startup_starter3.if.end26:                        ; preds = %startup_starter3.if.then25, %startup_starter3.if.end
+  br label %startup_starter3.if.end27
+
+startup_starter3.if.else28:                       ; preds = %startup_starter3.if.else11
+  store float 0.000000e+00, float* %4, align 4
+  store i32 0, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %startup_starter3.if.end29
+
+startup_starter3.if.end27:                        ; preds = %startup_starter3.if.end26, %startup_starter3.if.then15
+  br label %startup_starter3.if.end29
+
+startup_starter3.if.then9:                        ; preds = %startup_starter3.if.else6
+  %45 = load float* @SG_RAMP_MAX, align 4
+  %46 = load i32** %2, align 4
+  %47 = getelementptr inbounds i32* %46, i32 1
+  %48 = load i32* %47, align 4
+  %49 = sub nsw i32 %48, 350
+  %50 = sitofp i32 %49 to float
+  %51 = fmul float %45, %50
+  %52 = fdiv float %51, 5.000000e+02
+  store float %52, float* %4, align 4
+  %53 = load float* %3, align 4
+  store float %53, float* @nh_fin_de_rampe, align 4
+  br label %startup_starter3.if.end30
+
+startup_starter3.if.end29:                        ; preds = %startup_starter3.if.end27, %startup_starter3.if.else28
+  br label %startup_starter3.if.end30
+
+startup_starter3.if.then5:                        ; preds = %startup_starter3.if.else
+  br label %startup_starter3.if.end31
+
+startup_starter3.if.end30:                        ; preds = %startup_starter3.if.end29, %startup_starter3.if.then9
+  br label %startup_starter3.if.end31
+
+startup_starter3.if.then:                         ; preds = %startup_starter3.entry
+  store float 0.000000e+00, float* %4, align 4
+  store i32 1, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %startup_starter3.if.end32
+
+startup_starter3.if.end31:                        ; preds = %startup_starter3.if.end30, %startup_starter3.if.then5
+  br label %startup_starter3.if.end32
+
+startup_starter3.if.end32:                        ; preds = %startup_starter3.if.end31, %startup_starter3.if.then
+  %54 = load float* %4, align 4
+  store float %54, float* %1, align 4
+  br label %startup_starter3.return
+
+startup_starter3.return:                          ; preds = %startup_starter3.if.end32
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (float*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @startup_starter3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !4, metadata !"LocalReference", i32 0}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !2, metadata !"LocalReference", i32 0}
+
+-----------Deleting unused functions-----------
+deleting contents of function:startup_starter
+deleting contents of function:redefine_start
+Final module contents:; ModuleID = './Compilation_Error/startupstarter.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@SG_RAMP_MAX = global float 0x3FE3333340000000, align 4
+@SG_MAX = global float 0x3FECCCCCC0000000, align 4
+@NH_STARTER_SHUTOFF = global i32 17000, align 4
+@SG_MAX_RPM = global i32 15000, align 4
+@glob_sg_bit0 = common global i32 0, align 4
+@glob_sg_bit1 = common global i32 0, align 4
+@nh_fin_de_rampe = common global float 0.000000e+00, align 4
+@redefine_in_a = common global [6 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [2 x float] zeroinitializer, align 4
+@redefine_out_c = common global [2 x i32] zeroinitializer, align 4
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = getelementptr inbounds float* @SG_RAMP_MAX, i32 0
+  store float 0x3FE3333340000000, float* %0, align 4
+  %1 = getelementptr inbounds float* @SG_MAX, i32 0
+  store float 0x3FECCCCCC0000000, float* %1, align 4
+  %2 = getelementptr inbounds i32* @NH_STARTER_SHUTOFF, i32 0
+  store i32 17000, i32* %2, align 4
+  %3 = getelementptr inbounds i32* @SG_MAX_RPM, i32 0
+  store i32 15000, i32* %3, align 4
+  %4 = getelementptr inbounds i32* @glob_sg_bit0, i32 0
+  store i32 0, i32* %4, align 4
+  %5 = getelementptr inbounds i32* @glob_sg_bit1, i32 0
+  store i32 0, i32* %5, align 4
+  %6 = getelementptr inbounds float* @nh_fin_de_rampe, i32 0
+  store float 0.000000e+00, float* %6, align 4
+  %7 = alloca i32*, align 4, !ConsumedBy !6
+  %8 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 3), align 4
+  store i32 %8, i32* @glob_sg_bit0, align 4
+  %9 = load i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 4), align 4
+  store i32 %9, i32* @glob_sg_bit1, align 4
+  %10 = load float* bitcast (i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 5) to float*), align 4
+  store float %10, float* @nh_fin_de_rampe, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %7
+  %11 = load i32** %7
+  br label %redefine_start1.return
+
+redefine_start1.return:                           ; preds = %redefine_start1.entry
+  ret void
+}
+
+define void @redefine_start2(float*) {
+redefine_start2.newName01:
+  %1 = load float* %0
+  store float %1, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 0), align 4
+  %2 = load float* @nh_fin_de_rampe, align 4
+  store float %2, float* getelementptr inbounds ([2 x float]* @redefine_out_b, i32 0, i32 1), align 4
+  %3 = load i32* @glob_sg_bit0, align 4
+  store i32 %3, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 0), align 4
+  %4 = load i32* @glob_sg_bit1, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_c, i32 0, i32 1), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @startup_starter3(i32*) {
+startup_starter3.entry:
+  %1 = alloca float, align 4, !ConsumedBy !8
+  %2 = alloca i32*, align 4
+  %3 = alloca float, align 4
+  %4 = alloca float, align 4
+  %5 = alloca i32, align 4
+  %6 = alloca i32, align 4
+  store i32* %0, i32** %2, align 4
+  %7 = load i32** %2, align 4
+  %8 = getelementptr inbounds i32* %7, i32 0
+  %9 = bitcast i32* %8 to float*
+  %10 = load float* %9, align 4
+  store float %10, float* %3, align 4
+  %11 = load i32** %2, align 4
+  %12 = getelementptr inbounds i32* %11, i32 2
+  %13 = bitcast i32* %12 to float*
+  %14 = load float* %13, align 4
+  store float %14, float* %4, align 4
+  store i32 350, i32* %5, align 4
+  store i32 850, i32* %6, align 4
+  %15 = load i32** %2, align 4
+  %16 = getelementptr inbounds i32* %15, i32 1
+  %17 = load i32* %16, align 4
+  %18 = icmp eq i32 %17, 0
+  br i1 %18, label %startup_starter3.if.then, label %startup_starter3.if.else
+
+startup_starter3.if.else:                         ; preds = %startup_starter3.entry
+  %19 = load i32** %2, align 4
+  %20 = getelementptr inbounds i32* %19, i32 1
+  %21 = load i32* %20, align 4
+  %22 = load i32* %5, align 4
+  %23 = icmp slt i32 %21, %22
+  br i1 %23, label %startup_starter3.if.then5, label %startup_starter3.if.else6
+
+startup_starter3.if.else6:                        ; preds = %startup_starter3.if.else
+  %24 = load i32** %2, align 4
+  %25 = getelementptr inbounds i32* %24, i32 1
+  %26 = load i32* %25, align 4
+  %27 = load i32* %6, align 4
+  %28 = icmp sle i32 %26, %27
+  br i1 %28, label %startup_starter3.if.then9, label %startup_starter3.if.else11
+
+startup_starter3.if.else11:                       ; preds = %startup_starter3.if.else6
+  %29 = load float* %3, align 4
+  %30 = load i32* @NH_STARTER_SHUTOFF, align 4
+  %31 = sitofp i32 %30 to float
+  %32 = fcmp olt float %29, %31
+  br i1 %32, label %startup_starter3.if.then15, label %startup_starter3.if.else28
+
+startup_starter3.if.then15:                       ; preds = %startup_starter3.if.else11
+  %33 = load float* %3, align 4
+  %34 = load i32* @SG_MAX_RPM, align 4
+  %35 = sitofp i32 %34 to float
+  %36 = fcmp olt float %33, %35
+  br i1 %36, label %startup_starter3.if.then19, label %startup_starter3.if.end27
+
+startup_starter3.if.then19:                       ; preds = %startup_starter3.if.then15
+  %37 = load float* %4, align 4
+  %38 = load float* @SG_RAMP_MAX, align 4
+  %39 = fcmp olt float %37, %38
+  br i1 %39, label %startup_starter3.if.then22, label %startup_starter3.if.end
+
+startup_starter3.if.then22:                       ; preds = %startup_starter3.if.then19
+  %40 = load float* @SG_RAMP_MAX, align 4
+  store float %40, float* %4, align 4
+  br label %startup_starter3.if.end
+
+startup_starter3.if.end:                          ; preds = %startup_starter3.if.then22, %startup_starter3.if.then19
+  %41 = load float* %4, align 4
+  %42 = load float* @SG_MAX, align 4
+  %43 = fcmp ogt float %41, %42
+  br i1 %43, label %startup_starter3.if.then25, label %startup_starter3.if.end26
+
+startup_starter3.if.then25:                       ; preds = %startup_starter3.if.end
+  %44 = load float* @SG_MAX, align 4
+  store float %44, float* %4, align 4
+  br label %startup_starter3.if.end26
+
+startup_starter3.if.end26:                        ; preds = %startup_starter3.if.then25, %startup_starter3.if.end
+  br label %startup_starter3.if.end27
+
+startup_starter3.if.else28:                       ; preds = %startup_starter3.if.else11
+  store float 0.000000e+00, float* %4, align 4
+  store i32 0, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %startup_starter3.if.end29
+
+startup_starter3.if.end27:                        ; preds = %startup_starter3.if.end26, %startup_starter3.if.then15
+  br label %startup_starter3.if.end29
+
+startup_starter3.if.then9:                        ; preds = %startup_starter3.if.else6
+  %45 = load float* @SG_RAMP_MAX, align 4
+  %46 = load i32** %2, align 4
+  %47 = getelementptr inbounds i32* %46, i32 1
+  %48 = load i32* %47, align 4
+  %49 = sub nsw i32 %48, 350
+  %50 = sitofp i32 %49 to float
+  %51 = fmul float %45, %50
+  %52 = fdiv float %51, 5.000000e+02
+  store float %52, float* %4, align 4
+  %53 = load float* %3, align 4
+  store float %53, float* @nh_fin_de_rampe, align 4
+  br label %startup_starter3.if.end30
+
+startup_starter3.if.end29:                        ; preds = %startup_starter3.if.end27, %startup_starter3.if.else28
+  br label %startup_starter3.if.end30
+
+startup_starter3.if.then5:                        ; preds = %startup_starter3.if.else
+  br label %startup_starter3.if.end31
+
+startup_starter3.if.end30:                        ; preds = %startup_starter3.if.end29, %startup_starter3.if.then9
+  br label %startup_starter3.if.end31
+
+startup_starter3.if.then:                         ; preds = %startup_starter3.entry
+  store float 0.000000e+00, float* %4, align 4
+  store i32 1, i32* @glob_sg_bit0, align 4
+  store i32 0, i32* @glob_sg_bit1, align 4
+  br label %startup_starter3.if.end32
+
+startup_starter3.if.end31:                        ; preds = %startup_starter3.if.end30, %startup_starter3.if.then5
+  br label %startup_starter3.if.end32
+
+startup_starter3.if.end32:                        ; preds = %startup_starter3.if.end31, %startup_starter3.if.then
+  %54 = load float* %4, align 4
+  store float %54, float* %1, align 4
+  br label %startup_starter3.return
+
+startup_starter3.return:                          ; preds = %startup_starter3.if.end32
+  ret void
+}
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (float*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @startup_starter3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !4, metadata !"LocalReference", i32 0}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !2, metadata !"LocalReference", i32 0}

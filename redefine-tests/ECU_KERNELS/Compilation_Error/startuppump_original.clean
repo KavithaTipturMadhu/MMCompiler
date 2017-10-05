@@ -1,0 +1,3261 @@
+.TEXT                                           
+.TOPOLOGY 0 0                                   
+.STARTADDR 0                                    
+.HYOP#0:                                        
+.SMD_BEGIN                                      
+.ANN S B                                        
+.NUMPHY 4                                       
+.OPDIST 0 0 0 0                                 
+.SMD_END                                        
+.PHYOP#0                                        
+.LBB0_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+        ADDI X5 ,X0 ,20                         
+         LUI X6 ,"%HI("GA#5376")"               
+         LUI X7 ,"%LO("GA#5376")"               
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          SW X6 ,X5 ,0                          
+         LUI X5 ,"%LO("GA#2048")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X6 ,291495                         
+         LUI X16,1024                           
+        SRLI X16,X16,12                         
+         ADD X6 ,X16,X6                         
+         LUI X7 ,"%HI("GA#2048")"               
+         ADD X5 ,X7 ,X5                         
+          SW X5 ,X6 ,0                          
+         LUI X5 ,"%LO("GA#7680")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X7 ,"%HI("GA#7680")"               
+        ADDI X6 ,X31,8                          
+         ADD X5 ,X7 ,X5                         
+         FLW F1 ,X5 ,0                          
+         FSW X6 ,F1 ,0                          
+        ADDI X6 ,X31,12                         
+         FLW F1 ,X5 ,20                         
+         FSW X6 ,F1 ,0                          
+        ADDI X6 ,X31,0                          
+          LW X5 ,X5 ,4                          
+         XOR X7 ,X0 ,X5                         
+       SLTIU X7 ,X7 ,1                          
+          SW X6 ,X7 ,0                          
+         LUI X6 ,"%LO("GA#9984")"               
+        SRLI X6 ,X6 ,12                         
+         LUI X7 ,"%HI("GA#9984")"               
+         ADD X6 ,X7 ,X6                         
+          SW X6 ,X0 ,0                          
+         LUI X6 ,"%HI("GA#4096")"               
+         LUI X7 ,214379                         
+         LUI X16,3989                           
+        SRLI X16,X16,12                         
+         ADD X7 ,X16,X7                         
+         LUI X8 ,"%LO("GA#4096")"               
+        SRLI X8 ,X8 ,12                         
+         ADD X6 ,X6 ,X8                         
+          SW X6 ,X7 ,0                          
+         LUI X6 ,"%HI("GA#256")"                
+         LUI X7 ,"%LO("GA#256")"                
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+         LUI X7 ,"%LO("GA#9472")"               
+        SRLI X7 ,X7 ,12                         
+         LUI X8 ,"%HI("GA#9472")"               
+         ADD X7 ,X8 ,X7                         
+          SW X7 ,X0 ,0                          
+         LUI X7 ,"%HI("GA#1792")"               
+         LUI X8 ,254853                         
+         LUI X16,492                            
+        SRLI X16,X16,12                         
+         ADD X8 ,X16,X8                         
+         LUI X11,"%LO("GA#1792")"               
+        SRLI X11,X11,12                         
+         ADD X7 ,X7 ,X11                        
+          SW X7 ,X8 ,0                          
+         LUI X7 ,"%LO("GA#8448")"               
+        SRLI X7 ,X7 ,12                         
+         LUI X8 ,"%HI("GA#8448")"               
+         ADD X7 ,X8 ,X7                         
+          SW X7 ,X0 ,0                          
+         LUI X7 ,"%HI("GA#8192")"               
+         LUI X8 ,"%LO("GA#8192")"               
+        SRLI X8 ,X8 ,12                         
+         ADD X7 ,X7 ,X8                         
+          SW X7 ,X0 ,0                          
+         LUI X7 ,"%LO("GA#3328")"               
+        SRLI X7 ,X7 ,12                         
+         LUI X8 ,"%HI("GA#3328")"               
+         LUI X11,260075                         
+         LUI X16,2130                           
+        SRLI X16,X16,12                         
+         ADD X11,X16,X11                        
+         ADD X7 ,X8 ,X7                         
+          SW X7 ,X11,0                          
+         LUI X7 ,260096                         
+         LUI X16,0                              
+        SRLI X16,X16,12                         
+         ADD X7 ,X16,X7                         
+         LUI X8 ,"%HI("GA#1536")"               
+         LUI X11,"%LO("GA#1536")"               
+        SRLI X11,X11,12                         
+         ADD X8 ,X8 ,X11                        
+          SW X8 ,X7 ,0                          
+         LUI X7 ,"%HI("GA#7936")"               
+         LUI X8 ,"%LO("GA#7936")"               
+        SRLI X8 ,X8 ,12                         
+         ADD X7 ,X7 ,X8                         
+          SW X7 ,X0 ,0                          
+         LUI X7 ,"%HI("GA#3072")"               
+         LUI X8 ,249036                         
+         LUI X16,3277                           
+        SRLI X16,X16,12                         
+         ADD X8 ,X16,X8                         
+         LUI X11,"%LO("GA#3072")"               
+        SRLI X11,X11,12                         
+         ADD X7 ,X7 ,X11                        
+          SW X7 ,X8 ,0                          
+         LUI X7 ,248381                         
+         LUI X16,1802                           
+        SRLI X16,X16,12                         
+         ADD X7 ,X16,X7                         
+         LUI X8 ,"%HI("GA#2816")"               
+         LUI X11,"%LO("GA#2816")"               
+        SRLI X11,X11,12                         
+         ADD X8 ,X8 ,X11                        
+          SW X8 ,X7 ,0                          
+         LUI X7 ,"%HI("GA#7424")"               
+         LUI X8 ,"%LO("GA#7424")"               
+        SRLI X8 ,X8 ,12                         
+         ADD X7 ,X7 ,X8                         
+          SW X7 ,X0 ,0                          
+         LUI X7 ,273536                         
+         LUI X16,0                              
+        SRLI X16,X16,12                         
+         ADD X7 ,X16,X7                         
+         LUI X8 ,"%HI("GA#2560")"               
+         LUI X11,"%LO("GA#2560")"               
+        SRLI X11,X11,12                         
+         ADD X8 ,X8 ,X11                        
+          SW X8 ,X7 ,0                          
+         LUI X8 ,"%HI("GA#5632")"               
+        ADDI X7 ,X0 ,2                          
+         LUI X11,"%LO("GA#5632")"               
+        SRLI X11,X11,12                         
+         ADD X8 ,X8 ,X11                        
+          SW X8 ,X7 ,0                          
+         LUI X8 ,"%HI("GA#5120")"               
+        ADDI X7 ,X0 ,30                         
+         LUI X11,"%LO("GA#5120")"               
+        SRLI X11,X11,12                         
+         ADD X8 ,X8 ,X11                        
+          SW X8 ,X7 ,0                          
+         LUI X7 ,"%HI("GA#4864")"               
+         LUI X11,"%LO("GA#4864")"               
+        SRLI X11,X11,12                         
+        ADDI X8 ,X0 ,50                         
+         ADD X7 ,X7 ,X11                        
+          SW X7 ,X8 ,0                          
+         LUI X7 ,"%HI("GA#2304")"               
+         LUI X8 ,"%LO("GA#2304")"               
+        SRLI X8 ,X8 ,12                         
+         LUI X11,291937                         
+         LUI X16,3840                           
+        SRLI X16,X16,12                         
+         ADD X11,X16,X11                        
+         ADD X7 ,X7 ,X8                         
+          SW X7 ,X11,0                          
+         LUI X7 ,"%LO("GA#4352")"               
+        SRLI X7 ,X7 ,12                         
+         LUI X8 ,230683                         
+         LUI X16,1815                           
+        SRLI X16,X16,12                         
+         ADD X8 ,X16,X8                         
+         LUI X11,"%HI("GA#4352")"               
+         ADD X7 ,X11,X7                         
+          SW X7 ,X8 ,0                          
+         LUI X7 ,240504                         
+         LUI X16,52                             
+        SRLI X16,X16,12                         
+         ADD X7 ,X16,X7                         
+         LUI X8 ,"%LO("GA#1024")"               
+        SRLI X8 ,X8 ,12                         
+         LUI X11,"%HI("GA#1024")"               
+         ADD X8 ,X11,X8                         
+          SW X8 ,X7 ,0                          
+         LUI X7 ,270080                         
+         LUI X16,0                              
+        SRLI X16,X16,12                         
+         ADD X7 ,X16,X7                         
+         LUI X8 ,"%LO("GA#768")"                
+        SRLI X8 ,X8 ,12                         
+         LUI X11,"%HI("GA#768")"                
+         ADD X8 ,X11,X8                         
+          SW X8 ,X7 ,0                          
+         LUI X7 ,"%LO("GA#3840")"               
+        SRLI X7 ,X7 ,12                         
+         LUI X8 ,"%HI("GA#3840")"               
+         LUI X11,246333                         
+         LUI X16,1802                           
+        SRLI X16,X16,12                         
+         ADD X11,X16,X11                        
+         ADD X7 ,X8 ,X7                         
+          SW X7 ,X11,0                          
+         LUI X7 ,"%LO("GA#8704")"               
+        SRLI X7 ,X7 ,12                         
+         LUI X8 ,"%HI("GA#8704")"               
+         ADD X7 ,X8 ,X7                         
+          SW X7 ,X0 ,0                          
+         LUI X7 ,"%LO("GA#6656")"               
+        SRLI X7 ,X7 ,12                         
+         LUI X8 ,"%HI("GA#6656")"               
+         ADD X7 ,X8 ,X7                         
+          SW X7 ,X0 ,0                          
+         LUI X7 ,"%HI("GA#3584")"               
+         LUI X8 ,253132                         
+         LUI X16,3277                           
+        SRLI X16,X16,12                         
+         ADD X8 ,X16,X8                         
+         LUI X11,"%LO("GA#3584")"               
+        SRLI X11,X11,12                         
+         ADD X7 ,X7 ,X11                        
+          SW X7 ,X8 ,0                          
+         LUI X7 ,"%LO("GA#6144")"               
+        SRLI X7 ,X7 ,12                         
+         LUI X8 ,"%HI("GA#6144")"               
+         ADD X7 ,X8 ,X7                         
+          SW X7 ,X0 ,0                          
+         LUI X7 ,254197                         
+         LUI X16,3113                           
+        SRLI X16,X16,12                         
+         ADD X7 ,X16,X7                         
+         LUI X8 ,"%LO("GA#0")"                  
+        SRLI X8 ,X8 ,12                         
+         LUI X11,"%HI("GA#0")"                  
+         ADD X8 ,X11,X8                         
+          SW X8 ,X7 ,0                          
+          SW X6 ,X7 ,0                          
+         LUI X6 ,"%HI("GA#5888")"               
+         LUI X7 ,"%LO("GA#5888")"               
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          SW X6 ,X0 ,0                          
+         LUI X6 ,"%HI("GA#4608")"               
+         LUI X8 ,"%LO("GA#4608")"               
+        SRLI X8 ,X8 ,12                         
+        ADDI X7 ,X0 ,10                         
+         ADD X6 ,X6 ,X8                         
+          SW X6 ,X7 ,0                          
+         LUI X6 ,"%HI("GA#7168")"               
+         LUI X7 ,"%LO("GA#7168")"               
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          SW X6 ,X0 ,0                          
+         LUI X6 ,"%LO("GA#10240")"              
+        SRLI X6 ,X6 ,12                         
+         LUI X7 ,"%HI("GA#10240")"              
+         ADD X6 ,X7 ,X6                         
+          SW X6 ,X0 ,0                          
+         LUI X6 ,"%HI("GA#6912")"               
+         LUI X7 ,"%LO("GA#6912")"               
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          SW X6 ,X0 ,0                          
+         LUI X6 ,"%HI("GA#6400")"               
+         LUI X7 ,"%LO("GA#6400")"               
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          SW X6 ,X0 ,0                          
+         LUI X6 ,"%LO("GA#9216")"               
+        SRLI X6 ,X6 ,12                         
+         LUI X7 ,"%HI("GA#9216")"               
+         ADD X6 ,X7 ,X6                         
+          SW X6 ,X0 ,0                          
+         LUI X6 ,"%HI("GA#512")"                
+         LUI X7 ,"%LO("GA#512")"                
+        SRLI X7 ,X7 ,12                         
+         LUI X8 ,271712                         
+         LUI X16,0                              
+        SRLI X16,X16,12                         
+         ADD X8 ,X16,X8                         
+         ADD X6 ,X6 ,X7                         
+          SW X6 ,X8 ,0                          
+         LUI X6 ,"%HI("GA#8960")"               
+         LUI X7 ,"%LO("GA#8960")"               
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          SW X6 ,X0 ,0                          
+         LUI X6 ,"%LO("GA#10752")"              
+        SRLI X6 ,X6 ,12                         
+         LUI X7 ,"%HI("GA#10752")"              
+         ADD X6 ,X7 ,X6                         
+          SW X6 ,X0 ,0                          
+         LUI X6 ,"%HI("GA#1280")"               
+         LUI X7 ,239665                         
+         LUI X16,623                            
+        SRLI X16,X16,12                         
+         ADD X7 ,X16,X7                         
+         LUI X8 ,"%LO("GA#1280")"               
+        SRLI X8 ,X8 ,12                         
+         ADD X6 ,X6 ,X8                         
+          SW X6 ,X7 ,0                          
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         BEQ X5 ,X0 ,.LBB0_44                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_1                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_1:                                        
+         LUI X5 ,283276                         
+         LUI X16,0                              
+        SRLI X16,X16,12                         
+         ADD X5 ,X16,X5                         
+        ADDI X6 ,X31,8                          
+         FLW F1 ,X6 ,0                          
+     FMV.S.X F2 ,X5                             
+       FLT.S X5 ,F1 ,F2                         
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_2                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_2:                                        
+         LUI X5 ,288422                         
+         LUI X16,0                              
+        SRLI X16,X16,12                         
+         ADD X5 ,X16,X5                         
+        ADDI X6 ,X31,8                          
+         FLW F1 ,X6 ,0                          
+     FMV.S.X F2 ,X5                             
+       FLT.S X5 ,F1 ,F2                         
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_15                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_3                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_3:                                        
+         LUI X5 ,288422                         
+         LUI X16,0                              
+        SRLI X16,X16,12                         
+         ADD X5 ,X16,X5                         
+        ADDI X6 ,X31,8                          
+         FLW F1 ,X6 ,0                          
+     FMV.S.X F2 ,X5                             
+       FLT.S X5 ,F1 ,F2                         
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_4                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_4:                                        
+         LUI X5 ,"%HI("GA#9472")"               
+         LUI X6 ,"%LO("GA#7680")"               
+        SRLI X6 ,X6 ,12                         
+         LUI X7 ,"%HI("GA#7680")"               
+         LUI X8 ,"%LO("GA#9472")"               
+        SRLI X8 ,X8 ,12                         
+         ADD X7 ,X7 ,X6                         
+         ADD X6 ,X5 ,X8                         
+          LW X5 ,X7 ,16                         
+          SW X6 ,X5 ,0                          
+        ADDI X6 ,X0 ,2                          
+         LUI X7 ,1                              
+     WRITEPM X7 ,X5 ,0                          
+         LUI X8 ,2                              
+     WRITEPM X8 ,X5 ,0                          
+         LUI X11,3                              
+     WRITEPM X11,X5 ,0                          
+     WRITEPM X7 ,X6 ,4                          
+     WRITEPM X8 ,X6 ,4                          
+     WRITEPM X11,X6 ,4                          
+         BEQ X5 ,X6 ,.LBB0_41                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_5                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_5:                                        
+        ADDI X5 ,X0 ,4                          
+         LUI X6 ,"%HI("GA#9472")"               
+         LUI X7 ,"%LO("GA#9472")"               
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          LW X6 ,X6 ,0                          
+         LUI X7 ,1                              
+     WRITEPM X7 ,X6 ,0                          
+         LUI X8 ,2                              
+     WRITEPM X8 ,X6 ,0                          
+         LUI X11,3                              
+     WRITEPM X11,X6 ,0                          
+     WRITEPM X7 ,X5 ,4                          
+     WRITEPM X8 ,X5 ,4                          
+     WRITEPM X11,X5 ,4                          
+         BNE X6 ,X5 ,.LBB0_39                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_6                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_6:                                        
+         LUI X6 ,"%HI("GA#512")"                
+         LUI X5 ,"%LO("GA#7168")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X8 ,"%LO("GA#512")"                
+        SRLI X8 ,X8 ,12                         
+         LUI X7 ,"%HI("GA#7168")"               
+         ADD X6 ,X6 ,X8                         
+         ADD X5 ,X7 ,X5                         
+         FLW F1 ,X6 ,0                          
+         FLW F2 ,X5 ,0                          
+       FLE.S X5 ,F1 ,F2                         
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_8                    
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_7                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_7:                                        
+         LUI X7 ,"%LO("GA#8448")"               
+        SRLI X7 ,X7 ,12                         
+         LUI X5 ,"%HI("GA#7168")"               
+         LUI X6 ,"%HI("GA#2816")"               
+         LUI X12,"%HI("GA#8448")"               
+         LUI X8 ,"%LO("GA#7168")"               
+        SRLI X8 ,X8 ,12                         
+         LUI X11,"%LO("GA#2816")"               
+        SRLI X11,X11,12                         
+         ADD X7 ,X12,X7                         
+         ADD X5 ,X5 ,X8                         
+         ADD X6 ,X6 ,X11                        
+         FLW F1 ,X7 ,0                          
+         FLW F2 ,X5 ,0                          
+         FLW F3 ,X6 ,0                          
+     FMADD.S F1 ,F3 ,F1 ,F2                     
+         FSW X5 ,F1 ,0                          
+         JAL .LBB0_9                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_8:                                        
+         LUI X5 ,"%LO("GA#8448")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X6 ,"%HI("GA#7168")"               
+         LUI X7 ,"%HI("GA#2816")"               
+         LUI X12,"%HI("GA#8448")"               
+         LUI X8 ,"%LO("GA#7168")"               
+        SRLI X8 ,X8 ,12                         
+         LUI X11,"%LO("GA#2816")"               
+        SRLI X11,X11,12                         
+         ADD X12,X12,X5                         
+         ADD X5 ,X6 ,X8                         
+         ADD X6 ,X7 ,X11                        
+         FLW F2 ,X12,0                          
+         FLW F1 ,X5 ,0                          
+         FLW F3 ,X6 ,0                          
+      FMUL.S F2 ,F3 ,F2                         
+      FSUB.S F1 ,F1 ,F2                         
+         FSW X5 ,F1 ,0                          
+.LBB0_9:                                        
+         LUI X6 ,"%HI("GA#4096")"               
+         LUI X5 ,"%LO("GA#8192")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X7 ,"%HI("GA#8192")"               
+         LUI X8 ,"%LO("GA#4096")"               
+        SRLI X8 ,X8 ,12                         
+         ADD X5 ,X7 ,X5                         
+         ADD X6 ,X6 ,X8                         
+         FLW F1 ,X5 ,0                          
+         FLW F2 ,X6 ,0                          
+         LUI X6 ,"%LO("GA#3072")"               
+        SRLI X6 ,X6 ,12                         
+         LUI X7 ,"%HI("GA#3072")"               
+         ADD X6 ,X7 ,X6                         
+         FLW F3 ,X6 ,0                          
+         LUI X8 ,"%HI("GA#7168")"               
+        ADDI X7 ,X31,8                          
+        ADDI X6 ,X31,16                         
+         LUI X11,"%LO("GA#7168")"               
+        SRLI X11,X11,12                         
+         ADD X8 ,X8 ,X11                        
+         FLW F4 ,X8 ,0                          
+         FLW F5 ,X7 ,0                          
+      FSUB.S F4 ,F4 ,F5                         
+     FMADD.S F1 ,F4 ,F2 ,F1                     
+         FSW X5 ,F1 ,0                          
+       FLE.S X5 ,F1 ,F3                         
+         FSW X6 ,F4 ,0                          
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_11                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_10                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_10:                                       
+         LUI X5 ,256000                         
+         LUI X16,0                              
+        SRLI X16,X16,12                         
+         ADD X5 ,X16,X5                         
+         LUI X6 ,"%HI("GA#8192")"               
+         LUI X7 ,"%LO("GA#8192")"               
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          SW X6 ,X5 ,0                          
+.LBB0_11:                                       
+         LUI X6 ,"%HI("GA#256")"                
+         LUI X5 ,"%LO("GA#8192")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X8 ,"%LO("GA#256")"                
+        SRLI X8 ,X8 ,12                         
+         LUI X7 ,"%HI("GA#8192")"               
+         ADD X6 ,X6 ,X8                         
+         ADD X5 ,X7 ,X5                         
+         FLW F1 ,X6 ,0                          
+         FLW F2 ,X5 ,0                          
+       FLE.S X5 ,F1 ,F2                         
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_13                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_12                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_12:                                       
+         LUI X5 ,"%HI("GA#8192")"               
+         LUI X6 ,"%LO("GA#256")"                
+        SRLI X6 ,X6 ,12                         
+         LUI X8 ,"%LO("GA#8192")"               
+        SRLI X8 ,X8 ,12                         
+         LUI X7 ,"%HI("GA#256")"                
+         ADD X5 ,X5 ,X8                         
+         ADD X6 ,X7 ,X6                         
+         FLW F1 ,X6 ,0                          
+         FSW X5 ,F1 ,0                          
+.LBB0_13:                                       
+         LUI X5 ,"%LO("GA#8704")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X8 ,"%LO("GA#4352")"               
+        SRLI X8 ,X8 ,12                         
+         LUI X7 ,"%HI("GA#8192")"               
+         LUI X12,"%HI("GA#4352")"               
+         LUI X11,"%HI("GA#8704")"               
+         LUI X13,"%LO("GA#8192")"               
+        SRLI X13,X13,12                         
+        ADDI X6 ,X31,16                         
+         ADD X8 ,X12,X8                         
+         ADD X7 ,X7 ,X13                        
+         ADD X5 ,X11,X5                         
+         FLW F1 ,X8 ,0                          
+         FLW F2 ,X7 ,0                          
+         FLW F3 ,X6 ,0                          
+     FMADD.S F1 ,F1 ,F3 ,F2                     
+         FSW X5 ,F1 ,0                          
+         LUI X5 ,"%HI("GA#256")"                
+         LUI X6 ,"%LO("GA#256")"                
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X5 ,X6                         
+         FLW F2 ,X5 ,0                          
+       FLE.S X5 ,F2 ,F1                         
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_16                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_14                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_14:                                       
+         LUI X5 ,"%HI("GA#8704")"               
+         LUI X6 ,"%LO("GA#256")"                
+        SRLI X6 ,X6 ,12                         
+         LUI X7 ,"%LO("GA#8704")"               
+        SRLI X7 ,X7 ,12                         
+         LUI X8 ,"%HI("GA#256")"                
+         ADD X5 ,X5 ,X7                         
+         ADD X6 ,X8 ,X6                         
+         FLW F1 ,X6 ,0                          
+         FSW X5 ,F1 ,0                          
+         JAL .LBB0_16                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_15:                                       
+         LUI X5 ,1048575                        
+         LUI X16,4095                           
+        SRLI X16,X16,12                         
+         ADD X5 ,X16,X5                         
+         LUI X6 ,"%HI("GA#7680")"               
+         LUI X7 ,"%LO("GA#7680")"               
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          LW X6 ,X6 ,8                          
+         LUI X7 ,1                              
+     WRITEPM X7 ,X6 ,0                          
+         LUI X8 ,2                              
+     WRITEPM X8 ,X6 ,0                          
+         LUI X11,3                              
+     WRITEPM X11,X6 ,0                          
+     WRITEPM X7 ,X5 ,4                          
+     WRITEPM X8 ,X5 ,4                          
+     WRITEPM X11,X5 ,4                          
+         BEQ X6 ,X5 ,.LBB0_43                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_17                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_16:                                       
+         LUI X5 ,"%LO("GA#9984")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X6 ,"%HI("GA#9984")"               
+         ADD X5 ,X6 ,X5                         
+         LUI X8 ,"%HI("GA#9728")"               
+        ADDI X7 ,X31,8                          
+         LUI X6 ,"%LO("GA#7680")"               
+        SRLI X6 ,X6 ,12                         
+         LUI X11,"%HI("GA#7680")"               
+         LUI X12,"%LO("GA#9728")"               
+        SRLI X12,X12,12                         
+         ADD X6 ,X11,X6                         
+         ADD X8 ,X8 ,X12                        
+          LW X11,X6 ,24                         
+         FLW F1 ,X7 ,0                          
+        SLLI X7 ,X11,2                          
+         ADD X7 ,X8 ,X7                         
+    FCVT.W.S X8 ,F1 ,RTZ                        
+          SW X7 ,X8 ,0                          
+          LW X6 ,X6 ,28                         
+          SW X5 ,X6 ,0                          
+        ADDI X5 ,X0 ,50                         
+         LUI X7 ,1                              
+     WRITEPM X7 ,X6 ,0                          
+         LUI X8 ,2                              
+     WRITEPM X8 ,X6 ,0                          
+         LUI X11,3                              
+     WRITEPM X11,X6 ,0                          
+     WRITEPM X7 ,X5 ,4                          
+     WRITEPM X8 ,X5 ,4                          
+     WRITEPM X11,X5 ,4                          
+         BEQ X6 ,X5 ,.LBB0_18                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_19                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_17:                                       
+        ADDI X6 ,X31,28                         
+         LUI X5 ,"%LO("GA#7680")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X7 ,"%HI("GA#7680")"               
+         ADD X5 ,X7 ,X5                         
+          LW X7 ,X5 ,56                         
+          SW X6 ,X7 ,0                          
+        ADDI X6 ,X31,32                         
+          LW X7 ,X5 ,60                         
+    FCVT.S.W F1 ,X7                             
+         FSW X6 ,F1 ,0                          
+          LW X5 ,X5 ,12                         
+         LUI X6 ,1048575                        
+         LUI X16,4095                           
+        SRLI X16,X16,12                         
+         ADD X6 ,X16,X6                         
+         LUI X7 ,1                              
+     WRITEPM X7 ,X5 ,0                          
+         LUI X8 ,2                              
+     WRITEPM X8 ,X5 ,0                          
+         LUI X11,3                              
+     WRITEPM X11,X5 ,0                          
+     WRITEPM X7 ,X6 ,4                          
+     WRITEPM X8 ,X6 ,4                          
+     WRITEPM X11,X6 ,4                          
+         BEQ X5 ,X6 ,.LBB0_29                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_20                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_18:                                       
+         LUI X5 ,"%LO("GA#9984")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X6 ,"%HI("GA#9984")"               
+         ADD X5 ,X6 ,X5                         
+          SW X5 ,X0 ,0                          
+.LBB0_19:                                       
+        ADDI X5 ,X31,24                         
+          SW X5 ,X0 ,0                          
+        ADDI X5 ,X31,20                         
+          SW X5 ,X0 ,0                          
+         JAL .LBB0_21                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_20:                                       
+         LUI X5 ,"%LO("GA#4864")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X7 ,"%HI("GA#4864")"               
+         LUI X6 ,"%HI("GA#4608")"               
+         LUI X8 ,"%LO("GA#4608")"               
+        SRLI X8 ,X8 ,12                         
+         ADD X7 ,X7 ,X5                         
+         ADD X5 ,X6 ,X8                         
+          LW X6 ,X7 ,0                          
+          LW X5 ,X5 ,0                          
+         MUL X5 ,X5 ,X6                         
+         LUI X6 ,"%HI("GA#8960")"               
+         LUI X8 ,"%LO("GA#8960")"               
+        SRLI X8 ,X8 ,12                         
+        ADDI X7 ,X31,28                         
+         ADD X6 ,X6 ,X8                         
+          LW X6 ,X6 ,0                          
+          LW X7 ,X7 ,0                          
+         SUB X6 ,X7 ,X6                         
+         LUI X7 ,1                              
+     WRITEPM X7 ,X6 ,0                          
+         LUI X8 ,2                              
+     WRITEPM X8 ,X6 ,0                          
+         LUI X11,3                              
+     WRITEPM X11,X6 ,0                          
+     WRITEPM X7 ,X5 ,4                          
+     WRITEPM X8 ,X5 ,4                          
+     WRITEPM X11,X5 ,4                          
+         BLT X6 ,X5 ,.LBB0_27                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_23                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_21:                                       
+        ADDI X5 ,X0 ,49                         
+        ADDI X6 ,X31,24                         
+          LW X6 ,X6 ,0                          
+         LUI X7 ,1                              
+     WRITEPM X7 ,X6 ,0                          
+         LUI X8 ,2                              
+     WRITEPM X8 ,X6 ,0                          
+         LUI X11,3                              
+     WRITEPM X11,X6 ,0                          
+     WRITEPM X7 ,X5 ,4                          
+     WRITEPM X8 ,X5 ,4                          
+     WRITEPM X11,X5 ,4                          
+         BLT X5 ,X6 ,.LBB0_24                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         LUI X5 ,1                              
+     WRITEPM X5 ,X5 ,192                        
+         LUI X5 ,0                              
+     DREADPM X5 ,X5 ,188                        
+         LUI X6 ,2                              
+     WRITEPM X6 ,X6 ,176                        
+         LUI X6 ,0                              
+     DREADPM X6 ,X6 ,168                        
+         JAL .LBB0_22                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_22:                                       
+         LUI X7 ,"%LO("GA#9728")"               
+        SRLI X7 ,X7 ,12                         
+         LUI X8 ,"%HI("GA#9728")"               
+        ADDI X6 ,X31,20                         
+        ADDI X5 ,X31,24                         
+         ADD X7 ,X8 ,X7                         
+         FLW F1 ,X6 ,0                          
+          LW X8 ,X5 ,0                          
+        SLLI X8 ,X8 ,2                          
+         ADD X7 ,X7 ,X8                         
+          LW X7 ,X7 ,0                          
+    FCVT.S.W F2 ,X7                             
+      FADD.S F1 ,F1 ,F2                         
+         FSW X6 ,F1 ,0                          
+          LW X6 ,X5 ,0                          
+        ADDI X6 ,X6 ,1                          
+          SW X5 ,X6 ,0                          
+         JAL .LBB0_21                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_23:                                       
+         LUI X5 ,"%LO("GA#4864")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X7 ,"%HI("GA#4864")"               
+         LUI X6 ,"%HI("GA#5120")"               
+         LUI X8 ,"%LO("GA#5120")"               
+        SRLI X8 ,X8 ,12                         
+         ADD X7 ,X7 ,X5                         
+         ADD X5 ,X6 ,X8                         
+          LW X6 ,X7 ,0                          
+          LW X5 ,X5 ,0                          
+         MUL X5 ,X5 ,X6                         
+         LUI X6 ,"%HI("GA#8960")"               
+         LUI X8 ,"%LO("GA#8960")"               
+        SRLI X8 ,X8 ,12                         
+        ADDI X7 ,X31,28                         
+         ADD X6 ,X6 ,X8                         
+          LW X6 ,X6 ,0                          
+          LW X7 ,X7 ,0                          
+         SUB X6 ,X7 ,X6                         
+         LUI X7 ,1                              
+     WRITEPM X7 ,X6 ,0                          
+         LUI X8 ,2                              
+     WRITEPM X8 ,X6 ,0                          
+         LUI X11,3                              
+     WRITEPM X11,X6 ,0                          
+     WRITEPM X7 ,X5 ,4                          
+     WRITEPM X8 ,X5 ,4                          
+     WRITEPM X11,X5 ,4                          
+         BLT X6 ,X5 ,.LBB0_25                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_26                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_24:                                       
+         LUI X6 ,"%LO("GA#2304")"               
+        SRLI X6 ,X6 ,12                         
+         LUI X7 ,"%HI("GA#2304")"               
+         LUI X8 ,"%HI("GA#3328")"               
+        ADDI X5 ,X31,20                         
+         LUI X12,"%LO("GA#3328")"               
+        SRLI X12,X12,12                         
+         LUI X11,"%HI("GA#2560")"               
+         LUI X13,"%LO("GA#2560")"               
+        SRLI X13,X13,12                         
+         ADD X6 ,X7 ,X6                         
+         ADD X8 ,X8 ,X12                        
+         ADD X7 ,X11,X13                        
+         FLW F4 ,X6 ,0                          
+         FLW F1 ,X8 ,0                          
+         FLW F3 ,X7 ,0                          
+         FLW F2 ,X5 ,0                          
+         LUI X6 ,"%LO("GA#512")"                
+        SRLI X6 ,X6 ,12                         
+         LUI X5 ,"%LO("GA#10240")"              
+        SRLI X5 ,X5 ,12                         
+         LUI X8 ,"%HI("GA#10240")"              
+         LUI X7 ,"%HI("GA#512")"                
+         ADD X5 ,X8 ,X5                         
+         ADD X6 ,X7 ,X6                         
+         FLW F5 ,X6 ,0                          
+         FSW X5 ,F5 ,0                          
+      FMUL.S F4 ,F5 ,F4                         
+      FMUL.S F3 ,F4 ,F3                         
+      FMUL.S F1 ,F3 ,F1                         
+       FLE.S X5 ,F1 ,F2                         
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_28                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_25:                                       
+         LUI X5 ,"%LO("GA#4608")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X7 ,"%LO("GA#1792")"               
+        SRLI X7 ,X7 ,12                         
+         LUI X12,"%HI("GA#1792")"               
+        ADDI X6 ,X31,28                         
+         LUI X11,"%LO("GA#9216")"               
+        SRLI X11,X11,12                         
+         LUI X8 ,"%LO("GA#4864")"               
+        SRLI X8 ,X8 ,12                         
+         LUI X14,"%HI("GA#4608")"               
+         LUI X13,"%HI("GA#4864")"               
+         LUI X15,"%HI("GA#9216")"               
+         LUI X17,"%LO("GA#8960")"               
+        SRLI X17,X17,12                         
+         LUI X18,"%HI("GA#8960")"               
+         ADD X7 ,X12,X7                         
+         ADD X12,X18,X17                        
+         ADD X14,X14,X5                         
+         ADD X5 ,X15,X11                        
+         ADD X8 ,X13,X8                         
+         FLW F1 ,X7 ,0                          
+          LW X7 ,X12,0                          
+          LW X11,X14,0                          
+          LW X8 ,X8 ,0                          
+         MUL X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+          LW X6 ,X6 ,0                          
+         SUB X6 ,X6 ,X7                         
+    FCVT.S.W F2 ,X6                             
+      FADD.S F1 ,F1 ,F2                         
+         FSW X5 ,F1 ,0                          
+         JAL .LBB0_31                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_26:                                       
+         LUI X5 ,260096                         
+         LUI X16,0                              
+        SRLI X16,X16,12                         
+         ADD X5 ,X16,X5                         
+         LUI X6 ,"%HI("GA#9216")"               
+         LUI X7 ,"%LO("GA#9216")"               
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          SW X6 ,X5 ,0                          
+         JAL .LBB0_31                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_27:                                       
+         LUI X5 ,254853                         
+         LUI X16,492                            
+        SRLI X16,X16,12                         
+         ADD X5 ,X16,X5                         
+         LUI X6 ,"%HI("GA#9216")"               
+         LUI X7 ,"%LO("GA#9216")"               
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          SW X6 ,X5 ,0                          
+         JAL .LBB0_31                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_28:                                       
+         LUI X5 ,"%LO("GA#7680")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X6 ,"%HI("GA#7680")"               
+         ADD X5 ,X6 ,X5                         
+          LW X5 ,X5 ,32                         
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_30                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_29:                                       
+         LUI X5 ,254853                         
+         LUI X16,492                            
+        SRLI X16,X16,12                         
+         ADD X5 ,X16,X5                         
+         LUI X6 ,"%HI("GA#9216")"               
+         LUI X7 ,"%LO("GA#9216")"               
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          SW X6 ,X5 ,0                          
+         LUI X5 ,"%LO("GA#8960")"               
+        SRLI X5 ,X5 ,12                         
+        ADDI X6 ,X31,28                         
+         LUI X7 ,"%HI("GA#8960")"               
+         ADD X5 ,X7 ,X5                         
+          LW X6 ,X6 ,0                          
+          SW X5 ,X6 ,0                          
+         JAL .LBB0_31                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_30:                                       
+         LUI X5 ,"%LO("GA#7680")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X6 ,"%HI("GA#7680")"               
+         ADD X5 ,X6 ,X5                         
+          LW X5 ,X5 ,36                         
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_32                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_31:                                       
+         LUI X6 ,"%HI("GA#1024")"               
+         LUI X5 ,"%LO("GA#7936")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X7 ,"%HI("GA#7936")"               
+         LUI X8 ,"%LO("GA#1024")"               
+        SRLI X8 ,X8 ,12                         
+         ADD X5 ,X7 ,X5                         
+         ADD X6 ,X6 ,X8                         
+         FLW F1 ,X5 ,0                          
+         FLW F2 ,X6 ,0                          
+         LUI X6 ,"%LO("GA#3072")"               
+        SRLI X6 ,X6 ,12                         
+         LUI X7 ,"%HI("GA#3072")"               
+         ADD X6 ,X7 ,X6                         
+         FLW F3 ,X6 ,0                          
+         LUI X8 ,"%HI("GA#9216")"               
+        ADDI X7 ,X31,32                         
+        ADDI X6 ,X31,16                         
+         LUI X11,"%LO("GA#9216")"               
+        SRLI X11,X11,12                         
+         ADD X8 ,X8 ,X11                        
+         FLW F4 ,X8 ,0                          
+         FLW F5 ,X7 ,0                          
+      FSUB.S F4 ,F4 ,F5                         
+     FMADD.S F1 ,F4 ,F2 ,F1                     
+         FSW X5 ,F1 ,0                          
+       FLT.S X5 ,F3 ,F1                         
+         FSW X6 ,F4 ,0                          
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_33                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_35                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_32:                                       
+         LUI X5 ,"%LO("GA#7680")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X6 ,"%HI("GA#7680")"               
+         ADD X5 ,X6 ,X5                         
+          LW X5 ,X5 ,40                         
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_34                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_33:                                       
+         LUI X5 ,256000                         
+         LUI X16,0                              
+        SRLI X16,X16,12                         
+         ADD X5 ,X16,X5                         
+         LUI X6 ,"%HI("GA#7936")"               
+         LUI X7 ,"%LO("GA#7936")"               
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          SW X6 ,X5 ,0                          
+         JAL .LBB0_35                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_34:                                       
+         LUI X5 ,"%LO("GA#7680")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X6 ,"%HI("GA#7680")"               
+         ADD X5 ,X6 ,X5                         
+          LW X5 ,X5 ,44                         
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_36                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_35:                                       
+         LUI X6 ,"%HI("GA#256")"                
+         LUI X5 ,"%LO("GA#7936")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X8 ,"%LO("GA#256")"                
+        SRLI X8 ,X8 ,12                         
+         LUI X7 ,"%HI("GA#7936")"               
+         ADD X6 ,X6 ,X8                         
+         ADD X5 ,X7 ,X5                         
+         FLW F1 ,X6 ,0                          
+         FLW F2 ,X5 ,0                          
+       FLT.S X5 ,F2 ,F1                         
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_37                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_40                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_36:                                       
+        ADDI X5 ,X0 ,11                         
+         LUI X6 ,"%HI("GA#7680")"               
+         LUI X7 ,"%LO("GA#7680")"               
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          LW X6 ,X6 ,48                         
+         LUI X7 ,1                              
+     WRITEPM X7 ,X6 ,0                          
+         LUI X8 ,2                              
+     WRITEPM X8 ,X6 ,0                          
+         LUI X11,3                              
+     WRITEPM X11,X6 ,0                          
+     WRITEPM X7 ,X5 ,4                          
+     WRITEPM X8 ,X5 ,4                          
+     WRITEPM X11,X5 ,4                          
+         BLT X6 ,X5 ,.LBB0_38                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_37:                                       
+         LUI X5 ,"%HI("GA#7936")"               
+         LUI X6 ,"%LO("GA#256")"                
+        SRLI X6 ,X6 ,12                         
+         LUI X8 ,"%LO("GA#7936")"               
+        SRLI X8 ,X8 ,12                         
+         LUI X7 ,"%HI("GA#256")"                
+         ADD X5 ,X5 ,X8                         
+         ADD X6 ,X7 ,X6                         
+         FLW F1 ,X6 ,0                          
+         FSW X5 ,F1 ,0                          
+         JAL .LBB0_40                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_38:                                       
+         LUI X6 ,"%LO("GA#9472")"               
+        SRLI X6 ,X6 ,12                         
+        ADDI X5 ,X0 ,8                          
+         LUI X7 ,"%HI("GA#9472")"               
+         ADD X6 ,X7 ,X6                         
+          SW X6 ,X5 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_39:                                       
+         LUI X6 ,"%LO("GA#9472")"               
+        SRLI X6 ,X6 ,12                         
+        ADDI X5 ,X0 ,16                         
+         LUI X7 ,"%HI("GA#9472")"               
+         ADD X6 ,X7 ,X6                         
+          SW X6 ,X5 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_40:                                       
+         LUI X5 ,"%LO("GA#8704")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X8 ,"%LO("GA#1280")"               
+        SRLI X8 ,X8 ,12                         
+         LUI X7 ,"%HI("GA#7936")"               
+         LUI X12,"%HI("GA#1280")"               
+         LUI X11,"%HI("GA#8704")"               
+         LUI X13,"%LO("GA#7936")"               
+        SRLI X13,X13,12                         
+        ADDI X6 ,X31,16                         
+         ADD X8 ,X12,X8                         
+         ADD X7 ,X7 ,X13                        
+         ADD X5 ,X11,X5                         
+         FLW F1 ,X8 ,0                          
+         FLW F2 ,X7 ,0                          
+         FLW F3 ,X6 ,0                          
+     FMADD.S F1 ,F1 ,F3 ,F2                     
+         FSW X5 ,F1 ,0                          
+         LUI X5 ,"%HI("GA#256")"                
+         LUI X6 ,"%LO("GA#256")"                
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X5 ,X6                         
+         FLW F2 ,X5 ,0                          
+       FLT.S X5 ,F1 ,F2                         
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_42                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_41:                                       
+        ADDI X5 ,X0 ,4                          
+         LUI X6 ,"%HI("GA#9472")"               
+         LUI X7 ,"%LO("GA#9472")"               
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          SW X6 ,X5 ,0                          
+         LUI X5 ,"%HI("GA#8192")"               
+         LUI X6 ,"%HI("GA#8704")"               
+         LUI X7 ,"%LO("GA#8704")"               
+        SRLI X7 ,X7 ,12                         
+         LUI X8 ,"%LO("GA#8192")"               
+        SRLI X8 ,X8 ,12                         
+         ADD X6 ,X6 ,X7                         
+         ADD X5 ,X5 ,X8                         
+         FLW F1 ,X6 ,0                          
+         FSW X5 ,F1 ,0                          
+        ADDI X5 ,X31,8                          
+         LUI X6 ,"%LO("GA#7168")"               
+        SRLI X6 ,X6 ,12                         
+         LUI X7 ,"%HI("GA#7168")"               
+         ADD X6 ,X7 ,X6                         
+         FLW F1 ,X5 ,0                          
+         FSW X6 ,F1 ,0                          
+         LUI X7 ,"%LO("GA#5632")"               
+        SRLI X7 ,X7 ,12                         
+         LUI X6 ,"%HI("GA#8448")"               
+         LUI X12,"%LO("GA#8448")"               
+        SRLI X12,X12,12                         
+         LUI X11,"%HI("GA#5632")"               
+        ADDI X8 ,X31,12                         
+         ADD X6 ,X6 ,X12                        
+         ADD X7 ,X11,X7                         
+          LW X7 ,X7 ,0                          
+         FLW F1 ,X8 ,0                          
+    FCVT.S.W F2 ,X7                             
+         FLW F3 ,X5 ,0                          
+      FSUB.S F1 ,F3 ,F1                         
+      FMUL.S F1 ,F1 ,F2                         
+         FSW X6 ,F1 ,0                          
+         LUI X5 ,"%LO("GA#9216")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X6 ,"%HI("GA#9216")"               
+         ADD X5 ,X6 ,X5                         
+          SW X5 ,X0 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_42:                                       
+         LUI X5 ,"%HI("GA#8704")"               
+         LUI X6 ,"%LO("GA#256")"                
+        SRLI X6 ,X6 ,12                         
+         LUI X8 ,"%LO("GA#8704")"               
+        SRLI X8 ,X8 ,12                         
+         LUI X7 ,"%HI("GA#256")"                
+         ADD X5 ,X5 ,X8                         
+         ADD X6 ,X7 ,X6                         
+         FLW F1 ,X6 ,0                          
+         FSW X5 ,F1 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_43:                                       
+         LUI X6 ,"%HI("GA#8704")"               
+         LUI X8 ,"%LO("GA#0")"                  
+        SRLI X8 ,X8 ,12                         
+         LUI X11,"%HI("GA#0")"                  
+        ADDI X7 ,X31,8                          
+         LUI X5 ,807564                         
+         LUI X16,0                              
+        SRLI X16,X16,12                         
+         ADD X5 ,X16,X5                         
+         LUI X12,"%LO("GA#8704")"               
+        SRLI X12,X12,12                         
+         LUI X13,"%LO("GA#256")"                
+        SRLI X13,X13,12                         
+         LUI X14,"%HI("GA#256")"                
+         ADD X8 ,X11,X8                         
+         ADD X11,X14,X13                        
+         ADD X6 ,X6 ,X12                        
+         FLW F1 ,X8 ,0                          
+         FLW F2 ,X11,0                          
+      FSUB.S F2 ,F2 ,F1                         
+         FLW F3 ,X7 ,0                          
+     FMV.S.X F4 ,X5                             
+      FADD.S F3 ,F3 ,F4                         
+     FMADD.S F1 ,F3 ,F2 ,F1                     
+         FSW X6 ,F1 ,0                          
+         LUI X5 ,"%HI("GA#7936")"               
+         LUI X6 ,"%LO("GA#7936")"               
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X5 ,X6                         
+         FSW X5 ,F1 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_44:                                       
+         LUI X5 ,"%LO("GA#8704")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X6 ,"%HI("GA#8704")"               
+         ADD X5 ,X6 ,X5                         
+          SW X5 ,X0 ,0                          
+        ADDI X5 ,X31,4                          
+          SW X5 ,X0 ,0                          
+.LBB0_45:                                       
+        ADDI X5 ,X0 ,320                        
+         LUI X6 ,0                              
+     DREADPM X11,X6 ,0                          
+         LUI X7 ,"%HI("GA#11008")"              
+         LUI X8 ,"%LO("GA#11008")"              
+        SRLI X8 ,X8 ,12                         
+         ADD X7 ,X8 ,X7                         
+        ADDI X8 ,X0 ,36                         
+        SRLI X12,X11,22                         
+        SRLI X13,X11,12                         
+        ANDI X13,X13,15                         
+        SRLI X11,X11,6                          
+        ANDI X11,X11,63                         
+        ADDI X14,X0 ,832                        
+         MUL X12,X14,X12                        
+        ADDI X14,X0 ,52                         
+         MUL X13,X14,X13                        
+         ADD X11,X11,X13                        
+         ADD X11,X12,X11                        
+         MUL X8 ,X8 ,X11                        
+         ADD X7 ,X7 ,X8                         
+         FLW F1 ,X31,4                          
+         FSW X7 ,F1 ,4                          
+     DREADPM X11,X6 ,4                          
+         LUI X7 ,"%HI("GA#11008")"              
+         LUI X8 ,"%LO("GA#11008")"              
+        SRLI X8 ,X8 ,12                         
+         ADD X7 ,X8 ,X7                         
+        ADDI X8 ,X0 ,36                         
+        SRLI X12,X11,22                         
+        SRLI X13,X11,12                         
+        ANDI X13,X13,15                         
+        SRLI X11,X11,6                          
+        ANDI X11,X11,63                         
+        ADDI X14,X0 ,832                        
+         MUL X12,X14,X12                        
+        ADDI X14,X0 ,52                         
+         MUL X13,X14,X13                        
+         ADD X11,X11,X13                        
+         ADD X11,X12,X11                        
+         MUL X8 ,X8 ,X11                        
+         ADD X7 ,X7 ,X8                         
+         FLW F1 ,X31,8                          
+         FSW X7 ,F1 ,0                          
+         FLW F1 ,X31,20                         
+         FSW X7 ,F1 ,4                          
+     DREADPM X6 ,X6 ,8                          
+     WRITECM X6 ,X5 ,0                          
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,4                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,4                          
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#1                                        
+.LBB0_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BEQ X5 ,X0 ,.LBB0_44                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_1                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_1:                                        
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_2                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_2:                                        
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_15                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_3                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_3:                                        
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_4                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_4:                                        
+         LUI X5 ,1                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BEQ X6 ,X5 ,.LBB0_41                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_5                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_5:                                        
+         LUI X5 ,1                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BNE X6 ,X5 ,.LBB0_39                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_6                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_6:                                        
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_8                    
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_7                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_7:                                        
+         JAL .LBB0_9                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_8:                                        
+        ADDI X0 ,X0 ,0                          
+.LBB0_9:                                        
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_11                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_10                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_10:                                       
+        ADDI X0 ,X0 ,0                          
+.LBB0_11:                                       
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_13                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_12                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_12:                                       
+        ADDI X0 ,X0 ,0                          
+.LBB0_13:                                       
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_16                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_14                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_14:                                       
+         JAL .LBB0_16                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_15:                                       
+         LUI X5 ,1                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BEQ X6 ,X5 ,.LBB0_43                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_17                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_16:                                       
+         LUI X5 ,1                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BEQ X6 ,X5 ,.LBB0_18                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_19                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_17:                                       
+         LUI X5 ,1                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BEQ X6 ,X5 ,.LBB0_29                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_20                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_18:                                       
+        ADDI X0 ,X0 ,0                          
+.LBB0_19:                                       
+         JAL .LBB0_21                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_20:                                       
+         LUI X5 ,1                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BLT X6 ,X5 ,.LBB0_27                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_23                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_21:                                       
+         LUI X7 ,1                              
+     DREADPM X8 ,X7 ,0                          
+     DREADPM X7 ,X7 ,4                          
+         BLT X7 ,X8 ,.LBB0_24                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         LUI X7 ,0                              
+     WRITEPM X7 ,X7 ,188                        
+         LUI X7 ,1                              
+     DREADPM X7 ,X7 ,192                        
+         JAL .LBB0_22                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_22:                                       
+         JAL .LBB0_21                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_23:                                       
+         LUI X5 ,1                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BLT X6 ,X5 ,.LBB0_25                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_26                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_24:                                       
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_28                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_25:                                       
+         JAL .LBB0_31                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_26:                                       
+         JAL .LBB0_31                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_27:                                       
+         JAL .LBB0_31                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_28:                                       
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_30                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_29:                                       
+         JAL .LBB0_31                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_30:                                       
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_32                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_31:                                       
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_33                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_35                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_32:                                       
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_34                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_33:                                       
+         JAL .LBB0_35                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_34:                                       
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_36                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_35:                                       
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_37                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_40                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_36:                                       
+         LUI X5 ,1                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BLT X6 ,X5 ,.LBB0_38                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_37:                                       
+         JAL .LBB0_40                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_38:                                       
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_39:                                       
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_40:                                       
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_42                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_41:                                       
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_42:                                       
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_43:                                       
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_44:                                       
+        ADDI X0 ,X0 ,0                          
+.LBB0_45:                                       
+        ADDI X5 ,X0 ,256                        
+        ADDI X6 ,X0 ,3                          
+     WRITECM X5 ,X6 ,60                         
+         LUI X7 ,0                              
+     WRITEPM X7 ,X5 ,4                          
+         LUI X6 ,1                              
+     DREADPM X8 ,X6 ,0                          
+     WRITECM X8 ,X5 ,0                          
+     WRITEPM X7 ,X5 ,8                          
+         LUI X7 ,2                              
+     WRITEPM X7 ,X5 ,0                          
+     DREADPM X6 ,X6 ,4                          
+     WRITECM X6 ,X5 ,0                          
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#2                                        
+.LBB0_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BEQ X5 ,X0 ,.LBB0_44                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_1                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_1:                                        
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_2                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_2:                                        
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_15                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_3                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_3:                                        
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_4                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_4:                                        
+         LUI X5 ,2                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BEQ X6 ,X5 ,.LBB0_41                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_5                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_5:                                        
+         LUI X5 ,2                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BNE X6 ,X5 ,.LBB0_39                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_6                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_6:                                        
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_8                    
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_7                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_7:                                        
+         JAL .LBB0_9                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_8:                                        
+        ADDI X0 ,X0 ,0                          
+.LBB0_9:                                        
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_11                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_10                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_10:                                       
+        ADDI X0 ,X0 ,0                          
+.LBB0_11:                                       
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_13                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_12                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_12:                                       
+        ADDI X0 ,X0 ,0                          
+.LBB0_13:                                       
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_16                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_14                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_14:                                       
+         JAL .LBB0_16                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_15:                                       
+         LUI X5 ,2                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BEQ X6 ,X5 ,.LBB0_43                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_17                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_16:                                       
+         LUI X5 ,2                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BEQ X6 ,X5 ,.LBB0_18                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_19                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_17:                                       
+         LUI X5 ,2                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BEQ X6 ,X5 ,.LBB0_29                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_20                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_18:                                       
+        ADDI X0 ,X0 ,0                          
+.LBB0_19:                                       
+         JAL .LBB0_21                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_20:                                       
+         LUI X5 ,2                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BLT X6 ,X5 ,.LBB0_27                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_23                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_21:                                       
+         LUI X8 ,2                              
+     DREADPM X11,X8 ,0                          
+     DREADPM X8 ,X8 ,4                          
+         BLT X8 ,X11,.LBB0_24                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         LUI X8 ,3                              
+     WRITEPM X8 ,X8 ,184                        
+         LUI X8 ,2                              
+     DREADPM X8 ,X8 ,180                        
+         LUI X11,0                              
+     WRITEPM X11,X11,168                        
+         LUI X11,2                              
+     DREADPM X11,X11,176                        
+         JAL .LBB0_22                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_22:                                       
+         JAL .LBB0_21                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_23:                                       
+         LUI X5 ,2                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BLT X6 ,X5 ,.LBB0_25                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_26                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_24:                                       
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_28                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_25:                                       
+         JAL .LBB0_31                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_26:                                       
+         JAL .LBB0_31                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_27:                                       
+         JAL .LBB0_31                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_28:                                       
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_30                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_29:                                       
+         JAL .LBB0_31                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_30:                                       
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_32                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_31:                                       
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_33                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_35                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_32:                                       
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_34                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_33:                                       
+         JAL .LBB0_35                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_34:                                       
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_36                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_35:                                       
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_37                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_40                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_36:                                       
+         LUI X5 ,2                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BLT X6 ,X5 ,.LBB0_38                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_37:                                       
+         JAL .LBB0_40                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_38:                                       
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_39:                                       
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_40:                                       
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_42                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_41:                                       
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_42:                                       
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_43:                                       
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_44:                                       
+        ADDI X0 ,X0 ,0                          
+.LBB0_45:                                       
+        ADDI X5 ,X0 ,64                         
+         LUI X6 ,0                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,1                              
+     WRITEPM X6 ,X5 ,0                          
+         LUI X6 ,2                              
+     DREADPM X6 ,X6 ,0                          
+     WRITECM X6 ,X5 ,4                          
+         LUI X6 ,3                              
+     WRITEPM X6 ,X5 ,0                          
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#3                                        
+.LBB0_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BEQ X5 ,X0 ,.LBB0_44                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_1                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_1:                                        
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_2                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_2:                                        
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_15                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_3                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_3:                                        
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_4                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_4:                                        
+         LUI X6 ,3                              
+     DREADPM X5 ,X6 ,0                          
+     DREADPM X6 ,X6 ,4                          
+         BEQ X5 ,X6 ,.LBB0_41                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_5                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_5:                                        
+         LUI X6 ,3                              
+     DREADPM X5 ,X6 ,0                          
+     DREADPM X6 ,X6 ,4                          
+         BNE X5 ,X6 ,.LBB0_39                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_6                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_6:                                        
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_8                    
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_7                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_7:                                        
+         JAL .LBB0_9                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_8:                                        
+        ADDI X0 ,X0 ,0                          
+.LBB0_9:                                        
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_11                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_10                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_10:                                       
+        ADDI X0 ,X0 ,0                          
+.LBB0_11:                                       
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_13                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_12                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_12:                                       
+        ADDI X0 ,X0 ,0                          
+.LBB0_13:                                       
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_16                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_14                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_14:                                       
+         JAL .LBB0_16                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_15:                                       
+         LUI X6 ,3                              
+     DREADPM X5 ,X6 ,0                          
+     DREADPM X6 ,X6 ,4                          
+         BEQ X5 ,X6 ,.LBB0_43                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_17                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_16:                                       
+         LUI X6 ,3                              
+     DREADPM X5 ,X6 ,0                          
+     DREADPM X6 ,X6 ,4                          
+         BEQ X5 ,X6 ,.LBB0_18                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_19                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_17:                                       
+         LUI X6 ,3                              
+     DREADPM X5 ,X6 ,0                          
+     DREADPM X6 ,X6 ,4                          
+         BEQ X5 ,X6 ,.LBB0_29                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_20                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_18:                                       
+        ADDI X0 ,X0 ,0                          
+.LBB0_19:                                       
+         JAL .LBB0_21                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_20:                                       
+         LUI X6 ,3                              
+     DREADPM X5 ,X6 ,0                          
+     DREADPM X6 ,X6 ,4                          
+         BLT X5 ,X6 ,.LBB0_27                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_23                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_21:                                       
+         LUI X13,3                              
+     DREADPM X12,X13,0                          
+     DREADPM X13,X13,4                          
+         BLT X13,X12,.LBB0_24                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         LUI X12,2                              
+     WRITEPM X12,X12,180                        
+         LUI X12,3                              
+     DREADPM X12,X12,184                        
+         JAL .LBB0_22                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_22:                                       
+         JAL .LBB0_21                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_23:                                       
+         LUI X6 ,3                              
+     DREADPM X5 ,X6 ,0                          
+     DREADPM X6 ,X6 ,4                          
+         BLT X5 ,X6 ,.LBB0_25                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_26                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_24:                                       
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_28                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_25:                                       
+         JAL .LBB0_31                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_26:                                       
+         JAL .LBB0_31                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_27:                                       
+         JAL .LBB0_31                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_28:                                       
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_30                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_29:                                       
+         JAL .LBB0_31                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_30:                                       
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_32                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_31:                                       
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_33                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_35                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_32:                                       
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_34                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_33:                                       
+         JAL .LBB0_35                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_34:                                       
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_45                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_36                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_35:                                       
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_37                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_40                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_36:                                       
+         LUI X6 ,3                              
+     DREADPM X5 ,X6 ,0                          
+     DREADPM X6 ,X6 ,4                          
+         BLT X5 ,X6 ,.LBB0_38                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_37:                                       
+         JAL .LBB0_40                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_38:                                       
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_39:                                       
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_40:                                       
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BNE X5 ,X0 ,.LBB0_42                   
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_41:                                       
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_42:                                       
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_43:                                       
+         JAL .LBB0_45                           
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB0_44:                                       
+        ADDI X0 ,X0 ,0                          
+.LBB0_45:                                       
+         LUI X6 ,3                              
+     DREADPM X5 ,X6 ,0                          
+          LW X7 ,X31,0                          
+    WRITECMP X5 ,X7 ,0                          
+     DREADPM X6 ,X6 ,4                          
+          LW X7 ,X31,0                          
+       SLTIU X7 ,X7 ,1                          
+    WRITECMP X6 ,X7 ,0                          
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.STATICINST Y                                   
+.IMD_BEGIN                                      
+.HYOPINST#0                                     
+.ANN A B                                        
+.DEPTHHEG 0                                     
+.NUMPHY 4                                       
+.LAUNCHCNT 0                                    
+.OPVALIDITY 1000000000000000                    
+.OP_BEGIN                                       
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           1                                    
+.OP_END                                         
+.OPWAITCNT 0                                    
+.IMD_END                                        
+.HYOP_END                                       
+.HYOP#1:                                        
+.SMD_BEGIN                                      
+.ANN P                                          
+.NUMPHY 4                                       
+.OPDIST 1 0 0 0                                 
+.SMD_END                                        
+.PHYOP#0                                        
+.LBB1_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         LUI X5 ,1048575                        
+         LUI X16,4095                           
+        SRLI X16,X16,12                         
+         ADD X5 ,X16,X5                         
+        SYNC X1 ,X5 ,60                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#1                                        
+.LBB1_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#2                                        
+.LBB1_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#3                                        
+.LBB1_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.STATICINST Y                                   
+.IMD_BEGIN                                      
+.HYOPINST#320                                   
+.ANN A P                                        
+.DEPTHHEG 1                                     
+.NUMPHY 4                                       
+.LAUNCHCNT 1                                    
+.OPVALIDITY 0000000000000000                    
+.OPWAITCNT 1                                    
+.IMD_END                                        
+.HYOP_END                                       
+.HYOP#2:                                        
+.SMD_BEGIN                                      
+.ANN E B                                        
+.NUMPHY 4                                       
+.OPDIST 2 0 0 0                                 
+.SMD_END                                        
+.PHYOP#0                                        
+.LBB2_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         LUI X5 ,"%HI("GA#8192")"               
+         LUI X6 ,"%LO("GA#8192")"               
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X5 ,X6                         
+          LW X6 ,X5 ,0                          
+         LUI X5 ,"%HI("GA#10496")"              
+         LUI X7 ,"%LO("GA#10496")"              
+        SRLI X7 ,X7 ,12                         
+         ADD X5 ,X5 ,X7                         
+         LUI X7 ,"%LO("GA#6656")"               
+        SRLI X7 ,X7 ,12                         
+         LUI X8 ,"%HI("GA#6656")"               
+         ADD X7 ,X8 ,X7                         
+          LW X7 ,X7 ,0                          
+         LUI X8 ,"%LO("GA#6400")"               
+        SRLI X8 ,X8 ,12                         
+         LUI X11,"%HI("GA#6400")"               
+         ADD X8 ,X11,X8                         
+          LW X11,X8 ,0                          
+         LUI X8 ,"%HI("GA#10240")"              
+         LUI X12,"%LO("GA#10240")"              
+        SRLI X12,X12,12                         
+         ADD X8 ,X8 ,X12                        
+          LW X8 ,X8 ,0                          
+         LUI X12,"%HI("GA#7424")"               
+         LUI X13,"%LO("GA#7424")"               
+        SRLI X13,X13,12                         
+         ADD X12,X12,X13                        
+          LW X12,X12,0                          
+        ADDI X13,X31,0                          
+          LW X13,X13,0                          
+         LUI X14,"%LO("GA#5888")"               
+        SRLI X14,X14,12                         
+         LUI X15,"%HI("GA#5888")"               
+         ADD X14,X15,X14                        
+          LW X17,X14,0                          
+         LUI X14,"%LO("GA#9984")"               
+        SRLI X14,X14,12                         
+         LUI X15,"%HI("GA#9984")"               
+         ADD X14,X15,X14                        
+          LW X14,X14,0                          
+        ADDI X15,X31,4                          
+          LW X15,X15,0                          
+         LUI X18,"%LO("GA#9216")"               
+        SRLI X18,X18,12                         
+         LUI X29,"%HI("GA#9216")"               
+         ADD X18,X29,X18                        
+          LW X18,X18,0                          
+         LUI X29,"%LO("GA#6144")"               
+        SRLI X29,X29,12                         
+         LUI X3 ,"%HI("GA#6144")"               
+         ADD X29,X3 ,X29                        
+          LW X29,X29,0                          
+         LUI X3 ,"%LO("GA#7936")"               
+        SRLI X3 ,X3 ,12                         
+         LUI X4 ,"%HI("GA#7936")"               
+         ADD X3 ,X4 ,X3                         
+          LW X3 ,X3 ,0                          
+          SW X5 ,X3 ,0                          
+          SW X5 ,X18,4                          
+          SW X5 ,X17,8                          
+          SW X5 ,X29,12                         
+          SW X5 ,X11,16                         
+          SW X5 ,X7 ,20                         
+          SW X5 ,X6 ,24                         
+          SW X5 ,X12,28                         
+          SW X5 ,X13,32                         
+          SW X5 ,X14,36                         
+          SW X5 ,X15,40                         
+          SW X5 ,X8 ,44                         
+     FDELETE X1 ,0                              
+     FDELETE X2 ,0                              
+     FDELETE X30,0                              
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#1                                        
+.LBB2_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#2                                        
+.LBB2_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#3                                        
+.LBB2_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.STATICINST Y                                   
+.IMD_BEGIN                                      
+.HYOPINST#256                                   
+.ANN A B                                        
+.DEPTHHEG 3                                     
+.NUMPHY 4                                       
+.LAUNCHCNT 2                                    
+.OPVALIDITY 0000000000000000                    
+.OPWAITCNT 3                                    
+.IMD_END                                        
+.HYOP_END                                       
+.HYOP#3:                                        
+.SMD_BEGIN                                      
+.ANN B                                          
+.NUMPHY 4                                       
+.OPDIST 1 0 0 0                                 
+.SMD_END                                        
+.PHYOP#0                                        
+.LBB3_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         LUI X5 ,"%LO("GA#7424")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X7 ,"%HI("GA#7424")"               
+         LUI X6 ,"%HI("GA#7168")"               
+         LUI X8 ,"%LO("GA#7168")"               
+        SRLI X8 ,X8 ,12                         
+         ADD X5 ,X7 ,X5                         
+         ADD X6 ,X6 ,X8                         
+         FLW F1 ,X6 ,0                          
+         FSW X5 ,F1 ,0                          
+         LUI X5 ,"%LO("GA#6912")"               
+        SRLI X5 ,X5 ,12                         
+        ADDI X6 ,X31,0                          
+         LUI X7 ,"%HI("GA#6912")"               
+         ADD X5 ,X7 ,X5                         
+         FLW F1 ,X6 ,0                          
+         FSW X5 ,F1 ,0                          
+         LUI X5 ,1048575                        
+         LUI X16,4095                           
+        SRLI X16,X16,12                         
+         ADD X5 ,X16,X5                         
+        SYNC X1 ,X5 ,60                         
+     FDELETE X30,0                              
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#1                                        
+.LBB3_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#2                                        
+.LBB3_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#3                                        
+.LBB3_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.STATICINST Y                                   
+.IMD_BEGIN                                      
+.HYOPINST#128                                   
+.ANN A B                                        
+.DEPTHHEG 2                                     
+.NUMPHY 4                                       
+.LAUNCHCNT 1                                    
+.OPVALIDITY 0000000000000000                    
+.OPWAITCNT 2                                    
+.IMD_END                                        
+.HYOP_END                                       
+.HYOP#4:                                        
+.SMD_BEGIN                                      
+.ANN P                                          
+.NUMPHY 4                                       
+.OPDIST 1 0 0 0                                 
+.SMD_END                                        
+.PHYOP#0                                        
+.LBB4_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+        ADDI X5 ,X31,0                          
+        ADDI X6 ,X31,4                          
+         FLW F1 ,X6 ,0                          
+         FSW X5 ,F1 ,0                          
+        ADDI X5 ,X0 ,128                        
+        ADDI X6 ,X0 ,1                          
+     WRITECM X5 ,X6 ,60                         
+         LUI X6 ,"%HI("GA#11008")"              
+         LUI X7 ,"%LO("GA#11008")"              
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X7 ,X6                         
+        ADDI X7 ,X0 ,36                         
+        SRLI X8 ,X5 ,22                         
+        SRLI X11,X5 ,12                         
+        ANDI X11,X11,15                         
+        SRLI X12,X5 ,6                          
+        ANDI X12,X12,63                         
+        ADDI X13,X0 ,832                        
+         MUL X8 ,X13,X8                         
+        ADDI X13,X0 ,52                         
+         MUL X11,X13,X11                        
+         ADD X11,X12,X11                        
+         ADD X8 ,X8 ,X11                        
+         MUL X7 ,X7 ,X8                         
+         ADD X6 ,X6 ,X7                         
+         FLW F1 ,X31,0                          
+         FSW X6 ,F1 ,0                          
+         LUI X6 ,0                              
+     DREADPM X11,X6 ,0                          
+         LUI X7 ,"%HI("GA#11008")"              
+         LUI X8 ,"%LO("GA#11008")"              
+        SRLI X8 ,X8 ,12                         
+         ADD X7 ,X8 ,X7                         
+        ADDI X8 ,X0 ,36                         
+        SRLI X12,X11,22                         
+        SRLI X13,X11,12                         
+        ANDI X13,X13,15                         
+        SRLI X11,X11,6                          
+        ANDI X11,X11,63                         
+        ADDI X14,X0 ,832                        
+         MUL X12,X14,X12                        
+        ADDI X14,X0 ,52                         
+         MUL X13,X14,X13                        
+         ADD X11,X11,X13                        
+         ADD X11,X12,X11                        
+         MUL X8 ,X8 ,X11                        
+         ADD X7 ,X7 ,X8                         
+         FLW F1 ,X31,0                          
+         FSW X7 ,F1 ,4                          
+     WRITECM X5 ,X1 ,0                          
+     DREADPM X6 ,X6 ,4                          
+     WRITECM X6 ,X1 ,0                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,0                          
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#1                                        
+.LBB4_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+        ADDI X5 ,X0 ,192                        
+        ADDI X6 ,X0 ,1                          
+     WRITECM X5 ,X6 ,60                         
+         LUI X6 ,0                              
+     WRITEPM X6 ,X5 ,0                          
+     WRITEPM X6 ,X5 ,4                          
+         LUI X6 ,2                              
+     WRITEPM X6 ,X5 ,4                          
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#2                                        
+.LBB4_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         LUI X6 ,2                              
+     DREADPM X5 ,X6 ,0                          
+         LUI X7 ,1048575                        
+         LUI X16,4095                           
+        SRLI X16,X16,12                         
+         ADD X7 ,X16,X7                         
+        SYNC X5 ,X7 ,60                         
+     DREADPM X6 ,X6 ,4                          
+         LUI X7 ,1048575                        
+         LUI X16,4095                           
+        SRLI X16,X16,12                         
+         ADD X7 ,X16,X7                         
+        SYNC X6 ,X7 ,60                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#3                                        
+.LBB4_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X7 ,"%HI("GA#11008")"              
+         LUI X8 ,"%LO("GA#11008")"              
+        SRLI X8 ,X8 ,12                         
+         ADD X7 ,X8 ,X7                         
+        ADDI X8 ,X0 ,36                         
+        SRLI X11,X31,22                         
+        SRLI X12,X31,12                         
+        ANDI X12,X12,15                         
+        SRLI X13,X31,6                          
+        ANDI X13,X13,63                         
+        ADDI X14,X0 ,832                        
+         MUL X11,X14,X11                        
+        ADDI X14,X0 ,52                         
+         MUL X12,X14,X12                        
+         ADD X12,X13,X12                        
+         ADD X11,X11,X12                        
+         MUL X8 ,X8 ,X11                        
+         ADD X31,X8 ,X7                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.STATICINST Y                                   
+.IMD_BEGIN                                      
+.HYOPINST#64                                    
+.ANN A P                                        
+.DEPTHHEG 1                                     
+.NUMPHY 4                                       
+.LAUNCHCNT 1                                    
+.OPVALIDITY 0000000000000000                    
+.OPWAITCNT 1                                    
+.IMD_END                                        
+.HYOP_END                                       
+.HYOP#5:                                        
+.SMD_BEGIN                                      
+.ANN B                                          
+.NUMPHY 4                                       
+.OPDIST 1 0 0 0                                 
+.SMD_END                                        
+.PHYOP#0                                        
+.LBB5_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         LUI X5 ,"%HI("GA#6400")"               
+         LUI X6 ,"%LO("GA#6400")"               
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X5 ,X6                         
+          SW X5 ,X0 ,0                          
+         LUI X5 ,"%LO("GA#6656")"               
+        SRLI X5 ,X5 ,12                         
+         LUI X6 ,"%HI("GA#6656")"               
+         ADD X5 ,X6 ,X5                         
+          SW X5 ,X0 ,0                          
+         LUI X5 ,"%HI("GA#6144")"               
+         LUI X6 ,"%LO("GA#6144")"               
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X5 ,X6                         
+         LUI X6 ,"%HI("GA#5888")"               
+         LUI X7 ,"%LO("GA#5888")"               
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          SW X6 ,X0 ,0                          
+        ADDI X7 ,X31,4                          
+        ADDI X6 ,X31,0                          
+         FLW F1 ,X7 ,0                          
+         FSW X6 ,F1 ,0                          
+         FLW F1 ,X6 ,0                          
+         FSW X5 ,F1 ,0                          
+         LUI X5 ,1048575                        
+         LUI X16,4095                           
+        SRLI X16,X16,12                         
+         ADD X5 ,X16,X5                         
+        SYNC X1 ,X5 ,60                         
+     FDELETE X30,0                              
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#1                                        
+.LBB5_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#2                                        
+.LBB5_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#3                                        
+.LBB5_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#11008")"              
+         LUI X6 ,"%LO("GA#11008")"              
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,36                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.STATICINST Y                                   
+.IMD_BEGIN                                      
+.HYOPINST#192                                   
+.ANN A B                                        
+.DEPTHHEG 2                                     
+.NUMPHY 4                                       
+.LAUNCHCNT 1                                    
+.OPVALIDITY 0000000000000000                    
+.OPWAITCNT 2                                    
+.IMD_END                                        
+.HYOP_END                                       
+.IO_BEGIN                                       
+.DATA_START 3                                   
+           I "GA#7680"                          
+           I "GA#9728"                          
+           O "GA#10496"                         
+.IO_END                                         

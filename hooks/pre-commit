@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+cd redefine-tests/ECU_KERNELS
 for d in ./*/
 do
      for i in $d*.c
@@ -7,10 +9,5 @@ do
          echo "make ref TARGET=$i"
          make ref TARGET=$i
          echo "#########################################################"
-     done
- 
-     for i in $d*.ref
-     do
-         rm $i
      done
  done
