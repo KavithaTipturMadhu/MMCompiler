@@ -1,6 +1,6 @@
 #/bin/bash
 
-TOOLS = $(PWD)/..
+TOOLS = $(PWD)/../../../
 
 # Compiler Build Directory
 COMPILER_BIN = $(TOOLS)/MM_Compiler_latest/build/Release+Asserts/bin
@@ -31,7 +31,7 @@ OUT_REF 	= $(basename $(TARGET)).ref
 as : clang opt llc
 
 ref : as 
-	cd $(ASSEMBLER_DIR) && ./Assembler.py $(TOOLS)/ECU_KERNELS/$(OUT_LLC)
+	cd $(ASSEMBLER_DIR) && ./Assembler.py $(TOOLS)/Git_Compiler_Repo/redefine-tests/ECU_KERNELS/$(OUT_LLC)
 
 clang :
 	$(CLANG) $(CLANG_OPTIONS) $(TARGET) -o $(OUT_CLANG)
