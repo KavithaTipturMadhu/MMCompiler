@@ -1,0 +1,546 @@
+.TEXT                                           
+.TOPOLOGY 0 0                                   
+.STARTADDR 0                                    
+.HYOP#0:                                        
+.SMD_BEGIN                                      
+.ANN S B                                        
+.NUMPHY 4                                       
+.OPDIST 0 0 0 0                                 
+.SMD_END                                        
+.PHYOP#0                                        
+.LBB0_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#512")"                
+         LUI X6 ,"%LO("GA#512")"                
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,12                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+        ADDI X5 ,X31,0                          
+         LUI X6 ,"%HI("GA#0")"                  
+         LUI X7 ,"%LO("GA#0")"                  
+        SRLI X7 ,X7 ,12                         
+         ADD X6 ,X6 ,X7                         
+          LW X6 ,X6 ,0                          
+          SW X5 ,X6 ,0                          
+        ADDI X5 ,X0 ,64                         
+          LW X6 ,X31,0                          
+     WRITECM X5 ,X6 ,0                          
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#1                                        
+.LBB0_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#512")"                
+         LUI X6 ,"%LO("GA#512")"                
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,12                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#2                                        
+.LBB0_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#512")"                
+         LUI X6 ,"%LO("GA#512")"                
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,12                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#3                                        
+.LBB0_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#512")"                
+         LUI X6 ,"%LO("GA#512")"                
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,12                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.STATICINST Y                                   
+.IMD_BEGIN                                      
+.HYOPINST#0                                     
+.ANN A B                                        
+.DEPTHHEG 0                                     
+.NUMPHY 4                                       
+.LAUNCHCNT 0                                    
+.OPVALIDITY 1000000000000000                    
+.OP_BEGIN                                       
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           0                                    
+           1                                    
+.OP_END                                         
+.OPWAITCNT 0                                    
+.IMD_END                                        
+.HYOP_END                                       
+.HYOP#1:                                        
+.SMD_BEGIN                                      
+.ANN E                                          
+.NUMPHY 4                                       
+.OPDIST 1 0 0 0                                 
+.SMD_END                                        
+.PHYOP#0                                        
+.LBB1_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#512")"                
+         LUI X6 ,"%LO("GA#512")"                
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,12                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         LUI X5 ,"%LO("GA#256")"                
+        SRLI X5 ,X5 ,12                         
+         LUI X6 ,"%HI("GA#256")"                
+         ADD X5 ,X6 ,X5                         
+          SW X5 ,X1 ,0                          
+     FDELETE X30,0                              
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#1                                        
+.LBB1_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#512")"                
+         LUI X6 ,"%LO("GA#512")"                
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,12                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#2                                        
+.LBB1_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#512")"                
+         LUI X6 ,"%LO("GA#512")"                
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,12                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#3                                        
+.LBB1_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#512")"                
+         LUI X6 ,"%LO("GA#512")"                
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,12                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.STATICINST Y                                   
+.IMD_BEGIN                                      
+.HYOPINST#128                                   
+.ANN A                                          
+.DEPTHHEG 2                                     
+.NUMPHY 4                                       
+.LAUNCHCNT 1                                    
+.OPVALIDITY 0000000000000000                    
+.OPWAITCNT 1                                    
+.IMD_END                                        
+.HYOP_END                                       
+.HYOP#2:                                        
+.SMD_BEGIN                                      
+.ANN                                            
+.NUMPHY 4                                       
+.OPDIST 1 0 0 0                                 
+.SMD_END                                        
+.PHYOP#0                                        
+.LBB2_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#512")"                
+         LUI X6 ,"%LO("GA#512")"                
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,12                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+        ADDI X5 ,X31,4                          
+          SW X5 ,X1 ,0                          
+         LUI X5 ,1                              
+     WRITEPM X5 ,X1 ,0                          
+         LUI X5 ,2                              
+     WRITEPM X5 ,X1 ,0                          
+         LUI X5 ,3                              
+     WRITEPM X5 ,X1 ,0                          
+         BLT X1 ,X0 ,.LBB2_4                    
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB2_1                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB2_1:                                        
+         LUI X5 ,16                             
+         LUI X16,0                              
+        SRLI X16,X16,12                         
+         ADD X5 ,X16,X5                         
+        ADDI X6 ,X31,4                          
+          LW X6 ,X6 ,0                          
+         LUI X7 ,1                              
+     WRITEPM X7 ,X6 ,0                          
+         LUI X8 ,2                              
+     WRITEPM X8 ,X6 ,0                          
+         LUI X11,3                              
+     WRITEPM X11,X6 ,0                          
+     WRITEPM X7 ,X5 ,4                          
+     WRITEPM X8 ,X5 ,4                          
+     WRITEPM X11,X5 ,4                          
+         BLT X6 ,X5 ,.LBB2_3                    
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB2_2                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB2_2:                                        
+         LUI X5 ,15                             
+         LUI X16,4095                           
+        SRLI X16,X16,12                         
+         ADD X5 ,X16,X5                         
+        ADDI X6 ,X31,8                          
+          SW X6 ,X5 ,0                          
+         JAL .LBB2_5                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB2_3:                                        
+        ADDI X5 ,X31,8                          
+        ADDI X6 ,X31,4                          
+          LW X6 ,X6 ,0                          
+          SW X5 ,X6 ,0                          
+         JAL .LBB2_5                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB2_4:                                        
+        ADDI X5 ,X31,8                          
+          SW X5 ,X0 ,0                          
+.LBB2_5:                                        
+        ADDI X5 ,X31,0                          
+        ADDI X6 ,X31,8                          
+          LW X6 ,X6 ,0                          
+          SW X5 ,X6 ,0                          
+        ADDI X5 ,X0 ,128                        
+          LW X6 ,X31,0                          
+     WRITECM X5 ,X6 ,0                          
+     FDELETE X30,0                              
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#1                                        
+.LBB2_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#512")"                
+         LUI X6 ,"%LO("GA#512")"                
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,12                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         LUI X5 ,1                              
+     DREADPM X5 ,X5 ,0                          
+         BLT X5 ,X0 ,.LBB2_4                    
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB2_1                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB2_1:                                        
+         LUI X5 ,1                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BLT X6 ,X5 ,.LBB2_3                    
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB2_2                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB2_2:                                        
+         JAL .LBB2_5                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB2_3:                                        
+         JAL .LBB2_5                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB2_4:                                        
+        ADDI X0 ,X0 ,0                          
+.LBB2_5:                                        
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#2                                        
+.LBB2_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#512")"                
+         LUI X6 ,"%LO("GA#512")"                
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,12                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         LUI X5 ,2                              
+     DREADPM X5 ,X5 ,0                          
+         BLT X5 ,X0 ,.LBB2_4                    
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB2_1                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB2_1:                                        
+         LUI X5 ,2                              
+     DREADPM X6 ,X5 ,0                          
+     DREADPM X5 ,X5 ,4                          
+         BLT X6 ,X5 ,.LBB2_3                    
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB2_2                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB2_2:                                        
+         JAL .LBB2_5                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB2_3:                                        
+         JAL .LBB2_5                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB2_4:                                        
+        ADDI X0 ,X0 ,0                          
+.LBB2_5:                                        
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.PHYOP#3                                        
+.LBB2_0:                                        
+         ADD X30,X0 ,X31                        
+         LUI X5 ,"%HI("GA#512")"                
+         LUI X6 ,"%LO("GA#512")"                
+        SRLI X6 ,X6 ,12                         
+         ADD X5 ,X6 ,X5                         
+        ADDI X6 ,X0 ,12                         
+        SRLI X7 ,X31,22                         
+        SRLI X8 ,X31,12                         
+        ANDI X8 ,X8 ,15                         
+        SRLI X11,X31,6                          
+        ANDI X11,X11,63                         
+        ADDI X12,X0 ,832                        
+         MUL X7 ,X12,X7                         
+        ADDI X12,X0 ,52                         
+         MUL X8 ,X12,X8                         
+         ADD X8 ,X11,X8                         
+         ADD X7 ,X7 ,X8                         
+         MUL X6 ,X6 ,X7                         
+         ADD X31,X6 ,X5                         
+         LUI X5 ,3                              
+     DREADPM X5 ,X5 ,0                          
+         BLT X5 ,X0 ,.LBB2_4                    
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB2_1                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB2_1:                                        
+         LUI X6 ,3                              
+     DREADPM X5 ,X6 ,0                          
+     DREADPM X6 ,X6 ,4                          
+         BLT X5 ,X6 ,.LBB2_3                    
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+         JAL .LBB2_2                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB2_2:                                        
+         JAL .LBB2_5                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB2_3:                                        
+         JAL .LBB2_5                            
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.LBB2_4:                                        
+        ADDI X0 ,X0 ,0                          
+.LBB2_5:                                        
+         END 0                                  
+        ADDI X0 ,X0 ,0                          
+        ADDI X0 ,X0 ,0                          
+.PHYOP_END                                      
+.STATICINST Y                                   
+.IMD_BEGIN                                      
+.HYOPINST#64                                    
+.ANN A                                          
+.DEPTHHEG 1                                     
+.NUMPHY 4                                       
+.LAUNCHCNT 1                                    
+.OPVALIDITY 0000000000000000                    
+.OPWAITCNT 1                                    
+.IMD_END                                        
+.HYOP_END                                       
+.IO_BEGIN                                       
+.DATA_START 2                                   
+           I "GA#0"                             
+           O "GA#256"                           
+.IO_END                                         

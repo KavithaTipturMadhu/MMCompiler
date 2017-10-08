@@ -1,0 +1,2547 @@
+Args: /home/arka/Workspace/work/Git_Compiler_Repo/redefine-tests/ECU_KERNELS/../../..//MM_Compiler_latest/build/Release+Asserts/bin/opt -debug --load /home/arka/Workspace/work/Git_Compiler_Repo/redefine-tests/ECU_KERNELS/../../..//MM_Compiler_latest/build/Release+Asserts/bin/../lib/HyperOpCreationPass.so --HyperOpCreationPass -S ./Working/startupfuelvalves.ll -o ./Working/startupfuelvalves_HyOpPass.ll 
+
+Features:
+CPU:REDEFINE
+
+Found cycles?0
+
+-----------
+Partitioning function:startup_fuel_valves
+
+-------
+Acquiring bb entry
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:if.then,if.else,
+distance of if.then to exit 2
+distance of if.else to exit 14
+
+-------
+Acquiring bb if.else
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:if.then6,if.else7,
+distance of if.then to exit 2
+distance of if.then6 to exit 7
+distance of if.else7 to exit 13
+
+-------
+Acquiring bb if.else7
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:if.then9,if.else22,
+distance of if.then6 to exit 7
+distance of if.then to exit 2
+distance of if.then9 to exit 12
+distance of if.else22 to exit 8
+
+-------
+Acquiring bb if.then9
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:if.then12,if.else20,
+distance of if.else22 to exit 8
+distance of if.then6 to exit 7
+distance of if.then to exit 2
+distance of if.then12 to exit 11
+distance of if.else20 to exit 9
+
+-------
+Acquiring bb if.then12
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:if.then16,if.else19,
+distance of if.else20 to exit 9
+distance of if.else22 to exit 8
+distance of if.then6 to exit 7
+distance of if.then to exit 2
+distance of if.then16 to exit 10
+distance of if.else19 to exit 10
+
+-------
+Acquiring bb if.then16
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:if.end,
+distance of if.else19 to exit 10
+distance of if.else20 to exit 9
+distance of if.else22 to exit 8
+distance of if.then6 to exit 7
+distance of if.then to exit 2
+distance of if.end to exit 9
+
+-------
+Acquiring bb if.else19
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:didn't add if.end
+
+distance of if.else20 to exit 9
+distance of if.end to exit 9
+distance of if.else22 to exit 8
+distance of if.then6 to exit 7
+distance of if.then to exit 2
+
+-------
+Acquiring bb if.else20
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:if.end21,
+distance of if.end to exit 9
+distance of if.else22 to exit 8
+distance of if.then6 to exit 7
+distance of if.then to exit 2
+distance of if.end21 to exit 8
+
+-------
+Acquiring bb if.end
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:didn't add if.end21
+
+distance of if.else22 to exit 8
+distance of if.end21 to exit 8
+distance of if.then6 to exit 7
+distance of if.then to exit 2
+
+-------
+Acquiring bb if.else22
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:if.end25,
+distance of if.end21 to exit 8
+distance of if.then6 to exit 7
+distance of if.then to exit 2
+distance of if.end25 to exit 7
+
+-------
+Acquiring bb if.end21
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:didn't add if.end25
+
+distance of if.then6 to exit 7
+distance of if.end25 to exit 7
+distance of if.then to exit 2
+
+-------
+Acquiring bb if.then6
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:if.end26,
+distance of if.end25 to exit 7
+distance of if.then to exit 2
+distance of if.end26 to exit 6
+
+-------
+Acquiring bb if.end25
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:didn't add if.end26
+
+distance of if.end26 to exit 6
+distance of if.then to exit 2
+
+-------
+Acquiring bb if.end26
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:if.then28,if.else36,
+distance of if.then to exit 2
+distance of if.then28 to exit 5
+distance of if.else36 to exit 3
+
+-------
+Acquiring bb if.then28
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:if.then32,if.end35,
+distance of if.else36 to exit 3
+distance of if.then to exit 2
+distance of if.then32 to exit 4
+distance of if.end35 to exit 3
+
+-------
+Acquiring bb if.then32
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:didn't add if.end35
+
+distance of if.else36 to exit 3
+distance of if.end35 to exit 3
+distance of if.then to exit 2
+
+-------
+Acquiring bb if.else36
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:if.end37,
+distance of if.end35 to exit 3
+distance of if.then to exit 2
+distance of if.end37 to exit 2
+
+-------
+Acquiring bb if.end35
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:didn't add if.end37
+
+distance of if.then to exit 2
+distance of if.end37 to exit 2
+
+-------
+Acquiring bb if.then
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:if.end38,
+distance of if.end37 to exit 2
+distance of if.end38 to exit 1
+
+-------
+Acquiring bb if.end37
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:didn't add if.end38
+
+distance of if.end38 to exit 1
+
+-------
+Acquiring bb if.end38
+entered end hop for function startup_fuel_valves
+Adding basic blocks for traversal in a breadth biased order for function startup_fuel_valves
+added to succ list:
+adding to creation map bbargs of size 1
+
+-----------
+Partitioning function:redefine_start
+
+-------
+Acquiring bb entry
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:newName0,
+distance of newName0 to exit 1
+
+-------
+Acquiring bb newName0
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:newName01,
+distance of newName01 to exit 1
+
+-------
+Acquiring bb newName01
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:
+adding to creation map bbargs of size 3
+before partitioning:; ModuleID = './Working/startupfuelvalves.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_a = common global [7 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [5 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define i32* @startup_fuel_valves(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %current_nh = alloca float, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %current_nh, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 1
+  %4 = load i32* %arrayidx1, align 4
+  %cmp = icmp eq i32 %4, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  %5 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %5, i32 2
+  store i32 1, i32* %arrayidx2, align 4
+  %6 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %6, i32 3
+  store i32 1, i32* %arrayidx3, align 4
+  %7 = load i32** %input.addr, align 4
+  %arrayidx4 = getelementptr inbounds i32* %7, i32 4
+  store i32 0, i32* %arrayidx4, align 4
+  br label %if.end38
+
+if.else:                                          ; preds = %entry
+  %8 = load float* %current_nh, align 4
+  %cmp5 = fcmp olt float %8, 4.000000e+03
+  br i1 %cmp5, label %if.then6, label %if.else7
+
+if.then6:                                         ; preds = %if.else
+  br label %if.end26
+
+if.else7:                                         ; preds = %if.else
+  %9 = load float* %current_nh, align 4
+  %cmp8 = fcmp olt float %9, 1.250000e+04
+  br i1 %cmp8, label %if.then9, label %if.else22
+
+if.then9:                                         ; preds = %if.else7
+  %10 = load i32** %input.addr, align 4
+  %arrayidx10 = getelementptr inbounds i32* %10, i32 4
+  %11 = load i32* %arrayidx10, align 4
+  %cmp11 = icmp eq i32 %11, 0
+  br i1 %cmp11, label %if.then12, label %if.else20
+
+if.then12:                                        ; preds = %if.then9
+  %12 = load i32** %input.addr, align 4
+  %arrayidx13 = getelementptr inbounds i32* %12, i32 3
+  store i32 0, i32* %arrayidx13, align 4
+  %13 = load i32** %input.addr, align 4
+  %arrayidx14 = getelementptr inbounds i32* %13, i32 5
+  %14 = load i32* %arrayidx14, align 4
+  %cmp15 = icmp eq i32 %14, -1
+  br i1 %cmp15, label %if.then16, label %if.else19
+
+if.then16:                                        ; preds = %if.then12
+  %15 = load i32** %input.addr, align 4
+  %arrayidx17 = getelementptr inbounds i32* %15, i32 1
+  %16 = load i32* %arrayidx17, align 4
+  %17 = load i32** %input.addr, align 4
+  %arrayidx18 = getelementptr inbounds i32* %17, i32 5
+  store i32 %16, i32* %arrayidx18, align 4
+  br label %if.end
+
+if.else19:                                        ; preds = %if.then12
+  br label %if.end
+
+if.end:                                           ; preds = %if.else19, %if.then16
+  br label %if.end21
+
+if.else20:                                        ; preds = %if.then9
+  br label %if.end21
+
+if.end21:                                         ; preds = %if.else20, %if.end
+  br label %if.end25
+
+if.else22:                                        ; preds = %if.else7
+  %18 = load i32** %input.addr, align 4
+  %arrayidx23 = getelementptr inbounds i32* %18, i32 3
+  store i32 1, i32* %arrayidx23, align 4
+  %19 = load i32** %input.addr, align 4
+  %arrayidx24 = getelementptr inbounds i32* %19, i32 4
+  store i32 1, i32* %arrayidx24, align 4
+  br label %if.end25
+
+if.end25:                                         ; preds = %if.else22, %if.end21
+  br label %if.end26
+
+if.end26:                                         ; preds = %if.end25, %if.then6
+  %20 = load float* %current_nh, align 4
+  %cmp27 = fcmp ogt float %20, 8.800000e+03
+  br i1 %cmp27, label %if.then28, label %if.else36
+
+if.then28:                                        ; preds = %if.end26
+  %21 = load i32** %input.addr, align 4
+  %arrayidx29 = getelementptr inbounds i32* %21, i32 2
+  store i32 0, i32* %arrayidx29, align 4
+  %22 = load i32** %input.addr, align 4
+  %arrayidx30 = getelementptr inbounds i32* %22, i32 6
+  %23 = load i32* %arrayidx30, align 4
+  %cmp31 = icmp eq i32 %23, -1
+  br i1 %cmp31, label %if.then32, label %if.end35
+
+if.then32:                                        ; preds = %if.then28
+  %24 = load i32** %input.addr, align 4
+  %arrayidx33 = getelementptr inbounds i32* %24, i32 1
+  %25 = load i32* %arrayidx33, align 4
+  %26 = load i32** %input.addr, align 4
+  %arrayidx34 = getelementptr inbounds i32* %26, i32 6
+  store i32 %25, i32* %arrayidx34, align 4
+  br label %if.end35
+
+if.end35:                                         ; preds = %if.then32, %if.then28
+  br label %if.end37
+
+if.else36:                                        ; preds = %if.end26
+  br label %if.end37
+
+if.end37:                                         ; preds = %if.else36, %if.end35
+  br label %if.end38
+
+if.end38:                                         ; preds = %if.end37, %if.then
+  %27 = load i32** %input.addr, align 4
+  ret i32* %27
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([7 x i32]* @redefine_in_a, i32 0, i32 0), i32** %0
+  %1 = load i32** %0
+  br label %newName0
+
+newName0:                                         ; preds = %entry
+  %call = call i32* @startup_fuel_valves(i32* %1)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  %output = alloca i32*, align 4
+  store i32* %call, i32** %output, align 4
+  %2 = load i32** %output, align 4
+  %arrayidx = getelementptr inbounds i32* %2, i32 2
+  %3 = load i32* %arrayidx, align 4
+  store i32 %3, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %4 = load i32** %output, align 4
+  %arrayidx1 = getelementptr inbounds i32* %4, i32 3
+  %5 = load i32* %arrayidx1, align 4
+  store i32 %5, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  %6 = load i32** %output, align 4
+  %arrayidx2 = getelementptr inbounds i32* %6, i32 4
+  %7 = load i32* %arrayidx2, align 4
+  store i32 %7, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 2), align 4
+  %8 = load i32** %output, align 4
+  %arrayidx3 = getelementptr inbounds i32* %8, i32 5
+  %9 = load i32* %arrayidx3, align 4
+  store i32 %9, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 3), align 4
+  %10 = load i32** %output, align 4
+  %arrayidx4 = getelementptr inbounds i32* %10, i32 6
+  %11 = load i32* %arrayidx4, align 4
+  store i32 %11, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 4), align 4
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{}
+-----------Creating HyperOps from partitioned functions-----------
+added to traversallist:entry
+added to traversallist:newName0
+added to traversallist:newName01
+now at func:entry
+
+-----------Creating a new HyperOp for function:redefine_start-----------
+
+--------
+Acquired bb:entry from parent:redefine_start
+created func:redefine_start1
+now at func:newName0
+now at func:newName01
+
+-----------Creating a new HyperOp for function:redefine_start-----------
+
+--------
+Acquired bb:newName01 from parent:redefine_start
+created func:redefine_start2
+now at func:entry
+
+-----------Creating a new HyperOp for function:startup_fuel_valves-----------
+newName0,
+--------
+Acquired bb:entry from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.else from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.else7 from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.then9 from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.then12 from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.then16 from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.else19 from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.else20 from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.end from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.else22 from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.end21 from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.then6 from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.end25 from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.end26 from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.then28 from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.then32 from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.else36 from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.end35 from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.then from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.end37 from parent:startup_fuel_valves
+
+--------
+Acquired bb:if.end38 from parent:startup_fuel_valves
+
+--------
+Acquired bb:newName0 from parent:redefine_start
+created func:startup_fuel_valves3
+before patching stuff:; ModuleID = './Working/startupfuelvalves.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_a = common global [7 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [5 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define i32* @startup_fuel_valves(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %current_nh = alloca float, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %current_nh, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 1
+  %4 = load i32* %arrayidx1, align 4
+  %cmp = icmp eq i32 %4, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  %5 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %5, i32 2
+  store i32 1, i32* %arrayidx2, align 4
+  %6 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %6, i32 3
+  store i32 1, i32* %arrayidx3, align 4
+  %7 = load i32** %input.addr, align 4
+  %arrayidx4 = getelementptr inbounds i32* %7, i32 4
+  store i32 0, i32* %arrayidx4, align 4
+  br label %if.end38
+
+if.else:                                          ; preds = %entry
+  %8 = load float* %current_nh, align 4
+  %cmp5 = fcmp olt float %8, 4.000000e+03
+  br i1 %cmp5, label %if.then6, label %if.else7
+
+if.then6:                                         ; preds = %if.else
+  br label %if.end26
+
+if.else7:                                         ; preds = %if.else
+  %9 = load float* %current_nh, align 4
+  %cmp8 = fcmp olt float %9, 1.250000e+04
+  br i1 %cmp8, label %if.then9, label %if.else22
+
+if.then9:                                         ; preds = %if.else7
+  %10 = load i32** %input.addr, align 4
+  %arrayidx10 = getelementptr inbounds i32* %10, i32 4
+  %11 = load i32* %arrayidx10, align 4
+  %cmp11 = icmp eq i32 %11, 0
+  br i1 %cmp11, label %if.then12, label %if.else20
+
+if.then12:                                        ; preds = %if.then9
+  %12 = load i32** %input.addr, align 4
+  %arrayidx13 = getelementptr inbounds i32* %12, i32 3
+  store i32 0, i32* %arrayidx13, align 4
+  %13 = load i32** %input.addr, align 4
+  %arrayidx14 = getelementptr inbounds i32* %13, i32 5
+  %14 = load i32* %arrayidx14, align 4
+  %cmp15 = icmp eq i32 %14, -1
+  br i1 %cmp15, label %if.then16, label %if.else19
+
+if.then16:                                        ; preds = %if.then12
+  %15 = load i32** %input.addr, align 4
+  %arrayidx17 = getelementptr inbounds i32* %15, i32 1
+  %16 = load i32* %arrayidx17, align 4
+  %17 = load i32** %input.addr, align 4
+  %arrayidx18 = getelementptr inbounds i32* %17, i32 5
+  store i32 %16, i32* %arrayidx18, align 4
+  br label %if.end
+
+if.else19:                                        ; preds = %if.then12
+  br label %if.end
+
+if.end:                                           ; preds = %if.else19, %if.then16
+  br label %if.end21
+
+if.else20:                                        ; preds = %if.then9
+  br label %if.end21
+
+if.end21:                                         ; preds = %if.else20, %if.end
+  br label %if.end25
+
+if.else22:                                        ; preds = %if.else7
+  %18 = load i32** %input.addr, align 4
+  %arrayidx23 = getelementptr inbounds i32* %18, i32 3
+  store i32 1, i32* %arrayidx23, align 4
+  %19 = load i32** %input.addr, align 4
+  %arrayidx24 = getelementptr inbounds i32* %19, i32 4
+  store i32 1, i32* %arrayidx24, align 4
+  br label %if.end25
+
+if.end25:                                         ; preds = %if.else22, %if.end21
+  br label %if.end26
+
+if.end26:                                         ; preds = %if.end25, %if.then6
+  %20 = load float* %current_nh, align 4
+  %cmp27 = fcmp ogt float %20, 8.800000e+03
+  br i1 %cmp27, label %if.then28, label %if.else36
+
+if.then28:                                        ; preds = %if.end26
+  %21 = load i32** %input.addr, align 4
+  %arrayidx29 = getelementptr inbounds i32* %21, i32 2
+  store i32 0, i32* %arrayidx29, align 4
+  %22 = load i32** %input.addr, align 4
+  %arrayidx30 = getelementptr inbounds i32* %22, i32 6
+  %23 = load i32* %arrayidx30, align 4
+  %cmp31 = icmp eq i32 %23, -1
+  br i1 %cmp31, label %if.then32, label %if.end35
+
+if.then32:                                        ; preds = %if.then28
+  %24 = load i32** %input.addr, align 4
+  %arrayidx33 = getelementptr inbounds i32* %24, i32 1
+  %25 = load i32* %arrayidx33, align 4
+  %26 = load i32** %input.addr, align 4
+  %arrayidx34 = getelementptr inbounds i32* %26, i32 6
+  store i32 %25, i32* %arrayidx34, align 4
+  br label %if.end35
+
+if.end35:                                         ; preds = %if.then32, %if.then28
+  br label %if.end37
+
+if.else36:                                        ; preds = %if.end26
+  br label %if.end37
+
+if.end37:                                         ; preds = %if.else36, %if.end35
+  br label %if.end38
+
+if.end38:                                         ; preds = %if.end37, %if.then
+  %27 = load i32** %input.addr, align 4
+  ret i32* %27
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([7 x i32]* @redefine_in_a, i32 0, i32 0), i32** %0
+  %1 = load i32** %0
+  br label %newName0
+
+newName0:                                         ; preds = %redefine_start1.entry, %entry
+  %call = call i32* @startup_fuel_valves(i32* %1)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  %output = alloca i32*, align 4
+  store i32* %call, i32** %output, align 4
+  %2 = load i32** %output, align 4
+  %arrayidx = getelementptr inbounds i32* %2, i32 2
+  %3 = load i32* %arrayidx, align 4
+  store i32 %3, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %4 = load i32** %output, align 4
+  %arrayidx1 = getelementptr inbounds i32* %4, i32 3
+  %5 = load i32* %arrayidx1, align 4
+  store i32 %5, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  %6 = load i32** %output, align 4
+  %arrayidx2 = getelementptr inbounds i32* %6, i32 4
+  %7 = load i32* %arrayidx2, align 4
+  store i32 %7, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 2), align 4
+  %8 = load i32** %output, align 4
+  %arrayidx3 = getelementptr inbounds i32* %8, i32 5
+  %9 = load i32* %arrayidx3, align 4
+  store i32 %9, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 3), align 4
+  %10 = load i32** %output, align 4
+  %arrayidx4 = getelementptr inbounds i32* %10, i32 6
+  %11 = load i32* %arrayidx4, align 4
+  store i32 %11, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 4), align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([7 x i32]* @redefine_in_a, i32 0, i32 0), i32** %0
+  %1 = load i32** %0
+  br label %newName0
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(i32*) {
+redefine_start2.newName01:
+  %1 = alloca i32*, align 4
+  store i32* %0, i32** %1, align 4
+  %2 = load i32** %1, align 4
+  %3 = getelementptr inbounds i32* %2, i32 2
+  %4 = load i32* %3, align 4
+  store i32 %4, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %1, align 4
+  %6 = getelementptr inbounds i32* %5, i32 3
+  %7 = load i32* %6, align 4
+  store i32 %7, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  %8 = load i32** %1, align 4
+  %9 = getelementptr inbounds i32* %8, i32 4
+  %10 = load i32* %9, align 4
+  store i32 %10, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 2), align 4
+  %11 = load i32** %1, align 4
+  %12 = getelementptr inbounds i32* %11, i32 5
+  %13 = load i32* %12, align 4
+  store i32 %13, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 3), align 4
+  %14 = load i32** %1, align 4
+  %15 = getelementptr inbounds i32* %14, i32 6
+  %16 = load i32* %15, align 4
+  store i32 %16, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 4), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @startup_fuel_valves3(i32*) {
+startup_fuel_valves3.entry:
+  %1 = alloca i32*, align 4
+  %2 = alloca float, align 4
+  store i32* %0, i32** %1, align 4
+  %3 = load i32** %1, align 4
+  %4 = getelementptr inbounds i32* %3, i32 0
+  %5 = bitcast i32* %4 to float*
+  %6 = load float* %5, align 4
+  store float %6, float* %2, align 4
+  %7 = load i32** %1, align 4
+  %8 = getelementptr inbounds i32* %7, i32 1
+  %9 = load i32* %8, align 4
+  %10 = icmp eq i32 %9, 0
+  br i1 %10, label %startup_fuel_valves3.if.then, label %startup_fuel_valves3.if.else
+
+startup_fuel_valves3.if.else:                     ; preds = %startup_fuel_valves3.entry
+  %11 = load float* %2, align 4
+  %12 = fcmp olt float %11, 4.000000e+03
+  br i1 %12, label %startup_fuel_valves3.if.then6, label %startup_fuel_valves3.if.else7
+
+startup_fuel_valves3.if.else7:                    ; preds = %startup_fuel_valves3.if.else
+  %13 = load float* %2, align 4
+  %14 = fcmp olt float %13, 1.250000e+04
+  br i1 %14, label %startup_fuel_valves3.if.then9, label %startup_fuel_valves3.if.else22
+
+startup_fuel_valves3.if.then9:                    ; preds = %startup_fuel_valves3.if.else7
+  %15 = load i32** %1, align 4
+  %16 = getelementptr inbounds i32* %15, i32 4
+  %17 = load i32* %16, align 4
+  %18 = icmp eq i32 %17, 0
+  br i1 %18, label %startup_fuel_valves3.if.then12, label %startup_fuel_valves3.if.else20
+
+startup_fuel_valves3.if.then12:                   ; preds = %startup_fuel_valves3.if.then9
+  %19 = load i32** %1, align 4
+  %20 = getelementptr inbounds i32* %19, i32 3
+  store i32 0, i32* %20, align 4
+  %21 = load i32** %1, align 4
+  %22 = getelementptr inbounds i32* %21, i32 5
+  %23 = load i32* %22, align 4
+  %24 = icmp eq i32 %23, -1
+  br i1 %24, label %startup_fuel_valves3.if.then16, label %startup_fuel_valves3.if.else19
+
+startup_fuel_valves3.if.then16:                   ; preds = %startup_fuel_valves3.if.then12
+  %25 = load i32** %1, align 4
+  %26 = getelementptr inbounds i32* %25, i32 1
+  %27 = load i32* %26, align 4
+  %28 = load i32** %1, align 4
+  %29 = getelementptr inbounds i32* %28, i32 5
+  store i32 %27, i32* %29, align 4
+  br label %startup_fuel_valves3.if.end
+
+startup_fuel_valves3.if.else19:                   ; preds = %startup_fuel_valves3.if.then12
+  br label %startup_fuel_valves3.if.end
+
+startup_fuel_valves3.if.else20:                   ; preds = %startup_fuel_valves3.if.then9
+  br label %startup_fuel_valves3.if.end21
+
+startup_fuel_valves3.if.end:                      ; preds = %startup_fuel_valves3.if.else19, %startup_fuel_valves3.if.then16
+  br label %startup_fuel_valves3.if.end21
+
+startup_fuel_valves3.if.else22:                   ; preds = %startup_fuel_valves3.if.else7
+  %30 = load i32** %1, align 4
+  %31 = getelementptr inbounds i32* %30, i32 3
+  store i32 1, i32* %31, align 4
+  %32 = load i32** %1, align 4
+  %33 = getelementptr inbounds i32* %32, i32 4
+  store i32 1, i32* %33, align 4
+  br label %startup_fuel_valves3.if.end25
+
+startup_fuel_valves3.if.end21:                    ; preds = %startup_fuel_valves3.if.end, %startup_fuel_valves3.if.else20
+  br label %startup_fuel_valves3.if.end25
+
+startup_fuel_valves3.if.then6:                    ; preds = %startup_fuel_valves3.if.else
+  br label %startup_fuel_valves3.if.end26
+
+startup_fuel_valves3.if.end25:                    ; preds = %startup_fuel_valves3.if.end21, %startup_fuel_valves3.if.else22
+  br label %startup_fuel_valves3.if.end26
+
+startup_fuel_valves3.if.end26:                    ; preds = %startup_fuel_valves3.if.end25, %startup_fuel_valves3.if.then6
+  %34 = load float* %2, align 4
+  %35 = fcmp ogt float %34, 8.800000e+03
+  br i1 %35, label %startup_fuel_valves3.if.then28, label %startup_fuel_valves3.if.else36
+
+startup_fuel_valves3.if.then28:                   ; preds = %startup_fuel_valves3.if.end26
+  %36 = load i32** %1, align 4
+  %37 = getelementptr inbounds i32* %36, i32 2
+  store i32 0, i32* %37, align 4
+  %38 = load i32** %1, align 4
+  %39 = getelementptr inbounds i32* %38, i32 6
+  %40 = load i32* %39, align 4
+  %41 = icmp eq i32 %40, -1
+  br i1 %41, label %startup_fuel_valves3.if.then32, label %startup_fuel_valves3.if.end35
+
+startup_fuel_valves3.if.then32:                   ; preds = %startup_fuel_valves3.if.then28
+  %42 = load i32** %1, align 4
+  %43 = getelementptr inbounds i32* %42, i32 1
+  %44 = load i32* %43, align 4
+  %45 = load i32** %1, align 4
+  %46 = getelementptr inbounds i32* %45, i32 6
+  store i32 %44, i32* %46, align 4
+  br label %startup_fuel_valves3.if.end35
+
+startup_fuel_valves3.if.else36:                   ; preds = %startup_fuel_valves3.if.end26
+  br label %startup_fuel_valves3.if.end37
+
+startup_fuel_valves3.if.end35:                    ; preds = %startup_fuel_valves3.if.then32, %startup_fuel_valves3.if.then28
+  br label %startup_fuel_valves3.if.end37
+
+startup_fuel_valves3.if.then:                     ; preds = %startup_fuel_valves3.entry
+  %47 = load i32** %1, align 4
+  %48 = getelementptr inbounds i32* %47, i32 2
+  store i32 1, i32* %48, align 4
+  %49 = load i32** %1, align 4
+  %50 = getelementptr inbounds i32* %49, i32 3
+  store i32 1, i32* %50, align 4
+  %51 = load i32** %1, align 4
+  %52 = getelementptr inbounds i32* %51, i32 4
+  store i32 0, i32* %52, align 4
+  br label %startup_fuel_valves3.if.end38
+
+startup_fuel_valves3.if.end37:                    ; preds = %startup_fuel_valves3.if.end35, %startup_fuel_valves3.if.else36
+  br label %startup_fuel_valves3.if.end38
+
+startup_fuel_valves3.if.end38:                    ; preds = %startup_fuel_valves3.if.end37, %startup_fuel_valves3.if.then
+  %53 = load i32** %1, align 4
+  br label %startup_fuel_valves3.return
+
+startup_fuel_valves3.return:                      ; preds = %startup_fuel_valves3.if.end38
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @startup_fuel_valves3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+
+----------Adding dependences across created HyperOps----------
+
+-----------Patching created function redefine_start1--------------
+accumulated bbs:
+entry,
+
+----------Adding consumed by metadata----------
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:0
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function redefine_start1, module:; ModuleID = './Working/startupfuelvalves.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_a = common global [7 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [5 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define i32* @startup_fuel_valves(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %current_nh = alloca float, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %current_nh, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 1
+  %4 = load i32* %arrayidx1, align 4
+  %cmp = icmp eq i32 %4, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  %5 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %5, i32 2
+  store i32 1, i32* %arrayidx2, align 4
+  %6 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %6, i32 3
+  store i32 1, i32* %arrayidx3, align 4
+  %7 = load i32** %input.addr, align 4
+  %arrayidx4 = getelementptr inbounds i32* %7, i32 4
+  store i32 0, i32* %arrayidx4, align 4
+  br label %if.end38
+
+if.else:                                          ; preds = %entry
+  %8 = load float* %current_nh, align 4
+  %cmp5 = fcmp olt float %8, 4.000000e+03
+  br i1 %cmp5, label %if.then6, label %if.else7
+
+if.then6:                                         ; preds = %if.else
+  br label %if.end26
+
+if.else7:                                         ; preds = %if.else
+  %9 = load float* %current_nh, align 4
+  %cmp8 = fcmp olt float %9, 1.250000e+04
+  br i1 %cmp8, label %if.then9, label %if.else22
+
+if.then9:                                         ; preds = %if.else7
+  %10 = load i32** %input.addr, align 4
+  %arrayidx10 = getelementptr inbounds i32* %10, i32 4
+  %11 = load i32* %arrayidx10, align 4
+  %cmp11 = icmp eq i32 %11, 0
+  br i1 %cmp11, label %if.then12, label %if.else20
+
+if.then12:                                        ; preds = %if.then9
+  %12 = load i32** %input.addr, align 4
+  %arrayidx13 = getelementptr inbounds i32* %12, i32 3
+  store i32 0, i32* %arrayidx13, align 4
+  %13 = load i32** %input.addr, align 4
+  %arrayidx14 = getelementptr inbounds i32* %13, i32 5
+  %14 = load i32* %arrayidx14, align 4
+  %cmp15 = icmp eq i32 %14, -1
+  br i1 %cmp15, label %if.then16, label %if.else19
+
+if.then16:                                        ; preds = %if.then12
+  %15 = load i32** %input.addr, align 4
+  %arrayidx17 = getelementptr inbounds i32* %15, i32 1
+  %16 = load i32* %arrayidx17, align 4
+  %17 = load i32** %input.addr, align 4
+  %arrayidx18 = getelementptr inbounds i32* %17, i32 5
+  store i32 %16, i32* %arrayidx18, align 4
+  br label %if.end
+
+if.else19:                                        ; preds = %if.then12
+  br label %if.end
+
+if.end:                                           ; preds = %if.else19, %if.then16
+  br label %if.end21
+
+if.else20:                                        ; preds = %if.then9
+  br label %if.end21
+
+if.end21:                                         ; preds = %if.else20, %if.end
+  br label %if.end25
+
+if.else22:                                        ; preds = %if.else7
+  %18 = load i32** %input.addr, align 4
+  %arrayidx23 = getelementptr inbounds i32* %18, i32 3
+  store i32 1, i32* %arrayidx23, align 4
+  %19 = load i32** %input.addr, align 4
+  %arrayidx24 = getelementptr inbounds i32* %19, i32 4
+  store i32 1, i32* %arrayidx24, align 4
+  br label %if.end25
+
+if.end25:                                         ; preds = %if.else22, %if.end21
+  br label %if.end26
+
+if.end26:                                         ; preds = %if.end25, %if.then6
+  %20 = load float* %current_nh, align 4
+  %cmp27 = fcmp ogt float %20, 8.800000e+03
+  br i1 %cmp27, label %if.then28, label %if.else36
+
+if.then28:                                        ; preds = %if.end26
+  %21 = load i32** %input.addr, align 4
+  %arrayidx29 = getelementptr inbounds i32* %21, i32 2
+  store i32 0, i32* %arrayidx29, align 4
+  %22 = load i32** %input.addr, align 4
+  %arrayidx30 = getelementptr inbounds i32* %22, i32 6
+  %23 = load i32* %arrayidx30, align 4
+  %cmp31 = icmp eq i32 %23, -1
+  br i1 %cmp31, label %if.then32, label %if.end35
+
+if.then32:                                        ; preds = %if.then28
+  %24 = load i32** %input.addr, align 4
+  %arrayidx33 = getelementptr inbounds i32* %24, i32 1
+  %25 = load i32* %arrayidx33, align 4
+  %26 = load i32** %input.addr, align 4
+  %arrayidx34 = getelementptr inbounds i32* %26, i32 6
+  store i32 %25, i32* %arrayidx34, align 4
+  br label %if.end35
+
+if.end35:                                         ; preds = %if.then32, %if.then28
+  br label %if.end37
+
+if.else36:                                        ; preds = %if.end26
+  br label %if.end37
+
+if.end37:                                         ; preds = %if.else36, %if.end35
+  br label %if.end38
+
+if.end38:                                         ; preds = %if.end37, %if.then
+  %27 = load i32** %input.addr, align 4
+  ret i32* %27
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([7 x i32]* @redefine_in_a, i32 0, i32 0), i32** %0
+  %1 = load i32** %0
+  br label %newName0
+
+newName0:                                         ; preds = %redefine_start1.entry, %entry
+  %call = call i32* @startup_fuel_valves(i32* %1)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  %output = alloca i32*, align 4
+  store i32* %call, i32** %output, align 4
+  %2 = load i32** %output, align 4
+  %arrayidx = getelementptr inbounds i32* %2, i32 2
+  %3 = load i32* %arrayidx, align 4
+  store i32 %3, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %4 = load i32** %output, align 4
+  %arrayidx1 = getelementptr inbounds i32* %4, i32 3
+  %5 = load i32* %arrayidx1, align 4
+  store i32 %5, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  %6 = load i32** %output, align 4
+  %arrayidx2 = getelementptr inbounds i32* %6, i32 4
+  %7 = load i32* %arrayidx2, align 4
+  store i32 %7, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 2), align 4
+  %8 = load i32** %output, align 4
+  %arrayidx3 = getelementptr inbounds i32* %8, i32 5
+  %9 = load i32* %arrayidx3, align 4
+  store i32 %9, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 3), align 4
+  %10 = load i32** %output, align 4
+  %arrayidx4 = getelementptr inbounds i32* %10, i32 6
+  %11 = load i32* %arrayidx4, align 4
+  store i32 %11, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 4), align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([7 x i32]* @redefine_in_a, i32 0, i32 0), i32** %0
+  %1 = load i32** %0
+  br label %newName0
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(i32*) {
+redefine_start2.newName01:
+  %1 = alloca i32*, align 4
+  store i32* %0, i32** %1, align 4
+  %2 = load i32** %1, align 4
+  %3 = getelementptr inbounds i32* %2, i32 2
+  %4 = load i32* %3, align 4
+  store i32 %4, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %1, align 4
+  %6 = getelementptr inbounds i32* %5, i32 3
+  %7 = load i32* %6, align 4
+  store i32 %7, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  %8 = load i32** %1, align 4
+  %9 = getelementptr inbounds i32* %8, i32 4
+  %10 = load i32* %9, align 4
+  store i32 %10, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 2), align 4
+  %11 = load i32** %1, align 4
+  %12 = getelementptr inbounds i32* %11, i32 5
+  %13 = load i32* %12, align 4
+  store i32 %13, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 3), align 4
+  %14 = load i32** %1, align 4
+  %15 = getelementptr inbounds i32* %14, i32 6
+  %16 = load i32* %15, align 4
+  store i32 %16, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 4), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @startup_fuel_valves3(i32*) {
+startup_fuel_valves3.entry:
+  %1 = alloca i32*, align 4
+  %2 = alloca float, align 4
+  store i32* %0, i32** %1, align 4
+  %3 = load i32** %1, align 4
+  %4 = getelementptr inbounds i32* %3, i32 0
+  %5 = bitcast i32* %4 to float*
+  %6 = load float* %5, align 4
+  store float %6, float* %2, align 4
+  %7 = load i32** %1, align 4
+  %8 = getelementptr inbounds i32* %7, i32 1
+  %9 = load i32* %8, align 4
+  %10 = icmp eq i32 %9, 0
+  br i1 %10, label %startup_fuel_valves3.if.then, label %startup_fuel_valves3.if.else
+
+startup_fuel_valves3.if.else:                     ; preds = %startup_fuel_valves3.entry
+  %11 = load float* %2, align 4
+  %12 = fcmp olt float %11, 4.000000e+03
+  br i1 %12, label %startup_fuel_valves3.if.then6, label %startup_fuel_valves3.if.else7
+
+startup_fuel_valves3.if.else7:                    ; preds = %startup_fuel_valves3.if.else
+  %13 = load float* %2, align 4
+  %14 = fcmp olt float %13, 1.250000e+04
+  br i1 %14, label %startup_fuel_valves3.if.then9, label %startup_fuel_valves3.if.else22
+
+startup_fuel_valves3.if.then9:                    ; preds = %startup_fuel_valves3.if.else7
+  %15 = load i32** %1, align 4
+  %16 = getelementptr inbounds i32* %15, i32 4
+  %17 = load i32* %16, align 4
+  %18 = icmp eq i32 %17, 0
+  br i1 %18, label %startup_fuel_valves3.if.then12, label %startup_fuel_valves3.if.else20
+
+startup_fuel_valves3.if.then12:                   ; preds = %startup_fuel_valves3.if.then9
+  %19 = load i32** %1, align 4
+  %20 = getelementptr inbounds i32* %19, i32 3
+  store i32 0, i32* %20, align 4
+  %21 = load i32** %1, align 4
+  %22 = getelementptr inbounds i32* %21, i32 5
+  %23 = load i32* %22, align 4
+  %24 = icmp eq i32 %23, -1
+  br i1 %24, label %startup_fuel_valves3.if.then16, label %startup_fuel_valves3.if.else19
+
+startup_fuel_valves3.if.then16:                   ; preds = %startup_fuel_valves3.if.then12
+  %25 = load i32** %1, align 4
+  %26 = getelementptr inbounds i32* %25, i32 1
+  %27 = load i32* %26, align 4
+  %28 = load i32** %1, align 4
+  %29 = getelementptr inbounds i32* %28, i32 5
+  store i32 %27, i32* %29, align 4
+  br label %startup_fuel_valves3.if.end
+
+startup_fuel_valves3.if.else19:                   ; preds = %startup_fuel_valves3.if.then12
+  br label %startup_fuel_valves3.if.end
+
+startup_fuel_valves3.if.else20:                   ; preds = %startup_fuel_valves3.if.then9
+  br label %startup_fuel_valves3.if.end21
+
+startup_fuel_valves3.if.end:                      ; preds = %startup_fuel_valves3.if.else19, %startup_fuel_valves3.if.then16
+  br label %startup_fuel_valves3.if.end21
+
+startup_fuel_valves3.if.else22:                   ; preds = %startup_fuel_valves3.if.else7
+  %30 = load i32** %1, align 4
+  %31 = getelementptr inbounds i32* %30, i32 3
+  store i32 1, i32* %31, align 4
+  %32 = load i32** %1, align 4
+  %33 = getelementptr inbounds i32* %32, i32 4
+  store i32 1, i32* %33, align 4
+  br label %startup_fuel_valves3.if.end25
+
+startup_fuel_valves3.if.end21:                    ; preds = %startup_fuel_valves3.if.end, %startup_fuel_valves3.if.else20
+  br label %startup_fuel_valves3.if.end25
+
+startup_fuel_valves3.if.then6:                    ; preds = %startup_fuel_valves3.if.else
+  br label %startup_fuel_valves3.if.end26
+
+startup_fuel_valves3.if.end25:                    ; preds = %startup_fuel_valves3.if.end21, %startup_fuel_valves3.if.else22
+  br label %startup_fuel_valves3.if.end26
+
+startup_fuel_valves3.if.end26:                    ; preds = %startup_fuel_valves3.if.end25, %startup_fuel_valves3.if.then6
+  %34 = load float* %2, align 4
+  %35 = fcmp ogt float %34, 8.800000e+03
+  br i1 %35, label %startup_fuel_valves3.if.then28, label %startup_fuel_valves3.if.else36
+
+startup_fuel_valves3.if.then28:                   ; preds = %startup_fuel_valves3.if.end26
+  %36 = load i32** %1, align 4
+  %37 = getelementptr inbounds i32* %36, i32 2
+  store i32 0, i32* %37, align 4
+  %38 = load i32** %1, align 4
+  %39 = getelementptr inbounds i32* %38, i32 6
+  %40 = load i32* %39, align 4
+  %41 = icmp eq i32 %40, -1
+  br i1 %41, label %startup_fuel_valves3.if.then32, label %startup_fuel_valves3.if.end35
+
+startup_fuel_valves3.if.then32:                   ; preds = %startup_fuel_valves3.if.then28
+  %42 = load i32** %1, align 4
+  %43 = getelementptr inbounds i32* %42, i32 1
+  %44 = load i32* %43, align 4
+  %45 = load i32** %1, align 4
+  %46 = getelementptr inbounds i32* %45, i32 6
+  store i32 %44, i32* %46, align 4
+  br label %startup_fuel_valves3.if.end35
+
+startup_fuel_valves3.if.else36:                   ; preds = %startup_fuel_valves3.if.end26
+  br label %startup_fuel_valves3.if.end37
+
+startup_fuel_valves3.if.end35:                    ; preds = %startup_fuel_valves3.if.then32, %startup_fuel_valves3.if.then28
+  br label %startup_fuel_valves3.if.end37
+
+startup_fuel_valves3.if.then:                     ; preds = %startup_fuel_valves3.entry
+  %47 = load i32** %1, align 4
+  %48 = getelementptr inbounds i32* %47, i32 2
+  store i32 1, i32* %48, align 4
+  %49 = load i32** %1, align 4
+  %50 = getelementptr inbounds i32* %49, i32 3
+  store i32 1, i32* %50, align 4
+  %51 = load i32** %1, align 4
+  %52 = getelementptr inbounds i32* %51, i32 4
+  store i32 0, i32* %52, align 4
+  br label %startup_fuel_valves3.if.end38
+
+startup_fuel_valves3.if.end37:                    ; preds = %startup_fuel_valves3.if.end35, %startup_fuel_valves3.if.else36
+  br label %startup_fuel_valves3.if.end38
+
+startup_fuel_valves3.if.end38:                    ; preds = %startup_fuel_valves3.if.end37, %startup_fuel_valves3.if.then
+  %53 = load i32** %1, align 4
+  br label %startup_fuel_valves3.return
+
+startup_fuel_valves3.return:                      ; preds = %startup_fuel_valves3.if.end38
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @startup_fuel_valves3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+
+-----------Patching created function redefine_start2--------------
+accumulated bbs:
+newName01,
+
+----------Adding consumed by metadata----------
+  %call = call i32* @startup_fuel_valves(i32* %1)
+cloned inst second:  %27 = load i32** %input.addr, align 4
+producer function:startup_fuel_valves3
+how many clones?1
+added metadata on instruction that belongs to parent startup_fuel_valves3 and is mapped to slot 0 when the function has 1 and is of type:1:  %1 = alloca i32*, align 4, !ConsumedBy !6
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:1
+what was callsite size earlier??0
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function redefine_start2, module:; ModuleID = './Working/startupfuelvalves.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_a = common global [7 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [5 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define i32* @startup_fuel_valves(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %current_nh = alloca float, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %current_nh, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 1
+  %4 = load i32* %arrayidx1, align 4
+  %cmp = icmp eq i32 %4, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  %5 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %5, i32 2
+  store i32 1, i32* %arrayidx2, align 4
+  %6 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %6, i32 3
+  store i32 1, i32* %arrayidx3, align 4
+  %7 = load i32** %input.addr, align 4
+  %arrayidx4 = getelementptr inbounds i32* %7, i32 4
+  store i32 0, i32* %arrayidx4, align 4
+  br label %if.end38
+
+if.else:                                          ; preds = %entry
+  %8 = load float* %current_nh, align 4
+  %cmp5 = fcmp olt float %8, 4.000000e+03
+  br i1 %cmp5, label %if.then6, label %if.else7
+
+if.then6:                                         ; preds = %if.else
+  br label %if.end26
+
+if.else7:                                         ; preds = %if.else
+  %9 = load float* %current_nh, align 4
+  %cmp8 = fcmp olt float %9, 1.250000e+04
+  br i1 %cmp8, label %if.then9, label %if.else22
+
+if.then9:                                         ; preds = %if.else7
+  %10 = load i32** %input.addr, align 4
+  %arrayidx10 = getelementptr inbounds i32* %10, i32 4
+  %11 = load i32* %arrayidx10, align 4
+  %cmp11 = icmp eq i32 %11, 0
+  br i1 %cmp11, label %if.then12, label %if.else20
+
+if.then12:                                        ; preds = %if.then9
+  %12 = load i32** %input.addr, align 4
+  %arrayidx13 = getelementptr inbounds i32* %12, i32 3
+  store i32 0, i32* %arrayidx13, align 4
+  %13 = load i32** %input.addr, align 4
+  %arrayidx14 = getelementptr inbounds i32* %13, i32 5
+  %14 = load i32* %arrayidx14, align 4
+  %cmp15 = icmp eq i32 %14, -1
+  br i1 %cmp15, label %if.then16, label %if.else19
+
+if.then16:                                        ; preds = %if.then12
+  %15 = load i32** %input.addr, align 4
+  %arrayidx17 = getelementptr inbounds i32* %15, i32 1
+  %16 = load i32* %arrayidx17, align 4
+  %17 = load i32** %input.addr, align 4
+  %arrayidx18 = getelementptr inbounds i32* %17, i32 5
+  store i32 %16, i32* %arrayidx18, align 4
+  br label %if.end
+
+if.else19:                                        ; preds = %if.then12
+  br label %if.end
+
+if.end:                                           ; preds = %if.else19, %if.then16
+  br label %if.end21
+
+if.else20:                                        ; preds = %if.then9
+  br label %if.end21
+
+if.end21:                                         ; preds = %if.else20, %if.end
+  br label %if.end25
+
+if.else22:                                        ; preds = %if.else7
+  %18 = load i32** %input.addr, align 4
+  %arrayidx23 = getelementptr inbounds i32* %18, i32 3
+  store i32 1, i32* %arrayidx23, align 4
+  %19 = load i32** %input.addr, align 4
+  %arrayidx24 = getelementptr inbounds i32* %19, i32 4
+  store i32 1, i32* %arrayidx24, align 4
+  br label %if.end25
+
+if.end25:                                         ; preds = %if.else22, %if.end21
+  br label %if.end26
+
+if.end26:                                         ; preds = %if.end25, %if.then6
+  %20 = load float* %current_nh, align 4
+  %cmp27 = fcmp ogt float %20, 8.800000e+03
+  br i1 %cmp27, label %if.then28, label %if.else36
+
+if.then28:                                        ; preds = %if.end26
+  %21 = load i32** %input.addr, align 4
+  %arrayidx29 = getelementptr inbounds i32* %21, i32 2
+  store i32 0, i32* %arrayidx29, align 4
+  %22 = load i32** %input.addr, align 4
+  %arrayidx30 = getelementptr inbounds i32* %22, i32 6
+  %23 = load i32* %arrayidx30, align 4
+  %cmp31 = icmp eq i32 %23, -1
+  br i1 %cmp31, label %if.then32, label %if.end35
+
+if.then32:                                        ; preds = %if.then28
+  %24 = load i32** %input.addr, align 4
+  %arrayidx33 = getelementptr inbounds i32* %24, i32 1
+  %25 = load i32* %arrayidx33, align 4
+  %26 = load i32** %input.addr, align 4
+  %arrayidx34 = getelementptr inbounds i32* %26, i32 6
+  store i32 %25, i32* %arrayidx34, align 4
+  br label %if.end35
+
+if.end35:                                         ; preds = %if.then32, %if.then28
+  br label %if.end37
+
+if.else36:                                        ; preds = %if.end26
+  br label %if.end37
+
+if.end37:                                         ; preds = %if.else36, %if.end35
+  br label %if.end38
+
+if.end38:                                         ; preds = %if.end37, %if.then
+  %27 = load i32** %input.addr, align 4
+  ret i32* %27
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([7 x i32]* @redefine_in_a, i32 0, i32 0), i32** %0
+  %1 = load i32** %0
+  br label %newName0
+
+newName0:                                         ; preds = %redefine_start1.entry, %entry
+  %call = call i32* @startup_fuel_valves(i32* %1)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  %output = alloca i32*, align 4
+  store i32* %call, i32** %output, align 4
+  %2 = load i32** %output, align 4
+  %arrayidx = getelementptr inbounds i32* %2, i32 2
+  %3 = load i32* %arrayidx, align 4
+  store i32 %3, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %4 = load i32** %output, align 4
+  %arrayidx1 = getelementptr inbounds i32* %4, i32 3
+  %5 = load i32* %arrayidx1, align 4
+  store i32 %5, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  %6 = load i32** %output, align 4
+  %arrayidx2 = getelementptr inbounds i32* %6, i32 4
+  %7 = load i32* %arrayidx2, align 4
+  store i32 %7, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 2), align 4
+  %8 = load i32** %output, align 4
+  %arrayidx3 = getelementptr inbounds i32* %8, i32 5
+  %9 = load i32* %arrayidx3, align 4
+  store i32 %9, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 3), align 4
+  %10 = load i32** %output, align 4
+  %arrayidx4 = getelementptr inbounds i32* %10, i32 6
+  %11 = load i32* %arrayidx4, align 4
+  store i32 %11, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 4), align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([7 x i32]* @redefine_in_a, i32 0, i32 0), i32** %0
+  %1 = load i32** %0
+  br label %newName0
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(i32*) {
+redefine_start2.newName01:
+  %1 = alloca i32*, align 4
+  store i32* %0, i32** %1, align 4
+  %2 = load i32** %1, align 4
+  %3 = getelementptr inbounds i32* %2, i32 2
+  %4 = load i32* %3, align 4
+  store i32 %4, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %1, align 4
+  %6 = getelementptr inbounds i32* %5, i32 3
+  %7 = load i32* %6, align 4
+  store i32 %7, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  %8 = load i32** %1, align 4
+  %9 = getelementptr inbounds i32* %8, i32 4
+  %10 = load i32* %9, align 4
+  store i32 %10, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 2), align 4
+  %11 = load i32** %1, align 4
+  %12 = getelementptr inbounds i32* %11, i32 5
+  %13 = load i32* %12, align 4
+  store i32 %13, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 3), align 4
+  %14 = load i32** %1, align 4
+  %15 = getelementptr inbounds i32* %14, i32 6
+  %16 = load i32* %15, align 4
+  store i32 %16, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 4), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @startup_fuel_valves3(i32*) {
+startup_fuel_valves3.entry:
+  %1 = alloca i32*, align 4, !ConsumedBy !6
+  %2 = alloca i32*, align 4
+  %3 = alloca float, align 4
+  store i32* %0, i32** %2, align 4
+  %4 = load i32** %2, align 4
+  %5 = getelementptr inbounds i32* %4, i32 0
+  %6 = bitcast i32* %5 to float*
+  %7 = load float* %6, align 4
+  store float %7, float* %3, align 4
+  %8 = load i32** %2, align 4
+  %9 = getelementptr inbounds i32* %8, i32 1
+  %10 = load i32* %9, align 4
+  %11 = icmp eq i32 %10, 0
+  br i1 %11, label %startup_fuel_valves3.if.then, label %startup_fuel_valves3.if.else
+
+startup_fuel_valves3.if.else:                     ; preds = %startup_fuel_valves3.entry
+  %12 = load float* %3, align 4
+  %13 = fcmp olt float %12, 4.000000e+03
+  br i1 %13, label %startup_fuel_valves3.if.then6, label %startup_fuel_valves3.if.else7
+
+startup_fuel_valves3.if.else7:                    ; preds = %startup_fuel_valves3.if.else
+  %14 = load float* %3, align 4
+  %15 = fcmp olt float %14, 1.250000e+04
+  br i1 %15, label %startup_fuel_valves3.if.then9, label %startup_fuel_valves3.if.else22
+
+startup_fuel_valves3.if.then9:                    ; preds = %startup_fuel_valves3.if.else7
+  %16 = load i32** %2, align 4
+  %17 = getelementptr inbounds i32* %16, i32 4
+  %18 = load i32* %17, align 4
+  %19 = icmp eq i32 %18, 0
+  br i1 %19, label %startup_fuel_valves3.if.then12, label %startup_fuel_valves3.if.else20
+
+startup_fuel_valves3.if.then12:                   ; preds = %startup_fuel_valves3.if.then9
+  %20 = load i32** %2, align 4
+  %21 = getelementptr inbounds i32* %20, i32 3
+  store i32 0, i32* %21, align 4
+  %22 = load i32** %2, align 4
+  %23 = getelementptr inbounds i32* %22, i32 5
+  %24 = load i32* %23, align 4
+  %25 = icmp eq i32 %24, -1
+  br i1 %25, label %startup_fuel_valves3.if.then16, label %startup_fuel_valves3.if.else19
+
+startup_fuel_valves3.if.then16:                   ; preds = %startup_fuel_valves3.if.then12
+  %26 = load i32** %2, align 4
+  %27 = getelementptr inbounds i32* %26, i32 1
+  %28 = load i32* %27, align 4
+  %29 = load i32** %2, align 4
+  %30 = getelementptr inbounds i32* %29, i32 5
+  store i32 %28, i32* %30, align 4
+  br label %startup_fuel_valves3.if.end
+
+startup_fuel_valves3.if.else19:                   ; preds = %startup_fuel_valves3.if.then12
+  br label %startup_fuel_valves3.if.end
+
+startup_fuel_valves3.if.else20:                   ; preds = %startup_fuel_valves3.if.then9
+  br label %startup_fuel_valves3.if.end21
+
+startup_fuel_valves3.if.end:                      ; preds = %startup_fuel_valves3.if.else19, %startup_fuel_valves3.if.then16
+  br label %startup_fuel_valves3.if.end21
+
+startup_fuel_valves3.if.else22:                   ; preds = %startup_fuel_valves3.if.else7
+  %31 = load i32** %2, align 4
+  %32 = getelementptr inbounds i32* %31, i32 3
+  store i32 1, i32* %32, align 4
+  %33 = load i32** %2, align 4
+  %34 = getelementptr inbounds i32* %33, i32 4
+  store i32 1, i32* %34, align 4
+  br label %startup_fuel_valves3.if.end25
+
+startup_fuel_valves3.if.end21:                    ; preds = %startup_fuel_valves3.if.end, %startup_fuel_valves3.if.else20
+  br label %startup_fuel_valves3.if.end25
+
+startup_fuel_valves3.if.then6:                    ; preds = %startup_fuel_valves3.if.else
+  br label %startup_fuel_valves3.if.end26
+
+startup_fuel_valves3.if.end25:                    ; preds = %startup_fuel_valves3.if.end21, %startup_fuel_valves3.if.else22
+  br label %startup_fuel_valves3.if.end26
+
+startup_fuel_valves3.if.end26:                    ; preds = %startup_fuel_valves3.if.end25, %startup_fuel_valves3.if.then6
+  %35 = load float* %3, align 4
+  %36 = fcmp ogt float %35, 8.800000e+03
+  br i1 %36, label %startup_fuel_valves3.if.then28, label %startup_fuel_valves3.if.else36
+
+startup_fuel_valves3.if.then28:                   ; preds = %startup_fuel_valves3.if.end26
+  %37 = load i32** %2, align 4
+  %38 = getelementptr inbounds i32* %37, i32 2
+  store i32 0, i32* %38, align 4
+  %39 = load i32** %2, align 4
+  %40 = getelementptr inbounds i32* %39, i32 6
+  %41 = load i32* %40, align 4
+  %42 = icmp eq i32 %41, -1
+  br i1 %42, label %startup_fuel_valves3.if.then32, label %startup_fuel_valves3.if.end35
+
+startup_fuel_valves3.if.then32:                   ; preds = %startup_fuel_valves3.if.then28
+  %43 = load i32** %2, align 4
+  %44 = getelementptr inbounds i32* %43, i32 1
+  %45 = load i32* %44, align 4
+  %46 = load i32** %2, align 4
+  %47 = getelementptr inbounds i32* %46, i32 6
+  store i32 %45, i32* %47, align 4
+  br label %startup_fuel_valves3.if.end35
+
+startup_fuel_valves3.if.else36:                   ; preds = %startup_fuel_valves3.if.end26
+  br label %startup_fuel_valves3.if.end37
+
+startup_fuel_valves3.if.end35:                    ; preds = %startup_fuel_valves3.if.then32, %startup_fuel_valves3.if.then28
+  br label %startup_fuel_valves3.if.end37
+
+startup_fuel_valves3.if.then:                     ; preds = %startup_fuel_valves3.entry
+  %48 = load i32** %2, align 4
+  %49 = getelementptr inbounds i32* %48, i32 2
+  store i32 1, i32* %49, align 4
+  %50 = load i32** %2, align 4
+  %51 = getelementptr inbounds i32* %50, i32 3
+  store i32 1, i32* %51, align 4
+  %52 = load i32** %2, align 4
+  %53 = getelementptr inbounds i32* %52, i32 4
+  store i32 0, i32* %53, align 4
+  br label %startup_fuel_valves3.if.end38
+
+startup_fuel_valves3.if.end37:                    ; preds = %startup_fuel_valves3.if.end35, %startup_fuel_valves3.if.else36
+  br label %startup_fuel_valves3.if.end38
+
+startup_fuel_valves3.if.end38:                    ; preds = %startup_fuel_valves3.if.end37, %startup_fuel_valves3.if.then
+  %54 = load i32** %2, align 4
+  store i32* %54, i32** %1, align 4
+  br label %startup_fuel_valves3.return
+
+startup_fuel_valves3.return:                      ; preds = %startup_fuel_valves3.if.end38
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @startup_fuel_valves3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !2, metadata !"LocalReference", i32 0}
+
+-----------Patching created function startup_fuel_valves3--------------
+accumulated bbs:
+entry,if.else,if.else7,if.then9,if.then12,if.then16,if.else19,if.else20,if.end,if.else22,if.end21,if.then6,if.end25,if.end26,if.then28,if.then32,if.else36,if.end35,if.then,if.end37,if.end38,
+
+----------Adding consumed by metadata----------
+cloned inst second:  %0 = alloca i32*, align 4
+producer function:redefine_start1
+how many clones?1
+added metadata on instruction that belongs to parent redefine_start1 and is mapped to slot 0 when the function has 1 and is of type:1:  %0 = alloca i32*, align 4, !ConsumedBy !6
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:1
+what was callsite size earlier??1
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function startup_fuel_valves3, module:; ModuleID = './Working/startupfuelvalves.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_a = common global [7 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [5 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define i32* @startup_fuel_valves(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %current_nh = alloca float, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %current_nh, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 1
+  %4 = load i32* %arrayidx1, align 4
+  %cmp = icmp eq i32 %4, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  %5 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %5, i32 2
+  store i32 1, i32* %arrayidx2, align 4
+  %6 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %6, i32 3
+  store i32 1, i32* %arrayidx3, align 4
+  %7 = load i32** %input.addr, align 4
+  %arrayidx4 = getelementptr inbounds i32* %7, i32 4
+  store i32 0, i32* %arrayidx4, align 4
+  br label %if.end38
+
+if.else:                                          ; preds = %entry
+  %8 = load float* %current_nh, align 4
+  %cmp5 = fcmp olt float %8, 4.000000e+03
+  br i1 %cmp5, label %if.then6, label %if.else7
+
+if.then6:                                         ; preds = %if.else
+  br label %if.end26
+
+if.else7:                                         ; preds = %if.else
+  %9 = load float* %current_nh, align 4
+  %cmp8 = fcmp olt float %9, 1.250000e+04
+  br i1 %cmp8, label %if.then9, label %if.else22
+
+if.then9:                                         ; preds = %if.else7
+  %10 = load i32** %input.addr, align 4
+  %arrayidx10 = getelementptr inbounds i32* %10, i32 4
+  %11 = load i32* %arrayidx10, align 4
+  %cmp11 = icmp eq i32 %11, 0
+  br i1 %cmp11, label %if.then12, label %if.else20
+
+if.then12:                                        ; preds = %if.then9
+  %12 = load i32** %input.addr, align 4
+  %arrayidx13 = getelementptr inbounds i32* %12, i32 3
+  store i32 0, i32* %arrayidx13, align 4
+  %13 = load i32** %input.addr, align 4
+  %arrayidx14 = getelementptr inbounds i32* %13, i32 5
+  %14 = load i32* %arrayidx14, align 4
+  %cmp15 = icmp eq i32 %14, -1
+  br i1 %cmp15, label %if.then16, label %if.else19
+
+if.then16:                                        ; preds = %if.then12
+  %15 = load i32** %input.addr, align 4
+  %arrayidx17 = getelementptr inbounds i32* %15, i32 1
+  %16 = load i32* %arrayidx17, align 4
+  %17 = load i32** %input.addr, align 4
+  %arrayidx18 = getelementptr inbounds i32* %17, i32 5
+  store i32 %16, i32* %arrayidx18, align 4
+  br label %if.end
+
+if.else19:                                        ; preds = %if.then12
+  br label %if.end
+
+if.end:                                           ; preds = %if.else19, %if.then16
+  br label %if.end21
+
+if.else20:                                        ; preds = %if.then9
+  br label %if.end21
+
+if.end21:                                         ; preds = %if.else20, %if.end
+  br label %if.end25
+
+if.else22:                                        ; preds = %if.else7
+  %18 = load i32** %input.addr, align 4
+  %arrayidx23 = getelementptr inbounds i32* %18, i32 3
+  store i32 1, i32* %arrayidx23, align 4
+  %19 = load i32** %input.addr, align 4
+  %arrayidx24 = getelementptr inbounds i32* %19, i32 4
+  store i32 1, i32* %arrayidx24, align 4
+  br label %if.end25
+
+if.end25:                                         ; preds = %if.else22, %if.end21
+  br label %if.end26
+
+if.end26:                                         ; preds = %if.end25, %if.then6
+  %20 = load float* %current_nh, align 4
+  %cmp27 = fcmp ogt float %20, 8.800000e+03
+  br i1 %cmp27, label %if.then28, label %if.else36
+
+if.then28:                                        ; preds = %if.end26
+  %21 = load i32** %input.addr, align 4
+  %arrayidx29 = getelementptr inbounds i32* %21, i32 2
+  store i32 0, i32* %arrayidx29, align 4
+  %22 = load i32** %input.addr, align 4
+  %arrayidx30 = getelementptr inbounds i32* %22, i32 6
+  %23 = load i32* %arrayidx30, align 4
+  %cmp31 = icmp eq i32 %23, -1
+  br i1 %cmp31, label %if.then32, label %if.end35
+
+if.then32:                                        ; preds = %if.then28
+  %24 = load i32** %input.addr, align 4
+  %arrayidx33 = getelementptr inbounds i32* %24, i32 1
+  %25 = load i32* %arrayidx33, align 4
+  %26 = load i32** %input.addr, align 4
+  %arrayidx34 = getelementptr inbounds i32* %26, i32 6
+  store i32 %25, i32* %arrayidx34, align 4
+  br label %if.end35
+
+if.end35:                                         ; preds = %if.then32, %if.then28
+  br label %if.end37
+
+if.else36:                                        ; preds = %if.end26
+  br label %if.end37
+
+if.end37:                                         ; preds = %if.else36, %if.end35
+  br label %if.end38
+
+if.end38:                                         ; preds = %if.end37, %if.then
+  %27 = load i32** %input.addr, align 4
+  ret i32* %27
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([7 x i32]* @redefine_in_a, i32 0, i32 0), i32** %0
+  %1 = load i32** %0
+  br label %newName0
+
+newName0:                                         ; preds = %entry
+  %call = call i32* @startup_fuel_valves(i32* %1)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  %output = alloca i32*, align 4
+  store i32* %call, i32** %output, align 4
+  %2 = load i32** %output, align 4
+  %arrayidx = getelementptr inbounds i32* %2, i32 2
+  %3 = load i32* %arrayidx, align 4
+  store i32 %3, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %4 = load i32** %output, align 4
+  %arrayidx1 = getelementptr inbounds i32* %4, i32 3
+  %5 = load i32* %arrayidx1, align 4
+  store i32 %5, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  %6 = load i32** %output, align 4
+  %arrayidx2 = getelementptr inbounds i32* %6, i32 4
+  %7 = load i32* %arrayidx2, align 4
+  store i32 %7, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 2), align 4
+  %8 = load i32** %output, align 4
+  %arrayidx3 = getelementptr inbounds i32* %8, i32 5
+  %9 = load i32* %arrayidx3, align 4
+  store i32 %9, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 3), align 4
+  %10 = load i32** %output, align 4
+  %arrayidx4 = getelementptr inbounds i32* %10, i32 6
+  %11 = load i32* %arrayidx4, align 4
+  store i32 %11, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 4), align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca i32*, align 4, !ConsumedBy !6
+  store i32* getelementptr inbounds ([7 x i32]* @redefine_in_a, i32 0, i32 0), i32** %0
+  %1 = load i32** %0
+  br label %redefine_start1.return
+
+redefine_start1.return:                           ; preds = %redefine_start1.entry
+  ret void
+}
+
+define void @redefine_start2(i32*) {
+redefine_start2.newName01:
+  %1 = alloca i32*, align 4
+  store i32* %0, i32** %1, align 4
+  %2 = load i32** %1, align 4
+  %3 = getelementptr inbounds i32* %2, i32 2
+  %4 = load i32* %3, align 4
+  store i32 %4, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %1, align 4
+  %6 = getelementptr inbounds i32* %5, i32 3
+  %7 = load i32* %6, align 4
+  store i32 %7, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  %8 = load i32** %1, align 4
+  %9 = getelementptr inbounds i32* %8, i32 4
+  %10 = load i32* %9, align 4
+  store i32 %10, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 2), align 4
+  %11 = load i32** %1, align 4
+  %12 = getelementptr inbounds i32* %11, i32 5
+  %13 = load i32* %12, align 4
+  store i32 %13, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 3), align 4
+  %14 = load i32** %1, align 4
+  %15 = getelementptr inbounds i32* %14, i32 6
+  %16 = load i32* %15, align 4
+  store i32 %16, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 4), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @startup_fuel_valves3(i32*) {
+startup_fuel_valves3.entry:
+  %1 = alloca i32*, align 4, !ConsumedBy !8
+  %2 = alloca i32*, align 4
+  %3 = alloca float, align 4
+  store i32* %0, i32** %2, align 4
+  %4 = load i32** %2, align 4
+  %5 = getelementptr inbounds i32* %4, i32 0
+  %6 = bitcast i32* %5 to float*
+  %7 = load float* %6, align 4
+  store float %7, float* %3, align 4
+  %8 = load i32** %2, align 4
+  %9 = getelementptr inbounds i32* %8, i32 1
+  %10 = load i32* %9, align 4
+  %11 = icmp eq i32 %10, 0
+  br i1 %11, label %startup_fuel_valves3.if.then, label %startup_fuel_valves3.if.else
+
+startup_fuel_valves3.if.else:                     ; preds = %startup_fuel_valves3.entry
+  %12 = load float* %3, align 4
+  %13 = fcmp olt float %12, 4.000000e+03
+  br i1 %13, label %startup_fuel_valves3.if.then6, label %startup_fuel_valves3.if.else7
+
+startup_fuel_valves3.if.else7:                    ; preds = %startup_fuel_valves3.if.else
+  %14 = load float* %3, align 4
+  %15 = fcmp olt float %14, 1.250000e+04
+  br i1 %15, label %startup_fuel_valves3.if.then9, label %startup_fuel_valves3.if.else22
+
+startup_fuel_valves3.if.then9:                    ; preds = %startup_fuel_valves3.if.else7
+  %16 = load i32** %2, align 4
+  %17 = getelementptr inbounds i32* %16, i32 4
+  %18 = load i32* %17, align 4
+  %19 = icmp eq i32 %18, 0
+  br i1 %19, label %startup_fuel_valves3.if.then12, label %startup_fuel_valves3.if.else20
+
+startup_fuel_valves3.if.then12:                   ; preds = %startup_fuel_valves3.if.then9
+  %20 = load i32** %2, align 4
+  %21 = getelementptr inbounds i32* %20, i32 3
+  store i32 0, i32* %21, align 4
+  %22 = load i32** %2, align 4
+  %23 = getelementptr inbounds i32* %22, i32 5
+  %24 = load i32* %23, align 4
+  %25 = icmp eq i32 %24, -1
+  br i1 %25, label %startup_fuel_valves3.if.then16, label %startup_fuel_valves3.if.else19
+
+startup_fuel_valves3.if.then16:                   ; preds = %startup_fuel_valves3.if.then12
+  %26 = load i32** %2, align 4
+  %27 = getelementptr inbounds i32* %26, i32 1
+  %28 = load i32* %27, align 4
+  %29 = load i32** %2, align 4
+  %30 = getelementptr inbounds i32* %29, i32 5
+  store i32 %28, i32* %30, align 4
+  br label %startup_fuel_valves3.if.end
+
+startup_fuel_valves3.if.else19:                   ; preds = %startup_fuel_valves3.if.then12
+  br label %startup_fuel_valves3.if.end
+
+startup_fuel_valves3.if.else20:                   ; preds = %startup_fuel_valves3.if.then9
+  br label %startup_fuel_valves3.if.end21
+
+startup_fuel_valves3.if.end:                      ; preds = %startup_fuel_valves3.if.else19, %startup_fuel_valves3.if.then16
+  br label %startup_fuel_valves3.if.end21
+
+startup_fuel_valves3.if.else22:                   ; preds = %startup_fuel_valves3.if.else7
+  %31 = load i32** %2, align 4
+  %32 = getelementptr inbounds i32* %31, i32 3
+  store i32 1, i32* %32, align 4
+  %33 = load i32** %2, align 4
+  %34 = getelementptr inbounds i32* %33, i32 4
+  store i32 1, i32* %34, align 4
+  br label %startup_fuel_valves3.if.end25
+
+startup_fuel_valves3.if.end21:                    ; preds = %startup_fuel_valves3.if.end, %startup_fuel_valves3.if.else20
+  br label %startup_fuel_valves3.if.end25
+
+startup_fuel_valves3.if.then6:                    ; preds = %startup_fuel_valves3.if.else
+  br label %startup_fuel_valves3.if.end26
+
+startup_fuel_valves3.if.end25:                    ; preds = %startup_fuel_valves3.if.end21, %startup_fuel_valves3.if.else22
+  br label %startup_fuel_valves3.if.end26
+
+startup_fuel_valves3.if.end26:                    ; preds = %startup_fuel_valves3.if.end25, %startup_fuel_valves3.if.then6
+  %35 = load float* %3, align 4
+  %36 = fcmp ogt float %35, 8.800000e+03
+  br i1 %36, label %startup_fuel_valves3.if.then28, label %startup_fuel_valves3.if.else36
+
+startup_fuel_valves3.if.then28:                   ; preds = %startup_fuel_valves3.if.end26
+  %37 = load i32** %2, align 4
+  %38 = getelementptr inbounds i32* %37, i32 2
+  store i32 0, i32* %38, align 4
+  %39 = load i32** %2, align 4
+  %40 = getelementptr inbounds i32* %39, i32 6
+  %41 = load i32* %40, align 4
+  %42 = icmp eq i32 %41, -1
+  br i1 %42, label %startup_fuel_valves3.if.then32, label %startup_fuel_valves3.if.end35
+
+startup_fuel_valves3.if.then32:                   ; preds = %startup_fuel_valves3.if.then28
+  %43 = load i32** %2, align 4
+  %44 = getelementptr inbounds i32* %43, i32 1
+  %45 = load i32* %44, align 4
+  %46 = load i32** %2, align 4
+  %47 = getelementptr inbounds i32* %46, i32 6
+  store i32 %45, i32* %47, align 4
+  br label %startup_fuel_valves3.if.end35
+
+startup_fuel_valves3.if.else36:                   ; preds = %startup_fuel_valves3.if.end26
+  br label %startup_fuel_valves3.if.end37
+
+startup_fuel_valves3.if.end35:                    ; preds = %startup_fuel_valves3.if.then32, %startup_fuel_valves3.if.then28
+  br label %startup_fuel_valves3.if.end37
+
+startup_fuel_valves3.if.then:                     ; preds = %startup_fuel_valves3.entry
+  %48 = load i32** %2, align 4
+  %49 = getelementptr inbounds i32* %48, i32 2
+  store i32 1, i32* %49, align 4
+  %50 = load i32** %2, align 4
+  %51 = getelementptr inbounds i32* %50, i32 3
+  store i32 1, i32* %51, align 4
+  %52 = load i32** %2, align 4
+  %53 = getelementptr inbounds i32* %52, i32 4
+  store i32 0, i32* %53, align 4
+  br label %startup_fuel_valves3.if.end38
+
+startup_fuel_valves3.if.end37:                    ; preds = %startup_fuel_valves3.if.end35, %startup_fuel_valves3.if.else36
+  br label %startup_fuel_valves3.if.end38
+
+startup_fuel_valves3.if.end38:                    ; preds = %startup_fuel_valves3.if.end37, %startup_fuel_valves3.if.then
+  %54 = load i32** %2, align 4
+  store i32* %54, i32** %1, align 4
+  br label %startup_fuel_valves3.return
+
+startup_fuel_valves3.return:                      ; preds = %startup_fuel_valves3.if.end38
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @startup_fuel_valves3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !4, metadata !"LocalReference", i32 0}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !2, metadata !"LocalReference", i32 0}
+
+----------Adding sync edges to dangling HyperOps----------
+
+-----------Re-routing sync edges from end hyperop to the newly created end HyperOp-----------
+whats in module now?; ModuleID = './Working/startupfuelvalves.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_a = common global [7 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [5 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define i32* @startup_fuel_valves(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %current_nh = alloca float, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %current_nh, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 1
+  %4 = load i32* %arrayidx1, align 4
+  %cmp = icmp eq i32 %4, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  %5 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %5, i32 2
+  store i32 1, i32* %arrayidx2, align 4
+  %6 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %6, i32 3
+  store i32 1, i32* %arrayidx3, align 4
+  %7 = load i32** %input.addr, align 4
+  %arrayidx4 = getelementptr inbounds i32* %7, i32 4
+  store i32 0, i32* %arrayidx4, align 4
+  br label %if.end38
+
+if.else:                                          ; preds = %entry
+  %8 = load float* %current_nh, align 4
+  %cmp5 = fcmp olt float %8, 4.000000e+03
+  br i1 %cmp5, label %if.then6, label %if.else7
+
+if.then6:                                         ; preds = %if.else
+  br label %if.end26
+
+if.else7:                                         ; preds = %if.else
+  %9 = load float* %current_nh, align 4
+  %cmp8 = fcmp olt float %9, 1.250000e+04
+  br i1 %cmp8, label %if.then9, label %if.else22
+
+if.then9:                                         ; preds = %if.else7
+  %10 = load i32** %input.addr, align 4
+  %arrayidx10 = getelementptr inbounds i32* %10, i32 4
+  %11 = load i32* %arrayidx10, align 4
+  %cmp11 = icmp eq i32 %11, 0
+  br i1 %cmp11, label %if.then12, label %if.else20
+
+if.then12:                                        ; preds = %if.then9
+  %12 = load i32** %input.addr, align 4
+  %arrayidx13 = getelementptr inbounds i32* %12, i32 3
+  store i32 0, i32* %arrayidx13, align 4
+  %13 = load i32** %input.addr, align 4
+  %arrayidx14 = getelementptr inbounds i32* %13, i32 5
+  %14 = load i32* %arrayidx14, align 4
+  %cmp15 = icmp eq i32 %14, -1
+  br i1 %cmp15, label %if.then16, label %if.else19
+
+if.then16:                                        ; preds = %if.then12
+  %15 = load i32** %input.addr, align 4
+  %arrayidx17 = getelementptr inbounds i32* %15, i32 1
+  %16 = load i32* %arrayidx17, align 4
+  %17 = load i32** %input.addr, align 4
+  %arrayidx18 = getelementptr inbounds i32* %17, i32 5
+  store i32 %16, i32* %arrayidx18, align 4
+  br label %if.end
+
+if.else19:                                        ; preds = %if.then12
+  br label %if.end
+
+if.end:                                           ; preds = %if.else19, %if.then16
+  br label %if.end21
+
+if.else20:                                        ; preds = %if.then9
+  br label %if.end21
+
+if.end21:                                         ; preds = %if.else20, %if.end
+  br label %if.end25
+
+if.else22:                                        ; preds = %if.else7
+  %18 = load i32** %input.addr, align 4
+  %arrayidx23 = getelementptr inbounds i32* %18, i32 3
+  store i32 1, i32* %arrayidx23, align 4
+  %19 = load i32** %input.addr, align 4
+  %arrayidx24 = getelementptr inbounds i32* %19, i32 4
+  store i32 1, i32* %arrayidx24, align 4
+  br label %if.end25
+
+if.end25:                                         ; preds = %if.else22, %if.end21
+  br label %if.end26
+
+if.end26:                                         ; preds = %if.end25, %if.then6
+  %20 = load float* %current_nh, align 4
+  %cmp27 = fcmp ogt float %20, 8.800000e+03
+  br i1 %cmp27, label %if.then28, label %if.else36
+
+if.then28:                                        ; preds = %if.end26
+  %21 = load i32** %input.addr, align 4
+  %arrayidx29 = getelementptr inbounds i32* %21, i32 2
+  store i32 0, i32* %arrayidx29, align 4
+  %22 = load i32** %input.addr, align 4
+  %arrayidx30 = getelementptr inbounds i32* %22, i32 6
+  %23 = load i32* %arrayidx30, align 4
+  %cmp31 = icmp eq i32 %23, -1
+  br i1 %cmp31, label %if.then32, label %if.end35
+
+if.then32:                                        ; preds = %if.then28
+  %24 = load i32** %input.addr, align 4
+  %arrayidx33 = getelementptr inbounds i32* %24, i32 1
+  %25 = load i32* %arrayidx33, align 4
+  %26 = load i32** %input.addr, align 4
+  %arrayidx34 = getelementptr inbounds i32* %26, i32 6
+  store i32 %25, i32* %arrayidx34, align 4
+  br label %if.end35
+
+if.end35:                                         ; preds = %if.then32, %if.then28
+  br label %if.end37
+
+if.else36:                                        ; preds = %if.end26
+  br label %if.end37
+
+if.end37:                                         ; preds = %if.else36, %if.end35
+  br label %if.end38
+
+if.end38:                                         ; preds = %if.end37, %if.then
+  %27 = load i32** %input.addr, align 4
+  ret i32* %27
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([7 x i32]* @redefine_in_a, i32 0, i32 0), i32** %0
+  %1 = load i32** %0
+  br label %newName0
+
+newName0:                                         ; preds = %entry
+  %call = call i32* @startup_fuel_valves(i32* %1)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  %output = alloca i32*, align 4
+  store i32* %call, i32** %output, align 4
+  %2 = load i32** %output, align 4
+  %arrayidx = getelementptr inbounds i32* %2, i32 2
+  %3 = load i32* %arrayidx, align 4
+  store i32 %3, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %4 = load i32** %output, align 4
+  %arrayidx1 = getelementptr inbounds i32* %4, i32 3
+  %5 = load i32* %arrayidx1, align 4
+  store i32 %5, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  %6 = load i32** %output, align 4
+  %arrayidx2 = getelementptr inbounds i32* %6, i32 4
+  %7 = load i32* %arrayidx2, align 4
+  store i32 %7, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 2), align 4
+  %8 = load i32** %output, align 4
+  %arrayidx3 = getelementptr inbounds i32* %8, i32 5
+  %9 = load i32* %arrayidx3, align 4
+  store i32 %9, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 3), align 4
+  %10 = load i32** %output, align 4
+  %arrayidx4 = getelementptr inbounds i32* %10, i32 6
+  %11 = load i32* %arrayidx4, align 4
+  store i32 %11, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 4), align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca i32*, align 4, !ConsumedBy !6
+  store i32* getelementptr inbounds ([7 x i32]* @redefine_in_a, i32 0, i32 0), i32** %0
+  %1 = load i32** %0
+  br label %redefine_start1.return
+
+redefine_start1.return:                           ; preds = %redefine_start1.entry
+  ret void
+}
+
+define void @redefine_start2(i32*) {
+redefine_start2.newName01:
+  %1 = alloca i32*, align 4
+  store i32* %0, i32** %1, align 4
+  %2 = load i32** %1, align 4
+  %3 = getelementptr inbounds i32* %2, i32 2
+  %4 = load i32* %3, align 4
+  store i32 %4, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %1, align 4
+  %6 = getelementptr inbounds i32* %5, i32 3
+  %7 = load i32* %6, align 4
+  store i32 %7, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  %8 = load i32** %1, align 4
+  %9 = getelementptr inbounds i32* %8, i32 4
+  %10 = load i32* %9, align 4
+  store i32 %10, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 2), align 4
+  %11 = load i32** %1, align 4
+  %12 = getelementptr inbounds i32* %11, i32 5
+  %13 = load i32* %12, align 4
+  store i32 %13, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 3), align 4
+  %14 = load i32** %1, align 4
+  %15 = getelementptr inbounds i32* %14, i32 6
+  %16 = load i32* %15, align 4
+  store i32 %16, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 4), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @startup_fuel_valves3(i32*) {
+startup_fuel_valves3.entry:
+  %1 = alloca i32*, align 4, !ConsumedBy !8
+  %2 = alloca i32*, align 4
+  %3 = alloca float, align 4
+  store i32* %0, i32** %2, align 4
+  %4 = load i32** %2, align 4
+  %5 = getelementptr inbounds i32* %4, i32 0
+  %6 = bitcast i32* %5 to float*
+  %7 = load float* %6, align 4
+  store float %7, float* %3, align 4
+  %8 = load i32** %2, align 4
+  %9 = getelementptr inbounds i32* %8, i32 1
+  %10 = load i32* %9, align 4
+  %11 = icmp eq i32 %10, 0
+  br i1 %11, label %startup_fuel_valves3.if.then, label %startup_fuel_valves3.if.else
+
+startup_fuel_valves3.if.else:                     ; preds = %startup_fuel_valves3.entry
+  %12 = load float* %3, align 4
+  %13 = fcmp olt float %12, 4.000000e+03
+  br i1 %13, label %startup_fuel_valves3.if.then6, label %startup_fuel_valves3.if.else7
+
+startup_fuel_valves3.if.else7:                    ; preds = %startup_fuel_valves3.if.else
+  %14 = load float* %3, align 4
+  %15 = fcmp olt float %14, 1.250000e+04
+  br i1 %15, label %startup_fuel_valves3.if.then9, label %startup_fuel_valves3.if.else22
+
+startup_fuel_valves3.if.then9:                    ; preds = %startup_fuel_valves3.if.else7
+  %16 = load i32** %2, align 4
+  %17 = getelementptr inbounds i32* %16, i32 4
+  %18 = load i32* %17, align 4
+  %19 = icmp eq i32 %18, 0
+  br i1 %19, label %startup_fuel_valves3.if.then12, label %startup_fuel_valves3.if.else20
+
+startup_fuel_valves3.if.then12:                   ; preds = %startup_fuel_valves3.if.then9
+  %20 = load i32** %2, align 4
+  %21 = getelementptr inbounds i32* %20, i32 3
+  store i32 0, i32* %21, align 4
+  %22 = load i32** %2, align 4
+  %23 = getelementptr inbounds i32* %22, i32 5
+  %24 = load i32* %23, align 4
+  %25 = icmp eq i32 %24, -1
+  br i1 %25, label %startup_fuel_valves3.if.then16, label %startup_fuel_valves3.if.else19
+
+startup_fuel_valves3.if.then16:                   ; preds = %startup_fuel_valves3.if.then12
+  %26 = load i32** %2, align 4
+  %27 = getelementptr inbounds i32* %26, i32 1
+  %28 = load i32* %27, align 4
+  %29 = load i32** %2, align 4
+  %30 = getelementptr inbounds i32* %29, i32 5
+  store i32 %28, i32* %30, align 4
+  br label %startup_fuel_valves3.if.end
+
+startup_fuel_valves3.if.else19:                   ; preds = %startup_fuel_valves3.if.then12
+  br label %startup_fuel_valves3.if.end
+
+startup_fuel_valves3.if.else20:                   ; preds = %startup_fuel_valves3.if.then9
+  br label %startup_fuel_valves3.if.end21
+
+startup_fuel_valves3.if.end:                      ; preds = %startup_fuel_valves3.if.else19, %startup_fuel_valves3.if.then16
+  br label %startup_fuel_valves3.if.end21
+
+startup_fuel_valves3.if.else22:                   ; preds = %startup_fuel_valves3.if.else7
+  %31 = load i32** %2, align 4
+  %32 = getelementptr inbounds i32* %31, i32 3
+  store i32 1, i32* %32, align 4
+  %33 = load i32** %2, align 4
+  %34 = getelementptr inbounds i32* %33, i32 4
+  store i32 1, i32* %34, align 4
+  br label %startup_fuel_valves3.if.end25
+
+startup_fuel_valves3.if.end21:                    ; preds = %startup_fuel_valves3.if.end, %startup_fuel_valves3.if.else20
+  br label %startup_fuel_valves3.if.end25
+
+startup_fuel_valves3.if.then6:                    ; preds = %startup_fuel_valves3.if.else
+  br label %startup_fuel_valves3.if.end26
+
+startup_fuel_valves3.if.end25:                    ; preds = %startup_fuel_valves3.if.end21, %startup_fuel_valves3.if.else22
+  br label %startup_fuel_valves3.if.end26
+
+startup_fuel_valves3.if.end26:                    ; preds = %startup_fuel_valves3.if.end25, %startup_fuel_valves3.if.then6
+  %35 = load float* %3, align 4
+  %36 = fcmp ogt float %35, 8.800000e+03
+  br i1 %36, label %startup_fuel_valves3.if.then28, label %startup_fuel_valves3.if.else36
+
+startup_fuel_valves3.if.then28:                   ; preds = %startup_fuel_valves3.if.end26
+  %37 = load i32** %2, align 4
+  %38 = getelementptr inbounds i32* %37, i32 2
+  store i32 0, i32* %38, align 4
+  %39 = load i32** %2, align 4
+  %40 = getelementptr inbounds i32* %39, i32 6
+  %41 = load i32* %40, align 4
+  %42 = icmp eq i32 %41, -1
+  br i1 %42, label %startup_fuel_valves3.if.then32, label %startup_fuel_valves3.if.end35
+
+startup_fuel_valves3.if.then32:                   ; preds = %startup_fuel_valves3.if.then28
+  %43 = load i32** %2, align 4
+  %44 = getelementptr inbounds i32* %43, i32 1
+  %45 = load i32* %44, align 4
+  %46 = load i32** %2, align 4
+  %47 = getelementptr inbounds i32* %46, i32 6
+  store i32 %45, i32* %47, align 4
+  br label %startup_fuel_valves3.if.end35
+
+startup_fuel_valves3.if.else36:                   ; preds = %startup_fuel_valves3.if.end26
+  br label %startup_fuel_valves3.if.end37
+
+startup_fuel_valves3.if.end35:                    ; preds = %startup_fuel_valves3.if.then32, %startup_fuel_valves3.if.then28
+  br label %startup_fuel_valves3.if.end37
+
+startup_fuel_valves3.if.then:                     ; preds = %startup_fuel_valves3.entry
+  %48 = load i32** %2, align 4
+  %49 = getelementptr inbounds i32* %48, i32 2
+  store i32 1, i32* %49, align 4
+  %50 = load i32** %2, align 4
+  %51 = getelementptr inbounds i32* %50, i32 3
+  store i32 1, i32* %51, align 4
+  %52 = load i32** %2, align 4
+  %53 = getelementptr inbounds i32* %52, i32 4
+  store i32 0, i32* %53, align 4
+  br label %startup_fuel_valves3.if.end38
+
+startup_fuel_valves3.if.end37:                    ; preds = %startup_fuel_valves3.if.end35, %startup_fuel_valves3.if.else36
+  br label %startup_fuel_valves3.if.end38
+
+startup_fuel_valves3.if.end38:                    ; preds = %startup_fuel_valves3.if.end37, %startup_fuel_valves3.if.then
+  %54 = load i32** %2, align 4
+  store i32* %54, i32** %1, align 4
+  br label %startup_fuel_valves3.return
+
+startup_fuel_valves3.return:                      ; preds = %startup_fuel_valves3.if.end38
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @startup_fuel_valves3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !4, metadata !"LocalReference", i32 0}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !2, metadata !"LocalReference", i32 0}
+
+-----------Deleting unused functions-----------
+deleting contents of function:startup_fuel_valves
+deleting contents of function:redefine_start
+Final module contents:; ModuleID = './Working/startupfuelvalves.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_a = common global [7 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [5 x i32] zeroinitializer, align 4
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca i32*, align 4, !ConsumedBy !6
+  store i32* getelementptr inbounds ([7 x i32]* @redefine_in_a, i32 0, i32 0), i32** %0
+  %1 = load i32** %0
+  br label %redefine_start1.return
+
+redefine_start1.return:                           ; preds = %redefine_start1.entry
+  ret void
+}
+
+define void @redefine_start2(i32*) {
+redefine_start2.newName01:
+  %1 = alloca i32*, align 4
+  store i32* %0, i32** %1, align 4
+  %2 = load i32** %1, align 4
+  %3 = getelementptr inbounds i32* %2, i32 2
+  %4 = load i32* %3, align 4
+  store i32 %4, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %1, align 4
+  %6 = getelementptr inbounds i32* %5, i32 3
+  %7 = load i32* %6, align 4
+  store i32 %7, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  %8 = load i32** %1, align 4
+  %9 = getelementptr inbounds i32* %8, i32 4
+  %10 = load i32* %9, align 4
+  store i32 %10, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 2), align 4
+  %11 = load i32** %1, align 4
+  %12 = getelementptr inbounds i32* %11, i32 5
+  %13 = load i32* %12, align 4
+  store i32 %13, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 3), align 4
+  %14 = load i32** %1, align 4
+  %15 = getelementptr inbounds i32* %14, i32 6
+  %16 = load i32* %15, align 4
+  store i32 %16, i32* getelementptr inbounds ([5 x i32]* @redefine_out_b, i32 0, i32 4), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @startup_fuel_valves3(i32*) {
+startup_fuel_valves3.entry:
+  %1 = alloca i32*, align 4, !ConsumedBy !8
+  %2 = alloca i32*, align 4
+  %3 = alloca float, align 4
+  store i32* %0, i32** %2, align 4
+  %4 = load i32** %2, align 4
+  %5 = getelementptr inbounds i32* %4, i32 0
+  %6 = bitcast i32* %5 to float*
+  %7 = load float* %6, align 4
+  store float %7, float* %3, align 4
+  %8 = load i32** %2, align 4
+  %9 = getelementptr inbounds i32* %8, i32 1
+  %10 = load i32* %9, align 4
+  %11 = icmp eq i32 %10, 0
+  br i1 %11, label %startup_fuel_valves3.if.then, label %startup_fuel_valves3.if.else
+
+startup_fuel_valves3.if.else:                     ; preds = %startup_fuel_valves3.entry
+  %12 = load float* %3, align 4
+  %13 = fcmp olt float %12, 4.000000e+03
+  br i1 %13, label %startup_fuel_valves3.if.then6, label %startup_fuel_valves3.if.else7
+
+startup_fuel_valves3.if.else7:                    ; preds = %startup_fuel_valves3.if.else
+  %14 = load float* %3, align 4
+  %15 = fcmp olt float %14, 1.250000e+04
+  br i1 %15, label %startup_fuel_valves3.if.then9, label %startup_fuel_valves3.if.else22
+
+startup_fuel_valves3.if.then9:                    ; preds = %startup_fuel_valves3.if.else7
+  %16 = load i32** %2, align 4
+  %17 = getelementptr inbounds i32* %16, i32 4
+  %18 = load i32* %17, align 4
+  %19 = icmp eq i32 %18, 0
+  br i1 %19, label %startup_fuel_valves3.if.then12, label %startup_fuel_valves3.if.else20
+
+startup_fuel_valves3.if.then12:                   ; preds = %startup_fuel_valves3.if.then9
+  %20 = load i32** %2, align 4
+  %21 = getelementptr inbounds i32* %20, i32 3
+  store i32 0, i32* %21, align 4
+  %22 = load i32** %2, align 4
+  %23 = getelementptr inbounds i32* %22, i32 5
+  %24 = load i32* %23, align 4
+  %25 = icmp eq i32 %24, -1
+  br i1 %25, label %startup_fuel_valves3.if.then16, label %startup_fuel_valves3.if.else19
+
+startup_fuel_valves3.if.then16:                   ; preds = %startup_fuel_valves3.if.then12
+  %26 = load i32** %2, align 4
+  %27 = getelementptr inbounds i32* %26, i32 1
+  %28 = load i32* %27, align 4
+  %29 = load i32** %2, align 4
+  %30 = getelementptr inbounds i32* %29, i32 5
+  store i32 %28, i32* %30, align 4
+  br label %startup_fuel_valves3.if.end
+
+startup_fuel_valves3.if.else19:                   ; preds = %startup_fuel_valves3.if.then12
+  br label %startup_fuel_valves3.if.end
+
+startup_fuel_valves3.if.else20:                   ; preds = %startup_fuel_valves3.if.then9
+  br label %startup_fuel_valves3.if.end21
+
+startup_fuel_valves3.if.end:                      ; preds = %startup_fuel_valves3.if.else19, %startup_fuel_valves3.if.then16
+  br label %startup_fuel_valves3.if.end21
+
+startup_fuel_valves3.if.else22:                   ; preds = %startup_fuel_valves3.if.else7
+  %31 = load i32** %2, align 4
+  %32 = getelementptr inbounds i32* %31, i32 3
+  store i32 1, i32* %32, align 4
+  %33 = load i32** %2, align 4
+  %34 = getelementptr inbounds i32* %33, i32 4
+  store i32 1, i32* %34, align 4
+  br label %startup_fuel_valves3.if.end25
+
+startup_fuel_valves3.if.end21:                    ; preds = %startup_fuel_valves3.if.end, %startup_fuel_valves3.if.else20
+  br label %startup_fuel_valves3.if.end25
+
+startup_fuel_valves3.if.then6:                    ; preds = %startup_fuel_valves3.if.else
+  br label %startup_fuel_valves3.if.end26
+
+startup_fuel_valves3.if.end25:                    ; preds = %startup_fuel_valves3.if.end21, %startup_fuel_valves3.if.else22
+  br label %startup_fuel_valves3.if.end26
+
+startup_fuel_valves3.if.end26:                    ; preds = %startup_fuel_valves3.if.end25, %startup_fuel_valves3.if.then6
+  %35 = load float* %3, align 4
+  %36 = fcmp ogt float %35, 8.800000e+03
+  br i1 %36, label %startup_fuel_valves3.if.then28, label %startup_fuel_valves3.if.else36
+
+startup_fuel_valves3.if.then28:                   ; preds = %startup_fuel_valves3.if.end26
+  %37 = load i32** %2, align 4
+  %38 = getelementptr inbounds i32* %37, i32 2
+  store i32 0, i32* %38, align 4
+  %39 = load i32** %2, align 4
+  %40 = getelementptr inbounds i32* %39, i32 6
+  %41 = load i32* %40, align 4
+  %42 = icmp eq i32 %41, -1
+  br i1 %42, label %startup_fuel_valves3.if.then32, label %startup_fuel_valves3.if.end35
+
+startup_fuel_valves3.if.then32:                   ; preds = %startup_fuel_valves3.if.then28
+  %43 = load i32** %2, align 4
+  %44 = getelementptr inbounds i32* %43, i32 1
+  %45 = load i32* %44, align 4
+  %46 = load i32** %2, align 4
+  %47 = getelementptr inbounds i32* %46, i32 6
+  store i32 %45, i32* %47, align 4
+  br label %startup_fuel_valves3.if.end35
+
+startup_fuel_valves3.if.else36:                   ; preds = %startup_fuel_valves3.if.end26
+  br label %startup_fuel_valves3.if.end37
+
+startup_fuel_valves3.if.end35:                    ; preds = %startup_fuel_valves3.if.then32, %startup_fuel_valves3.if.then28
+  br label %startup_fuel_valves3.if.end37
+
+startup_fuel_valves3.if.then:                     ; preds = %startup_fuel_valves3.entry
+  %48 = load i32** %2, align 4
+  %49 = getelementptr inbounds i32* %48, i32 2
+  store i32 1, i32* %49, align 4
+  %50 = load i32** %2, align 4
+  %51 = getelementptr inbounds i32* %50, i32 3
+  store i32 1, i32* %51, align 4
+  %52 = load i32** %2, align 4
+  %53 = getelementptr inbounds i32* %52, i32 4
+  store i32 0, i32* %53, align 4
+  br label %startup_fuel_valves3.if.end38
+
+startup_fuel_valves3.if.end37:                    ; preds = %startup_fuel_valves3.if.end35, %startup_fuel_valves3.if.else36
+  br label %startup_fuel_valves3.if.end38
+
+startup_fuel_valves3.if.end38:                    ; preds = %startup_fuel_valves3.if.end37, %startup_fuel_valves3.if.then
+  %54 = load i32** %2, align 4
+  store i32* %54, i32** %1, align 4
+  br label %startup_fuel_valves3.return
+
+startup_fuel_valves3.return:                      ; preds = %startup_fuel_valves3.if.end38
+  ret void
+}
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @startup_fuel_valves3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !4, metadata !"LocalReference", i32 0}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !2, metadata !"LocalReference", i32 0}
