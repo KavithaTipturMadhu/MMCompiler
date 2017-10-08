@@ -136,7 +136,7 @@ class HyperOp {
 
 public:
 	//Map to cache local reference objects that have an alloc instruction in a different HyperOp
-	map<Instruction*, Instruction*> loadInstrAndAllocaMap;
+	map<Instruction*, Instruction* > loadInstrAndAllocaMap;
 	map<HyperOpEdge*, HyperOp*> ParentMap;
 	map<HyperOpEdge*, HyperOp*> ChildMap;
 	map<unsigned, unsigned> syncCountOnPredicates;

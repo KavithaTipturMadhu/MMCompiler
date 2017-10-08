@@ -1232,25 +1232,19 @@ struct HyperOpCreationPass: public ModulePass {
 				map<unsigned, list<BasicBlock*> > untraversedBasicBlocks;
 				list<BasicBlock*> tempTraversalList;
 				std::copy(bbTraverser.begin(), bbTraverser.end(), std::back_inserter(tempTraversalList));
-				errs()<<"added to succ list:";
 				for (unsigned succIndex = 0; succIndex < bbItr->getTerminator()->getNumSuccessors(); succIndex++) {
 					BasicBlock* succBB = bbItr->getTerminator()->getSuccessor(succIndex);
 					if (find(traversedBasicBlocks.begin(), traversedBasicBlocks.end(), succBB) == traversedBasicBlocks.end() && find(bbTraverser.begin(), bbTraverser.end(), succBB) == bbTraverser.end()
 							&& find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), succBB) == accumulatedBasicBlocks.end()) {
 						tempTraversalList.push_back(succBB);
-						errs()<<succBB->getName()<<",";
-					}else{
-						errs()<<"didn't add "<<succBB->getName()<<"\n";
 					}
 				}
 				bbTraverser.clear();
-				errs()<<"\n";
 				for (auto successorTraverser = tempTraversalList.begin(); successorTraverser != tempTraversalList.end(); successorTraverser++) {
 					BasicBlock* succBB = *successorTraverser;
 					if (find(traversedBasicBlocks.begin(), traversedBasicBlocks.end(), succBB) == traversedBasicBlocks.end() && find(bbTraverser.begin(), bbTraverser.end(), succBB) == bbTraverser.end()) {
 						list<BasicBlock*> visitedBasicBlockList;
 						unsigned distanceFromExitBlock = distanceToExitBlock(succBB, visitedBasicBlockList);
-						errs()<<"distance of "<<succBB->getName()<<" to exit "<<distanceFromExitBlock<<"\n";
 						list<BasicBlock*> basicBlockList;
 						if (untraversedBasicBlocks.find(distanceFromExitBlock) != untraversedBasicBlocks.end()) {
 							basicBlockList = untraversedBasicBlocks.find(distanceFromExitBlock)->second;

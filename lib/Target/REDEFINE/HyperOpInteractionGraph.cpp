@@ -215,7 +215,6 @@ void HyperOp::setpHyperOpDependenceMap(PHyperOpInteractionGraph dependenceMap) {
 	this->pHopDependenceMap = dependenceMap;
 }
 
-
 bool HyperOp::isHasMutexSyncSources() const {
 	return hasMutexSyncSources;
 }
@@ -3359,7 +3358,7 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp * currentHyperOp)
 list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInputUptoParent(HyperOp * currentHyperOp, HyperOp* parentHyperOp) {
 //Now we find the shortest predicate chain
 	list<pair<HyperOpEdge*, HyperOp*> > reachingPredicateChain;
-	while (currentHyperOp!=parentHyperOp) {
+	while (currentHyperOp != parentHyperOp) {
 		HyperOp* immediateDominator = currentHyperOp->getImmediateDominator();
 		//Check if the current HyperOp is an immediate child of the immediateDom HyperOp
 		list<HyperOpEdge*> parentEdgeList;
@@ -3548,7 +3547,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			if (transitiveClosure[producerIndex][consumerIndex] == 0 && edgeType == HyperOpEdge::LOCAL_REFERENCE) {
 				//Add a sync edge between producer and consumer since there is no control path between them
 				if (!consumerHyperOp->isPredicatedHyperOp()) {
-					DEBUG(dbgs() << "adding a sync edge between " << producerHyperOp->asString() << " and " << consumerHyperOp->asString() << "\n");
+					DEBUG(dbgs() << "adding a sync edge between " << producerHyperOp->asString() << " and " << consumerHyperOp->asString() << "by not doing anything extra\n");
 					//Add a sync edge between the source and the consumer
 					HyperOpEdge* syncEdge = new HyperOpEdge();
 					syncEdge->Type = HyperOpEdge::SYNC;
@@ -3558,7 +3557,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					consumerHyperOp->incrementIncomingSyncCount(0);
 				} else if ((originalAndReplacementFunctionMap.find(consumerHyperOp->getFunction()) == originalAndReplacementFunctionMap.end() && consumerHyperOp->getFunction()->getNumOperands() < this->getMaxMemFrameSize())
 						|| originalAndReplacementFunctionMap[consumerHyperOp->getFunction()]->getNumOperands() < this->getMaxContextFrameSize()) {
-					DEBUG(dbgs() << "adding sync via context frame from " << producerHyperOp->asString() << " to " << consumerHyperOp->asString() << "\n");
+					DEBUG(dbgs() << "adding sync via context frame from " << producerHyperOp->asString() << " to " << consumerHyperOp->asString() << " by creating a new function\n");
 
 					Function * consumerFunction;
 					if (originalAndReplacementFunctionMap.find(consumerHyperOp->getFunction()) == originalAndReplacementFunctionMap.end()) {
@@ -3699,8 +3698,10 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 //Update the HyperOps with newly created functions and delete the old ones
 	for (map<Function*, Function*>::iterator replacementFunctionItr = originalAndReplacementFunctionMap.begin(); replacementFunctionItr != originalAndReplacementFunctionMap.end(); replacementFunctionItr++) {
 		HyperOp* hyperOpForUpdate = this->getHyperOp(replacementFunctionItr->first);
-//Replace the load and alloc map
+		errs() << "updating hyperop:" << hyperOpForUpdate->asString() << ", whats in alloca?" << hyperOpForUpdate->loadInstrAndAllocaMap.size() << "\n";
+		//Replace the load and alloc map
 		if (!hyperOpForUpdate->loadInstrAndAllocaMap.empty()) {
+			errs() << "some entries in allocamap\n";
 			map<Instruction*, Instruction*> newLoadInstrAndAllocaMap;
 			//Find the equivalent of each load instruction in the original map and place it in the new one
 			for (map<Instruction*, Instruction*>::iterator loadItr = hyperOpForUpdate->loadInstrAndAllocaMap.begin(); loadItr != hyperOpForUpdate->loadInstrAndAllocaMap.end(); loadItr++) {
@@ -3716,6 +3717,23 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 				hyperOpForUpdate->loadInstrAndAllocaMap.insert(make_pair(updatedMapItr->first, updatedMapItr->second));
 			}
 		}
+
+
+		//replace alloc instructions in other hyperops that possibly use the alloc instruction belonging to the updated the hyperop
+		for (auto vertexItr : this->Vertices) {
+			if (vertexItr != hyperOpForUpdate) {
+				map<Instruction*, Instruction*> tempMap;
+				for (auto loadInstItr : vertexItr->loadInstrAndAllocaMap) {
+					if (loadInstItr.second->getParent()->getParent() == hyperOpForUpdate->getFunction()) {
+						tempMap.insert(make_pair(loadInstItr.first, originalInstAndCloneMap[loadInstItr.second]));
+					}else{
+						tempMap.insert(make_pair(loadInstItr.first, loadInstItr.second));
+					}
+				}
+				vertexItr->loadInstrAndAllocaMap = tempMap;
+			}
+		}
+
 		hyperOpForUpdate->setFunction(replacementFunctionItr->second);
 
 //Update the edges of outgoing edges of consumer hyperOp
@@ -3877,12 +3895,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 				errs() << "source of synchronization:" << (*syncSourceItr)->asString() << "\n";
 				auto predicateChain = lastPredicateInputUptoParent(*syncSourceItr, hyperOp->getImmediateDominator());
 				errs() << "predicate chain to syncsource:" << predicateChain.size() << "\n";
-				auto predicateChainCopy = predicateChain;
-
-				while (!predicateChainCopy.empty()) {
-					errs() << "predicate:" << predicateChainCopy.front().second->asString() << "\n";
-					predicateChainCopy.pop_front();
-				}
 
 				while (!predicateChain.empty() && predicateChain.front().first->getType() != HyperOpEdge::PREDICATE) {
 					errs() << "predicate:" << predicateChain.front().second->asString() << "\n";
@@ -3895,9 +3907,9 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					syncFromPredicatedSources = true;
 				}
 			}
-			if(syncFromPredicatedSources && hyperOp->getParentList().size()>syncSourceList.size()){
+			if (syncFromPredicatedSources && hyperOp->getParentList().size() > syncSourceList.size()) {
 				hyperOp->setHasMutexSyncSources(true);
-			}else{
+			} else {
 				hyperOp->setHasMutexSyncSources(false);
 			}
 			hyperOp->setIncomingSyncCount(0, syncOnPredicate[0]);
