@@ -237,13 +237,14 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 		((REDEFINETargetMachine&) TM).HIG->setDimensions((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getM(), (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getN());
 		((REDEFINETargetMachine&) TM).HIG->setNumContextFrames((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getCfCount());
 		((REDEFINETargetMachine&) TM).HIG->setMaxContextFrameSize((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getCfSize());
-//		((REDEFINETargetMachine&) TM).HIG->makeGraphStructured();
 		((REDEFINETargetMachine&) TM).HIG->computeDominatorInfo();
+		((REDEFINETargetMachine&) TM).HIG->makeGraphStructured();
 		((REDEFINETargetMachine&) TM).HIG->addContextFrameAddressForwardingEdges();
 		((REDEFINETargetMachine&) TM).HIG->clusterNodes();
 		((REDEFINETargetMachine&) TM).HIG->associateStaticContextFrames();
 		((REDEFINETargetMachine&) TM).HIG->minimizeControlEdges();
 		((REDEFINETargetMachine&) TM).HIG->mapClustersToComputeResources();
+		((REDEFINETargetMachine&) TM).HIG->verify();
 		((REDEFINETargetMachine&) TM).HIG->print(dbgs());
 		firstFunction = 1;
 	}

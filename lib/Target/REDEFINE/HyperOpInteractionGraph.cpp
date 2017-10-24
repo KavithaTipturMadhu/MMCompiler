@@ -931,15 +931,18 @@ void HyperOpInteractionGraph::computeImmediateDominatorInfo() {
 	//Compute and set dominance frontier
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		HyperOp* vertex = *vertexIterator;
+		errs() << "finding domf of vertex " << vertex->asString() << "\n";
 		list<HyperOp*> dominanceFrontier;
 		for (list<HyperOp*>::iterator dominatedNodeIterator = Vertices.begin(); dominatedNodeIterator != Vertices.end(); dominatedNodeIterator++) {
 			list<HyperOp*> dominators = dominatorMap.find(*dominatedNodeIterator)->second;
 			if (std::find(dominators.begin(), dominators.end(), vertex) != dominators.end()) {
+				errs() << "vertex dominates " << (*dominatedNodeIterator)->asString() << "\n";
 				list<HyperOp*> successorList = (*dominatedNodeIterator)->getChildList();
 				for (list<HyperOp*>::iterator childItr = successorList.begin(); childItr != successorList.end(); childItr++) {
 					list<HyperOp*> dominatorOfChild = dominatorMap.find(*childItr)->second;
-					if (*childItr == vertex || std::find(dominatorOfChild.begin(), dominatorOfChild.end(), vertex) == dominatorOfChild.end()) {
+					if ((*childItr == vertex || std::find(dominatorOfChild.begin(), dominatorOfChild.end(), vertex) == dominatorOfChild.end()) && find(dominanceFrontier.begin(), dominanceFrontier.end(), *childItr) == dominanceFrontier.end()) {
 						dominanceFrontier.push_back(*childItr);
+						errs()<<"added to domf:"<<(*childItr)->asString()<<"\n";
 					}
 				}
 			}
@@ -969,175 +972,176 @@ void HyperOpInteractionGraph::computeDominatorInfo() {
 void HyperOpInteractionGraph::makeGraphStructured() {
 	print(dbgs());
 	bool change = true;
-//	while (change) {
-//		change = false;
-	for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
-		HyperOp* vertex = *vertexItr;
-		errs() << "\n-----\nexamining vertex:" << vertex->asString() << ":";
-		errs() << "do I have an idom?";
-		if (vertex->getImmediateDominator() != NULL) {
-			errs() << vertex->getImmediateDominator()->asString();
-		} else {
-			errs() << "afraid not\n";
-		}
-//			<<((vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator()!= vertex)
-//					&& find(vertex->getDominanceFrontier().begin(), vertex->getDominanceFrontier().end(), vertex->getImmediatePostDominator()) != vertex->getDominanceFrontier().end())<<"\n";
-		errs() << "\ndo i have an immediate postdom?";
-		if (vertex->getImmediatePostDominator() != NULL) {
-			errs() << vertex->getImmediatePostDominator()->asString();
-		} else {
-			errs() << "afraid not\n";
-		}
-		errs() << "\n";
+	while (change) {
+		change = false;
+		map<HyperOp*, HyperOp*> hyperOpForFix;
+		for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
+			HyperOp* vertex = *vertexItr;
+//			errs() << "\n-----\nexamining vertex:" << vertex->asString() << ":";
+//			list<HyperOp*> domf = vertex->getDominanceFrontier();
+//			errs() << "is this why?" << (vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() == vertex->getImmediatePostDominator() && find(domf.begin(), domf.end(), vertex->getImmediatePostDominator()) == domf.end()) << "\n";
+//			if (vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() == vertex->getImmediatePostDominator()) {
+//				errs() << "domf:\n";
+//				for (auto itr : domf) {
+//					errs() << itr->asString() << ",";
+//				}
+//
+//			}
+//
+//			if ((vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() == vertex->getImmediatePostDominator())
+//					&& find(domf.begin(), domf.end(), vertex->getImmediatePostDominator()) == domf.end()) {
+//				//Unstructured graph due to the current node, need to add a node that duplicates the immediate postdom
+//				HyperOp* immediatePostDom = vertex->getImmediatePostDominator();
+//				if (hyperOpForFix.find(immediatePostDom) != hyperOpForFix.end()) {
+//					HyperOp* forkSource = hyperOpForFix[immediatePostDom];
+//					if (forkSource->getImmediateDominator() == vertex) {
+//						hyperOpForFix[immediatePostDom] = vertex;
+//					}
+//				} else {
+//					hyperOpForFix[immediatePostDom] = vertex
+//				}
+//			}
 
-		if (vertex->getDominanceFrontier().empty()) {
-			errs() << "nothing";
-		} else {
-			list<HyperOp*> domf = vertex->getDominanceFrontier();
-//				 std::copy(vertex->getDominanceFrontier().begin(), vertex->getDominanceFrontier().end(), std::back_inserter(domf));
-			for (auto domfItr = domf.begin(); domfItr != domf.end(); domfItr++) {
-				errs() << (*domfItr)->asString() << ",";
+			if (vertex->getChildList().size() > 1 && vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() == vertex->getImmediatePostDominator()) {
+				hyperOpForFix[vertex->getImmediatePostDominator()] = vertex;
 			}
 		}
-		errs() << "\n";
-		list<HyperOp*> domf = vertex->getDominanceFrontier();
-		if ((vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != vertex) && find(domf.begin(), domf.end(), vertex->getImmediatePostDominator()) != domf.end()) {
-//				change = true;
-			//Unstructured graph due to the current node, need to add a node that duplicates the immediate postdom
-			errs() << "is this where I am?\n";
-			HyperOp* immediatePostDom = vertex->getImmediatePostDominator();
-			errs() << "found the node causing problems:" << vertex->asString() << "\n";
-			//Create a new function that contains all the arguments that come in along the nodes we are considering right now
 
-			//Find all the vertices that come from the branch being considered
-//				map<HyperOpEdge*, HyperOp*> parentVertexList;
-//				for (auto parentVertexItr = Vertices.begin(); parentVertexItr != Vertices.end(); parentVertexItr++) {
-//					HyperOp* parentVertex = *parentVertexItr;
-//					//Find out recursively if the parent vertex is immediately dominated by vertex
-//					bool parentToBeConsidered = false;
-//					HyperOp* tempParent = parentVertex;
-//					while (true) {
-//						if (tempParent->getImmediateDominator() == vertex) {
-//							parentToBeConsidered = true;
-//							break;
-//						}
-//						tempParent = tempParent->getImmediateDominator();
-//						if (tempParent == NULL) {
-//							break;
-//						}
-//					}
-//					if (parentToBeConsidered) {
-//						for (auto childItr = parentVertex->ChildMap.begin(); childItr != parentVertex->ChildMap.end(); childItr++) {
-//							if (childItr->second == vertex) {
-//								parentVertexList.insert(make_pair(childItr->first, parentVertex));
-//							}
-//						}
-//					}
-//				}
-
-			//TODO: Adding a new function
-//				{
-//					vector<Type*> argList;
-//					for (auto incomingEdgeItr = parentVertexList.begin(); incomingEdgeItr != parentVertexList.end(); incomingEdgeItr++) {
-//						if (incomingEdgeItr->first->getType() == HyperOpEdge::SCALAR || incomingEdgeItr->first->getType() != HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF || incomingEdgeItr->first->getType() != HyperOpEdge::LOCAL_REFERENCE) {
-//							if(incomingEdgeItr->first->getType() != HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF){
-//								argList.push_back(Type::getInt32PtrTy(vertex->getFunction()->getParent()->getContext()));
-//							}else{
-//								argList.push_back(incomingEdgeItr->first->getValue()->getType());
-//							}
-//						}
-//					}
-//					FunctionType *FT = FunctionType::get(Type::getVoidTy(vertex->getFunction()->getContext()), argList, false);
-//					Function *mergeFunction = Function::Create(FT, Function::ExternalLinkage, "mergeNode", vertex->getFunction()->getParent());
-//
-//					unsigned replicatedArgIndex = 0;
-//					for (Function::arg_iterator replicatedArgItr = replacementFunction->arg_begin(); replicatedArgItr != replacementFunction->arg_end(); replicatedArgItr++, replicatedArgIndex++) {
-//						replicatedArgIndexMap[replicatedArgIndex] = replicatedArgItr;
-//					}
-//
-//					for (unsigned i = 1; i <= numScalarArgs; i++) {
-//						replacementFunction->addAttribute(i, Attribute::InReg);
-//					}
-//
-//					map<BasicBlock*, BasicBlock*> originalAndReplicatedBBMap;
-//					map<Instruction*, Instruction*> localInstCloneMap;
-//					map<Instruction*, Instruction*> originalInstAndCloneMap;
-//					for (Function::iterator bbItr = consumerFunction->begin(); bbItr != consumerFunction->end(); bbItr++) {
-//						BasicBlock *newBB = BasicBlock::Create(consumerFunction->getParent()->getContext(), replacementFunction->getName().str().append(bbItr->getName()), replacementFunction);
-//						originalAndReplicatedBBMap[bbItr] = newBB;
-//						for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
-//							Instruction* clonedInst = instItr->clone();
-//							Instruction* key = 0;
-//							//Check if the instruction has been inserted previously as a clone of some other instruction
-//							for (map<Instruction*, Instruction*>::iterator cloneMapItr = originalInstAndCloneMap.begin(); cloneMapItr != originalInstAndCloneMap.end(); cloneMapItr++) {
-//								if (cloneMapItr->second == instItr) {
-//									key = cloneMapItr->first;
-//									break;
-//								}
-//							}
-//
-//							if (key != 0) {
-//								originalInstAndCloneMap.erase(key);
-//							} else {
-//								key = instItr;
-//							}
-//							originalInstAndCloneMap[key] = clonedInst;
-//							localInstCloneMap[instItr] = clonedInst;
-//							newBB->getInstList().insert(newBB->end(), clonedInst);
-//						}
-//					}
-//
-//					for (Function::iterator bbItr = replacementFunction->begin(); bbItr != replacementFunction->end(); bbItr++) {
-//						for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
-//							unsigned operatorIndex = 0;
-//							for (Instruction::op_iterator opItr = instItr->op_begin(); opItr != instItr->op_end(); opItr++, operatorIndex++) {
-//								unsigned argIndex = 0;
-//								bool argReplaced = false;
-//								for (Function::arg_iterator argItr = consumerFunction->arg_begin(); argItr != consumerFunction->arg_end(); argItr++, argIndex++) {
-//									if (opItr->get() == argItr) {
-//										Argument* replacementArg = replicatedArgIndexMap[originalToReplicatedArgIndexMap[argIndex]];
-//										instItr->setOperand(operatorIndex, replacementArg);
-//										argReplaced = true;
-//										break;
-//									}
-//								}
-//								if (!argReplaced && !isa<BranchInst>(opItr->get()) && localInstCloneMap.find((Instruction*) opItr->get()) != localInstCloneMap.end()) {
-//									instItr->setOperand(operatorIndex, localInstCloneMap[(Instruction*) opItr->get()]);
-//								} else if (originalAndReplicatedBBMap.find((BasicBlock*) opItr->get()) != originalAndReplicatedBBMap.end()) {
-//									instItr->setOperand(operatorIndex, originalAndReplicatedBBMap[(BasicBlock*) opItr->get()]);
-//								}
-//							}
-//						}
-//					}
-//					//Add a store in source HyperOp function
-//					contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF);
-//					string oldName = consumerFunction->getName();
-//					vertex->setFunction(replacementFunction);
-//					for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
-//						if ((*vertexItr)->getFunction() == consumerFunction) {
-//							(*vertexItr)->setFunction(replacementFunction);
-//						}
-//						if ((*vertexItr)->getInstanceof() == consumerFunction) {
-//							(*vertexItr)->setInstanceof(replacementFunction);
-//						}
-//					}
-//					consumerFunction->eraseFromParent();
-//					replacementFunction->setName(oldName);
-//				}
-
-			//Make a new immediate post dom vertex copy
-//				HyperOp* newImmediatePostDom;
-
-//				break;
+		if (hyperOpForFix.empty()) {
+			//No more hyperops for fixing
+			break;
 		}
-//		}
+		for (auto mapItr : hyperOpForFix) {
+			HyperOp* forkSink = mapItr.first;
+			HyperOp* forkSource = mapItr.second;
+//			assert(!forkSink->isPredicatedHyperOp() && "sync node can't be a predicated HyperOp");
+			errs() << "fixing fork sync:" << forkSink->asString() << "\n";
+			list<HyperOp*> parentsWithPath;
+			for (auto parent : forkSink->getParentList()) {
+				//If parent has a path from the forkSource
+				HyperOp* sourceHop = parent;
+				bool pathFromSourceExists = false;
+				while (sourceHop != NULL && sourceHop != forkSink->getImmediateDominator() && !sourceHop->isStartHyperOp()) {
+					if (sourceHop == forkSource || sourceHop->getImmediateDominator() == forkSource) {
+						pathFromSourceExists = true;
+						break;
+					}
+					sourceHop = sourceHop->getImmediateDominator();
+				}
+
+				if (pathFromSourceExists) {
+					//Consider the edge
+					parentsWithPath.push_back(parent);
+				}
+			}
+
+			map<HyperOpEdge*, HyperOp*> parentVertexList;
+
+			//clone the sink to take in all the edges that come from the forksource and the nodes it reaches
+			for (auto parent : forkSink->ParentMap) {
+				if (find(parentsWithPath.begin(), parentsWithPath.end(), parent.second) != parentsWithPath.end()) {
+					//Copy the function to a new HyperOp
+					parentVertexList.insert(make_pair(parent.first, parent.second));
+				}
+			}
+
+			//Create a new empty function that takes all args of the original function and passes the args as is to the next hyperOp
+			vector<Type*> argList;
+			LLVMContext& ctxt = parentVertexList.begin()->second->getFunction()->getParent()->getContext();
+			unsigned scalarArgs = 0;
+			map<HyperOpEdge*, HyperOp*> joinNodeParentMap;
+			for (auto incomingEdgeItr = parentVertexList.begin(); incomingEdgeItr != parentVertexList.end(); incomingEdgeItr++) {
+				HyperOpEdge* originalEdge = incomingEdgeItr->first;
+				HyperOp* originalParent = incomingEdgeItr->second;
+				if (originalEdge->getType() == HyperOpEdge::SCALAR || originalEdge->getType() == HyperOpEdge::LOCAL_REFERENCE) {
+					argList.push_back(Type::getInt32PtrTy(ctxt));
+					if (originalEdge->getType() == HyperOpEdge::SCALAR) {
+						scalarArgs++;
+					}
+				}
+			}
+			FunctionType *FT = FunctionType::get(Type::getVoidTy(ctxt), argList, false);
+			Function *joinFunction = Function::Create(FT, Function::ExternalLinkage, "joinFunction", forkSink->getFunction()->getParent());
+			for (unsigned i = 1; i <= scalarArgs; i++) {
+				joinFunction->addAttribute(i, Attribute::InReg);
+			}
+
+			HyperOp* joinHyperOp = new HyperOp(joinFunction);
+			this->addHyperOp(joinHyperOp);
+			joinHyperOp->setIncomingSyncCount(0, forkSink->getSyncCount(0));
+			joinHyperOp->setIncomingSyncCount(1, forkSink->getSyncCount(1));
+			joinHyperOp->setIncomingSyncPredicate(0, forkSink->getIncomingSyncPredicate(0));
+			joinHyperOp->setIncomingSyncPredicate(1, forkSink->getIncomingSyncPredicate(1));
+			joinHyperOp->setHasMutexSyncSources(forkSink->isHasMutexSyncSources());
+
+			int syncCountAdded = 0;
+			//Duplicate the edges from parent nodes to the sink hyperOp and add them between the new join function and the forksink
+			for (auto incomingEdgeItr = parentVertexList.begin(); incomingEdgeItr != parentVertexList.end(); incomingEdgeItr++) {
+				HyperOpEdge* originalEdge = incomingEdgeItr->first;
+				HyperOp* originalParent = incomingEdgeItr->second;
+				HyperOpEdge* hopEdge = new HyperOpEdge();
+				hopEdge->setType(originalEdge->getType());
+				if (originalEdge->getType() == HyperOpEdge::LOCAL_REFERENCE || originalEdge->getType() == HyperOpEdge::SCALAR) {
+					//Find the equivalent argument in the newer function
+					unsigned position = originalEdge->getPositionOfContextSlot();
+					int argCount = 0;
+					Value* newArg;
+					for (auto argItr = joinFunction->arg_begin(); argItr != joinFunction->arg_end(); argItr++, argCount++) {
+						if (argCount == position) {
+							newArg = argItr;
+							break;
+						}
+					}
+					hopEdge->setValue(newArg);
+				}
+				hopEdge->setPositionOfContextSlot(originalEdge->getPositionOfContextSlot());
+				hopEdge->setEdgeSource(originalEdge->getEdgeSource());
+				hopEdge->setVolume(originalEdge->getVolume());
+
+				//Replace the entry in sync node's parent map
+				forkSink->ParentMap.erase(originalEdge);
+				if (syncCountAdded) {
+					continue;
+				}
+				if (originalEdge->getType() == HyperOpEdge::SYNC) {
+					syncCountAdded++;
+				}
+				joinHyperOp->ChildMap[originalEdge] = forkSink;
+				forkSink->ParentMap[hopEdge] = joinHyperOp;
+			}
+
+			forkSink->setIncomingSyncCount(0, 1);
+			forkSink->setIncomingSyncCount(1, 1);
+
+			//Update the edges from parent that existed previously
+			for (auto incomingEdgeItr = parentVertexList.begin(); incomingEdgeItr != parentVertexList.end(); incomingEdgeItr++) {
+				HyperOp* parentHop = incomingEdgeItr->second;
+				map<HyperOpEdge*, HyperOp*> replacementChildMap;
+				for (auto childItr : parentHop->ChildMap) {
+					if (childItr.second == forkSink) {
+						replacementChildMap.insert(make_pair(childItr.first, joinHyperOp));
+						joinHyperOp->ParentMap.insert(make_pair(childItr.first, parentHop));
+					} else {
+						replacementChildMap.insert(make_pair(childItr.first, childItr.second));
+					}
+				}
+				parentHop->ChildMap = replacementChildMap;
+			}
+			change = true;
+			break;
+		}
+		computeDominatorInfo();
 	}
+
+	computeDominatorInfo();
+	errs() << "after making the graph structured:";
+	this->print(dbgs());
 }
 /**
  * Indicates additional edges corresponding to WriteCM instructions for forwarding context frame addresses
  */
 void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
-	//Forward addresses to producers that have a HyperOp in their dominance frontier and to the HyperOps that delete the context frame
+//Forward addresses to producers that have a HyperOp in their dominance frontier and to the HyperOps that delete the context frame
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		HyperOp* vertex = *vertexIterator;
 		list<HyperOp*> vertexDomFrontier;
@@ -1162,6 +1166,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 			}
 		}
 
+		errs() << "whats in domf:\n";
 		for (list<HyperOp*>::iterator dominanceFrontierIterator = vertexDomFrontier.begin(); dominanceFrontierIterator != vertexDomFrontier.end(); dominanceFrontierIterator++) {
 			errs() << (*dominanceFrontierIterator)->asString() << ",";
 		}
@@ -2021,7 +2026,7 @@ void HyperOpInteractionGraph::clusterNodes() {
 //		}
 //	}
 
-	//Cluster all the nodes in a queue first and replace the nodes with the cluster node
+//Cluster all the nodes in a queue first and replace the nodes with the cluster node
 	list<pair<HyperOp*, HyperOp*> > examinedEdges;
 	list<list<HyperOp*> > excludeList;
 //Find the initial Dominant Sequence
@@ -2742,6 +2747,13 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 	}
 	if (lp != NULL) {
 		delete_lp(lp);
+	}
+}
+
+void HyperOpInteractionGraph::verify(){
+	//Check that sync hyperops are not predicated
+	for(auto vertexItr : Vertices){
+		assert((!(vertexItr->isBarrierHyperOp()&&vertexItr->isPredicatedHyperOp()))&&"A HyperOp can't be both predicated and sync barrier");
 	}
 }
 
@@ -3718,7 +3730,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			}
 		}
 
-
 		//replace alloc instructions in other hyperops that possibly use the alloc instruction belonging to the updated the hyperop
 		for (auto vertexItr : this->Vertices) {
 			if (vertexItr != hyperOpForUpdate) {
@@ -3726,7 +3737,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 				for (auto loadInstItr : vertexItr->loadInstrAndAllocaMap) {
 					if (loadInstItr.second->getParent()->getParent() == hyperOpForUpdate->getFunction()) {
 						tempMap.insert(make_pair(loadInstItr.first, originalInstAndCloneMap[loadInstItr.second]));
-					}else{
+					} else {
 						tempMap.insert(make_pair(loadInstItr.first, loadInstItr.second));
 					}
 				}
@@ -3961,15 +3972,13 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 			os << "Dom:" << dom << ", PostDom:" << postdom << ",";
 			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
 			os << "SyncCount:" << (*vertexIterator)->getSyncCount(0);
-			/*
-			 os << "Domf:";
-			 if (!vertex->getDominanceFrontier().empty()) {
-			 list<HyperOp*> domf = vertex->getDominanceFrontier();
-			 for (list<HyperOp*>::iterator domfItr = domf.begin(); domfItr != domf.end(); domfItr++) {
-			 os << (*domfItr)->getFunction()->getName() << ";";
-			 }
-			 }
-			 */
+			os << "Domf:"<<vertex->getDominanceFrontier().size()<<":";
+			if (!vertex->getDominanceFrontier().empty()) {
+				list<HyperOp*> domf = vertex->getDominanceFrontier();
+				for (list<HyperOp*>::iterator domfItr = domf.begin(); domfItr != domf.end(); domfItr++) {
+					os << (*domfItr)->asString() << ";";
+				}
+			}
 			os << "\"];\n";
 
 			map<HyperOpEdge*, HyperOp*> children = vertex->ChildMap;

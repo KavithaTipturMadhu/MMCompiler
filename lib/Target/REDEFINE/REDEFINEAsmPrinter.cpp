@@ -30,6 +30,8 @@
 using namespace llvm;
 
 void REDEFINEAsmPrinter::EmitInstruction(const MachineInstr *MI) {
+	errs()<<"printing instruction:";
+	MI->dump();
 	REDEFINEMCInstLower Lower(Mang, MF->getContext(), *this);
 	MCInst LoweredMI;
 	Lower.lower(MI, LoweredMI);

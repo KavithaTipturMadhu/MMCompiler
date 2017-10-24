@@ -276,6 +276,11 @@ public:
 	 */
 	void mapClustersToComputeResources();
 
+	/*
+	 * Add all correctness checks on HIG here
+	 */
+	void verify();
+
 	virtual ~HyperOpInteractionGraph();
 
 	void setDimensions(unsigned int columnCount, unsigned int rowCount);

@@ -1522,7 +1522,9 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						//load trip count from memory location onto a register
 						unsigned tripcountReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 						MachineInstrBuilder load = BuildMI(lastBB, lastInstruction, dl, TII->get(REDEFINE::LW));
-						load.addReg(tripcountReg, RegState::Define).addReg(REDEFINE::t5).addFrameIndex(memSize);
+						load.addReg(tripcountReg, RegState::Define);
+						load.addReg(REDEFINE::t5);
+						load.addImm(memSize);
 						LIS->InsertMachineInstrInMaps(load.operator ->());
 						//generate a loop?!?! to create HyperOps in blocks
 						allInstructionsOfRegion.push_back(make_pair(load.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
@@ -1609,7 +1611,9 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 
 					unsigned firstPred = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					MachineInstrBuilder firstSyncPredLoad = BuildMI(lastBB, lastInstruction, dl, TII->get(REDEFINE::LW));
-					firstSyncPredLoad.addReg(firstPred, RegState::Define).addReg(REDEFINE::t5).addFrameIndex(firstPredMemSize);
+					firstSyncPredLoad.addReg(firstPred, RegState::Define);
+					firstSyncPredLoad.addReg(REDEFINE::t5);
+					firstSyncPredLoad.addImm(firstPredMemSize);
 					allInstructionsOfRegion.push_back(make_pair(firstSyncPredLoad.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(firstSyncPredLoad.operator llvm::MachineInstr *());
 
@@ -1624,7 +1628,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					} else {
 						secondPred = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 						MachineInstrBuilder secondSyncPredLoad = BuildMI(lastBB, lastInstruction, dl, TII->get(REDEFINE::LW));
-						secondSyncPredLoad.addReg(secondPred, RegState::Define).addReg(REDEFINE::t5).addFrameIndex(secondPredMemSize);
+						secondSyncPredLoad.addReg(secondPred, RegState::Define).addReg(REDEFINE::t5).addImm(secondPredMemSize);
 						allInstructionsOfRegion.push_back(make_pair(secondSyncPredLoad.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(secondSyncPredLoad.operator llvm::MachineInstr *());
 					}
@@ -1694,7 +1698,9 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					//load trip count from memory location onto a register
 					unsigned tripcountReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					MachineInstrBuilder load = BuildMI(lastBB, lastInstruction, dl, TII->get(REDEFINE::LW));
-					load.addReg(tripcountReg, RegState::Define).addReg(REDEFINE::t5).addFrameIndex(memSize);
+					load.addReg(tripcountReg, RegState::Define);
+					load.addReg(REDEFINE::t5);
+					load.addImm(memSize);
 					LIS->InsertMachineInstrInMaps(load.operator ->());
 					allInstructionsOfRegion.push_back(make_pair(load.operator llvm::MachineInstr *(), make_pair(ceContainingConsumerFrameAddr, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(load.operator llvm::MachineInstr *());
@@ -1823,7 +1829,9 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					//load trip count from memory location onto a register
 					unsigned tripcountReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					MachineInstrBuilder load = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::LW));
-					load.addFrameIndex(memSize).addReg(REDEFINE::t5).addReg(tripcountReg);
+					load.addReg(tripcountReg, RegState::Define);
+					load.addReg(REDEFINE::t5);
+					load.addImm(memSize);
 					LIS->InsertMachineInstrInMaps(load.operator ->());
 					insertedInstructions.push_back(load.operator ->());
 
@@ -2418,7 +2426,9 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				//load trip count from memory location onto a register
 				unsigned tripcountReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 				MachineInstrBuilder load = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::LW));
-				load.addFrameIndex(memSize).addReg(REDEFINE::t5).addReg(tripcountReg);
+				load.addReg(tripcountReg, RegState::Define);
+				load.addReg(REDEFINE::t5);
+				load.addImm(memSize);
 				LIS->InsertMachineInstrInMaps(load.operator ->());
 				insertedInstructions.push_back(load.operator ->());
 
@@ -3074,6 +3084,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	for (map<HyperOpEdge*, HyperOp*>::iterator childItr = hyperOp->ChildMap.begin(); childItr != hyperOp->ChildMap.end(); childItr++) {
 		HyperOpEdge* edge = childItr->first;
 		HyperOp* consumer = childItr->second;
+		errs()<<"consumer:"<<consumer->asString()<<"\n";
 		MachineBasicBlock & lastBB = MF.back();
 		MachineInstr* lastInstruction = lastBB.end();
 		MachineBasicBlock & temp = lastBB;
@@ -3106,8 +3117,9 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				//load trip count from memory location onto a register
 				unsigned tripcountReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 				MachineInstrBuilder load = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::LW));
-				load.addFrameIndex(memSize);
-				load.addReg(tripcountReg);
+				load.addReg(tripcountReg, RegState::Define);
+				load.addReg(REDEFINE::t5);
+				load.addImm(memSize);
 				LIS->InsertMachineInstrInMaps(load.operator ->());
 				insertedInstructions.push_back(load.operator ->());
 
