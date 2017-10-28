@@ -1,0 +1,17 @@
+Development of parallel algorithms and using them as building blocks in solving larger problems can be accelerated via support for parallel patterns of computation. Expressing such regular patterns of computation is facilitated in the proposed compilation flow via support for parallel patterns in IR, which maybe generated from an explicitly parallel frontend. The parallel compute patterns are similar to macros/directives that are supported via annotations to loops representing the high level task-graph structure. The patterns come with an annotations processor interface that allows pattern specific optimizations to be performed and then expands the annotations onto the previously described LLVM IR format. Supported patterns and their realization are listed here:
+\begin{table}[htp]
+\caption{Supported Patterns}
+\label{tab_list_kernel}
+\centering
+    \begin{tabular}{|p{2cm} | p{4cm}|}
+    \hline 
+    \textbf{Pattern} & \textbf{Annotation} \\\hline \hline
+       & Linear Algebra, 3-d perfect loop \\ \hline
+      GESUMMV   & Linear Algebra, 2-d imperfect loop \\ \hline
+      GEMVER     & Linear Algebra, 2-d perfect loop \\ \hline
+      SYRK & Linear Algebra, 3-d perfect loop \\ \hline
+      SYR2K & Linear Algebra, 3-d perfect loop \\ \hline
+      JACOBI-1D& Stencil, 2-d imperfect loop \\ \hline
+      SIEDEL-2D& Stencil, 3-d perfect loop \\ \hline
+     \end{tabular}
+\end{table}

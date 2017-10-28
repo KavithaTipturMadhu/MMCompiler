@@ -1,0 +1,570 @@
+Args: /home/arka/Workspace/work/Git_Compiler_Repo/redefine-tests/ECU_KERNELS/../../..//MM_Compiler_latest/build/Release+Asserts/bin/opt -debug --load /home/arka/Workspace/work/Git_Compiler_Repo/redefine-tests/ECU_KERNELS/../../..//MM_Compiler_latest/build/Release+Asserts/bin/../lib/HyperOpCreationPass.so --HyperOpCreationPass -S ./Compilation_Error/data_init.ll -o ./Compilation_Error/data_init_HyOpPass.ll 
+
+Features:
+CPU:REDEFINE
+
+Found cycles?0
+
+-----------
+Partitioning function:data_init
+
+-------
+Acquiring bb entry
+entered end hop for function data_init
+Adding basic blocks for traversal in a breadth biased order for function data_init
+added to succ list:
+adding to creation map bbargs of size 1
+
+-----------
+Partitioning function:redefine_start
+
+-------
+Acquiring bb entry
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:for.cond,
+distance of for.cond to exit 3
+
+-------
+Acquiring bb for.cond
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:for.body,for.end,
+distance of for.body to exit 4
+distance of for.end to exit 1
+
+-------
+Acquiring bb for.body
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:newName0,
+distance of for.body to exit 5
+distance of for.end to exit 1
+distance of newName0 to exit 4
+
+-------
+Acquiring bb for.body
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:didn't add newName0
+
+distance of newName0 to exit 4
+distance of for.end to exit 1
+
+-------
+Acquiring bb newName0
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:for.inc,
+distance of for.end to exit 1
+distance of for.inc to exit 4
+
+-------
+Acquiring bb for.inc
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:didn't add for.cond
+
+distance of for.end to exit 1
+
+-------
+Acquiring bb for.end
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:
+distance of for.end to exit 1
+
+-------
+Acquiring bb for.end
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:
+adding to creation map bbargs of size 4
+before partitioning:; ModuleID = './Compilation_Error/data_init.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_out_array = common global [25 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define i32 @data_init() #0 {
+entry:
+  ret i32 0
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %i = alloca i32, align 4
+  store i32 0, i32* %i, align 4
+  br label %for.cond
+
+for.cond:                                         ; preds = %for.inc, %entry
+  %0 = load i32* %i, align 4
+  %cmp = icmp slt i32 %0, 25
+  br i1 %cmp, label %for.body, label %for.end
+
+for.body:                                         ; preds = %for.cond
+  %call = call i32 @data_init()
+  br label %newName0
+
+newName0:                                         ; preds = %for.body
+  %1 = load i32* %i, align 4
+  %arrayidx = getelementptr inbounds [25 x i32]* @redefine_out_array, i32 0, i32 %1
+  store i32 %call, i32* %arrayidx, align 4
+  br label %for.inc
+
+for.inc:                                          ; preds = %newName0
+  %2 = load i32* %i, align 4
+  %inc = add nsw i32 %2, 1
+  store i32 %inc, i32* %i, align 4
+  br label %for.cond
+
+for.end:                                          ; preds = %for.cond
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{}
+-----------Creating HyperOps from partitioned functions-----------
+added to traversallist:entry
+added to traversallist:for.body
+added to traversallist:newName0
+added to traversallist:for.end
+now at func:entry
+
+-----------Creating a new HyperOp for function:redefine_start-----------
+
+--------
+Acquired bb:entry from parent:redefine_start
+
+--------
+Acquired bb:for.cond from parent:redefine_start
+created func:redefine_start1
+now at func:for.body
+now at func:newName0
+
+-----------Creating a new HyperOp for function:redefine_start-----------
+
+--------
+Acquired bb:newName0 from parent:redefine_start
+
+--------
+Acquired bb:for.inc from parent:redefine_start
+created func:redefine_start2
+now at func:for.end
+
+-----------Creating a new HyperOp for function:redefine_start-----------
+
+--------
+Acquired bb:for.end from parent:redefine_start
+created func:redefine_start3
+now at func:entry
+
+-----------Creating a new HyperOp for function:data_init-----------
+for.body,
+--------
+Acquired bb:entry from parent:data_init
+
+--------
+Acquired bb:for.body from parent:redefine_start
+created func:data_init4
+before patching stuff:; ModuleID = './Compilation_Error/data_init.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_out_array = common global [25 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define i32 @data_init() #0 {
+entry:
+  ret i32 0
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %i = alloca i32, align 4
+  store i32 0, i32* %i, align 4
+  br label %for.cond
+
+for.cond:                                         ; preds = %redefine_start2.for.inc, %for.inc, %entry
+  %0 = load i32* %i, align 4
+  %cmp = icmp slt i32 %0, 25
+  br i1 %cmp, label %for.body, label %for.end
+
+for.body:                                         ; preds = %redefine_start1.for.cond, %for.cond
+  %call = call i32 @data_init()
+  br label %newName0
+
+newName0:                                         ; preds = %for.body
+  %1 = load i32* %i, align 4
+  %arrayidx = getelementptr inbounds [25 x i32]* @redefine_out_array, i32 0, i32 %1
+  store i32 %call, i32* %arrayidx, align 4
+  br label %for.inc
+
+for.inc:                                          ; preds = %newName0
+  %2 = load i32* %i, align 4
+  %inc = add nsw i32 %2, 1
+  store i32 %inc, i32* %i, align 4
+  br label %for.cond
+
+for.end:                                          ; preds = %redefine_start1.for.cond, %for.cond
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca i32, align 4
+  store i32 0, i32* %0, align 4
+  br label %redefine_start1.for.cond
+
+redefine_start1.for.cond:                         ; preds = %redefine_start1.entry
+  %1 = load i32* %0, align 4
+  %2 = icmp slt i32 %1, 25
+  br i1 %2, label %for.body, label %for.end
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(i32 inreg, i32*) {
+redefine_start2.newName0:
+  %2 = load i32* %1, align 4
+  %3 = getelementptr inbounds [25 x i32]* @redefine_out_array, i32 0, i32 %2
+  store i32 %0, i32* %3, align 4
+  br label %redefine_start2.for.inc
+
+redefine_start2.for.inc:                          ; preds = %redefine_start2.newName0
+  %4 = load i32* %1, align 4
+  %5 = add nsw i32 %4, 1
+  store i32 %5, i32* %1, align 4
+  br label %for.cond
+
+redefine_start2.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start3() {
+redefine_start3.for.end:
+  br label %redefine_start3.return
+
+redefine_start3.return:                           ; preds = %redefine_start3.for.end
+  ret void
+}
+
+define void @data_init4() {
+data_init4.entry:
+  br label %data_init4.return
+
+data_init4.return:                                ; preds = %data_init4.entry
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5, !6, !7}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32, i32*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Intermediate", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void ()* @redefine_start3, metadata !"Static"}
+!5 = metadata !{metadata !"Exit", metadata !4}
+!6 = metadata !{metadata !"HyperOp", void ()* @data_init4, metadata !"Static"}
+!7 = metadata !{metadata !"Intermediate", metadata !6}
+
+----------Adding dependences across created HyperOps----------
+
+-----------Patching created function redefine_start1--------------
+accumulated bbs:
+entry,for.cond,
+
+----------Adding consumed by metadata----------
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:1
+what was callsite size earlier??0
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function redefine_start1, module:; ModuleID = './Compilation_Error/data_init.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_out_array = common global [25 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define i32 @data_init() #0 {
+entry:
+  ret i32 0
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %i = alloca i32, align 4
+  store i32 0, i32* %i, align 4
+  br label %for.cond
+
+for.cond:                                         ; preds = %for.inc, %entry
+  %0 = load i32* %i, align 4
+  %cmp = icmp slt i32 %0, 25
+  br i1 %cmp, label %for.body, label %for.end
+
+for.body:                                         ; preds = %redefine_start1.for.cond, %for.cond
+  %call = call i32 @data_init()
+  br label %newName0
+
+newName0:                                         ; preds = %for.body
+  %1 = load i32* %i, align 4
+  %arrayidx = getelementptr inbounds [25 x i32]* @redefine_out_array, i32 0, i32 %1
+  store i32 %call, i32* %arrayidx, align 4
+  br label %for.inc
+
+for.inc:                                          ; preds = %newName0
+  %2 = load i32* %i, align 4
+  %inc = add nsw i32 %2, 1
+  store i32 %inc, i32* %i, align 4
+  br label %for.cond
+
+for.end:                                          ; preds = %redefine_start1.for.cond, %for.cond
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca i32, align 4
+  store i32 0, i32* %0, align 4
+  br label %redefine_start1.for.cond
+
+redefine_start1.for.cond:                         ; preds = %redefine_start1.entry
+  %1 = load i32* %0, align 4
+  %2 = icmp slt i32 %1, 25
+  br i1 %2, label %for.body, label %for.end
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(i32 inreg, i32*) {
+redefine_start2.newName0:
+  %2 = load i32* %1, align 4
+  %3 = getelementptr inbounds [25 x i32]* @redefine_out_array, i32 0, i32 %2
+  store i32 %0, i32* %3, align 4
+  br label %redefine_start2.for.inc
+
+redefine_start2.for.inc:                          ; preds = %redefine_start2.newName0
+  %4 = load i32* %1, align 4
+  %5 = add nsw i32 %4, 1
+  store i32 %5, i32* %1, align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.for.inc
+  ret void
+}
+
+define void @redefine_start3() {
+redefine_start3.for.end:
+  br label %redefine_start3.return
+
+redefine_start3.return:                           ; preds = %redefine_start3.for.end
+  ret void
+}
+
+define void @data_init4() {
+data_init4.entry:
+  br label %data_init4.return
+
+data_init4.return:                                ; preds = %data_init4.entry
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5, !6, !7}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32, i32*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Intermediate", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void ()* @redefine_start3, metadata !"Static"}
+!5 = metadata !{metadata !"Exit", metadata !4}
+!6 = metadata !{metadata !"HyperOp", void ()* @data_init4, metadata !"Static"}
+!7 = metadata !{metadata !"Intermediate", metadata !6}
+
+-----------Patching created function redefine_start2--------------
+accumulated bbs:
+newName0,for.inc,
+
+----------Adding consumed by metadata----------
+  %call = call i32 @data_init()
+cloned inst second:i32 0
+producer function:data_init4
+how many clones?1
+added metadata on instruction that belongs to parent data_init4 and is mapped to slot 0 when the function has 2 and is of type:0:  %0 = alloca i32, align 4, !ConsumedBy !8
+cloned inst second:  store i32 0, i32* %i, align 4
+producer function:redefine_start1
+how many clones?1
+added metadata on instruction that belongs to parent redefine_start1 and is mapped to slot 1 when the function has 2 and is of type:1:  %0 = alloca i32, align 4, !ConsumedBy !8
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:1
+working on conditional branch instruction:  br i1 %cmp, label %for.body, label %for.end
+target bb:
+for.inc:                                          ; preds = %newName0
+  %2 = load i32* %i, align 4
+  %inc = add nsw i32 %2, 1
+  store i32 %inc, i32* %i, align 4
+  br label %for.cond
+
+producer of data:redefine_start and its clone?redefine_start1, is it static?1
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:1
+what was callsite size earlier??0
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function redefine_start2, module:; ModuleID = './Compilation_Error/data_init.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_out_array = common global [25 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define i32 @data_init() #0 {
+entry:
+  ret i32 0
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %i = alloca i32, align 4
+  store i32 0, i32* %i, align 4
+  br label %for.cond
+
+for.cond:                                         ; preds = %for.inc, %entry
+  %0 = load i32* %i, align 4
+  %cmp = icmp slt i32 %0, 25
+  br i1 %cmp, label %for.body, label %for.end
+
+for.body:                                         ; preds = %redefine_start1.for.cond, %for.cond
+  %call = call i32 @data_init()
+  br label %newName0
+
+newName0:                                         ; preds = %for.body
+  %1 = load i32* %i, align 4
+  %arrayidx = getelementptr inbounds [25 x i32]* @redefine_out_array, i32 0, i32 %1
+  store i32 %call, i32* %arrayidx, align 4
+  br label %for.inc
+
+for.inc:                                          ; preds = %newName0
+  %2 = load i32* %i, align 4
+  %inc = add nsw i32 %2, 1
+  store i32 %inc, i32* %i, align 4
+  br label %for.cond
+
+for.end:                                          ; preds = %redefine_start1.for.cond, %for.cond
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca i1, align 4, !Controls !8
+  %1 = alloca i32, align 4, !ConsumedBy !10
+  store i32 0, i32* %1, align 4
+  br label %redefine_start1.for.cond
+
+redefine_start1.for.cond:                         ; preds = %redefine_start1.entry
+  %2 = load i32* %1, align 4
+  %3 = icmp slt i32 %2, 25
+  store i1 %3, i1* %0, align 4
+  br i1 %3, label %for.body, label %for.end
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(i32 inreg, i32*) {
+redefine_start2.newName0:
+  %2 = load i32* %1, align 4
+  %3 = getelementptr inbounds [25 x i32]* @redefine_out_array, i32 0, i32 %2
+  store i32 %0, i32* %3, align 4
+  br label %redefine_start2.for.inc
+
+redefine_start2.for.inc:                          ; preds = %redefine_start2.newName0
+  %4 = load i32* %1, align 4
+  %5 = add nsw i32 %4, 1
+  store i32 %5, i32* %1, align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.for.inc
+  ret void
+}
+
+define void @redefine_start3() {
+redefine_start3.for.end:
+  br label %redefine_start3.return
+
+redefine_start3.return:                           ; preds = %redefine_start3.for.end
+  ret void
+}
+
+define void @data_init4() {
+data_init4.entry:
+  %0 = alloca i32, align 4, !ConsumedBy !12
+  br label %data_init4.return
+
+data_init4.return:                                ; preds = %data_init4.entry
+  store i32 0, i32* %0, align 4
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5, !6, !7}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32, i32*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Intermediate", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void ()* @redefine_start3, metadata !"Static"}
+!5 = metadata !{metadata !"Exit", metadata !4}
+!6 = metadata !{metadata !"HyperOp", void ()* @data_init4, metadata !"Static"}
+!7 = metadata !{metadata !"Intermediate", metadata !6}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !2, metadata !"1"}
+!10 = metadata !{metadata !11}
+!11 = metadata !{metadata !2, metadata !"LocalReference", i32 1}
+!12 = metadata !{metadata !13}
+!13 = metadata !{metadata !2, metadata !"Scalar", i32 0}
+
+-----------Patching created function redefine_start3--------------
+accumulated bbs:
+for.end,
+
+----------Adding consumed by metadata----------
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:1
+what was callsite size earlier??0
+0  opt                    0x0000000001277552 llvm::sys::PrintStackTrace(_IO_FILE*) + 34
+1  opt                    0x00000000012771e4
+2  libpthread.so.0        0x00002abf970b3330
+3  libc.so.6              0x00002abf97fb8c37 gsignal + 55
+4  libc.so.6              0x00002abf97fbc028 abort + 328
+5  libc.so.6              0x00002abf97ff52a4
+6  libc.so.6              0x00002abf9800155e
+7  HyperOpCreationPass.so 0x00002abf983663e5
+8  opt                    0x0000000001214e5b llvm::MPPassManager::runOnModule(llvm::Module&) + 603
+9  opt                    0x000000000121503f llvm::PassManagerImpl::run(llvm::Module&) + 223
+10 opt                    0x00000000005a9de0 main + 2688
+11 libc.so.6              0x00002abf97fa3f45 __libc_start_main + 245
+12 opt                    0x00000000005c8b63
+Stack dump:
+0.	Program arguments: /home/arka/Workspace/work/Git_Compiler_Repo/redefine-tests/ECU_KERNELS/../../..//MM_Compiler_latest/build/Release+Asserts/bin/opt -debug --load /home/arka/Workspace/work/Git_Compiler_Repo/redefine-tests/ECU_KERNELS/../../..//MM_Compiler_latest/build/Release+Asserts/bin/../lib/HyperOpCreationPass.so --HyperOpCreationPass -S ./Compilation_Error/data_init.ll -o ./Compilation_Error/data_init_HyOpPass.ll 
+1.	Running pass 'Pass to create HyperOps' on module './Compilation_Error/data_init.ll'.
+Aborted

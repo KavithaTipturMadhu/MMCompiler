@@ -94,6 +94,7 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	static const int PAGE_NUMBER_MASK = 15;
 	static const int SHIFT_FOR_FRAMENUMBER = 6;
 	static const int FRAME_NUMBER_MASK = 63;
+	static const int SYNC_SLOT_OFFSET = 60;
 
 public:
 	REDEFINEMCInstrScheduler(MachineSchedContext *C, MachineSchedStrategy *S);

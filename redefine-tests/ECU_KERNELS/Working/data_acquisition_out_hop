@@ -1,0 +1,1059 @@
+Args: /home/arka/Workspace/work/Git_Compiler_Repo/redefine-tests/ECU_KERNELS/../../..//MM_Compiler_latest/build/Release+Asserts/bin/opt -debug --load /home/arka/Workspace/work/Git_Compiler_Repo/redefine-tests/ECU_KERNELS/../../..//MM_Compiler_latest/build/Release+Asserts/bin/../lib/HyperOpCreationPass.so --HyperOpCreationPass -S ./Working/data_acquisition.ll -o ./Working/data_acquisition_HyOpPass.ll 
+
+Features:
+CPU:REDEFINE
+
+Found cycles?0
+
+-----------
+Partitioning function:po_calculation
+
+-------
+Acquiring bb entry
+Adding basic blocks for traversal in a breadth biased order for function po_calculation
+added to succ list:for.cond,
+distance of for.cond to exit 3
+
+-------
+Acquiring bb for.cond
+Adding basic blocks for traversal in a breadth biased order for function po_calculation
+added to succ list:for.body,for.end,
+distance of for.body to exit 4
+distance of for.end to exit 1
+
+-------
+Acquiring bb for.body
+Adding basic blocks for traversal in a breadth biased order for function po_calculation
+added to succ list:for.inc,
+distance of for.end to exit 1
+distance of for.inc to exit 3
+
+-------
+Acquiring bb for.inc
+Adding basic blocks for traversal in a breadth biased order for function po_calculation
+added to succ list:didn't add for.cond
+
+distance of for.end to exit 1
+
+-------
+Acquiring bb for.end
+entered end hop for function po_calculation
+Adding basic blocks for traversal in a breadth biased order for function po_calculation
+added to succ list:
+adding to creation map bbargs of size 1
+
+-----------
+Partitioning function:redefine_start
+
+-------
+Acquiring bb entry
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:newName0,
+distance of newName0 to exit 1
+
+-------
+Acquiring bb newName0
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:newName01,
+distance of newName01 to exit 1
+
+-------
+Acquiring bb newName01
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:
+adding to creation map bbargs of size 3
+before partitioning:; ModuleID = './Working/data_acquisition.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_array = common global [25 x float] zeroinitializer, align 4
+@redefine_out_parameter = common global float 0.000000e+00, align 4
+
+; Function Attrs: nounwind
+define float @po_calculation(float* %parray) #0 {
+entry:
+  %parray.addr = alloca float*, align 4
+  %i = alloca i32, align 4
+  %p0 = alloca i32, align 4
+  store float* %parray, float** %parray.addr, align 4
+  store i32 0, i32* %i, align 4
+  store i32 0, i32* %p0, align 4
+  br label %for.cond
+
+for.cond:                                         ; preds = %for.inc, %entry
+  %0 = load i32* %i, align 4
+  %cmp = icmp slt i32 %0, 25
+  br i1 %cmp, label %for.body, label %for.end
+
+for.body:                                         ; preds = %for.cond
+  %1 = load i32* %i, align 4
+  %2 = load float** %parray.addr, align 4
+  %arrayidx = getelementptr inbounds float* %2, i32 %1
+  %3 = load float* %arrayidx, align 4
+  %4 = load i32* %p0, align 4
+  %conv = sitofp i32 %4 to float
+  %add = fadd float %conv, %3
+  %conv1 = fptosi float %add to i32
+  store i32 %conv1, i32* %p0, align 4
+  br label %for.inc
+
+for.inc:                                          ; preds = %for.body
+  %5 = load i32* %i, align 4
+  %inc = add nsw i32 %5, 1
+  store i32 %inc, i32* %i, align 4
+  br label %for.cond
+
+for.end:                                          ; preds = %for.cond
+  %6 = load i32* %p0, align 4
+  %mul = mul nsw i32 %6, 25
+  store i32 %mul, i32* %p0, align 4
+  %7 = load i32* %p0, align 4
+  %conv2 = sitofp i32 %7 to float
+  ret float %conv2
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = alloca float*, align 4
+  store float* getelementptr inbounds ([25 x float]* @redefine_in_array, i32 0, i32 0), float** %0
+  %1 = load float** %0
+  br label %newName0
+
+newName0:                                         ; preds = %entry
+  %call = call float @po_calculation(float* %1)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store float %call, float* @redefine_out_parameter, align 4
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{}
+-----------Creating HyperOps from partitioned functions-----------
+added to traversallist:entry
+added to traversallist:newName0
+added to traversallist:newName01
+now at func:entry
+
+-----------Creating a new HyperOp for function:redefine_start-----------
+
+--------
+Acquired bb:entry from parent:redefine_start
+created func:redefine_start1
+now at func:newName0
+now at func:newName01
+
+-----------Creating a new HyperOp for function:redefine_start-----------
+
+--------
+Acquired bb:newName01 from parent:redefine_start
+created func:redefine_start2
+now at func:entry
+
+-----------Creating a new HyperOp for function:po_calculation-----------
+newName0,
+--------
+Acquired bb:entry from parent:po_calculation
+
+--------
+Acquired bb:for.cond from parent:po_calculation
+
+--------
+Acquired bb:for.body from parent:po_calculation
+
+--------
+Acquired bb:for.inc from parent:po_calculation
+
+--------
+Acquired bb:for.end from parent:po_calculation
+
+--------
+Acquired bb:newName0 from parent:redefine_start
+created func:po_calculation3
+before patching stuff:; ModuleID = './Working/data_acquisition.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_array = common global [25 x float] zeroinitializer, align 4
+@redefine_out_parameter = common global float 0.000000e+00, align 4
+
+; Function Attrs: nounwind
+define float @po_calculation(float* %parray) #0 {
+entry:
+  %parray.addr = alloca float*, align 4
+  %i = alloca i32, align 4
+  %p0 = alloca i32, align 4
+  store float* %parray, float** %parray.addr, align 4
+  store i32 0, i32* %i, align 4
+  store i32 0, i32* %p0, align 4
+  br label %for.cond
+
+for.cond:                                         ; preds = %for.inc, %entry
+  %0 = load i32* %i, align 4
+  %cmp = icmp slt i32 %0, 25
+  br i1 %cmp, label %for.body, label %for.end
+
+for.body:                                         ; preds = %for.cond
+  %1 = load i32* %i, align 4
+  %2 = load float** %parray.addr, align 4
+  %arrayidx = getelementptr inbounds float* %2, i32 %1
+  %3 = load float* %arrayidx, align 4
+  %4 = load i32* %p0, align 4
+  %conv = sitofp i32 %4 to float
+  %add = fadd float %conv, %3
+  %conv1 = fptosi float %add to i32
+  store i32 %conv1, i32* %p0, align 4
+  br label %for.inc
+
+for.inc:                                          ; preds = %for.body
+  %5 = load i32* %i, align 4
+  %inc = add nsw i32 %5, 1
+  store i32 %inc, i32* %i, align 4
+  br label %for.cond
+
+for.end:                                          ; preds = %for.cond
+  %6 = load i32* %p0, align 4
+  %mul = mul nsw i32 %6, 25
+  store i32 %mul, i32* %p0, align 4
+  %7 = load i32* %p0, align 4
+  %conv2 = sitofp i32 %7 to float
+  ret float %conv2
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = alloca float*, align 4
+  store float* getelementptr inbounds ([25 x float]* @redefine_in_array, i32 0, i32 0), float** %0
+  %1 = load float** %0
+  br label %newName0
+
+newName0:                                         ; preds = %redefine_start1.entry, %entry
+  %call = call float @po_calculation(float* %1)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store float %call, float* @redefine_out_parameter, align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca float*, align 4
+  store float* getelementptr inbounds ([25 x float]* @redefine_in_array, i32 0, i32 0), float** %0
+  %1 = load float** %0
+  br label %newName0
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(float*) {
+redefine_start2.newName01:
+  %1 = load float* %0
+  store float %1, float* @redefine_out_parameter, align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @po_calculation3(float*) {
+po_calculation3.entry:
+  %1 = alloca float*, align 4
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  store float* %0, float** %1, align 4
+  store i32 0, i32* %2, align 4
+  store i32 0, i32* %3, align 4
+  br label %po_calculation3.for.cond
+
+po_calculation3.for.cond:                         ; preds = %po_calculation3.for.inc, %po_calculation3.entry
+  %4 = load i32* %2, align 4
+  %5 = icmp slt i32 %4, 25
+  br i1 %5, label %po_calculation3.for.body, label %po_calculation3.for.end
+
+po_calculation3.for.body:                         ; preds = %po_calculation3.for.cond
+  %6 = load i32* %2, align 4
+  %7 = load float** %1, align 4
+  %8 = getelementptr inbounds float* %7, i32 %6
+  %9 = load float* %8, align 4
+  %10 = load i32* %3, align 4
+  %11 = sitofp i32 %10 to float
+  %12 = fadd float %11, %9
+  %13 = fptosi float %12 to i32
+  store i32 %13, i32* %3, align 4
+  br label %po_calculation3.for.inc
+
+po_calculation3.for.inc:                          ; preds = %po_calculation3.for.body
+  %14 = load i32* %2, align 4
+  %15 = add nsw i32 %14, 1
+  store i32 %15, i32* %2, align 4
+  br label %po_calculation3.for.cond
+
+po_calculation3.for.end:                          ; preds = %po_calculation3.for.cond
+  %16 = load i32* %3, align 4
+  %17 = mul nsw i32 %16, 25
+  store i32 %17, i32* %3, align 4
+  %18 = load i32* %3, align 4
+  %19 = sitofp i32 %18 to float
+  br label %po_calculation3.return
+
+po_calculation3.return:                           ; preds = %po_calculation3.for.end
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (float*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (float*)* @po_calculation3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+
+----------Adding dependences across created HyperOps----------
+
+-----------Patching created function redefine_start1--------------
+accumulated bbs:
+entry,
+
+----------Adding consumed by metadata----------
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:0
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function redefine_start1, module:; ModuleID = './Working/data_acquisition.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_array = common global [25 x float] zeroinitializer, align 4
+@redefine_out_parameter = common global float 0.000000e+00, align 4
+
+; Function Attrs: nounwind
+define float @po_calculation(float* %parray) #0 {
+entry:
+  %parray.addr = alloca float*, align 4
+  %i = alloca i32, align 4
+  %p0 = alloca i32, align 4
+  store float* %parray, float** %parray.addr, align 4
+  store i32 0, i32* %i, align 4
+  store i32 0, i32* %p0, align 4
+  br label %for.cond
+
+for.cond:                                         ; preds = %for.inc, %entry
+  %0 = load i32* %i, align 4
+  %cmp = icmp slt i32 %0, 25
+  br i1 %cmp, label %for.body, label %for.end
+
+for.body:                                         ; preds = %for.cond
+  %1 = load i32* %i, align 4
+  %2 = load float** %parray.addr, align 4
+  %arrayidx = getelementptr inbounds float* %2, i32 %1
+  %3 = load float* %arrayidx, align 4
+  %4 = load i32* %p0, align 4
+  %conv = sitofp i32 %4 to float
+  %add = fadd float %conv, %3
+  %conv1 = fptosi float %add to i32
+  store i32 %conv1, i32* %p0, align 4
+  br label %for.inc
+
+for.inc:                                          ; preds = %for.body
+  %5 = load i32* %i, align 4
+  %inc = add nsw i32 %5, 1
+  store i32 %inc, i32* %i, align 4
+  br label %for.cond
+
+for.end:                                          ; preds = %for.cond
+  %6 = load i32* %p0, align 4
+  %mul = mul nsw i32 %6, 25
+  store i32 %mul, i32* %p0, align 4
+  %7 = load i32* %p0, align 4
+  %conv2 = sitofp i32 %7 to float
+  ret float %conv2
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = alloca float*, align 4
+  store float* getelementptr inbounds ([25 x float]* @redefine_in_array, i32 0, i32 0), float** %0
+  %1 = load float** %0
+  br label %newName0
+
+newName0:                                         ; preds = %redefine_start1.entry, %entry
+  %call = call float @po_calculation(float* %1)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store float %call, float* @redefine_out_parameter, align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca float*, align 4
+  store float* getelementptr inbounds ([25 x float]* @redefine_in_array, i32 0, i32 0), float** %0
+  %1 = load float** %0
+  br label %newName0
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(float*) {
+redefine_start2.newName01:
+  %1 = load float* %0
+  store float %1, float* @redefine_out_parameter, align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @po_calculation3(float*) {
+po_calculation3.entry:
+  %1 = alloca float*, align 4
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  store float* %0, float** %1, align 4
+  store i32 0, i32* %2, align 4
+  store i32 0, i32* %3, align 4
+  br label %po_calculation3.for.cond
+
+po_calculation3.for.cond:                         ; preds = %po_calculation3.for.inc, %po_calculation3.entry
+  %4 = load i32* %2, align 4
+  %5 = icmp slt i32 %4, 25
+  br i1 %5, label %po_calculation3.for.body, label %po_calculation3.for.end
+
+po_calculation3.for.body:                         ; preds = %po_calculation3.for.cond
+  %6 = load i32* %2, align 4
+  %7 = load float** %1, align 4
+  %8 = getelementptr inbounds float* %7, i32 %6
+  %9 = load float* %8, align 4
+  %10 = load i32* %3, align 4
+  %11 = sitofp i32 %10 to float
+  %12 = fadd float %11, %9
+  %13 = fptosi float %12 to i32
+  store i32 %13, i32* %3, align 4
+  br label %po_calculation3.for.inc
+
+po_calculation3.for.inc:                          ; preds = %po_calculation3.for.body
+  %14 = load i32* %2, align 4
+  %15 = add nsw i32 %14, 1
+  store i32 %15, i32* %2, align 4
+  br label %po_calculation3.for.cond
+
+po_calculation3.for.end:                          ; preds = %po_calculation3.for.cond
+  %16 = load i32* %3, align 4
+  %17 = mul nsw i32 %16, 25
+  store i32 %17, i32* %3, align 4
+  %18 = load i32* %3, align 4
+  %19 = sitofp i32 %18 to float
+  br label %po_calculation3.return
+
+po_calculation3.return:                           ; preds = %po_calculation3.for.end
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (float*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (float*)* @po_calculation3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+
+-----------Patching created function redefine_start2--------------
+accumulated bbs:
+newName01,
+
+----------Adding consumed by metadata----------
+  %call = call float @po_calculation(float* %1)
+cloned inst second:  %conv2 = sitofp i32 %7 to float
+producer function:po_calculation3
+how many clones?1
+added metadata on instruction that belongs to parent po_calculation3 and is mapped to slot 0 when the function has 1 and is of type:1:  %1 = alloca float, align 4, !ConsumedBy !6
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:1
+what was callsite size earlier??0
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function redefine_start2, module:; ModuleID = './Working/data_acquisition.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_array = common global [25 x float] zeroinitializer, align 4
+@redefine_out_parameter = common global float 0.000000e+00, align 4
+
+; Function Attrs: nounwind
+define float @po_calculation(float* %parray) #0 {
+entry:
+  %parray.addr = alloca float*, align 4
+  %i = alloca i32, align 4
+  %p0 = alloca i32, align 4
+  store float* %parray, float** %parray.addr, align 4
+  store i32 0, i32* %i, align 4
+  store i32 0, i32* %p0, align 4
+  br label %for.cond
+
+for.cond:                                         ; preds = %for.inc, %entry
+  %0 = load i32* %i, align 4
+  %cmp = icmp slt i32 %0, 25
+  br i1 %cmp, label %for.body, label %for.end
+
+for.body:                                         ; preds = %for.cond
+  %1 = load i32* %i, align 4
+  %2 = load float** %parray.addr, align 4
+  %arrayidx = getelementptr inbounds float* %2, i32 %1
+  %3 = load float* %arrayidx, align 4
+  %4 = load i32* %p0, align 4
+  %conv = sitofp i32 %4 to float
+  %add = fadd float %conv, %3
+  %conv1 = fptosi float %add to i32
+  store i32 %conv1, i32* %p0, align 4
+  br label %for.inc
+
+for.inc:                                          ; preds = %for.body
+  %5 = load i32* %i, align 4
+  %inc = add nsw i32 %5, 1
+  store i32 %inc, i32* %i, align 4
+  br label %for.cond
+
+for.end:                                          ; preds = %for.cond
+  %6 = load i32* %p0, align 4
+  %mul = mul nsw i32 %6, 25
+  store i32 %mul, i32* %p0, align 4
+  %7 = load i32* %p0, align 4
+  %conv2 = sitofp i32 %7 to float
+  ret float %conv2
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = alloca float*, align 4
+  store float* getelementptr inbounds ([25 x float]* @redefine_in_array, i32 0, i32 0), float** %0
+  %1 = load float** %0
+  br label %newName0
+
+newName0:                                         ; preds = %redefine_start1.entry, %entry
+  %call = call float @po_calculation(float* %1)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store float %call, float* @redefine_out_parameter, align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca float*, align 4
+  store float* getelementptr inbounds ([25 x float]* @redefine_in_array, i32 0, i32 0), float** %0
+  %1 = load float** %0
+  br label %newName0
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(float*) {
+redefine_start2.newName01:
+  %1 = load float* %0
+  store float %1, float* @redefine_out_parameter, align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @po_calculation3(float*) {
+po_calculation3.entry:
+  %1 = alloca float, align 4, !ConsumedBy !6
+  %2 = alloca float*, align 4
+  %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
+  store float* %0, float** %2, align 4
+  store i32 0, i32* %3, align 4
+  store i32 0, i32* %4, align 4
+  br label %po_calculation3.for.cond
+
+po_calculation3.for.cond:                         ; preds = %po_calculation3.for.inc, %po_calculation3.entry
+  %5 = load i32* %3, align 4
+  %6 = icmp slt i32 %5, 25
+  br i1 %6, label %po_calculation3.for.body, label %po_calculation3.for.end
+
+po_calculation3.for.body:                         ; preds = %po_calculation3.for.cond
+  %7 = load i32* %3, align 4
+  %8 = load float** %2, align 4
+  %9 = getelementptr inbounds float* %8, i32 %7
+  %10 = load float* %9, align 4
+  %11 = load i32* %4, align 4
+  %12 = sitofp i32 %11 to float
+  %13 = fadd float %12, %10
+  %14 = fptosi float %13 to i32
+  store i32 %14, i32* %4, align 4
+  br label %po_calculation3.for.inc
+
+po_calculation3.for.inc:                          ; preds = %po_calculation3.for.body
+  %15 = load i32* %3, align 4
+  %16 = add nsw i32 %15, 1
+  store i32 %16, i32* %3, align 4
+  br label %po_calculation3.for.cond
+
+po_calculation3.for.end:                          ; preds = %po_calculation3.for.cond
+  %17 = load i32* %4, align 4
+  %18 = mul nsw i32 %17, 25
+  store i32 %18, i32* %4, align 4
+  %19 = load i32* %4, align 4
+  %20 = sitofp i32 %19 to float
+  store float %20, float* %1, align 4
+  br label %po_calculation3.return
+
+po_calculation3.return:                           ; preds = %po_calculation3.for.end
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (float*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (float*)* @po_calculation3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !2, metadata !"LocalReference", i32 0}
+
+-----------Patching created function po_calculation3--------------
+accumulated bbs:
+entry,for.cond,for.body,for.inc,for.end,
+
+----------Adding consumed by metadata----------
+cloned inst second:  %0 = alloca float*, align 4
+producer function:redefine_start1
+how many clones?1
+added metadata on instruction that belongs to parent redefine_start1 and is mapped to slot 0 when the function has 1 and is of type:1:  %0 = alloca float*, align 4, !ConsumedBy !6
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:1
+what was callsite size earlier??1
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function po_calculation3, module:; ModuleID = './Working/data_acquisition.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_array = common global [25 x float] zeroinitializer, align 4
+@redefine_out_parameter = common global float 0.000000e+00, align 4
+
+; Function Attrs: nounwind
+define float @po_calculation(float* %parray) #0 {
+entry:
+  %parray.addr = alloca float*, align 4
+  %i = alloca i32, align 4
+  %p0 = alloca i32, align 4
+  store float* %parray, float** %parray.addr, align 4
+  store i32 0, i32* %i, align 4
+  store i32 0, i32* %p0, align 4
+  br label %for.cond
+
+for.cond:                                         ; preds = %for.inc, %entry
+  %0 = load i32* %i, align 4
+  %cmp = icmp slt i32 %0, 25
+  br i1 %cmp, label %for.body, label %for.end
+
+for.body:                                         ; preds = %for.cond
+  %1 = load i32* %i, align 4
+  %2 = load float** %parray.addr, align 4
+  %arrayidx = getelementptr inbounds float* %2, i32 %1
+  %3 = load float* %arrayidx, align 4
+  %4 = load i32* %p0, align 4
+  %conv = sitofp i32 %4 to float
+  %add = fadd float %conv, %3
+  %conv1 = fptosi float %add to i32
+  store i32 %conv1, i32* %p0, align 4
+  br label %for.inc
+
+for.inc:                                          ; preds = %for.body
+  %5 = load i32* %i, align 4
+  %inc = add nsw i32 %5, 1
+  store i32 %inc, i32* %i, align 4
+  br label %for.cond
+
+for.end:                                          ; preds = %for.cond
+  %6 = load i32* %p0, align 4
+  %mul = mul nsw i32 %6, 25
+  store i32 %mul, i32* %p0, align 4
+  %7 = load i32* %p0, align 4
+  %conv2 = sitofp i32 %7 to float
+  ret float %conv2
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = alloca float*, align 4
+  store float* getelementptr inbounds ([25 x float]* @redefine_in_array, i32 0, i32 0), float** %0
+  %1 = load float** %0
+  br label %newName0
+
+newName0:                                         ; preds = %entry
+  %call = call float @po_calculation(float* %1)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store float %call, float* @redefine_out_parameter, align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca float*, align 4, !ConsumedBy !6
+  store float* getelementptr inbounds ([25 x float]* @redefine_in_array, i32 0, i32 0), float** %0
+  %1 = load float** %0
+  br label %redefine_start1.return
+
+redefine_start1.return:                           ; preds = %redefine_start1.entry
+  ret void
+}
+
+define void @redefine_start2(float*) {
+redefine_start2.newName01:
+  %1 = load float* %0
+  store float %1, float* @redefine_out_parameter, align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @po_calculation3(float*) {
+po_calculation3.entry:
+  %1 = alloca float, align 4, !ConsumedBy !8
+  %2 = alloca float*, align 4
+  %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
+  store float* %0, float** %2, align 4
+  store i32 0, i32* %3, align 4
+  store i32 0, i32* %4, align 4
+  br label %po_calculation3.for.cond
+
+po_calculation3.for.cond:                         ; preds = %po_calculation3.for.inc, %po_calculation3.entry
+  %5 = load i32* %3, align 4
+  %6 = icmp slt i32 %5, 25
+  br i1 %6, label %po_calculation3.for.body, label %po_calculation3.for.end
+
+po_calculation3.for.body:                         ; preds = %po_calculation3.for.cond
+  %7 = load i32* %3, align 4
+  %8 = load float** %2, align 4
+  %9 = getelementptr inbounds float* %8, i32 %7
+  %10 = load float* %9, align 4
+  %11 = load i32* %4, align 4
+  %12 = sitofp i32 %11 to float
+  %13 = fadd float %12, %10
+  %14 = fptosi float %13 to i32
+  store i32 %14, i32* %4, align 4
+  br label %po_calculation3.for.inc
+
+po_calculation3.for.inc:                          ; preds = %po_calculation3.for.body
+  %15 = load i32* %3, align 4
+  %16 = add nsw i32 %15, 1
+  store i32 %16, i32* %3, align 4
+  br label %po_calculation3.for.cond
+
+po_calculation3.for.end:                          ; preds = %po_calculation3.for.cond
+  %17 = load i32* %4, align 4
+  %18 = mul nsw i32 %17, 25
+  store i32 %18, i32* %4, align 4
+  %19 = load i32* %4, align 4
+  %20 = sitofp i32 %19 to float
+  store float %20, float* %1, align 4
+  br label %po_calculation3.return
+
+po_calculation3.return:                           ; preds = %po_calculation3.for.end
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (float*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (float*)* @po_calculation3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !4, metadata !"LocalReference", i32 0}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !2, metadata !"LocalReference", i32 0}
+
+----------Adding sync edges to dangling HyperOps----------
+
+-----------Re-routing sync edges from end hyperop to the newly created end HyperOp-----------
+whats in module now?; ModuleID = './Working/data_acquisition.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_array = common global [25 x float] zeroinitializer, align 4
+@redefine_out_parameter = common global float 0.000000e+00, align 4
+
+; Function Attrs: nounwind
+define float @po_calculation(float* %parray) #0 {
+entry:
+  %parray.addr = alloca float*, align 4
+  %i = alloca i32, align 4
+  %p0 = alloca i32, align 4
+  store float* %parray, float** %parray.addr, align 4
+  store i32 0, i32* %i, align 4
+  store i32 0, i32* %p0, align 4
+  br label %for.cond
+
+for.cond:                                         ; preds = %for.inc, %entry
+  %0 = load i32* %i, align 4
+  %cmp = icmp slt i32 %0, 25
+  br i1 %cmp, label %for.body, label %for.end
+
+for.body:                                         ; preds = %for.cond
+  %1 = load i32* %i, align 4
+  %2 = load float** %parray.addr, align 4
+  %arrayidx = getelementptr inbounds float* %2, i32 %1
+  %3 = load float* %arrayidx, align 4
+  %4 = load i32* %p0, align 4
+  %conv = sitofp i32 %4 to float
+  %add = fadd float %conv, %3
+  %conv1 = fptosi float %add to i32
+  store i32 %conv1, i32* %p0, align 4
+  br label %for.inc
+
+for.inc:                                          ; preds = %for.body
+  %5 = load i32* %i, align 4
+  %inc = add nsw i32 %5, 1
+  store i32 %inc, i32* %i, align 4
+  br label %for.cond
+
+for.end:                                          ; preds = %for.cond
+  %6 = load i32* %p0, align 4
+  %mul = mul nsw i32 %6, 25
+  store i32 %mul, i32* %p0, align 4
+  %7 = load i32* %p0, align 4
+  %conv2 = sitofp i32 %7 to float
+  ret float %conv2
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = alloca float*, align 4
+  store float* getelementptr inbounds ([25 x float]* @redefine_in_array, i32 0, i32 0), float** %0
+  %1 = load float** %0
+  br label %newName0
+
+newName0:                                         ; preds = %entry
+  %call = call float @po_calculation(float* %1)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store float %call, float* @redefine_out_parameter, align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca float*, align 4, !ConsumedBy !6
+  store float* getelementptr inbounds ([25 x float]* @redefine_in_array, i32 0, i32 0), float** %0
+  %1 = load float** %0
+  br label %redefine_start1.return
+
+redefine_start1.return:                           ; preds = %redefine_start1.entry
+  ret void
+}
+
+define void @redefine_start2(float*) {
+redefine_start2.newName01:
+  %1 = load float* %0
+  store float %1, float* @redefine_out_parameter, align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @po_calculation3(float*) {
+po_calculation3.entry:
+  %1 = alloca float, align 4, !ConsumedBy !8
+  %2 = alloca float*, align 4
+  %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
+  store float* %0, float** %2, align 4
+  store i32 0, i32* %3, align 4
+  store i32 0, i32* %4, align 4
+  br label %po_calculation3.for.cond
+
+po_calculation3.for.cond:                         ; preds = %po_calculation3.for.inc, %po_calculation3.entry
+  %5 = load i32* %3, align 4
+  %6 = icmp slt i32 %5, 25
+  br i1 %6, label %po_calculation3.for.body, label %po_calculation3.for.end
+
+po_calculation3.for.body:                         ; preds = %po_calculation3.for.cond
+  %7 = load i32* %3, align 4
+  %8 = load float** %2, align 4
+  %9 = getelementptr inbounds float* %8, i32 %7
+  %10 = load float* %9, align 4
+  %11 = load i32* %4, align 4
+  %12 = sitofp i32 %11 to float
+  %13 = fadd float %12, %10
+  %14 = fptosi float %13 to i32
+  store i32 %14, i32* %4, align 4
+  br label %po_calculation3.for.inc
+
+po_calculation3.for.inc:                          ; preds = %po_calculation3.for.body
+  %15 = load i32* %3, align 4
+  %16 = add nsw i32 %15, 1
+  store i32 %16, i32* %3, align 4
+  br label %po_calculation3.for.cond
+
+po_calculation3.for.end:                          ; preds = %po_calculation3.for.cond
+  %17 = load i32* %4, align 4
+  %18 = mul nsw i32 %17, 25
+  store i32 %18, i32* %4, align 4
+  %19 = load i32* %4, align 4
+  %20 = sitofp i32 %19 to float
+  store float %20, float* %1, align 4
+  br label %po_calculation3.return
+
+po_calculation3.return:                           ; preds = %po_calculation3.for.end
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (float*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (float*)* @po_calculation3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !4, metadata !"LocalReference", i32 0}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !2, metadata !"LocalReference", i32 0}
+
+-----------Deleting unused functions-----------
+deleting contents of function:po_calculation
+deleting contents of function:redefine_start
+Final module contents:; ModuleID = './Working/data_acquisition.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_array = common global [25 x float] zeroinitializer, align 4
+@redefine_out_parameter = common global float 0.000000e+00, align 4
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca float*, align 4, !ConsumedBy !6
+  store float* getelementptr inbounds ([25 x float]* @redefine_in_array, i32 0, i32 0), float** %0
+  %1 = load float** %0
+  br label %redefine_start1.return
+
+redefine_start1.return:                           ; preds = %redefine_start1.entry
+  ret void
+}
+
+define void @redefine_start2(float*) {
+redefine_start2.newName01:
+  %1 = load float* %0
+  store float %1, float* @redefine_out_parameter, align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @po_calculation3(float*) {
+po_calculation3.entry:
+  %1 = alloca float, align 4, !ConsumedBy !8
+  %2 = alloca float*, align 4
+  %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
+  store float* %0, float** %2, align 4
+  store i32 0, i32* %3, align 4
+  store i32 0, i32* %4, align 4
+  br label %po_calculation3.for.cond
+
+po_calculation3.for.cond:                         ; preds = %po_calculation3.for.inc, %po_calculation3.entry
+  %5 = load i32* %3, align 4
+  %6 = icmp slt i32 %5, 25
+  br i1 %6, label %po_calculation3.for.body, label %po_calculation3.for.end
+
+po_calculation3.for.body:                         ; preds = %po_calculation3.for.cond
+  %7 = load i32* %3, align 4
+  %8 = load float** %2, align 4
+  %9 = getelementptr inbounds float* %8, i32 %7
+  %10 = load float* %9, align 4
+  %11 = load i32* %4, align 4
+  %12 = sitofp i32 %11 to float
+  %13 = fadd float %12, %10
+  %14 = fptosi float %13 to i32
+  store i32 %14, i32* %4, align 4
+  br label %po_calculation3.for.inc
+
+po_calculation3.for.inc:                          ; preds = %po_calculation3.for.body
+  %15 = load i32* %3, align 4
+  %16 = add nsw i32 %15, 1
+  store i32 %16, i32* %3, align 4
+  br label %po_calculation3.for.cond
+
+po_calculation3.for.end:                          ; preds = %po_calculation3.for.cond
+  %17 = load i32* %4, align 4
+  %18 = mul nsw i32 %17, 25
+  store i32 %18, i32* %4, align 4
+  %19 = load i32* %4, align 4
+  %20 = sitofp i32 %19 to float
+  store float %20, float* %1, align 4
+  br label %po_calculation3.return
+
+po_calculation3.return:                           ; preds = %po_calculation3.for.end
+  ret void
+}
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (float*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (float*)* @po_calculation3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !4, metadata !"LocalReference", i32 0}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !2, metadata !"LocalReference", i32 0}

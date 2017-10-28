@@ -31,6 +31,8 @@ private:
 	const char* DEPTH_HEG_ANNOTATION = ".depthHEG";
 	const char* LAUNCH_CNT_ANNOTATION = ".launchCnt";
 	const char* OPERAND_VALIDITY_ANNOTATION = ".OpValidity";
+	const char*  OPERAND_BEGIN_ANNOTATION = ".OP_BEGIN";
+	const char*  OPERAND_END_ANNOTATION = ".OP_END";
 	const char* OP_WAIT_CNT_ANNOTATION = ".OpWaitCnt";
 	const char* ISNEXT_HOP_INST_VALID_ANNOTATION = ".isnextHyOpInstValid";
 	const char* NEXT_HYPEROP_INST_ANNOTATION = ".nextHypOpInst";

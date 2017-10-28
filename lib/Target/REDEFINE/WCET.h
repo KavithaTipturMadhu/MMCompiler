@@ -30,6 +30,8 @@
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineScheduler.h"
+#include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/PassSupport.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -42,9 +44,9 @@
 #include "llvm/Pass.h"
 #include "llvm/Target/TargetMachine.h"
 #include <llvm/Analysis/LoopInfo.h>
-#include "llvm/Analysis/LoopInfo.h"
 #include "HyperOpInteractionGraph.h"
 #include "REDEFINETargetMachine.h"
+#include "REDEFINEUtils.h"
 
 #define s(x) errs()<< #x <<" = "<< x <<std::endl
 #define pb errs()<<"------------------------------------------------"<<std::endl;
@@ -146,9 +148,9 @@ namespace WCET
 			typedef std::multimap< int , T > TimeVextexMap;
 			TimeVextexMap CTVM;
 			TSList TSL;
-			CPMap CrticalPath;
 			std::map< T , int > Distance;
 		public:
+			CPMap CrticalPath;
 			DWAGraph();
 			void TopologicalSorting();
 			void CriticalPath();
@@ -163,6 +165,39 @@ namespace WCET
 			void xdot_ShortestPath();
 	};
 
+	class CacheNode
+	{
+		protected:
+			void * MemoryLocation;
+			unsigned size;
+		public:
+			CacheNode( void * , unsigned int );
+			void set_MemoryLocation( void * );
+			void * get_MemoryLocation();
+			void set_memsize( unsigned int );
+			unsigned int get_memsize();
+	};
+
+	class CacheAnalysis
+	{
+		protected:
+			int linesize;
+			int cachesize;
+			int associativity;
+			int NumberofLines;
+		public:
+			std::list< CacheNode > LRU;
+			CacheAnalysis();
+			void set_line( int );
+			int get_line( );
+			void set_cachsize( int );
+			void set_associativity( int );
+			bool Update(void *,unsigned int);
+			bool In_Cache( MachineInstr* );
+			void dump();
+
+	};
+
 	typedef DWAGraph< unsigned long int > pHyperOpBB;
 	typedef std::map< MachineInstr* , pHyperOpBB* > MachinepHyperOpBBLookup;
 	typedef DWAGraph< pHyperOpBB* > pHyperOpCFG;
@@ -172,39 +207,63 @@ namespace WCET
 	typedef DWGraph< MachineLoop* > LoopScope;
 	typedef std::map< MachineLoop * , std::pair< unsigned int , unsigned int > > LoopBound;
 	typedef WCET::DWAGraph< HyperOp * > HyperOpGraph;
+	typedef std::map< MachineInstr * , std::pair<void *,unsigned int> > MemoryAliasMap;
+	typedef std::map< int,pHyperOpBB* > pBBLookUp;
+	typedef std::map<int,CacheAnalysis *> CacheLookUp;
+
+
+	void WCETMemoryAliasing( MachineFunction *MF );
+	CacheAnalysis * Union(CacheAnalysis *,CacheAnalysis *);
+	CacheAnalysis * Intersection(CacheAnalysis *,CacheAnalysis *);
 
 	class pHyperOpBasicBlock
 	{
-		protected:
-			pHyperOpBB pHyperBB[pHyperOpNumber];
 		public:
-			pHyperOpBasicBlock( llvm::MachineBasicBlock * );
-			pHyperOpBB get_pHyperOpBB( int );
+			pHyperOpBB pHyperBB[pHyperOpNumber];
+			pHyperOpBasicBlock( llvm::MachineBasicBlock * ,CacheAnalysis *CA);
 	};
 
 	class pHyperOpControlFlowGraph
 	{
 		public:
-			std::vector< pHyperOpBB* > LookUp[pHyperOpNumber];
-			pHyperOpCFG pHyperCFG[pHyperOpNumber];
+			llvm::MachineDominatorTree *DT;
+
+			std::vector<llvm::MachineBasicBlock *> LeafMBB;
+			std::map<llvm::MachineBasicBlock *,bool> Ismayvisted;
+			std::map<llvm::MachineBasicBlock *,bool> Ismustvisted;
+
+			CacheLookUp MayCA;
+			CacheLookUp MustCA;
+
+			pBBLookUp MayLookUp[pHyperOpNumber];
+			pBBLookUp MustLookUp[pHyperOpNumber];
+
+			pHyperOpCFG pHyperMayCFG[pHyperOpNumber];
+			pHyperOpCFG pHyperMustCFG[pHyperOpNumber];
+
 			pHyperOpControlFlowGraph( llvm::MachineFunction &MF , llvm::MachineDominatorTree *DT );
+			void pHyperOpMayDFS(llvm::MachineBasicBlock *);
+			void pHyperOpMustDFS(llvm::MachineBasicBlock *);
+
 	};
 
 	class SingleHyperOpWcet
 	{
 		private:
 			llvm::MachineFunction* MF;
-			pHyperOpCFG pHopCFG[pHyperOpNumber];
+			pHyperOpCFG pHopMustCFG[pHyperOpNumber];
+			pHyperOpCFG pHopMayCFG[pHyperOpNumber];
 			MachinepHyperOpBBLookup MPILookup;
-			std::vector< pHyperOpBB* > LookUp[pHyperOpNumber];
+			pBBLookUp MustLookUp[pHyperOpNumber];
+			pBBLookUp MayLookUp[pHyperOpNumber];
 			LoopScope LS;
 			LoopBound pLoopBound;
-			pHyperOpBBExtraTime pBBExtraTime[pHyperOpNumber];
+			pHyperOpBBExtraTime pBBMayExtraTime[pHyperOpNumber];
+			pHyperOpBBExtraTime pBBMustExtraTime[pHyperOpNumber];
 			IntraHyperOp IntraHopWCET;
 			IntraHyperOp IntraHopBCET;
 
 		public:
-			//std::vector< std::pair< unsigned int , unsigned int > > LoopUpperLowerBound;
 			SingleHyperOpWcet( llvm::MachineFunction* MF , MachineLoopInfo *LI , MachineDominatorTree *DT );
 			void LoopAnalysis( MachineLoopInfo *LI );
 			void LsDFS( MachineLoop * );

@@ -1,0 +1,1561 @@
+Args: /home/arka/Workspace/work/Git_Compiler_Repo/redefine-tests/ECU_KERNELS/../../..//MM_Compiler_latest/build/Release+Asserts/bin/opt -debug --load /home/arka/Workspace/work/Git_Compiler_Repo/redefine-tests/ECU_KERNELS/../../..//MM_Compiler_latest/build/Release+Asserts/bin/../lib/HyperOpCreationPass.so --HyperOpCreationPass -S ./Working/runningprotection.ll -o ./Working/runningprotection_HyOpPass.ll 
+
+Features:
+CPU:REDEFINE
+
+Found cycles?0
+
+-----------
+Partitioning function:running_protection
+
+-------
+Acquiring bb entry
+Adding basic blocks for traversal in a breadth biased order for function running_protection
+added to succ list:if.then,if.end,
+distance of if.then to exit 6
+distance of if.end to exit 5
+
+-------
+Acquiring bb if.then
+Adding basic blocks for traversal in a breadth biased order for function running_protection
+added to succ list:didn't add if.end
+
+distance of if.end to exit 5
+
+-------
+Acquiring bb if.end
+Adding basic blocks for traversal in a breadth biased order for function running_protection
+added to succ list:if.then7,if.end10,
+distance of if.then7 to exit 4
+distance of if.end10 to exit 3
+
+-------
+Acquiring bb if.then7
+Adding basic blocks for traversal in a breadth biased order for function running_protection
+added to succ list:didn't add if.end10
+
+distance of if.end10 to exit 3
+
+-------
+Acquiring bb if.end10
+Adding basic blocks for traversal in a breadth biased order for function running_protection
+added to succ list:if.then14,if.end17,
+distance of if.then14 to exit 2
+distance of if.end17 to exit 1
+
+-------
+Acquiring bb if.then14
+Adding basic blocks for traversal in a breadth biased order for function running_protection
+added to succ list:didn't add if.end17
+
+distance of if.end17 to exit 1
+
+-------
+Acquiring bb if.end17
+entered end hop for function running_protection
+Adding basic blocks for traversal in a breadth biased order for function running_protection
+added to succ list:
+adding to creation map bbargs of size 1
+
+-----------
+Partitioning function:redefine_start
+
+-------
+Acquiring bb entry
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:newName0,
+distance of newName0 to exit 1
+
+-------
+Acquiring bb newName0
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:newName01,
+distance of newName01 to exit 1
+
+-------
+Acquiring bb newName01
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:
+adding to creation map bbargs of size 3
+before partitioning:; ModuleID = './Working/runningprotection.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@var = global float 0x3FE6666660000000, align 4
+@redefine_in_a = common global [6 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [2 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define i32* @running_protection(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %oil_press = alloca float, align 4
+  %dtisa = alloca float, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %oil_press, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 1
+  %4 = bitcast i32* %arrayidx1 to float*
+  %5 = load float* %4, align 4
+  store float %5, float* %dtisa, align 4
+  %6 = load float* %oil_press, align 4
+  %7 = load float* @var, align 4
+  %cmp = fcmp olt float %6, %7
+  br i1 %cmp, label %if.then, label %if.end
+
+if.then:                                          ; preds = %entry
+  %8 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %8, i32 5
+  store i32 16, i32* %arrayidx2, align 4
+  %9 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %9, i32 4
+  store i32 4, i32* %arrayidx3, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.then, %entry
+  %10 = load i32** %input.addr, align 4
+  %arrayidx4 = getelementptr inbounds i32* %10, i32 2
+  %11 = load i32* %arrayidx4, align 4
+  %conv = sitofp i32 %11 to float
+  %12 = load float* %dtisa, align 4
+  %mul = fmul float 2.000000e+00, %12
+  %add = fadd float 3.500000e+02, %mul
+  %cmp5 = fcmp olt float %conv, %add
+  br i1 %cmp5, label %if.then7, label %if.end10
+
+if.then7:                                         ; preds = %if.end
+  %13 = load i32** %input.addr, align 4
+  %arrayidx8 = getelementptr inbounds i32* %13, i32 4
+  store i32 32, i32* %arrayidx8, align 4
+  %14 = load i32** %input.addr, align 4
+  %arrayidx9 = getelementptr inbounds i32* %14, i32 5
+  store i32 16, i32* %arrayidx9, align 4
+  br label %if.end10
+
+if.end10:                                         ; preds = %if.then7, %if.end
+  %15 = load i32** %input.addr, align 4
+  %arrayidx11 = getelementptr inbounds i32* %15, i32 3
+  %16 = load i32* %arrayidx11, align 4
+  %cmp12 = icmp sgt i32 %16, 116
+  br i1 %cmp12, label %if.then14, label %if.end17
+
+if.then14:                                        ; preds = %if.end10
+  %17 = load i32** %input.addr, align 4
+  %arrayidx15 = getelementptr inbounds i32* %17, i32 5
+  store i32 16, i32* %arrayidx15, align 4
+  %18 = load i32** %input.addr, align 4
+  %arrayidx16 = getelementptr inbounds i32* %18, i32 4
+  store i32 16, i32* %arrayidx16, align 4
+  br label %if.end17
+
+if.end17:                                         ; preds = %if.then14, %if.end10
+  %19 = load i32** %input.addr, align 4
+  ret i32* %19
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = getelementptr inbounds float* @var, i32 0
+  store float 0x3FE6666660000000, float* %0, align 4
+  %1 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %1
+  %2 = load i32** %1
+  br label %newName0
+
+newName0:                                         ; preds = %entry
+  %call = call i32* @running_protection(i32* %2)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  %output = alloca i32*, align 4
+  store i32* %call, i32** %output, align 4
+  %3 = load i32** %output, align 4
+  %arrayidx = getelementptr inbounds i32* %3, i32 4
+  %4 = load i32* %arrayidx, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %output, align 4
+  %arrayidx1 = getelementptr inbounds i32* %5, i32 5
+  %6 = load i32* %arrayidx1, align 4
+  store i32 %6, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{}
+-----------Creating HyperOps from partitioned functions-----------
+added to traversallist:entry
+added to traversallist:newName0
+added to traversallist:newName01
+now at func:entry
+
+-----------Creating a new HyperOp for function:redefine_start-----------
+
+--------
+Acquired bb:entry from parent:redefine_start
+created func:redefine_start1
+now at func:newName0
+now at func:newName01
+
+-----------Creating a new HyperOp for function:redefine_start-----------
+
+--------
+Acquired bb:newName01 from parent:redefine_start
+created func:redefine_start2
+now at func:entry
+
+-----------Creating a new HyperOp for function:running_protection-----------
+newName0,
+--------
+Acquired bb:entry from parent:running_protection
+
+--------
+Acquired bb:if.then from parent:running_protection
+
+--------
+Acquired bb:if.end from parent:running_protection
+
+--------
+Acquired bb:if.then7 from parent:running_protection
+
+--------
+Acquired bb:if.end10 from parent:running_protection
+
+--------
+Acquired bb:if.then14 from parent:running_protection
+
+--------
+Acquired bb:if.end17 from parent:running_protection
+
+--------
+Acquired bb:newName0 from parent:redefine_start
+created func:running_protection3
+before patching stuff:; ModuleID = './Working/runningprotection.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@var = global float 0x3FE6666660000000, align 4
+@redefine_in_a = common global [6 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [2 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define i32* @running_protection(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %oil_press = alloca float, align 4
+  %dtisa = alloca float, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %oil_press, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 1
+  %4 = bitcast i32* %arrayidx1 to float*
+  %5 = load float* %4, align 4
+  store float %5, float* %dtisa, align 4
+  %6 = load float* %oil_press, align 4
+  %7 = load float* @var, align 4
+  %cmp = fcmp olt float %6, %7
+  br i1 %cmp, label %if.then, label %if.end
+
+if.then:                                          ; preds = %entry
+  %8 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %8, i32 5
+  store i32 16, i32* %arrayidx2, align 4
+  %9 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %9, i32 4
+  store i32 4, i32* %arrayidx3, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.then, %entry
+  %10 = load i32** %input.addr, align 4
+  %arrayidx4 = getelementptr inbounds i32* %10, i32 2
+  %11 = load i32* %arrayidx4, align 4
+  %conv = sitofp i32 %11 to float
+  %12 = load float* %dtisa, align 4
+  %mul = fmul float 2.000000e+00, %12
+  %add = fadd float 3.500000e+02, %mul
+  %cmp5 = fcmp olt float %conv, %add
+  br i1 %cmp5, label %if.then7, label %if.end10
+
+if.then7:                                         ; preds = %if.end
+  %13 = load i32** %input.addr, align 4
+  %arrayidx8 = getelementptr inbounds i32* %13, i32 4
+  store i32 32, i32* %arrayidx8, align 4
+  %14 = load i32** %input.addr, align 4
+  %arrayidx9 = getelementptr inbounds i32* %14, i32 5
+  store i32 16, i32* %arrayidx9, align 4
+  br label %if.end10
+
+if.end10:                                         ; preds = %if.then7, %if.end
+  %15 = load i32** %input.addr, align 4
+  %arrayidx11 = getelementptr inbounds i32* %15, i32 3
+  %16 = load i32* %arrayidx11, align 4
+  %cmp12 = icmp sgt i32 %16, 116
+  br i1 %cmp12, label %if.then14, label %if.end17
+
+if.then14:                                        ; preds = %if.end10
+  %17 = load i32** %input.addr, align 4
+  %arrayidx15 = getelementptr inbounds i32* %17, i32 5
+  store i32 16, i32* %arrayidx15, align 4
+  %18 = load i32** %input.addr, align 4
+  %arrayidx16 = getelementptr inbounds i32* %18, i32 4
+  store i32 16, i32* %arrayidx16, align 4
+  br label %if.end17
+
+if.end17:                                         ; preds = %if.then14, %if.end10
+  %19 = load i32** %input.addr, align 4
+  ret i32* %19
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = getelementptr inbounds float* @var, i32 0
+  store float 0x3FE6666660000000, float* %0, align 4
+  %1 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %1
+  %2 = load i32** %1
+  br label %newName0
+
+newName0:                                         ; preds = %redefine_start1.entry, %entry
+  %call = call i32* @running_protection(i32* %2)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  %output = alloca i32*, align 4
+  store i32* %call, i32** %output, align 4
+  %3 = load i32** %output, align 4
+  %arrayidx = getelementptr inbounds i32* %3, i32 4
+  %4 = load i32* %arrayidx, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %output, align 4
+  %arrayidx1 = getelementptr inbounds i32* %5, i32 5
+  %6 = load i32* %arrayidx1, align 4
+  store i32 %6, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = getelementptr inbounds float* @var, i32 0
+  store float 0x3FE6666660000000, float* %0, align 4
+  %1 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %1
+  %2 = load i32** %1
+  br label %newName0
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(i32*) {
+redefine_start2.newName01:
+  %1 = alloca i32*, align 4
+  store i32* %0, i32** %1, align 4
+  %2 = load i32** %1, align 4
+  %3 = getelementptr inbounds i32* %2, i32 4
+  %4 = load i32* %3, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %1, align 4
+  %6 = getelementptr inbounds i32* %5, i32 5
+  %7 = load i32* %6, align 4
+  store i32 %7, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @running_protection3(i32*) {
+running_protection3.entry:
+  %1 = alloca i32*, align 4
+  %2 = alloca float, align 4
+  %3 = alloca float, align 4
+  store i32* %0, i32** %1, align 4
+  %4 = load i32** %1, align 4
+  %5 = getelementptr inbounds i32* %4, i32 0
+  %6 = bitcast i32* %5 to float*
+  %7 = load float* %6, align 4
+  store float %7, float* %2, align 4
+  %8 = load i32** %1, align 4
+  %9 = getelementptr inbounds i32* %8, i32 1
+  %10 = bitcast i32* %9 to float*
+  %11 = load float* %10, align 4
+  store float %11, float* %3, align 4
+  %12 = load float* %2, align 4
+  %13 = load float* @var, align 4
+  %14 = fcmp olt float %12, %13
+  br i1 %14, label %running_protection3.if.then, label %running_protection3.if.end
+
+running_protection3.if.then:                      ; preds = %running_protection3.entry
+  %15 = load i32** %1, align 4
+  %16 = getelementptr inbounds i32* %15, i32 5
+  store i32 16, i32* %16, align 4
+  %17 = load i32** %1, align 4
+  %18 = getelementptr inbounds i32* %17, i32 4
+  store i32 4, i32* %18, align 4
+  br label %running_protection3.if.end
+
+running_protection3.if.end:                       ; preds = %running_protection3.if.then, %running_protection3.entry
+  %19 = load i32** %1, align 4
+  %20 = getelementptr inbounds i32* %19, i32 2
+  %21 = load i32* %20, align 4
+  %22 = sitofp i32 %21 to float
+  %23 = load float* %3, align 4
+  %24 = fmul float 2.000000e+00, %23
+  %25 = fadd float 3.500000e+02, %24
+  %26 = fcmp olt float %22, %25
+  br i1 %26, label %running_protection3.if.then7, label %running_protection3.if.end10
+
+running_protection3.if.then7:                     ; preds = %running_protection3.if.end
+  %27 = load i32** %1, align 4
+  %28 = getelementptr inbounds i32* %27, i32 4
+  store i32 32, i32* %28, align 4
+  %29 = load i32** %1, align 4
+  %30 = getelementptr inbounds i32* %29, i32 5
+  store i32 16, i32* %30, align 4
+  br label %running_protection3.if.end10
+
+running_protection3.if.end10:                     ; preds = %running_protection3.if.then7, %running_protection3.if.end
+  %31 = load i32** %1, align 4
+  %32 = getelementptr inbounds i32* %31, i32 3
+  %33 = load i32* %32, align 4
+  %34 = icmp sgt i32 %33, 116
+  br i1 %34, label %running_protection3.if.then14, label %running_protection3.if.end17
+
+running_protection3.if.then14:                    ; preds = %running_protection3.if.end10
+  %35 = load i32** %1, align 4
+  %36 = getelementptr inbounds i32* %35, i32 5
+  store i32 16, i32* %36, align 4
+  %37 = load i32** %1, align 4
+  %38 = getelementptr inbounds i32* %37, i32 4
+  store i32 16, i32* %38, align 4
+  br label %running_protection3.if.end17
+
+running_protection3.if.end17:                     ; preds = %running_protection3.if.then14, %running_protection3.if.end10
+  %39 = load i32** %1, align 4
+  br label %running_protection3.return
+
+running_protection3.return:                       ; preds = %running_protection3.if.end17
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @running_protection3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+
+----------Adding dependences across created HyperOps----------
+
+-----------Patching created function redefine_start1--------------
+accumulated bbs:
+entry,
+
+----------Adding consumed by metadata----------
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:0
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function redefine_start1, module:; ModuleID = './Working/runningprotection.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@var = global float 0x3FE6666660000000, align 4
+@redefine_in_a = common global [6 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [2 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define i32* @running_protection(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %oil_press = alloca float, align 4
+  %dtisa = alloca float, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %oil_press, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 1
+  %4 = bitcast i32* %arrayidx1 to float*
+  %5 = load float* %4, align 4
+  store float %5, float* %dtisa, align 4
+  %6 = load float* %oil_press, align 4
+  %7 = load float* @var, align 4
+  %cmp = fcmp olt float %6, %7
+  br i1 %cmp, label %if.then, label %if.end
+
+if.then:                                          ; preds = %entry
+  %8 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %8, i32 5
+  store i32 16, i32* %arrayidx2, align 4
+  %9 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %9, i32 4
+  store i32 4, i32* %arrayidx3, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.then, %entry
+  %10 = load i32** %input.addr, align 4
+  %arrayidx4 = getelementptr inbounds i32* %10, i32 2
+  %11 = load i32* %arrayidx4, align 4
+  %conv = sitofp i32 %11 to float
+  %12 = load float* %dtisa, align 4
+  %mul = fmul float 2.000000e+00, %12
+  %add = fadd float 3.500000e+02, %mul
+  %cmp5 = fcmp olt float %conv, %add
+  br i1 %cmp5, label %if.then7, label %if.end10
+
+if.then7:                                         ; preds = %if.end
+  %13 = load i32** %input.addr, align 4
+  %arrayidx8 = getelementptr inbounds i32* %13, i32 4
+  store i32 32, i32* %arrayidx8, align 4
+  %14 = load i32** %input.addr, align 4
+  %arrayidx9 = getelementptr inbounds i32* %14, i32 5
+  store i32 16, i32* %arrayidx9, align 4
+  br label %if.end10
+
+if.end10:                                         ; preds = %if.then7, %if.end
+  %15 = load i32** %input.addr, align 4
+  %arrayidx11 = getelementptr inbounds i32* %15, i32 3
+  %16 = load i32* %arrayidx11, align 4
+  %cmp12 = icmp sgt i32 %16, 116
+  br i1 %cmp12, label %if.then14, label %if.end17
+
+if.then14:                                        ; preds = %if.end10
+  %17 = load i32** %input.addr, align 4
+  %arrayidx15 = getelementptr inbounds i32* %17, i32 5
+  store i32 16, i32* %arrayidx15, align 4
+  %18 = load i32** %input.addr, align 4
+  %arrayidx16 = getelementptr inbounds i32* %18, i32 4
+  store i32 16, i32* %arrayidx16, align 4
+  br label %if.end17
+
+if.end17:                                         ; preds = %if.then14, %if.end10
+  %19 = load i32** %input.addr, align 4
+  ret i32* %19
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = getelementptr inbounds float* @var, i32 0
+  store float 0x3FE6666660000000, float* %0, align 4
+  %1 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %1
+  %2 = load i32** %1
+  br label %newName0
+
+newName0:                                         ; preds = %redefine_start1.entry, %entry
+  %call = call i32* @running_protection(i32* %2)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  %output = alloca i32*, align 4
+  store i32* %call, i32** %output, align 4
+  %3 = load i32** %output, align 4
+  %arrayidx = getelementptr inbounds i32* %3, i32 4
+  %4 = load i32* %arrayidx, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %output, align 4
+  %arrayidx1 = getelementptr inbounds i32* %5, i32 5
+  %6 = load i32* %arrayidx1, align 4
+  store i32 %6, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = getelementptr inbounds float* @var, i32 0
+  store float 0x3FE6666660000000, float* %0, align 4
+  %1 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %1
+  %2 = load i32** %1
+  br label %newName0
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(i32*) {
+redefine_start2.newName01:
+  %1 = alloca i32*, align 4
+  store i32* %0, i32** %1, align 4
+  %2 = load i32** %1, align 4
+  %3 = getelementptr inbounds i32* %2, i32 4
+  %4 = load i32* %3, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %1, align 4
+  %6 = getelementptr inbounds i32* %5, i32 5
+  %7 = load i32* %6, align 4
+  store i32 %7, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @running_protection3(i32*) {
+running_protection3.entry:
+  %1 = alloca i32*, align 4
+  %2 = alloca float, align 4
+  %3 = alloca float, align 4
+  store i32* %0, i32** %1, align 4
+  %4 = load i32** %1, align 4
+  %5 = getelementptr inbounds i32* %4, i32 0
+  %6 = bitcast i32* %5 to float*
+  %7 = load float* %6, align 4
+  store float %7, float* %2, align 4
+  %8 = load i32** %1, align 4
+  %9 = getelementptr inbounds i32* %8, i32 1
+  %10 = bitcast i32* %9 to float*
+  %11 = load float* %10, align 4
+  store float %11, float* %3, align 4
+  %12 = load float* %2, align 4
+  %13 = load float* @var, align 4
+  %14 = fcmp olt float %12, %13
+  br i1 %14, label %running_protection3.if.then, label %running_protection3.if.end
+
+running_protection3.if.then:                      ; preds = %running_protection3.entry
+  %15 = load i32** %1, align 4
+  %16 = getelementptr inbounds i32* %15, i32 5
+  store i32 16, i32* %16, align 4
+  %17 = load i32** %1, align 4
+  %18 = getelementptr inbounds i32* %17, i32 4
+  store i32 4, i32* %18, align 4
+  br label %running_protection3.if.end
+
+running_protection3.if.end:                       ; preds = %running_protection3.if.then, %running_protection3.entry
+  %19 = load i32** %1, align 4
+  %20 = getelementptr inbounds i32* %19, i32 2
+  %21 = load i32* %20, align 4
+  %22 = sitofp i32 %21 to float
+  %23 = load float* %3, align 4
+  %24 = fmul float 2.000000e+00, %23
+  %25 = fadd float 3.500000e+02, %24
+  %26 = fcmp olt float %22, %25
+  br i1 %26, label %running_protection3.if.then7, label %running_protection3.if.end10
+
+running_protection3.if.then7:                     ; preds = %running_protection3.if.end
+  %27 = load i32** %1, align 4
+  %28 = getelementptr inbounds i32* %27, i32 4
+  store i32 32, i32* %28, align 4
+  %29 = load i32** %1, align 4
+  %30 = getelementptr inbounds i32* %29, i32 5
+  store i32 16, i32* %30, align 4
+  br label %running_protection3.if.end10
+
+running_protection3.if.end10:                     ; preds = %running_protection3.if.then7, %running_protection3.if.end
+  %31 = load i32** %1, align 4
+  %32 = getelementptr inbounds i32* %31, i32 3
+  %33 = load i32* %32, align 4
+  %34 = icmp sgt i32 %33, 116
+  br i1 %34, label %running_protection3.if.then14, label %running_protection3.if.end17
+
+running_protection3.if.then14:                    ; preds = %running_protection3.if.end10
+  %35 = load i32** %1, align 4
+  %36 = getelementptr inbounds i32* %35, i32 5
+  store i32 16, i32* %36, align 4
+  %37 = load i32** %1, align 4
+  %38 = getelementptr inbounds i32* %37, i32 4
+  store i32 16, i32* %38, align 4
+  br label %running_protection3.if.end17
+
+running_protection3.if.end17:                     ; preds = %running_protection3.if.then14, %running_protection3.if.end10
+  %39 = load i32** %1, align 4
+  br label %running_protection3.return
+
+running_protection3.return:                       ; preds = %running_protection3.if.end17
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @running_protection3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+
+-----------Patching created function redefine_start2--------------
+accumulated bbs:
+newName01,
+
+----------Adding consumed by metadata----------
+  %call = call i32* @running_protection(i32* %2)
+cloned inst second:  %19 = load i32** %input.addr, align 4
+producer function:running_protection3
+how many clones?1
+added metadata on instruction that belongs to parent running_protection3 and is mapped to slot 0 when the function has 1 and is of type:1:  %1 = alloca i32*, align 4, !ConsumedBy !6
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:1
+what was callsite size earlier??0
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function redefine_start2, module:; ModuleID = './Working/runningprotection.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@var = global float 0x3FE6666660000000, align 4
+@redefine_in_a = common global [6 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [2 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define i32* @running_protection(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %oil_press = alloca float, align 4
+  %dtisa = alloca float, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %oil_press, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 1
+  %4 = bitcast i32* %arrayidx1 to float*
+  %5 = load float* %4, align 4
+  store float %5, float* %dtisa, align 4
+  %6 = load float* %oil_press, align 4
+  %7 = load float* @var, align 4
+  %cmp = fcmp olt float %6, %7
+  br i1 %cmp, label %if.then, label %if.end
+
+if.then:                                          ; preds = %entry
+  %8 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %8, i32 5
+  store i32 16, i32* %arrayidx2, align 4
+  %9 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %9, i32 4
+  store i32 4, i32* %arrayidx3, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.then, %entry
+  %10 = load i32** %input.addr, align 4
+  %arrayidx4 = getelementptr inbounds i32* %10, i32 2
+  %11 = load i32* %arrayidx4, align 4
+  %conv = sitofp i32 %11 to float
+  %12 = load float* %dtisa, align 4
+  %mul = fmul float 2.000000e+00, %12
+  %add = fadd float 3.500000e+02, %mul
+  %cmp5 = fcmp olt float %conv, %add
+  br i1 %cmp5, label %if.then7, label %if.end10
+
+if.then7:                                         ; preds = %if.end
+  %13 = load i32** %input.addr, align 4
+  %arrayidx8 = getelementptr inbounds i32* %13, i32 4
+  store i32 32, i32* %arrayidx8, align 4
+  %14 = load i32** %input.addr, align 4
+  %arrayidx9 = getelementptr inbounds i32* %14, i32 5
+  store i32 16, i32* %arrayidx9, align 4
+  br label %if.end10
+
+if.end10:                                         ; preds = %if.then7, %if.end
+  %15 = load i32** %input.addr, align 4
+  %arrayidx11 = getelementptr inbounds i32* %15, i32 3
+  %16 = load i32* %arrayidx11, align 4
+  %cmp12 = icmp sgt i32 %16, 116
+  br i1 %cmp12, label %if.then14, label %if.end17
+
+if.then14:                                        ; preds = %if.end10
+  %17 = load i32** %input.addr, align 4
+  %arrayidx15 = getelementptr inbounds i32* %17, i32 5
+  store i32 16, i32* %arrayidx15, align 4
+  %18 = load i32** %input.addr, align 4
+  %arrayidx16 = getelementptr inbounds i32* %18, i32 4
+  store i32 16, i32* %arrayidx16, align 4
+  br label %if.end17
+
+if.end17:                                         ; preds = %if.then14, %if.end10
+  %19 = load i32** %input.addr, align 4
+  ret i32* %19
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = getelementptr inbounds float* @var, i32 0
+  store float 0x3FE6666660000000, float* %0, align 4
+  %1 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %1
+  %2 = load i32** %1
+  br label %newName0
+
+newName0:                                         ; preds = %redefine_start1.entry, %entry
+  %call = call i32* @running_protection(i32* %2)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  %output = alloca i32*, align 4
+  store i32* %call, i32** %output, align 4
+  %3 = load i32** %output, align 4
+  %arrayidx = getelementptr inbounds i32* %3, i32 4
+  %4 = load i32* %arrayidx, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %output, align 4
+  %arrayidx1 = getelementptr inbounds i32* %5, i32 5
+  %6 = load i32* %arrayidx1, align 4
+  store i32 %6, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = getelementptr inbounds float* @var, i32 0
+  store float 0x3FE6666660000000, float* %0, align 4
+  %1 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %1
+  %2 = load i32** %1
+  br label %newName0
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(i32*) {
+redefine_start2.newName01:
+  %1 = alloca i32*, align 4
+  store i32* %0, i32** %1, align 4
+  %2 = load i32** %1, align 4
+  %3 = getelementptr inbounds i32* %2, i32 4
+  %4 = load i32* %3, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %1, align 4
+  %6 = getelementptr inbounds i32* %5, i32 5
+  %7 = load i32* %6, align 4
+  store i32 %7, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @running_protection3(i32*) {
+running_protection3.entry:
+  %1 = alloca i32*, align 4, !ConsumedBy !6
+  %2 = alloca i32*, align 4
+  %3 = alloca float, align 4
+  %4 = alloca float, align 4
+  store i32* %0, i32** %2, align 4
+  %5 = load i32** %2, align 4
+  %6 = getelementptr inbounds i32* %5, i32 0
+  %7 = bitcast i32* %6 to float*
+  %8 = load float* %7, align 4
+  store float %8, float* %3, align 4
+  %9 = load i32** %2, align 4
+  %10 = getelementptr inbounds i32* %9, i32 1
+  %11 = bitcast i32* %10 to float*
+  %12 = load float* %11, align 4
+  store float %12, float* %4, align 4
+  %13 = load float* %3, align 4
+  %14 = load float* @var, align 4
+  %15 = fcmp olt float %13, %14
+  br i1 %15, label %running_protection3.if.then, label %running_protection3.if.end
+
+running_protection3.if.then:                      ; preds = %running_protection3.entry
+  %16 = load i32** %2, align 4
+  %17 = getelementptr inbounds i32* %16, i32 5
+  store i32 16, i32* %17, align 4
+  %18 = load i32** %2, align 4
+  %19 = getelementptr inbounds i32* %18, i32 4
+  store i32 4, i32* %19, align 4
+  br label %running_protection3.if.end
+
+running_protection3.if.end:                       ; preds = %running_protection3.if.then, %running_protection3.entry
+  %20 = load i32** %2, align 4
+  %21 = getelementptr inbounds i32* %20, i32 2
+  %22 = load i32* %21, align 4
+  %23 = sitofp i32 %22 to float
+  %24 = load float* %4, align 4
+  %25 = fmul float 2.000000e+00, %24
+  %26 = fadd float 3.500000e+02, %25
+  %27 = fcmp olt float %23, %26
+  br i1 %27, label %running_protection3.if.then7, label %running_protection3.if.end10
+
+running_protection3.if.then7:                     ; preds = %running_protection3.if.end
+  %28 = load i32** %2, align 4
+  %29 = getelementptr inbounds i32* %28, i32 4
+  store i32 32, i32* %29, align 4
+  %30 = load i32** %2, align 4
+  %31 = getelementptr inbounds i32* %30, i32 5
+  store i32 16, i32* %31, align 4
+  br label %running_protection3.if.end10
+
+running_protection3.if.end10:                     ; preds = %running_protection3.if.then7, %running_protection3.if.end
+  %32 = load i32** %2, align 4
+  %33 = getelementptr inbounds i32* %32, i32 3
+  %34 = load i32* %33, align 4
+  %35 = icmp sgt i32 %34, 116
+  br i1 %35, label %running_protection3.if.then14, label %running_protection3.if.end17
+
+running_protection3.if.then14:                    ; preds = %running_protection3.if.end10
+  %36 = load i32** %2, align 4
+  %37 = getelementptr inbounds i32* %36, i32 5
+  store i32 16, i32* %37, align 4
+  %38 = load i32** %2, align 4
+  %39 = getelementptr inbounds i32* %38, i32 4
+  store i32 16, i32* %39, align 4
+  br label %running_protection3.if.end17
+
+running_protection3.if.end17:                     ; preds = %running_protection3.if.then14, %running_protection3.if.end10
+  %40 = load i32** %2, align 4
+  store i32* %40, i32** %1, align 4
+  br label %running_protection3.return
+
+running_protection3.return:                       ; preds = %running_protection3.if.end17
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @running_protection3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !2, metadata !"LocalReference", i32 0}
+
+-----------Patching created function running_protection3--------------
+accumulated bbs:
+entry,if.then,if.end,if.then7,if.end10,if.then14,if.end17,
+
+----------Adding consumed by metadata----------
+cloned inst second:  %1 = alloca i32*, align 4
+producer function:redefine_start1
+how many clones?1
+added metadata on instruction that belongs to parent redefine_start1 and is mapped to slot 0 when the function has 1 and is of type:1:  %1 = alloca i32*, align 4, !ConsumedBy !6
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:1
+what was callsite size earlier??1
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function running_protection3, module:; ModuleID = './Working/runningprotection.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@var = global float 0x3FE6666660000000, align 4
+@redefine_in_a = common global [6 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [2 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define i32* @running_protection(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %oil_press = alloca float, align 4
+  %dtisa = alloca float, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %oil_press, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 1
+  %4 = bitcast i32* %arrayidx1 to float*
+  %5 = load float* %4, align 4
+  store float %5, float* %dtisa, align 4
+  %6 = load float* %oil_press, align 4
+  %7 = load float* @var, align 4
+  %cmp = fcmp olt float %6, %7
+  br i1 %cmp, label %if.then, label %if.end
+
+if.then:                                          ; preds = %entry
+  %8 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %8, i32 5
+  store i32 16, i32* %arrayidx2, align 4
+  %9 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %9, i32 4
+  store i32 4, i32* %arrayidx3, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.then, %entry
+  %10 = load i32** %input.addr, align 4
+  %arrayidx4 = getelementptr inbounds i32* %10, i32 2
+  %11 = load i32* %arrayidx4, align 4
+  %conv = sitofp i32 %11 to float
+  %12 = load float* %dtisa, align 4
+  %mul = fmul float 2.000000e+00, %12
+  %add = fadd float 3.500000e+02, %mul
+  %cmp5 = fcmp olt float %conv, %add
+  br i1 %cmp5, label %if.then7, label %if.end10
+
+if.then7:                                         ; preds = %if.end
+  %13 = load i32** %input.addr, align 4
+  %arrayidx8 = getelementptr inbounds i32* %13, i32 4
+  store i32 32, i32* %arrayidx8, align 4
+  %14 = load i32** %input.addr, align 4
+  %arrayidx9 = getelementptr inbounds i32* %14, i32 5
+  store i32 16, i32* %arrayidx9, align 4
+  br label %if.end10
+
+if.end10:                                         ; preds = %if.then7, %if.end
+  %15 = load i32** %input.addr, align 4
+  %arrayidx11 = getelementptr inbounds i32* %15, i32 3
+  %16 = load i32* %arrayidx11, align 4
+  %cmp12 = icmp sgt i32 %16, 116
+  br i1 %cmp12, label %if.then14, label %if.end17
+
+if.then14:                                        ; preds = %if.end10
+  %17 = load i32** %input.addr, align 4
+  %arrayidx15 = getelementptr inbounds i32* %17, i32 5
+  store i32 16, i32* %arrayidx15, align 4
+  %18 = load i32** %input.addr, align 4
+  %arrayidx16 = getelementptr inbounds i32* %18, i32 4
+  store i32 16, i32* %arrayidx16, align 4
+  br label %if.end17
+
+if.end17:                                         ; preds = %if.then14, %if.end10
+  %19 = load i32** %input.addr, align 4
+  ret i32* %19
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = getelementptr inbounds float* @var, i32 0
+  store float 0x3FE6666660000000, float* %0, align 4
+  %1 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %1
+  %2 = load i32** %1
+  br label %newName0
+
+newName0:                                         ; preds = %entry
+  %call = call i32* @running_protection(i32* %2)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  %output = alloca i32*, align 4
+  store i32* %call, i32** %output, align 4
+  %3 = load i32** %output, align 4
+  %arrayidx = getelementptr inbounds i32* %3, i32 4
+  %4 = load i32* %arrayidx, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %output, align 4
+  %arrayidx1 = getelementptr inbounds i32* %5, i32 5
+  %6 = load i32* %arrayidx1, align 4
+  store i32 %6, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = getelementptr inbounds float* @var, i32 0
+  store float 0x3FE6666660000000, float* %0, align 4
+  %1 = alloca i32*, align 4, !ConsumedBy !6
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %1
+  %2 = load i32** %1
+  br label %redefine_start1.return
+
+redefine_start1.return:                           ; preds = %redefine_start1.entry
+  ret void
+}
+
+define void @redefine_start2(i32*) {
+redefine_start2.newName01:
+  %1 = alloca i32*, align 4
+  store i32* %0, i32** %1, align 4
+  %2 = load i32** %1, align 4
+  %3 = getelementptr inbounds i32* %2, i32 4
+  %4 = load i32* %3, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %1, align 4
+  %6 = getelementptr inbounds i32* %5, i32 5
+  %7 = load i32* %6, align 4
+  store i32 %7, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @running_protection3(i32*) {
+running_protection3.entry:
+  %1 = alloca i32*, align 4, !ConsumedBy !8
+  %2 = alloca i32*, align 4
+  %3 = alloca float, align 4
+  %4 = alloca float, align 4
+  store i32* %0, i32** %2, align 4
+  %5 = load i32** %2, align 4
+  %6 = getelementptr inbounds i32* %5, i32 0
+  %7 = bitcast i32* %6 to float*
+  %8 = load float* %7, align 4
+  store float %8, float* %3, align 4
+  %9 = load i32** %2, align 4
+  %10 = getelementptr inbounds i32* %9, i32 1
+  %11 = bitcast i32* %10 to float*
+  %12 = load float* %11, align 4
+  store float %12, float* %4, align 4
+  %13 = load float* %3, align 4
+  %14 = load float* @var, align 4
+  %15 = fcmp olt float %13, %14
+  br i1 %15, label %running_protection3.if.then, label %running_protection3.if.end
+
+running_protection3.if.then:                      ; preds = %running_protection3.entry
+  %16 = load i32** %2, align 4
+  %17 = getelementptr inbounds i32* %16, i32 5
+  store i32 16, i32* %17, align 4
+  %18 = load i32** %2, align 4
+  %19 = getelementptr inbounds i32* %18, i32 4
+  store i32 4, i32* %19, align 4
+  br label %running_protection3.if.end
+
+running_protection3.if.end:                       ; preds = %running_protection3.if.then, %running_protection3.entry
+  %20 = load i32** %2, align 4
+  %21 = getelementptr inbounds i32* %20, i32 2
+  %22 = load i32* %21, align 4
+  %23 = sitofp i32 %22 to float
+  %24 = load float* %4, align 4
+  %25 = fmul float 2.000000e+00, %24
+  %26 = fadd float 3.500000e+02, %25
+  %27 = fcmp olt float %23, %26
+  br i1 %27, label %running_protection3.if.then7, label %running_protection3.if.end10
+
+running_protection3.if.then7:                     ; preds = %running_protection3.if.end
+  %28 = load i32** %2, align 4
+  %29 = getelementptr inbounds i32* %28, i32 4
+  store i32 32, i32* %29, align 4
+  %30 = load i32** %2, align 4
+  %31 = getelementptr inbounds i32* %30, i32 5
+  store i32 16, i32* %31, align 4
+  br label %running_protection3.if.end10
+
+running_protection3.if.end10:                     ; preds = %running_protection3.if.then7, %running_protection3.if.end
+  %32 = load i32** %2, align 4
+  %33 = getelementptr inbounds i32* %32, i32 3
+  %34 = load i32* %33, align 4
+  %35 = icmp sgt i32 %34, 116
+  br i1 %35, label %running_protection3.if.then14, label %running_protection3.if.end17
+
+running_protection3.if.then14:                    ; preds = %running_protection3.if.end10
+  %36 = load i32** %2, align 4
+  %37 = getelementptr inbounds i32* %36, i32 5
+  store i32 16, i32* %37, align 4
+  %38 = load i32** %2, align 4
+  %39 = getelementptr inbounds i32* %38, i32 4
+  store i32 16, i32* %39, align 4
+  br label %running_protection3.if.end17
+
+running_protection3.if.end17:                     ; preds = %running_protection3.if.then14, %running_protection3.if.end10
+  %40 = load i32** %2, align 4
+  store i32* %40, i32** %1, align 4
+  br label %running_protection3.return
+
+running_protection3.return:                       ; preds = %running_protection3.if.end17
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @running_protection3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !4, metadata !"LocalReference", i32 0}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !2, metadata !"LocalReference", i32 0}
+
+----------Adding sync edges to dangling HyperOps----------
+
+-----------Re-routing sync edges from end hyperop to the newly created end HyperOp-----------
+whats in module now?; ModuleID = './Working/runningprotection.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@var = global float 0x3FE6666660000000, align 4
+@redefine_in_a = common global [6 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [2 x i32] zeroinitializer, align 4
+
+; Function Attrs: nounwind
+define i32* @running_protection(i32* %input) #0 {
+entry:
+  %input.addr = alloca i32*, align 4
+  %oil_press = alloca float, align 4
+  %dtisa = alloca float, align 4
+  store i32* %input, i32** %input.addr, align 4
+  %0 = load i32** %input.addr, align 4
+  %arrayidx = getelementptr inbounds i32* %0, i32 0
+  %1 = bitcast i32* %arrayidx to float*
+  %2 = load float* %1, align 4
+  store float %2, float* %oil_press, align 4
+  %3 = load i32** %input.addr, align 4
+  %arrayidx1 = getelementptr inbounds i32* %3, i32 1
+  %4 = bitcast i32* %arrayidx1 to float*
+  %5 = load float* %4, align 4
+  store float %5, float* %dtisa, align 4
+  %6 = load float* %oil_press, align 4
+  %7 = load float* @var, align 4
+  %cmp = fcmp olt float %6, %7
+  br i1 %cmp, label %if.then, label %if.end
+
+if.then:                                          ; preds = %entry
+  %8 = load i32** %input.addr, align 4
+  %arrayidx2 = getelementptr inbounds i32* %8, i32 5
+  store i32 16, i32* %arrayidx2, align 4
+  %9 = load i32** %input.addr, align 4
+  %arrayidx3 = getelementptr inbounds i32* %9, i32 4
+  store i32 4, i32* %arrayidx3, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.then, %entry
+  %10 = load i32** %input.addr, align 4
+  %arrayidx4 = getelementptr inbounds i32* %10, i32 2
+  %11 = load i32* %arrayidx4, align 4
+  %conv = sitofp i32 %11 to float
+  %12 = load float* %dtisa, align 4
+  %mul = fmul float 2.000000e+00, %12
+  %add = fadd float 3.500000e+02, %mul
+  %cmp5 = fcmp olt float %conv, %add
+  br i1 %cmp5, label %if.then7, label %if.end10
+
+if.then7:                                         ; preds = %if.end
+  %13 = load i32** %input.addr, align 4
+  %arrayidx8 = getelementptr inbounds i32* %13, i32 4
+  store i32 32, i32* %arrayidx8, align 4
+  %14 = load i32** %input.addr, align 4
+  %arrayidx9 = getelementptr inbounds i32* %14, i32 5
+  store i32 16, i32* %arrayidx9, align 4
+  br label %if.end10
+
+if.end10:                                         ; preds = %if.then7, %if.end
+  %15 = load i32** %input.addr, align 4
+  %arrayidx11 = getelementptr inbounds i32* %15, i32 3
+  %16 = load i32* %arrayidx11, align 4
+  %cmp12 = icmp sgt i32 %16, 116
+  br i1 %cmp12, label %if.then14, label %if.end17
+
+if.then14:                                        ; preds = %if.end10
+  %17 = load i32** %input.addr, align 4
+  %arrayidx15 = getelementptr inbounds i32* %17, i32 5
+  store i32 16, i32* %arrayidx15, align 4
+  %18 = load i32** %input.addr, align 4
+  %arrayidx16 = getelementptr inbounds i32* %18, i32 4
+  store i32 16, i32* %arrayidx16, align 4
+  br label %if.end17
+
+if.end17:                                         ; preds = %if.then14, %if.end10
+  %19 = load i32** %input.addr, align 4
+  ret i32* %19
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = getelementptr inbounds float* @var, i32 0
+  store float 0x3FE6666660000000, float* %0, align 4
+  %1 = alloca i32*, align 4
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %1
+  %2 = load i32** %1
+  br label %newName0
+
+newName0:                                         ; preds = %entry
+  %call = call i32* @running_protection(i32* %2)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  %output = alloca i32*, align 4
+  store i32* %call, i32** %output, align 4
+  %3 = load i32** %output, align 4
+  %arrayidx = getelementptr inbounds i32* %3, i32 4
+  %4 = load i32* %arrayidx, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %output, align 4
+  %arrayidx1 = getelementptr inbounds i32* %5, i32 5
+  %6 = load i32* %arrayidx1, align 4
+  store i32 %6, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = getelementptr inbounds float* @var, i32 0
+  store float 0x3FE6666660000000, float* %0, align 4
+  %1 = alloca i32*, align 4, !ConsumedBy !6
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %1
+  %2 = load i32** %1
+  br label %redefine_start1.return
+
+redefine_start1.return:                           ; preds = %redefine_start1.entry
+  ret void
+}
+
+define void @redefine_start2(i32*) {
+redefine_start2.newName01:
+  %1 = alloca i32*, align 4
+  store i32* %0, i32** %1, align 4
+  %2 = load i32** %1, align 4
+  %3 = getelementptr inbounds i32* %2, i32 4
+  %4 = load i32* %3, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %1, align 4
+  %6 = getelementptr inbounds i32* %5, i32 5
+  %7 = load i32* %6, align 4
+  store i32 %7, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @running_protection3(i32*) {
+running_protection3.entry:
+  %1 = alloca i32*, align 4, !ConsumedBy !8
+  %2 = alloca i32*, align 4
+  %3 = alloca float, align 4
+  %4 = alloca float, align 4
+  store i32* %0, i32** %2, align 4
+  %5 = load i32** %2, align 4
+  %6 = getelementptr inbounds i32* %5, i32 0
+  %7 = bitcast i32* %6 to float*
+  %8 = load float* %7, align 4
+  store float %8, float* %3, align 4
+  %9 = load i32** %2, align 4
+  %10 = getelementptr inbounds i32* %9, i32 1
+  %11 = bitcast i32* %10 to float*
+  %12 = load float* %11, align 4
+  store float %12, float* %4, align 4
+  %13 = load float* %3, align 4
+  %14 = load float* @var, align 4
+  %15 = fcmp olt float %13, %14
+  br i1 %15, label %running_protection3.if.then, label %running_protection3.if.end
+
+running_protection3.if.then:                      ; preds = %running_protection3.entry
+  %16 = load i32** %2, align 4
+  %17 = getelementptr inbounds i32* %16, i32 5
+  store i32 16, i32* %17, align 4
+  %18 = load i32** %2, align 4
+  %19 = getelementptr inbounds i32* %18, i32 4
+  store i32 4, i32* %19, align 4
+  br label %running_protection3.if.end
+
+running_protection3.if.end:                       ; preds = %running_protection3.if.then, %running_protection3.entry
+  %20 = load i32** %2, align 4
+  %21 = getelementptr inbounds i32* %20, i32 2
+  %22 = load i32* %21, align 4
+  %23 = sitofp i32 %22 to float
+  %24 = load float* %4, align 4
+  %25 = fmul float 2.000000e+00, %24
+  %26 = fadd float 3.500000e+02, %25
+  %27 = fcmp olt float %23, %26
+  br i1 %27, label %running_protection3.if.then7, label %running_protection3.if.end10
+
+running_protection3.if.then7:                     ; preds = %running_protection3.if.end
+  %28 = load i32** %2, align 4
+  %29 = getelementptr inbounds i32* %28, i32 4
+  store i32 32, i32* %29, align 4
+  %30 = load i32** %2, align 4
+  %31 = getelementptr inbounds i32* %30, i32 5
+  store i32 16, i32* %31, align 4
+  br label %running_protection3.if.end10
+
+running_protection3.if.end10:                     ; preds = %running_protection3.if.then7, %running_protection3.if.end
+  %32 = load i32** %2, align 4
+  %33 = getelementptr inbounds i32* %32, i32 3
+  %34 = load i32* %33, align 4
+  %35 = icmp sgt i32 %34, 116
+  br i1 %35, label %running_protection3.if.then14, label %running_protection3.if.end17
+
+running_protection3.if.then14:                    ; preds = %running_protection3.if.end10
+  %36 = load i32** %2, align 4
+  %37 = getelementptr inbounds i32* %36, i32 5
+  store i32 16, i32* %37, align 4
+  %38 = load i32** %2, align 4
+  %39 = getelementptr inbounds i32* %38, i32 4
+  store i32 16, i32* %39, align 4
+  br label %running_protection3.if.end17
+
+running_protection3.if.end17:                     ; preds = %running_protection3.if.then14, %running_protection3.if.end10
+  %40 = load i32** %2, align 4
+  store i32* %40, i32** %1, align 4
+  br label %running_protection3.return
+
+running_protection3.return:                       ; preds = %running_protection3.if.end17
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @running_protection3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !4, metadata !"LocalReference", i32 0}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !2, metadata !"LocalReference", i32 0}
+
+-----------Deleting unused functions-----------
+deleting contents of function:running_protection
+deleting contents of function:redefine_start
+Final module contents:; ModuleID = './Working/runningprotection.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@var = global float 0x3FE6666660000000, align 4
+@redefine_in_a = common global [6 x i32] zeroinitializer, align 4
+@redefine_out_b = common global [2 x i32] zeroinitializer, align 4
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = getelementptr inbounds float* @var, i32 0
+  store float 0x3FE6666660000000, float* %0, align 4
+  %1 = alloca i32*, align 4, !ConsumedBy !6
+  store i32* getelementptr inbounds ([6 x i32]* @redefine_in_a, i32 0, i32 0), i32** %1
+  %2 = load i32** %1
+  br label %redefine_start1.return
+
+redefine_start1.return:                           ; preds = %redefine_start1.entry
+  ret void
+}
+
+define void @redefine_start2(i32*) {
+redefine_start2.newName01:
+  %1 = alloca i32*, align 4
+  store i32* %0, i32** %1, align 4
+  %2 = load i32** %1, align 4
+  %3 = getelementptr inbounds i32* %2, i32 4
+  %4 = load i32* %3, align 4
+  store i32 %4, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 0), align 4
+  %5 = load i32** %1, align 4
+  %6 = getelementptr inbounds i32* %5, i32 5
+  %7 = load i32* %6, align 4
+  store i32 %7, i32* getelementptr inbounds ([2 x i32]* @redefine_out_b, i32 0, i32 1), align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @running_protection3(i32*) {
+running_protection3.entry:
+  %1 = alloca i32*, align 4, !ConsumedBy !8
+  %2 = alloca i32*, align 4
+  %3 = alloca float, align 4
+  %4 = alloca float, align 4
+  store i32* %0, i32** %2, align 4
+  %5 = load i32** %2, align 4
+  %6 = getelementptr inbounds i32* %5, i32 0
+  %7 = bitcast i32* %6 to float*
+  %8 = load float* %7, align 4
+  store float %8, float* %3, align 4
+  %9 = load i32** %2, align 4
+  %10 = getelementptr inbounds i32* %9, i32 1
+  %11 = bitcast i32* %10 to float*
+  %12 = load float* %11, align 4
+  store float %12, float* %4, align 4
+  %13 = load float* %3, align 4
+  %14 = load float* @var, align 4
+  %15 = fcmp olt float %13, %14
+  br i1 %15, label %running_protection3.if.then, label %running_protection3.if.end
+
+running_protection3.if.then:                      ; preds = %running_protection3.entry
+  %16 = load i32** %2, align 4
+  %17 = getelementptr inbounds i32* %16, i32 5
+  store i32 16, i32* %17, align 4
+  %18 = load i32** %2, align 4
+  %19 = getelementptr inbounds i32* %18, i32 4
+  store i32 4, i32* %19, align 4
+  br label %running_protection3.if.end
+
+running_protection3.if.end:                       ; preds = %running_protection3.if.then, %running_protection3.entry
+  %20 = load i32** %2, align 4
+  %21 = getelementptr inbounds i32* %20, i32 2
+  %22 = load i32* %21, align 4
+  %23 = sitofp i32 %22 to float
+  %24 = load float* %4, align 4
+  %25 = fmul float 2.000000e+00, %24
+  %26 = fadd float 3.500000e+02, %25
+  %27 = fcmp olt float %23, %26
+  br i1 %27, label %running_protection3.if.then7, label %running_protection3.if.end10
+
+running_protection3.if.then7:                     ; preds = %running_protection3.if.end
+  %28 = load i32** %2, align 4
+  %29 = getelementptr inbounds i32* %28, i32 4
+  store i32 32, i32* %29, align 4
+  %30 = load i32** %2, align 4
+  %31 = getelementptr inbounds i32* %30, i32 5
+  store i32 16, i32* %31, align 4
+  br label %running_protection3.if.end10
+
+running_protection3.if.end10:                     ; preds = %running_protection3.if.then7, %running_protection3.if.end
+  %32 = load i32** %2, align 4
+  %33 = getelementptr inbounds i32* %32, i32 3
+  %34 = load i32* %33, align 4
+  %35 = icmp sgt i32 %34, 116
+  br i1 %35, label %running_protection3.if.then14, label %running_protection3.if.end17
+
+running_protection3.if.then14:                    ; preds = %running_protection3.if.end10
+  %36 = load i32** %2, align 4
+  %37 = getelementptr inbounds i32* %36, i32 5
+  store i32 16, i32* %37, align 4
+  %38 = load i32** %2, align 4
+  %39 = getelementptr inbounds i32* %38, i32 4
+  store i32 16, i32* %39, align 4
+  br label %running_protection3.if.end17
+
+running_protection3.if.end17:                     ; preds = %running_protection3.if.then14, %running_protection3.if.end10
+  %40 = load i32** %2, align 4
+  store i32* %40, i32** %1, align 4
+  br label %running_protection3.return
+
+running_protection3.return:                       ; preds = %running_protection3.if.end17
+  ret void
+}
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32*)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32*)* @running_protection3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !4, metadata !"LocalReference", i32 0}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !2, metadata !"LocalReference", i32 0}

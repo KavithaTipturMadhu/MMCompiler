@@ -131,13 +131,16 @@ class HyperOp {
 	bool gcRequired;
 	unsigned hyperOpId;
 	vector<unsigned> numInputsPerCE;
-	unsigned int numIncomingSyncEdges;
+	//map of predicate value to sync count
+	 unsigned numIncomingSyncEdges[2];
+	 bool hasMutexSyncSources;
+	 Value* predicateForSyncSource[2];
 	//Map of source instruction in a CE and the first consumer instruction in a different CE
 	PHyperOpInteractionGraph pHopDependenceMap;
 
 public:
 	//Map to cache local reference objects that have an alloc instruction in a different HyperOp
-	map<Instruction*, Instruction*> loadInstrAndAllocaMap;
+	map<Instruction*, Instruction* > loadInstrAndAllocaMap;
 	map<HyperOpEdge*, HyperOp*> ParentMap;
 	map<HyperOpEdge*, HyperOp*> ChildMap;
 	map<unsigned, unsigned> syncCountOnPredicates;
@@ -197,9 +200,10 @@ public:
 	void setFbindRequired(bool fbindRequired);
 	bool isStaticHyperOp() const;
 	void setStaticHyperOp(bool staticHyperOp);
-	void incrementIncomingSyncCount();
-	void decrementIncomingSyncCount();
-	unsigned getSyncCount();
+	void setIncomingSyncCount(unsigned predicateValue, unsigned syncCount);
+	void incrementIncomingSyncCount(unsigned predicateValue);
+	void decrementIncomingSyncCount(unsigned predicateValue);
+	unsigned getSyncCount(unsigned predicateValue);
 	list<unsigned> getInstanceId();
 	void setInstanceId(list<unsigned> instanceId);
 	Function* getInstanceof();
@@ -216,6 +220,10 @@ public:
 	void setRangeUpperBound(Value* rangeUpperBound);
 	Value* getStride();
 	void setStride(Value* stride);
+	bool isHasMutexSyncSources() const ;
+	void setHasMutexSyncSources(bool hasMutexSyncSources);
+	void setIncomingSyncPredicate(unsigned predicateValue, Value* predicate);
+	Value* getIncomingSyncPredicate(unsigned predicateValue);
 };
 
 class HyperOpInteractionGraph {
@@ -277,6 +285,11 @@ public:
 	 * 	Map HyperOp Clusters onto compute resources
 	 */
 	void mapClustersToComputeResources();
+
+	/*
+	 * Add all correctness checks on HIG here
+	 */
+	void verify();
 
 	virtual ~HyperOpInteractionGraph();
 

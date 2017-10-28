@@ -30,6 +30,8 @@
 using namespace llvm;
 
 void REDEFINEAsmPrinter::EmitInstruction(const MachineInstr *MI) {
+	errs()<<"printing instruction:";
+	MI->dump();
 	REDEFINEMCInstLower Lower(Mang, MF->getContext(), *this);
 	MCInst LoweredMI;
 	Lower.lower(MI, LoweredMI);
@@ -147,7 +149,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 
 		// Added By Arka Instance Metadata Annotations
 		string instAnn(".ANN\t");
-		instAnn.append("\t").append(hyperOp->isStartHyperOp() ? "" : "A").append("\t");
+		instAnn.append("\t").append(hyperOp->isStartHyperOp() ? "A" : "A").append("\t");
 		instAnn.append("\t").append(hyperOp->isBarrierHyperOp() ? "B" : "").append("\t");
 		instAnn.append("\t").append(hyperOp->isPredicatedHyperOp() ? "P" : "").append("\t");
 		OutStreamer.EmitRawText(StringRef(instAnn));
@@ -165,11 +167,22 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		OutStreamer.EmitRawText(StringRef(launchCount));
 
 		string operandValidity(OPERAND_VALIDITY_ANNOTATION);
-		operandValidity.append("\t").append(bitset<16>(0).to_string()).append("\n");
+		operandValidity.append("\t");
+		if(hyperOp->isStartHyperOp()){
+			operandValidity.append("1000000000000000").append("\n");
+		}else{
+			operandValidity.append(bitset<16>(0).to_string()).append("\n");
+		}
 		OutStreamer.EmitRawText(StringRef(operandValidity));
 
+		if(hyperOp->isStartHyperOp()){
+			string operandbegin(OPERAND_BEGIN_ANNOTATION);
+			operandbegin.append("\t").append("\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n1\n");
+			operandbegin.append(OPERAND_END_ANNOTATION);
+			OutStreamer.EmitRawText(StringRef(operandbegin));
+		}
 		string opWaitCount(OP_WAIT_CNT_ANNOTATION);
-		if (hyperOp->isBarrierHyperOp()) {
+		if (hyperOp->isBarrierHyperOp()&&!hyperOp->isStartHyperOp()) {
 			opWaitCount.append("\t").append(itostr(argCount + 1)).append("\n");
 		} else {
 			opWaitCount.append("\t").append(itostr(argCount)).append("\n");

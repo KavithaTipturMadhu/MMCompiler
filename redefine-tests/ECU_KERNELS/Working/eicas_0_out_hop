@@ -1,0 +1,975 @@
+Args: /home/arka/Workspace/work/Git_Compiler_Repo/redefine-tests/ECU_KERNELS/../../..//MM_Compiler_latest/build/Release+Asserts/bin/opt -debug --load /home/arka/Workspace/work/Git_Compiler_Repo/redefine-tests/ECU_KERNELS/../../..//MM_Compiler_latest/build/Release+Asserts/bin/../lib/HyperOpCreationPass.so --HyperOpCreationPass -S ./Working/eicas_0.ll -o ./Working/eicas_0_HyOpPass.ll 
+
+Features:
+CPU:REDEFINE
+
+Found cycles?0
+
+-----------
+Partitioning function:eicas_calculator
+
+-------
+Acquiring bb entry
+Adding basic blocks for traversal in a breadth biased order for function eicas_calculator
+added to succ list:if.then,if.else,
+distance of if.then to exit 2
+distance of if.else to exit 4
+
+-------
+Acquiring bb if.else
+Adding basic blocks for traversal in a breadth biased order for function eicas_calculator
+added to succ list:if.then2,if.else3,
+distance of if.then to exit 2
+distance of if.then2 to exit 3
+distance of if.else3 to exit 3
+
+-------
+Acquiring bb if.then2
+Adding basic blocks for traversal in a breadth biased order for function eicas_calculator
+added to succ list:if.end,
+distance of if.else3 to exit 3
+distance of if.then to exit 2
+distance of if.end to exit 2
+
+-------
+Acquiring bb if.else3
+Adding basic blocks for traversal in a breadth biased order for function eicas_calculator
+added to succ list:didn't add if.end
+
+distance of if.then to exit 2
+distance of if.end to exit 2
+
+-------
+Acquiring bb if.then
+Adding basic blocks for traversal in a breadth biased order for function eicas_calculator
+added to succ list:if.end4,
+distance of if.end to exit 2
+distance of if.end4 to exit 1
+
+-------
+Acquiring bb if.end
+Adding basic blocks for traversal in a breadth biased order for function eicas_calculator
+added to succ list:didn't add if.end4
+
+distance of if.end4 to exit 1
+
+-------
+Acquiring bb if.end4
+entered end hop for function eicas_calculator
+Adding basic blocks for traversal in a breadth biased order for function eicas_calculator
+added to succ list:
+adding to creation map bbargs of size 1
+
+-----------
+Partitioning function:redefine_start
+
+-------
+Acquiring bb entry
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:newName0,
+distance of newName0 to exit 1
+
+-------
+Acquiring bb newName0
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:newName01,
+distance of newName01 to exit 1
+
+-------
+Acquiring bb newName01
+entered end hop for function redefine_start
+Adding basic blocks for traversal in a breadth biased order for function redefine_start
+added to succ list:
+adding to creation map bbargs of size 3
+before partitioning:; ModuleID = './Working/eicas_0.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_eicas_egt = common global i32 0, align 4
+@redefine_out_eicas_egt = common global i32 0, align 4
+
+; Function Attrs: nounwind
+define i32 @eicas_calculator(i32 %eicasin) #0 {
+entry:
+  %eicasin.addr = alloca i32, align 4
+  %eicasout = alloca i32, align 4
+  store i32 %eicasin, i32* %eicasin.addr, align 4
+  %0 = load i32* %eicasin.addr, align 4
+  %cmp = icmp slt i32 %0, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  store i32 0, i32* %eicasout, align 4
+  br label %if.end4
+
+if.else:                                          ; preds = %entry
+  %1 = load i32* %eicasin.addr, align 4
+  %cmp1 = icmp sgt i32 %1, 65535
+  br i1 %cmp1, label %if.then2, label %if.else3
+
+if.then2:                                         ; preds = %if.else
+  store i32 65535, i32* %eicasout, align 4
+  br label %if.end
+
+if.else3:                                         ; preds = %if.else
+  %2 = load i32* %eicasin.addr, align 4
+  store i32 %2, i32* %eicasout, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.else3, %if.then2
+  br label %if.end4
+
+if.end4:                                          ; preds = %if.end, %if.then
+  %3 = load i32* %eicasout, align 4
+  ret i32 %3
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = load i32* @redefine_in_eicas_egt, align 4
+  br label %newName0
+
+newName0:                                         ; preds = %entry
+  %call = call i32 @eicas_calculator(i32 %0)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store i32 %call, i32* @redefine_out_eicas_egt, align 4
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{}
+-----------Creating HyperOps from partitioned functions-----------
+added to traversallist:entry
+added to traversallist:newName0
+added to traversallist:newName01
+now at func:entry
+
+-----------Creating a new HyperOp for function:redefine_start-----------
+
+--------
+Acquired bb:entry from parent:redefine_start
+created func:redefine_start1
+now at func:newName0
+now at func:newName01
+
+-----------Creating a new HyperOp for function:redefine_start-----------
+
+--------
+Acquired bb:newName01 from parent:redefine_start
+created func:redefine_start2
+now at func:entry
+
+-----------Creating a new HyperOp for function:eicas_calculator-----------
+newName0,
+--------
+Acquired bb:entry from parent:eicas_calculator
+
+--------
+Acquired bb:if.else from parent:eicas_calculator
+
+--------
+Acquired bb:if.then2 from parent:eicas_calculator
+
+--------
+Acquired bb:if.else3 from parent:eicas_calculator
+
+--------
+Acquired bb:if.then from parent:eicas_calculator
+
+--------
+Acquired bb:if.end from parent:eicas_calculator
+
+--------
+Acquired bb:if.end4 from parent:eicas_calculator
+
+--------
+Acquired bb:newName0 from parent:redefine_start
+created func:eicas_calculator3
+before patching stuff:; ModuleID = './Working/eicas_0.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_eicas_egt = common global i32 0, align 4
+@redefine_out_eicas_egt = common global i32 0, align 4
+
+; Function Attrs: nounwind
+define i32 @eicas_calculator(i32 %eicasin) #0 {
+entry:
+  %eicasin.addr = alloca i32, align 4
+  %eicasout = alloca i32, align 4
+  store i32 %eicasin, i32* %eicasin.addr, align 4
+  %0 = load i32* %eicasin.addr, align 4
+  %cmp = icmp slt i32 %0, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  store i32 0, i32* %eicasout, align 4
+  br label %if.end4
+
+if.else:                                          ; preds = %entry
+  %1 = load i32* %eicasin.addr, align 4
+  %cmp1 = icmp sgt i32 %1, 65535
+  br i1 %cmp1, label %if.then2, label %if.else3
+
+if.then2:                                         ; preds = %if.else
+  store i32 65535, i32* %eicasout, align 4
+  br label %if.end
+
+if.else3:                                         ; preds = %if.else
+  %2 = load i32* %eicasin.addr, align 4
+  store i32 %2, i32* %eicasout, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.else3, %if.then2
+  br label %if.end4
+
+if.end4:                                          ; preds = %if.end, %if.then
+  %3 = load i32* %eicasout, align 4
+  ret i32 %3
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = load i32* @redefine_in_eicas_egt, align 4
+  br label %newName0
+
+newName0:                                         ; preds = %redefine_start1.entry, %entry
+  %call = call i32 @eicas_calculator(i32 %0)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store i32 %call, i32* @redefine_out_eicas_egt, align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = load i32* @redefine_in_eicas_egt, align 4
+  br label %newName0
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(i32 inreg) {
+redefine_start2.newName01:
+  store i32 %0, i32* @redefine_out_eicas_egt, align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @eicas_calculator3(i32 inreg) {
+eicas_calculator3.entry:
+  %1 = alloca i32, align 4
+  %2 = alloca i32, align 4
+  store i32 %0, i32* %1, align 4
+  %3 = load i32* %1, align 4
+  %4 = icmp slt i32 %3, 0
+  br i1 %4, label %eicas_calculator3.if.then, label %eicas_calculator3.if.else
+
+eicas_calculator3.if.else:                        ; preds = %eicas_calculator3.entry
+  %5 = load i32* %1, align 4
+  %6 = icmp sgt i32 %5, 65535
+  br i1 %6, label %eicas_calculator3.if.then2, label %eicas_calculator3.if.else3
+
+eicas_calculator3.if.then2:                       ; preds = %eicas_calculator3.if.else
+  store i32 65535, i32* %2, align 4
+  br label %eicas_calculator3.if.end
+
+eicas_calculator3.if.else3:                       ; preds = %eicas_calculator3.if.else
+  %7 = load i32* %1, align 4
+  store i32 %7, i32* %2, align 4
+  br label %eicas_calculator3.if.end
+
+eicas_calculator3.if.then:                        ; preds = %eicas_calculator3.entry
+  store i32 0, i32* %2, align 4
+  br label %eicas_calculator3.if.end4
+
+eicas_calculator3.if.end:                         ; preds = %eicas_calculator3.if.else3, %eicas_calculator3.if.then2
+  br label %eicas_calculator3.if.end4
+
+eicas_calculator3.if.end4:                        ; preds = %eicas_calculator3.if.end, %eicas_calculator3.if.then
+  %8 = load i32* %2, align 4
+  br label %eicas_calculator3.return
+
+eicas_calculator3.return:                         ; preds = %eicas_calculator3.if.end4
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32)* @eicas_calculator3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+
+----------Adding dependences across created HyperOps----------
+
+-----------Patching created function redefine_start1--------------
+accumulated bbs:
+entry,
+
+----------Adding consumed by metadata----------
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:0
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function redefine_start1, module:; ModuleID = './Working/eicas_0.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_eicas_egt = common global i32 0, align 4
+@redefine_out_eicas_egt = common global i32 0, align 4
+
+; Function Attrs: nounwind
+define i32 @eicas_calculator(i32 %eicasin) #0 {
+entry:
+  %eicasin.addr = alloca i32, align 4
+  %eicasout = alloca i32, align 4
+  store i32 %eicasin, i32* %eicasin.addr, align 4
+  %0 = load i32* %eicasin.addr, align 4
+  %cmp = icmp slt i32 %0, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  store i32 0, i32* %eicasout, align 4
+  br label %if.end4
+
+if.else:                                          ; preds = %entry
+  %1 = load i32* %eicasin.addr, align 4
+  %cmp1 = icmp sgt i32 %1, 65535
+  br i1 %cmp1, label %if.then2, label %if.else3
+
+if.then2:                                         ; preds = %if.else
+  store i32 65535, i32* %eicasout, align 4
+  br label %if.end
+
+if.else3:                                         ; preds = %if.else
+  %2 = load i32* %eicasin.addr, align 4
+  store i32 %2, i32* %eicasout, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.else3, %if.then2
+  br label %if.end4
+
+if.end4:                                          ; preds = %if.end, %if.then
+  %3 = load i32* %eicasout, align 4
+  ret i32 %3
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = load i32* @redefine_in_eicas_egt, align 4
+  br label %newName0
+
+newName0:                                         ; preds = %redefine_start1.entry, %entry
+  %call = call i32 @eicas_calculator(i32 %0)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store i32 %call, i32* @redefine_out_eicas_egt, align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = load i32* @redefine_in_eicas_egt, align 4
+  br label %newName0
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(i32 inreg) {
+redefine_start2.newName01:
+  store i32 %0, i32* @redefine_out_eicas_egt, align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @eicas_calculator3(i32 inreg) {
+eicas_calculator3.entry:
+  %1 = alloca i32, align 4
+  %2 = alloca i32, align 4
+  store i32 %0, i32* %1, align 4
+  %3 = load i32* %1, align 4
+  %4 = icmp slt i32 %3, 0
+  br i1 %4, label %eicas_calculator3.if.then, label %eicas_calculator3.if.else
+
+eicas_calculator3.if.else:                        ; preds = %eicas_calculator3.entry
+  %5 = load i32* %1, align 4
+  %6 = icmp sgt i32 %5, 65535
+  br i1 %6, label %eicas_calculator3.if.then2, label %eicas_calculator3.if.else3
+
+eicas_calculator3.if.then2:                       ; preds = %eicas_calculator3.if.else
+  store i32 65535, i32* %2, align 4
+  br label %eicas_calculator3.if.end
+
+eicas_calculator3.if.else3:                       ; preds = %eicas_calculator3.if.else
+  %7 = load i32* %1, align 4
+  store i32 %7, i32* %2, align 4
+  br label %eicas_calculator3.if.end
+
+eicas_calculator3.if.then:                        ; preds = %eicas_calculator3.entry
+  store i32 0, i32* %2, align 4
+  br label %eicas_calculator3.if.end4
+
+eicas_calculator3.if.end:                         ; preds = %eicas_calculator3.if.else3, %eicas_calculator3.if.then2
+  br label %eicas_calculator3.if.end4
+
+eicas_calculator3.if.end4:                        ; preds = %eicas_calculator3.if.end, %eicas_calculator3.if.then
+  %8 = load i32* %2, align 4
+  br label %eicas_calculator3.return
+
+eicas_calculator3.return:                         ; preds = %eicas_calculator3.if.end4
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32)* @eicas_calculator3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+
+-----------Patching created function redefine_start2--------------
+accumulated bbs:
+newName01,
+
+----------Adding consumed by metadata----------
+  %call = call i32 @eicas_calculator(i32 %0)
+cloned inst second:  %3 = load i32* %eicasout, align 4
+producer function:eicas_calculator3
+how many clones?1
+added metadata on instruction that belongs to parent eicas_calculator3 and is mapped to slot 0 when the function has 1 and is of type:0:  %1 = alloca i32, align 4, !ConsumedBy !6
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:1
+what was callsite size earlier??0
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function redefine_start2, module:; ModuleID = './Working/eicas_0.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_eicas_egt = common global i32 0, align 4
+@redefine_out_eicas_egt = common global i32 0, align 4
+
+; Function Attrs: nounwind
+define i32 @eicas_calculator(i32 %eicasin) #0 {
+entry:
+  %eicasin.addr = alloca i32, align 4
+  %eicasout = alloca i32, align 4
+  store i32 %eicasin, i32* %eicasin.addr, align 4
+  %0 = load i32* %eicasin.addr, align 4
+  %cmp = icmp slt i32 %0, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  store i32 0, i32* %eicasout, align 4
+  br label %if.end4
+
+if.else:                                          ; preds = %entry
+  %1 = load i32* %eicasin.addr, align 4
+  %cmp1 = icmp sgt i32 %1, 65535
+  br i1 %cmp1, label %if.then2, label %if.else3
+
+if.then2:                                         ; preds = %if.else
+  store i32 65535, i32* %eicasout, align 4
+  br label %if.end
+
+if.else3:                                         ; preds = %if.else
+  %2 = load i32* %eicasin.addr, align 4
+  store i32 %2, i32* %eicasout, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.else3, %if.then2
+  br label %if.end4
+
+if.end4:                                          ; preds = %if.end, %if.then
+  %3 = load i32* %eicasout, align 4
+  ret i32 %3
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = load i32* @redefine_in_eicas_egt, align 4
+  br label %newName0
+
+newName0:                                         ; preds = %redefine_start1.entry, %entry
+  %call = call i32 @eicas_calculator(i32 %0)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store i32 %call, i32* @redefine_out_eicas_egt, align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = load i32* @redefine_in_eicas_egt, align 4
+  br label %newName0
+
+redefine_start1.return:                           ; No predecessors!
+  ret void
+}
+
+define void @redefine_start2(i32 inreg) {
+redefine_start2.newName01:
+  store i32 %0, i32* @redefine_out_eicas_egt, align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @eicas_calculator3(i32 inreg) {
+eicas_calculator3.entry:
+  %1 = alloca i32, align 4, !ConsumedBy !6
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  store i32 %0, i32* %2, align 4
+  %4 = load i32* %2, align 4
+  %5 = icmp slt i32 %4, 0
+  br i1 %5, label %eicas_calculator3.if.then, label %eicas_calculator3.if.else
+
+eicas_calculator3.if.else:                        ; preds = %eicas_calculator3.entry
+  %6 = load i32* %2, align 4
+  %7 = icmp sgt i32 %6, 65535
+  br i1 %7, label %eicas_calculator3.if.then2, label %eicas_calculator3.if.else3
+
+eicas_calculator3.if.then2:                       ; preds = %eicas_calculator3.if.else
+  store i32 65535, i32* %3, align 4
+  br label %eicas_calculator3.if.end
+
+eicas_calculator3.if.else3:                       ; preds = %eicas_calculator3.if.else
+  %8 = load i32* %2, align 4
+  store i32 %8, i32* %3, align 4
+  br label %eicas_calculator3.if.end
+
+eicas_calculator3.if.then:                        ; preds = %eicas_calculator3.entry
+  store i32 0, i32* %3, align 4
+  br label %eicas_calculator3.if.end4
+
+eicas_calculator3.if.end:                         ; preds = %eicas_calculator3.if.else3, %eicas_calculator3.if.then2
+  br label %eicas_calculator3.if.end4
+
+eicas_calculator3.if.end4:                        ; preds = %eicas_calculator3.if.end, %eicas_calculator3.if.then
+  %9 = load i32* %3, align 4
+  store i32 %9, i32* %1, align 4
+  br label %eicas_calculator3.return
+
+eicas_calculator3.return:                         ; preds = %eicas_calculator3.if.end4
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32)* @eicas_calculator3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !2, metadata !"Scalar", i32 0}
+
+-----------Patching created function eicas_calculator3--------------
+accumulated bbs:
+entry,if.else,if.then2,if.else3,if.then,if.end,if.end4,
+
+----------Adding consumed by metadata----------
+cloned inst second:  %0 = load i32* @redefine_in_eicas_egt, align 4
+producer function:redefine_start1
+how many clones?1
+added metadata on instruction that belongs to parent redefine_start1 and is mapped to slot 0 when the function has 1 and is of type:0:  %0 = alloca i32, align 4, !ConsumedBy !6
+
+----------Dealing with conditional branches from other HyperOps----------
+number of conditional jump sources:0
+
+----------Dealing with unconditional branches from other HyperOps----------
+number of unconditional jump sources:1
+what was callsite size earlier??1
+
+----------Adding a predicate from entry hyperop if there are no incoming edges to the hyperop----------
+after patching function eicas_calculator3, module:; ModuleID = './Working/eicas_0.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_eicas_egt = common global i32 0, align 4
+@redefine_out_eicas_egt = common global i32 0, align 4
+
+; Function Attrs: nounwind
+define i32 @eicas_calculator(i32 %eicasin) #0 {
+entry:
+  %eicasin.addr = alloca i32, align 4
+  %eicasout = alloca i32, align 4
+  store i32 %eicasin, i32* %eicasin.addr, align 4
+  %0 = load i32* %eicasin.addr, align 4
+  %cmp = icmp slt i32 %0, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  store i32 0, i32* %eicasout, align 4
+  br label %if.end4
+
+if.else:                                          ; preds = %entry
+  %1 = load i32* %eicasin.addr, align 4
+  %cmp1 = icmp sgt i32 %1, 65535
+  br i1 %cmp1, label %if.then2, label %if.else3
+
+if.then2:                                         ; preds = %if.else
+  store i32 65535, i32* %eicasout, align 4
+  br label %if.end
+
+if.else3:                                         ; preds = %if.else
+  %2 = load i32* %eicasin.addr, align 4
+  store i32 %2, i32* %eicasout, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.else3, %if.then2
+  br label %if.end4
+
+if.end4:                                          ; preds = %if.end, %if.then
+  %3 = load i32* %eicasout, align 4
+  ret i32 %3
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = load i32* @redefine_in_eicas_egt, align 4
+  br label %newName0
+
+newName0:                                         ; preds = %entry
+  %call = call i32 @eicas_calculator(i32 %0)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store i32 %call, i32* @redefine_out_eicas_egt, align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca i32, align 4, !ConsumedBy !6
+  %1 = load i32* @redefine_in_eicas_egt, align 4
+  store i32 %1, i32* %0, align 4
+  br label %redefine_start1.return
+
+redefine_start1.return:                           ; preds = %redefine_start1.entry
+  ret void
+}
+
+define void @redefine_start2(i32 inreg) {
+redefine_start2.newName01:
+  store i32 %0, i32* @redefine_out_eicas_egt, align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @eicas_calculator3(i32 inreg) {
+eicas_calculator3.entry:
+  %1 = alloca i32, align 4, !ConsumedBy !8
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  store i32 %0, i32* %2, align 4
+  %4 = load i32* %2, align 4
+  %5 = icmp slt i32 %4, 0
+  br i1 %5, label %eicas_calculator3.if.then, label %eicas_calculator3.if.else
+
+eicas_calculator3.if.else:                        ; preds = %eicas_calculator3.entry
+  %6 = load i32* %2, align 4
+  %7 = icmp sgt i32 %6, 65535
+  br i1 %7, label %eicas_calculator3.if.then2, label %eicas_calculator3.if.else3
+
+eicas_calculator3.if.then2:                       ; preds = %eicas_calculator3.if.else
+  store i32 65535, i32* %3, align 4
+  br label %eicas_calculator3.if.end
+
+eicas_calculator3.if.else3:                       ; preds = %eicas_calculator3.if.else
+  %8 = load i32* %2, align 4
+  store i32 %8, i32* %3, align 4
+  br label %eicas_calculator3.if.end
+
+eicas_calculator3.if.then:                        ; preds = %eicas_calculator3.entry
+  store i32 0, i32* %3, align 4
+  br label %eicas_calculator3.if.end4
+
+eicas_calculator3.if.end:                         ; preds = %eicas_calculator3.if.else3, %eicas_calculator3.if.then2
+  br label %eicas_calculator3.if.end4
+
+eicas_calculator3.if.end4:                        ; preds = %eicas_calculator3.if.end, %eicas_calculator3.if.then
+  %9 = load i32* %3, align 4
+  store i32 %9, i32* %1, align 4
+  br label %eicas_calculator3.return
+
+eicas_calculator3.return:                         ; preds = %eicas_calculator3.if.end4
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32)* @eicas_calculator3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !4, metadata !"Scalar", i32 0}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !2, metadata !"Scalar", i32 0}
+
+----------Adding sync edges to dangling HyperOps----------
+
+-----------Re-routing sync edges from end hyperop to the newly created end HyperOp-----------
+whats in module now?; ModuleID = './Working/eicas_0.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_eicas_egt = common global i32 0, align 4
+@redefine_out_eicas_egt = common global i32 0, align 4
+
+; Function Attrs: nounwind
+define i32 @eicas_calculator(i32 %eicasin) #0 {
+entry:
+  %eicasin.addr = alloca i32, align 4
+  %eicasout = alloca i32, align 4
+  store i32 %eicasin, i32* %eicasin.addr, align 4
+  %0 = load i32* %eicasin.addr, align 4
+  %cmp = icmp slt i32 %0, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  store i32 0, i32* %eicasout, align 4
+  br label %if.end4
+
+if.else:                                          ; preds = %entry
+  %1 = load i32* %eicasin.addr, align 4
+  %cmp1 = icmp sgt i32 %1, 65535
+  br i1 %cmp1, label %if.then2, label %if.else3
+
+if.then2:                                         ; preds = %if.else
+  store i32 65535, i32* %eicasout, align 4
+  br label %if.end
+
+if.else3:                                         ; preds = %if.else
+  %2 = load i32* %eicasin.addr, align 4
+  store i32 %2, i32* %eicasout, align 4
+  br label %if.end
+
+if.end:                                           ; preds = %if.else3, %if.then2
+  br label %if.end4
+
+if.end4:                                          ; preds = %if.end, %if.then
+  %3 = load i32* %eicasout, align 4
+  ret i32 %3
+}
+
+; Function Attrs: nounwind
+define void @redefine_start() #0 {
+entry:
+  %0 = load i32* @redefine_in_eicas_egt, align 4
+  br label %newName0
+
+newName0:                                         ; preds = %entry
+  %call = call i32 @eicas_calculator(i32 %0)
+  br label %newName01
+
+newName01:                                        ; preds = %newName0
+  store i32 %call, i32* @redefine_out_eicas_egt, align 4
+  ret void
+}
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca i32, align 4, !ConsumedBy !6
+  %1 = load i32* @redefine_in_eicas_egt, align 4
+  store i32 %1, i32* %0, align 4
+  br label %redefine_start1.return
+
+redefine_start1.return:                           ; preds = %redefine_start1.entry
+  ret void
+}
+
+define void @redefine_start2(i32 inreg) {
+redefine_start2.newName01:
+  store i32 %0, i32* @redefine_out_eicas_egt, align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @eicas_calculator3(i32 inreg) {
+eicas_calculator3.entry:
+  %1 = alloca i32, align 4, !ConsumedBy !8
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  store i32 %0, i32* %2, align 4
+  %4 = load i32* %2, align 4
+  %5 = icmp slt i32 %4, 0
+  br i1 %5, label %eicas_calculator3.if.then, label %eicas_calculator3.if.else
+
+eicas_calculator3.if.else:                        ; preds = %eicas_calculator3.entry
+  %6 = load i32* %2, align 4
+  %7 = icmp sgt i32 %6, 65535
+  br i1 %7, label %eicas_calculator3.if.then2, label %eicas_calculator3.if.else3
+
+eicas_calculator3.if.then2:                       ; preds = %eicas_calculator3.if.else
+  store i32 65535, i32* %3, align 4
+  br label %eicas_calculator3.if.end
+
+eicas_calculator3.if.else3:                       ; preds = %eicas_calculator3.if.else
+  %8 = load i32* %2, align 4
+  store i32 %8, i32* %3, align 4
+  br label %eicas_calculator3.if.end
+
+eicas_calculator3.if.then:                        ; preds = %eicas_calculator3.entry
+  store i32 0, i32* %3, align 4
+  br label %eicas_calculator3.if.end4
+
+eicas_calculator3.if.end:                         ; preds = %eicas_calculator3.if.else3, %eicas_calculator3.if.then2
+  br label %eicas_calculator3.if.end4
+
+eicas_calculator3.if.end4:                        ; preds = %eicas_calculator3.if.end, %eicas_calculator3.if.then
+  %9 = load i32* %3, align 4
+  store i32 %9, i32* %1, align 4
+  br label %eicas_calculator3.return
+
+eicas_calculator3.return:                         ; preds = %eicas_calculator3.if.end4
+  ret void
+}
+
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32)* @eicas_calculator3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !4, metadata !"Scalar", i32 0}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !2, metadata !"Scalar", i32 0}
+
+-----------Deleting unused functions-----------
+deleting contents of function:eicas_calculator
+deleting contents of function:redefine_start
+Final module contents:; ModuleID = './Working/eicas_0.ll'
+target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-n32"
+target triple = "redefine"
+
+@redefine_in_eicas_egt = common global i32 0, align 4
+@redefine_out_eicas_egt = common global i32 0, align 4
+
+define void @redefine_start1() {
+redefine_start1.entry:
+  %0 = alloca i32, align 4, !ConsumedBy !6
+  %1 = load i32* @redefine_in_eicas_egt, align 4
+  store i32 %1, i32* %0, align 4
+  br label %redefine_start1.return
+
+redefine_start1.return:                           ; preds = %redefine_start1.entry
+  ret void
+}
+
+define void @redefine_start2(i32 inreg) {
+redefine_start2.newName01:
+  store i32 %0, i32* @redefine_out_eicas_egt, align 4
+  br label %redefine_start2.return
+
+redefine_start2.return:                           ; preds = %redefine_start2.newName01
+  ret void
+}
+
+define void @eicas_calculator3(i32 inreg) {
+eicas_calculator3.entry:
+  %1 = alloca i32, align 4, !ConsumedBy !8
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  store i32 %0, i32* %2, align 4
+  %4 = load i32* %2, align 4
+  %5 = icmp slt i32 %4, 0
+  br i1 %5, label %eicas_calculator3.if.then, label %eicas_calculator3.if.else
+
+eicas_calculator3.if.else:                        ; preds = %eicas_calculator3.entry
+  %6 = load i32* %2, align 4
+  %7 = icmp sgt i32 %6, 65535
+  br i1 %7, label %eicas_calculator3.if.then2, label %eicas_calculator3.if.else3
+
+eicas_calculator3.if.then2:                       ; preds = %eicas_calculator3.if.else
+  store i32 65535, i32* %3, align 4
+  br label %eicas_calculator3.if.end
+
+eicas_calculator3.if.else3:                       ; preds = %eicas_calculator3.if.else
+  %8 = load i32* %2, align 4
+  store i32 %8, i32* %3, align 4
+  br label %eicas_calculator3.if.end
+
+eicas_calculator3.if.then:                        ; preds = %eicas_calculator3.entry
+  store i32 0, i32* %3, align 4
+  br label %eicas_calculator3.if.end4
+
+eicas_calculator3.if.end:                         ; preds = %eicas_calculator3.if.else3, %eicas_calculator3.if.then2
+  br label %eicas_calculator3.if.end4
+
+eicas_calculator3.if.end4:                        ; preds = %eicas_calculator3.if.end, %eicas_calculator3.if.then
+  %9 = load i32* %3, align 4
+  store i32 %9, i32* %1, align 4
+  br label %eicas_calculator3.return
+
+eicas_calculator3.return:                         ; preds = %eicas_calculator3.if.end4
+  ret void
+}
+
+!redefine.annotations = !{!0, !1, !2, !3, !4, !5}
+
+!0 = metadata !{metadata !"HyperOp", void ()* @redefine_start1, metadata !"Static"}
+!1 = metadata !{metadata !"Entry", metadata !0}
+!2 = metadata !{metadata !"HyperOp", void (i32)* @redefine_start2, metadata !"Static"}
+!3 = metadata !{metadata !"Exit", metadata !2}
+!4 = metadata !{metadata !"HyperOp", void (i32)* @eicas_calculator3, metadata !"Static"}
+!5 = metadata !{metadata !"Intermediate", metadata !4}
+!6 = metadata !{metadata !7}
+!7 = metadata !{metadata !4, metadata !"Scalar", i32 0}
+!8 = metadata !{metadata !9}
+!9 = metadata !{metadata !2, metadata !"Scalar", i32 0}

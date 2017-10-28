@@ -45,13 +45,13 @@ static PHINode *getInductionVariable(Loop *L, ScalarEvolution *SE) {
 	PHINode *InnerIndexVar = L->getCanonicalInductionVariable();
 	if (InnerIndexVar)
 		return InnerIndexVar;
-	if (L->getLoopLatch() == nullptr || L->getLoopPredecessor() == nullptr)
-		return nullptr;
+	if (L->getLoopLatch() == NULL || L->getLoopPredecessor() == NULL)
+		return NULL;
 	for (BasicBlock::iterator I = L->getHeader()->begin(); isa<PHINode>(I); ++I) {
 		PHINode *PhiVar = cast<PHINode>(I);
 		Type *PhiTy = PhiVar->getType();
 		if (!PhiTy->isIntegerTy() && !PhiTy->isFloatingPointTy() && !PhiTy->isPointerTy())
-			return nullptr;
+			return NULL;
 		const SCEVAddRecExpr *AddRec = dyn_cast<SCEVAddRecExpr>(SE->getSCEV(PhiVar));
 		if (!AddRec || !AddRec->isAffine())
 			continue;
@@ -63,7 +63,7 @@ static PHINode *getInductionVariable(Loop *L, ScalarEvolution *SE) {
 		// currently, legality makes sure we have only one induction variable.
 		return PhiVar;
 	}
-	return nullptr;
+	return NULL;
 }
 
 void LoopInterchangeTransform::splitInnerLoopLatch(Instruction *Inc) {

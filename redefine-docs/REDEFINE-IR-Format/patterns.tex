@@ -1,0 +1,17 @@
+\textbf{The plan is to support these for a parallel frontend}
+
+Development of parallel algorithms and using them as building blocks in solving problems can be accelerated via support for parallel patterns of computation. Expressing such regular patterns embarassing parallelism is facilitated in the proposed compilation flow via support for parallel patterns in IR, which maybe generated from an explicitly parallel frontend. The parallel compute patterns are similar to macros/directives that are supported via annotations to loops representing the high level task-graph structure. The patterns come with an annotations processor interface that allows pattern specific optimizations (viz generation of equivalent task graph with larger span) to be performed and then expands the annotations onto the previously described LLVM IR format and resolves dependences between them. Supported patterns and their realization via annotations are listed in table \ref{tab_list_patterns}.
+\begin{table}[htp]
+\caption{Supported Parallel Compute Patterns}
+\label{tab_list_patterns}
+\centering
+    \begin{tabular}{|p{6cm} | p{6cm}|}
+    \hline 
+    \textbf{Pattern} & \textbf{Annotation} \\\hline \hline
+     Map, Stencil & parallel.for with blocksize (default size=1) over a loop nest \\ \hline
+     Fork-join, Reduction, Scan  & parallel.for.deterministicreduction and parallel.for.reduction with predefined monotonic combiner functions (add, mul, min, max, and, or), parallel.scanreduction \\ \hline 
+%      Stream &\\ \hline  
+     \end{tabular}
+\end{table}
+
+% 

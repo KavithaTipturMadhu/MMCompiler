@@ -453,7 +453,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 								consumerHyperOp->setBarrierHyperOp();
-								consumerHyperOp->incrementIncomingSyncCount();
+								consumerHyperOp->incrementIncomingSyncCount(0);
 								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)) {
 									//						&& !sourceHyperOp->isUnrolledInstance()) {
 									errs() << "added instance:" << consumerHyperOp->asString() << " and is it an instance:" << consumerHyperOp->isUnrolledInstance() << "\n";
@@ -482,6 +482,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 			}
 		}
 		if (maxFrameSizeOfHyperOp < frameSizeOfHyperOp) {
+			errs()<<"frame size for hop "<<sourceHyperOp->asString()<<":"<<frameSizeOfHyperOp<<"\n";
 			maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
 		}
 	}

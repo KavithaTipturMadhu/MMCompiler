@@ -1,0 +1,116 @@
+In this section we present some experimental results to demonstrate effectiveness of the proposed IE synthesis methodology. For this purpose we realized some kernels from the domain of communication and signal processing on HyperCell. The characteristics of the kernels are listed in table \ref{tab_list_kernel}.
+FIR-1 and FIR-2 are two variants of 10-tap and 12-tap finite impulse response filters respectively. IIR is 10 tap infinite impulse response filter. Viterbi kernel implements path metric computation for a four state Viterbi decoder.
+FFT kernel comprises a radix-4 butterfly operation.
+We realized the kernels on a 5$\times$5 (in terms of number of CUs, where each CU comprises 1 ALU and 1 multiplier) HyperCell fabric. The speedup-gap for these kernels are presented in table \ref{tab_speedupGap_results}. Recall that, the speedup-gap arises due to long latency sequential paths in the DFGs of the kernels.
+\begin{table}[htp]
+\caption{List of Kernels and Their Characteristics}
+\label{tab_list_kernel}
+\centering
+    \begin{tabular}{|p{1cm} | p{1cm} | p{1cm} | p{0.9cm}| p{0.9cm}| p{1.4cm}|}
+    \hline
+      Kernel & \multicolumn{2}{|c|}{Number of Operations}  & \multicolumn{2}{|c|}{Number of Inputs} & Number of Outputs\\ 
+	\cline{2-5} 	 & ALU  	& multiplier & Constants & Variables  & \\\hline \hline
+      FIR-1   & 9 & 10 & 10 & 10 & 1\\ \hline
+      FIR-2   & 13 & 7 & 7 & 14 & 1\\ \hline
+      IIR     & 9 & 10 & 10 & 10 & 1\\ \hline
+      Viterbi & 18 & 0 & 4 & 5 & 4\\ \hline
+      FFT     & 16 & 8 & 0 & 16 & 2\\ \hline
+     \end{tabular}
+\end{table}
+\begin{table*}[ht]
+\caption{Speedup-gap of Some Kernels}
+\label{tab_speedupGap_results}
+\centering
+    \begin{tabular}{|p{1 in}| p{0.8 in}|p{1 in} |p{1 in}| p{1.4 in} |p{1 in}|}
+    \hline
+	Kernel & Execution Time on Linear FU array & Execution Time on Reconfigurable Hardware & Speedup w.r.t. Linear FU array & Relative Hardware Complexity w.r.t. Linear FU array & Speedup-gap w.r.t. Linear FU array\\ \hline \hline
+	FIR1 & 10 & 10 &  1 & 3.8 & 3.8\\ \hline
+	FIR2 & 10 & 10 & 1 & 4 & 4\\ \hline
+	IIR & 10 & 10 & 1.14 & 3.8 & 3.8\\ \hline
+	Viterbi Decoder & 5 & 4 &  1.25 & 4.5 & 3.6\\ \hline
+	Radix-4 FFT  & 19 & 10 & 1.9 & 6.8 & 3.6\\ \hline
+% 	SHA2  &  & 10 &  &  & \\ \hline
+    \end{tabular}
+\end{table*}
+
+
+The speedup in execution time and speedup-gap (w.r.t. a linear array of 4 ALUs and 1 Multiplier) of these kernels when implemented in a software pipelined manner is presented in figure \ref{fig_speedup_linArray}.  
+\begin{figure}[!h]
+  \centering
+    \includegraphics[width=\columnwidth]{VLIW-Speedup-Gap}
+    \caption{Variation in speedup and speedup-gap with number of load/store}
+\label{fig_speedup_linArray}
+\end{figure}
+\begin{figure}[!h]
+  \centering
+    \includegraphics[width=\columnwidth]{Speedup-GapWithConstants}
+    \caption{Variation in speedup and speedup-gap with number of load/store (with constant holding)}
+\label{fig_SpeedupWithConstants}
+\end{figure}
+\begin{figure}[!h]
+  \centering
+    \includegraphics[width=\columnwidth]{Speedup-GapWithConstantsReuse}
+    \caption{Variation in speedup and speedup-gap with number of load/store (with constant holding and input/output reuse)}
+\label{fig_SpeedupWithConstantsReuse}
+\end{figure}
+%TODO: Subfigures. Legends are shared.
+%TODO: Order: Bandwidth reduction -> Performance & Speedup-gap -> ARM results
+%TODO: Bandwidth limitation gets reduced how? 1. Constants, 2. Temporal reuse 
+As we increase the number of parallel load/stores, the speedup of the IE kernels increase while speedup-gap decrease and saturate. The saturation is attributed to the fact that at steady-state any IE datapath can consume only $N_{in}$  number of inputs and produce $N_{out}$ number of outputs \footnote{$N_{in}$ and $N_{out}$ represent the number of inputs and outputs in one dynamic instance of an IE DFG.}. Increasing the input/output bandwidth beyond this point for a particular IE datapath has no impact on its performance. Note that, the operating frequency of HyperCell on which the IE datapaths are synthesized has not been taken into consideration for this set of comparisons. Thus the highest performance of any IE is proportional to just the number of output samples it produces per cycle. The best speedup with respect to linear FU-array structure is proportional to the average execution time on linear FU-array structure for one iteration of the particular IE DFG. This is because, at saturation bandwidth, the initiation interval of the IE datapaths is 1 cycle. The results of similar experiments with a HyperCell which is capable of holding program constants on fabric is presented in figure \ref{fig_SpeedupWithConstants}. Note that, when constants are held on fabric the bandwidth requirement reduces and thus performance of the IEs saturate at a lower number of parallel load/stores. An exception to this trend is the FFT kernel, for which there are no constant inputs. Thus the saturation bandwidth for FFT remains unchanged when constants are held resident on the HyperCell fabric. Figure \ref{fig_SpeedupWithConstantsReuse} presents the performance of the same IEs on HyperCell when temporal reuse of data is exploited maximally. Performance of all the kernels except FFT saturate at much lower number of parallel load/stores. This is attributed to the significantly large reuse groups that are formed while generating their schedule metadata. Since the accesses in FFT do not exhibit parallel affine behavior, the scheduling algorithm creates reuse groups that are singleton sets. 
+\begin{figure}[!h]
+  \centering
+    \includegraphics[width=\columnwidth]{BandWidthReduction}
+    \caption{Memory Bandwidth required for different kernels}
+\label{fig_BandWidthReduction}
+\end{figure}
+In figure \ref{fig_BandWidthReduction} we present the reduction in required input/output bandwidth for sustaining minimum initiation interval (and therefore minimum speedup-gap) for different kernels due to holding constants on fabric and exploiting data reuse.
+%TODO: number of load stores reduction. mention this
+%
+% \begin{table*}[ht]
+% \caption{Speedup-gap of some kernels}
+% \label{tab_speedupGap_results_2}
+% \centering
+%     \begin{tabular}{|p{1 in}| p{0.8 in}|p{1 in} |p{1 in}| p{1.4 in} |p{1 in}|}
+%     \hline
+% 	Kernel & Execution Time on Linear FU array & Execution Time on Reconfigurable Hardware & Speedup w.r.t. Linear FU array & Relative Hardware Complexity w.r.t. Linear FU array & Speedup-gap w.r.t. Linear FU array\\ \hline \hline
+% 	FIR1 & 10 & 10 &  1 & 3.8 & 3.8\\ \hline
+% 	FIR2 & 10 & 10 & 1 & 4 & 4\\ \hline
+% 	IIR & 10 & 10 & 1.14 & 3.8 & 3.8\\ \hline
+% 	Viterbi Decoder & 5 & 4 &  1.25 & 4.5 & 3.6\\ \hline
+% 	Radix-4 FFT  & 19 & 10 & 1.9 & 6.8 & 3.6\\ \hline
+% 	SHA2  &  & 10 &  &  & \\ \hline
+%     \end{tabular}
+% \end{table*}
+\vfill
+\eject
+
+We measured performance of the aforementioned kernels on an ARMV7-a processor and a $5\times5$ HyperCell with 8 register files. Each register file has 32 registers. 
+We have used the same ARMV7-a processor as the host for providing data to HyperCell and the gem5 ARM simulator \cite{gem5} for simulating the ARM ISA. Details of the ARMV7-a is given in table \ref{tab_arm}.
+\begin{table}[htp]
+\caption{Details of the Host ARMV7-a processor.}
+\label{tab_arm}
+\centering
+    \begin{tabular}{|p{4cm} | p{4cm} | }
+    \hline
+	Number of Pipeline Stages & 7\\ \hline
+	L1 I-Cache & 32KB\\ \hline
+	L1 D-Cache & 32KB\\ \hline
+	Memory Subsystem  & Classic memory system \cite{gem5}\\ \hline 
+	Simulation Model & Out of order DerivO3CPU \cite{gem5}\\ \hline
+	Issue-width & 8\\ \hline
+    \end{tabular}
+\end{table}
+We interfaced a behavioral simulator of HyperCell with ARM's memory environment. Therefore HyperCell is limited by the bandwidth constraints of the host's memory. Figure \ref{fig_arm_perf} shows relative performance of the IEs on HyperCell with respect to ARMV7-a. We observe that, FFT exhibits the least improvement in performance. This is attributed to the fact that temporal reuse of data is not exploited for FFT and therefore the performance of HyperCell while executing FFT kernel is heavily restricted by the host-memory bandwidth bottleneck. 
+Among the other kernels, IIR and Viterbi have loop-carried dependences. However, we avoid the adverse effects of such dependences by interleaving multiple independent instances of these kernels on HyperCell. 
+Ideally, IIR with multiple independent instances and FIR-1 should exhibit similar speedup, because the datapaths of their loop-bodies are identical (see table \ref{tab_list_kernel}). However, in these set of experiments we execute only one instance of FIR-1 as opposed to multiple instances of IIR. Since HyperCell has 8-wide local storage the minimum initiation interval of FIR-1 is $\lceil\frac{10}{8}\rceil$ =2. However, due to multiple interleaved instances executing in pipeline, IIR has initiation interval close to 1. Thus IIR exhibits almost twice better speedup than FIR-1. 
+FIR-2 has a significantly larger reuse group than FIR-1. This leads to higher speedup of FIR-2 on HyperCell. This makes speedup of FIR-2 with just one instance almost as high as that of IIR.
+IIR exhibits better speedup on HyperCell than Viterbi. This is due to the fact that Viterbi kernel does not have any multiplication operation. While IIR utilizes the large number of multipliers available on Hypercell fabric, Viterbi only utilizes the ALUs. 
+\begin{figure}[!h]
+  \centering
+    \includegraphics[width=\columnwidth]{ARM-Speedup}
+    \caption{Variation in speedup of different kernels on HyperCell compared to ARMV7-a}
+\label{fig_arm_perf}
+\end{figure}
+
+
+
