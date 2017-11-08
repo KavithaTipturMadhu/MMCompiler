@@ -134,11 +134,11 @@ float setpoint_nh(float input[]) {
 	else {
 		setpoint = nh_top;
 	}
-
+/*
 #ifndef POWER_MANAGEMENT
 		setpoint = nh_idle + (input[6] * (nh_top - nh_idle) / 100.0F);
 #endif
-
+*/
 	setpoint = (setpoint / 100.0F) * NH_REF;
 	redefine_out_b[3] = nh_top;
 	redefine_out_b[4]= nh_mcm;
@@ -170,13 +170,13 @@ float regulation_nh(float input[]) {//float current_nh, float *nh_setpoint, floa
 	/* Compute the NH setpoint */
 	pla_setpoint = setpoint_nh(input);
 	nl_setpoint = 0.0F;
-
+/*
 #ifdef BRIDAGE
 	if (pla_setpoint > NH_BRIDAGE) {
 		pla_setpoint = NH_BRIDAGE;
 	}
 #endif
-
+*/
 	sat_eps_up = 4500 + (input[0] - 27000) / (float) (52000 - 27000) * 1500;
 	sat_eps_down = -3000 - (input[0] - 27000) / (float) (52000 - 27000) * 1500;
 
