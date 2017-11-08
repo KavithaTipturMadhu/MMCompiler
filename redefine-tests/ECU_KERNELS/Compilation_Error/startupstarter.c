@@ -155,7 +155,7 @@ float startup_starter(int input[]) {//, float *sg_cmd, int *sg_bit0, int *sg_bit
 		} else if (current_nh < NH_STARTER_SHUTOFF) {
 			//sg_cmd = div(5,1);
 			if (current_nh < SG_MAX_RPM) {
-				//sg_cmd = SG_RAMP_MAX + div((current_nh - nh_fin_de_rampe), (SG_MAX_RPM - nh_fin_de_rampe)) * (SG_MAX - SG_RAMP_MAX);
+				sg_cmd = SG_RAMP_MAX + (current_nh - nh_fin_de_rampe) / (SG_MAX_RPM - nh_fin_de_rampe) * (SG_MAX - SG_RAMP_MAX);
 				if (sg_cmd < SG_RAMP_MAX) {
 					sg_cmd = SG_RAMP_MAX;
 				}
