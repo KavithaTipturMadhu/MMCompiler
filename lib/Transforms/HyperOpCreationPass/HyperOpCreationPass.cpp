@@ -2525,10 +2525,19 @@ struct HyperOpCreationPass: public ModulePass {
 						Instruction* clonedInst = (Instruction*) originalToClonedInstMap.find(instItr)->second;
 						if (find(originalHeaderBB.begin(), originalHeaderBB.end(), instItr->getParent()) != originalHeaderBB.end()) {
 							BasicBlock* incomingBlock = ((PHINode*) clonedInst)->getIncomingBlock(0);
+							BasicBlock* originalIncomingBB;
 							//either all parents are acquired or none
-							if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), incomingBlock) == accumulatedBasicBlocks.end()) {
+							for (auto clonedbbItr : originalToClonedBasicBlockMap) {
+								if (clonedbbItr.second == incomingBlock) {
+									originalIncomingBB = clonedbbItr.first;
+									break;
+								}
+							}
+							if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), originalIncomingBB) == accumulatedBasicBlocks.end()) {
 								Value* setValue = ((PHINode*) clonedInst)->getIncomingValue(0);
 								assert(setValue!=NULL&&"Setting NULL as an argument to phi node is not legal");
+								errs() << "Patching phi node ";
+								((PHINode*) clonedInst)->dump();
 								((PHINode*) clonedInst)->setIncomingValue(0, setValue);
 								((PHINode*) clonedInst)->setIncomingBlock(0, NULL);
 								for (unsigned i = 1; i < ((PHINode*) &*instItr)->getNumIncomingValues(); i++) {
