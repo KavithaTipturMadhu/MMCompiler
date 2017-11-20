@@ -1320,7 +1320,6 @@ struct HyperOpCreationPass: public ModulePass {
 								//										lowerBound = ((ConstantInt*)inductionVariable->getIncomingValue(phiOperandItr))->getValue().getSExtValue();
 							}
 						}
-						errs() << "problem kya hai 0?\n";
 						assert(entryBBToInductionVarPHI.size() == 1 && "Multiple exit block loop unsupported");
 						//We can't support multiple strides for parallelism or support any operation other than binary or shift operations
 						for (auto entryBBItr = entryBBToInductionVarPHI.begin(); entryBBItr != entryBBToInductionVarPHI.end(); entryBBItr++) {
@@ -1328,7 +1327,20 @@ struct HyperOpCreationPass: public ModulePass {
 							Value* incomingValue = entryBBItr->second;
 							//Check what the increment on incomingValue is
 							for (auto instItr = incomingBlock->begin(); instItr != incomingBlock->end(); instItr++) {
-								if (incomingValue == instItr) {
+								bool incomingIV = false;
+								if (isa<PHINode>(inductionVariable)) {
+									for (int i = 0; i < ((PHINode*)inductionVariable)->getNumIncomingValues(); i++) {
+										Value* phiOperand = ((PHINode*) inductionVariable)->getIncomingValue(i);
+										if (phiOperand == incomingValue) {
+											incomingIV = true;
+											break;
+										}
+									}
+								} else if (incomingValue == instItr) {
+									incomingIV = true;
+									break;
+								}
+								if (incomingIV) {
 									for (unsigned i = 0; i < instItr->getNumOperands(); i++) {
 										Value* operand = instItr->getOperand(i);
 										if (operand != inductionVariable && (instItr->isBinaryOp() || instItr->isShift())) {
@@ -1609,7 +1621,6 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 				for (auto loopItr = loopsOfFunction.begin(); loopItr != loopsOfFunction.end(); loopItr++) {
 					Loop* loop = *loopItr;
-					errs() << "Latches:\n";
 					for (auto parallelLevelItr = originalParallelLoopBB.begin(); parallelLevelItr != originalParallelLoopBB.end(); parallelLevelItr++) {
 						if (find(parallelLevelItr->first.begin(), parallelLevelItr->first.end(), bbItr) != parallelLevelItr->first.end()) {
 							if (bbItr == loop->getLoopLatch()) {
@@ -1620,7 +1631,6 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 						}
 					}
-					errs() << "end of latches\n";
 					if (bbItr == loop->getHeader()) {
 						originalHeaderBB.push_back(bbItr);
 					}
@@ -1745,8 +1755,6 @@ struct HyperOpCreationPass: public ModulePass {
 										BasicBlock* newSucc = bbItr->splitBasicBlock(instItr, firstBBName);
 										instItr = newSucc->begin();
 										bbItr = newSucc;
-										errs() << "how did split work?";
-										instItr->dump();
 										for (auto bbListItr = originalSerialLoopBB.begin(); bbListItr != originalSerialLoopBB.end(); bbListItr++) {
 											if (find(bbListItr->first.begin(), bbListItr->first.end(), bbItr) != bbListItr->first.end()) {
 												list<BasicBlock*> newList;
@@ -2013,11 +2021,6 @@ struct HyperOpCreationPass: public ModulePass {
 
 				//Create a new HyperOp
 				if (endOfHyperOp) {
-					errs() << "entered end hop for function " << function->getName() << "\n";
-					for (auto bbItr : accumulatedBasicBlocks) {
-						errs() << bbItr->getName() << ",";
-					}
-					errs() << "\n";
 					//First remove args due to back edges
 					list<HyperOpArgumentList::iterator> deleteList;
 
@@ -2536,8 +2539,6 @@ struct HyperOpCreationPass: public ModulePass {
 							if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), originalIncomingBB) == accumulatedBasicBlocks.end()) {
 								Value* setValue = ((PHINode*) clonedInst)->getIncomingValue(0);
 								assert(setValue!=NULL&&"Setting NULL as an argument to phi node is not legal");
-								errs() << "Patching phi node ";
-								((PHINode*) clonedInst)->dump();
 								((PHINode*) clonedInst)->setIncomingValue(0, setValue);
 								((PHINode*) clonedInst)->setIncomingBlock(0, NULL);
 								for (unsigned i = 1; i < ((PHINode*) &*instItr)->getNumIncomingValues(); i++) {
@@ -2556,6 +2557,13 @@ struct HyperOpCreationPass: public ModulePass {
 					for (unsigned i = 0; i < terminator->getNumSuccessors(); i++) {
 						if (terminator->getSuccessor(i) == (*accumulatedBBItr)) {
 							((TerminatorInst*) originalToClonedInstMap[terminator])->setSuccessor(i, originalToClonedBasicBlockMap[*accumulatedBBItr]);
+						}else{
+							//Check if the target is the latch of a parallel loop
+							for(auto parallelLoopLatchBB:originalParallelLatchBB){
+								if(terminator->getSuccessor(i)==parallelLoopLatchBB){
+									((TerminatorInst*) originalToClonedInstMap[terminator])->setSuccessor(i, originalToClonedBasicBlockMap[*accumulatedBBItr]);
+								}
+							}
 						}
 					}
 				}
@@ -2583,11 +2591,6 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 			}
 
-			errs() << "newly acquired:";
-			for (auto acquired : newlyAcquiredBBList) {
-				errs() << acquired->getName() << ",";
-			}
-			errs() << "\n";
 			for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 				//Find out if any basic block is predicated
 				BasicBlock* originalBB = *accumulatedBBItr;
@@ -2603,7 +2606,6 @@ struct HyperOpCreationPass: public ModulePass {
 					BasicBlock* originalIdom = idom;
 					bool idomPredecessor = false;
 					while (true) {
-						errs() << "whats idom changed to?" << idom->getName() << "\n";
 						idomPredecessor = false;
 						for (auto predItr = pred_begin(currentBB); predItr != pred_end(currentBB); predItr++) {
 							BasicBlock* predecessor = *predItr;
@@ -2649,9 +2651,6 @@ struct HyperOpCreationPass: public ModulePass {
 								continue;
 							}
 
-							errs() << "idom:" << idom->getName() << "\n";
-							errs() << "terminator:";
-							terminator->dump();
 							int numSuccessorsCovered = 0;
 							for (unsigned i = 0; i < terminator->getNumSuccessors(); i++) {
 								BasicBlock* postIdomOfSucc = NULL;
@@ -2672,11 +2671,6 @@ struct HyperOpCreationPass: public ModulePass {
 									unconditionalBranchSources[terminator] = successorBBList;
 								}
 							} else {
-								errs() << "added successors " << successorBBList.size() << " and num covered:" << numSuccessorsCovered << "\n";
-								for (auto succItr : successorBBList) {
-									errs() << succItr.first->getName() << ":" << succItr.second << ",";
-								}
-								errs() << "\n";
 								if (conditionalBranchSources.find(terminator) != conditionalBranchSources.end()) {
 									vector<pair<BasicBlock*, int> > previousSuccessorIndexList = conditionalBranchSources[terminator];
 									conditionalBranchSources.erase(terminator);
@@ -2689,8 +2683,7 @@ struct HyperOpCreationPass: public ModulePass {
 						//Add all the jump sources of the basic block to point to their return blocks
 						for (auto predItr = pred_begin(originalBB); predItr != pred_end(originalBB); predItr++) {
 							BasicBlock* pred = *predItr;
-							errs() << "considering predecessor that has idom " << idom->getName() << ":";
-							pred->getTerminator()->dump();
+//							pred->getTerminator()->dump();
 							bool parallelLoopLatchSource = false;
 							for (auto parallelLoopItr : originalParallelLatchBB) {
 								if (parallelLoopItr == pred) {
@@ -2705,8 +2698,6 @@ struct HyperOpCreationPass: public ModulePass {
 									&& (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), pred) == accumulatedBasicBlocks.end() || find(newlyAcquiredBBList.begin(), newlyAcquiredBBList.end(), pred->getTerminator()->getSuccessor(0)) != newlyAcquiredBBList.end())
 									&& originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
 								vector<pair<BasicBlock*, int> > successorBBList;
-//								assert(pred->getTerminator()->getNumSuccessors() <= 1 && "conditional jump to basic block cannot exist here\n");
-								errs() << "added unconditional jump :";
 								for (int i = 0; i < pred->getTerminator()->getNumSuccessors(); i++) {
 									if (pred->getTerminator()->getSuccessor(i) == originalBB) {
 										successorBBList.push_back(make_pair(originalBB, i));
@@ -2829,6 +2820,7 @@ struct HyperOpCreationPass: public ModulePass {
 						//Minus 1 for the exact bound
 						tag.append(itostr(loopIV->getConstantUpperBound() - 1));
 					} else {
+						errs() << "problem 6\n";
 						tag.append(loopIV->getVariableUpperBound()->getName());
 					}
 
@@ -3863,6 +3855,7 @@ struct HyperOpCreationPass: public ModulePass {
 			//Remove unconditional branch instruction, add the annotation to the alloca instruction of the branch
 			for (auto unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
 				Value* unconditionalBranchInstr = unconditionalBranchSourceItr->first;
+				errs()<<"unconditional branch:";
 				unconditionalBranchInstr->dump();
 				Value* originalUnconditionalBranchInstr = unconditionalBranchInstr;
 				//There can only be one basic block that happens to be the target
