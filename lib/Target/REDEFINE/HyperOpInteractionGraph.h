@@ -51,6 +51,7 @@ class HyperOpEdge {
 	unsigned predicateValue;
 	unsigned decrementOperandCount;
 	MachineInstr* edgeSource;
+	int memoryOffset;
 
 protected:
 	Value* variable;
@@ -96,6 +97,8 @@ public:
 	void setDecrementOperandCount(unsigned decrementOperandCount);
 	void setEdgeSource(MachineInstr* edgeSource);
 	MachineInstr* getEdgeSource();
+	int getMemoryOffset() const;
+	void setMemoryOffset(int memoryOffset);
 };
 typedef list<pair<MachineInstr*, MachineInstr*> > PHyperOpInteractionGraph;
 class HyperOp {
@@ -309,6 +312,9 @@ public:
 
 	//Returns source-destination tile coordinates for an edge
 	list<TileCoordinates> getEdgePathOnNetwork(HyperOp* source, HyperOp* target);
+
+	//Update all the localref edges with memory offsets wrt base 0, needs updating when the functions are lowered to machine functions
+	void updateLocalRefEdgeMemOffset();
 
 };
 #endif /* LIB_TARGET_RISCV_HYPEROPINTERACTIONGRAPH_H_ */

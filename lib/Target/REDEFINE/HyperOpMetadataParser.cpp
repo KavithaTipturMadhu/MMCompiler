@@ -517,8 +517,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 		}
 	}
 
-	errs() << "number of vertices:" << graph->Vertices.size() << "\n";
-
+	graph->updateLocalRefEdgeMemOffset();
 	graph->setMaxMemFrameSize(maxFrameSizeOfHyperOp);
 	graph->print(errs());
 	return graph;

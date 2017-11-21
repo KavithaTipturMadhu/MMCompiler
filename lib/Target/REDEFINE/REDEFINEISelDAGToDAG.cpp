@@ -247,6 +247,7 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 		((REDEFINETargetMachine&) TM).HIG->verify();
 		((REDEFINETargetMachine&) TM).HIG->print(dbgs());
 		firstFunction = 1;
+
 	}
 	return SelectionDAGISel::runOnMachineFunction(mf);
 }

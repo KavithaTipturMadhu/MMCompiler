@@ -114,14 +114,24 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 				}
 			}
 			const Function* parentFunction = MO.getParent()->getParent()->getParent()->getFunction();
-			int argIndex = -1;
-			int argItrIndex = 1;
-			for (Function::const_arg_iterator argItr = parentFunction->arg_begin(); argItr != parentFunction->arg_end(); argItr++, argIndex--, argItrIndex++) {
-				if (argIndex == MO.getIndex()) {
-					break;
+			int numScalarArgs = 0;
+			int argIndex = 1;
+			for (Function::const_arg_iterator argItr = parentFunction->arg_begin(); argItr != parentFunction->arg_end(); argItr++, argIndex++) {
+				if (parentFunction->getAttributes().hasAttribute(argIndex, Attribute::InReg)) {
+					numScalarArgs++;
 				}
-				if (!parentFunction->getAttributes().hasAttribute(argItrIndex, Attribute::InReg)) {
-					currentObjectOffset += REDEFINEUtils::getSizeOfType(argItr->getType());
+			}
+			HyperOp* currentHyperOp = ((REDEFINETargetMachine&) ((REDEFINEAsmPrinter&) AsmPrinter).TM).HIG->getHyperOp(const_cast<Function*>(parentFunction));
+			for (auto parentEdgeItr = currentHyperOp->ParentMap.begin(); parentEdgeItr != currentHyperOp->ParentMap.end(); parentEdgeItr++) {
+				HyperOpEdge* edge = parentEdgeItr->first;
+				if (edge->getType() == HyperOpEdge::PREDICATE) {
+					continue;
+				}
+				errs() << "whats the position value?" << edge->getPositionOfContextSlot() << " for edge " << edge << " for hop " << currentHyperOp << " and numscalars:"<<numScalarArgs<<"\n";
+				if (edge->getPositionOfContextSlot() - numScalarArgs - 1 == MO.getIndex()) {
+					currentObjectOffset += edge->getMemoryOffset();
+					errs()<<"current offset:"<<edge->getMemoryOffset()<<"\n";
+					break;
 				}
 			}
 		} else {
