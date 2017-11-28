@@ -129,8 +129,8 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 				}
 				errs() << "whats the position value?" << edge->getPositionOfContextSlot() << " for edge " << edge << " for hop " << currentHyperOp << " and numscalars:"<<numScalarArgs<<"\n";
 				if (edge->getPositionOfContextSlot() - numScalarArgs - 1 == MO.getIndex()) {
-					currentObjectOffset += edge->getMemoryOffset();
-					errs()<<"current offset:"<<edge->getMemoryOffset()<<"\n";
+					currentObjectOffset += edge->getMemoryOffsetInTargetFrame();
+					errs()<<"current offset:"<<edge->getMemoryOffsetInTargetFrame()<<"\n";
 					break;
 				}
 			}

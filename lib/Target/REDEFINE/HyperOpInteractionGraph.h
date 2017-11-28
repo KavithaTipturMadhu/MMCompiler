@@ -42,7 +42,7 @@ static string LOCAL_REFERENCE = "LocalReference";
 class HyperOp;
 
 //(X,Y) coordinates of Tile
-typedef  pair<unsigned, unsigned> TileCoordinates;
+typedef pair<unsigned, unsigned> TileCoordinates;
 
 class HyperOpEdge {
 	bool isZeroedOut;
@@ -72,9 +72,6 @@ public:
 		RANGE
 	} Type;
 
-	enum EdgeDataType {
-
-	};
 	HyperOpEdge();
 	virtual ~HyperOpEdge();
 	list<unsigned int> getVolume();
@@ -97,10 +94,15 @@ public:
 	void setDecrementOperandCount(unsigned decrementOperandCount);
 	void setEdgeSource(MachineInstr* edgeSource);
 	MachineInstr* getEdgeSource();
-	int getMemoryOffset() const;
-	void setMemoryOffset(int memoryOffset);
+	int getMemoryOffsetInTargetFrame() const;
+	void setMemoryOffsetInTargetFrame(int memoryOffset);
 };
 typedef list<pair<MachineInstr*, MachineInstr*> > PHyperOpInteractionGraph;
+
+enum StrideFunction {
+	ADD, MUL, SUB, DIV, MOD
+};
+
 class HyperOp {
 	/**
 	 * Bundle instruction corresponding to the HyperOp
@@ -118,7 +120,7 @@ class HyperOp {
 	Value* rangeUpperBound;
 	Value* rangeLowerBound;
 	Value* stride;
-	unsigned inductionVarUpdateFunc;
+	StrideFunction inductionVarUpdateFunc;
 	unsigned int TargetResource;
 	unsigned contextFrame;
 	list<unsigned int> executionTimeEstimate;
@@ -135,15 +137,17 @@ class HyperOp {
 	unsigned hyperOpId;
 	vector<unsigned> numInputsPerCE;
 	//map of predicate value to sync count
-	 unsigned numIncomingSyncEdges[2];
-	 bool hasMutexSyncSources;
-	 Value* predicateForSyncSource[2];
+	unsigned numIncomingSyncEdges[2];
+	bool hasMutexSyncSources;
+	Value* predicateForSyncSource[2];
 	//Map of source instruction in a CE and the first consumer instruction in a different CE
 	PHyperOpInteractionGraph pHopDependenceMap;
 
 public:
-	//Map to cache local reference objects that have an alloc instruction in a different HyperOp
-	map<Instruction*, Instruction* > loadInstrAndAllocaMap;
+//	//Map to cache local reference object sizes that have  an alloc instruction in a different HyperOp
+//	map<int, int> localRefSizeMap;
+//Map to cache local reference objects that have an alloc instruction in a different HyperOp
+	map<Instruction*, Instruction*> loadInstrAndAllocaMap;
 	map<HyperOpEdge*, HyperOp*> ParentMap;
 	map<HyperOpEdge*, HyperOp*> ChildMap;
 	map<unsigned, unsigned> syncCountOnPredicates;
@@ -217,13 +221,15 @@ public:
 	void setFunction(Function* function);
 	PHyperOpInteractionGraph getpHyperOpDependenceMap();
 	void setpHyperOpDependenceMap(PHyperOpInteractionGraph);
-	unsigned getInductionVarUpdateFunc() ;
-	void setInductionVarUpdateFunc(unsigned inductionVarUpdateFunc);
-	Value* getRangeUpperBound() ;
+	StrideFunction getInductionVarUpdateFunc();
+	void setInductionVarUpdateFunc(StrideFunction inductionVarUpdateFunc);
+	Value* getRangeUpperBound();
 	void setRangeUpperBound(Value* rangeUpperBound);
+	Value* getRangeLowerBound();
+	void setRangeLowerBound(Value* rangeLowerBound);
 	Value* getStride();
 	void setStride(Value* stride);
-	bool isHasMutexSyncSources() const ;
+	bool isHasMutexSyncSources() const;
 	void setHasMutexSyncSources(bool hasMutexSyncSources);
 	void setIncomingSyncPredicate(unsigned predicateValue, Value* predicate);
 	Value* getIncomingSyncPredicate(unsigned predicateValue);
@@ -234,6 +240,7 @@ class HyperOpInteractionGraph {
 	list<list<HyperOp*> > clusterList;
 	void computeImmediateDominatorInfo();
 	void computePostImmediateDominatorInfo();
+
 public:
 	unsigned int numContextFrames;
 	unsigned int rowCount;
@@ -241,6 +248,8 @@ public:
 	unsigned int maxMemFrameSize;
 	unsigned int maxContextFrameSize;
 	list<HyperOp*> Vertices;
+
+	map<StringRef, StrideFunction> StridedFunctionKeyValue;
 
 	HyperOpInteractionGraph();
 
