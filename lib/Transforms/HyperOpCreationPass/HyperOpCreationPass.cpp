@@ -973,7 +973,7 @@ struct HyperOpCreationPass: public ModulePass {
 			errs() << "inling function call:";
 			callInst->dump();
 			InlineFunctionInfo info;
-//			InlineFunction(callInst, info);
+			InlineFunction(callInst, info);
 		}
 
 		errs() << "before loop analysis:";
@@ -3017,7 +3017,7 @@ struct HyperOpCreationPass: public ModulePass {
 		DEBUG(dbgs() << "\n----------Adding dependences across created HyperOps----------\n");
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
 			Function* createdFunction = createdHyperOpItr->first;
-			errs()<<"created function:"<<createdFunction->getName()<<"\n";
+			errs() << "created function:" << createdFunction->getName() << "\n";
 		}
 		//Add metadata: This code is moved here to ensure that all the functions (corresponding to HyperOps) that need to be created have already been created
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
@@ -3054,8 +3054,6 @@ struct HyperOpCreationPass: public ModulePass {
 				HyperOpArgumentType replacementArgType = hyperOpArgItr->second;
 				//the argument is a function argument
 				//second half hack for constant phi args
-				errs() << "whats the arg and what type?" << hyperOpArgItr->second << ":";
-				hyperOpArgItr->first.front()->dump();
 				if (hyperOpArgItr->second != GLOBAL_REFERENCE && (!isa<Instruction>(hyperOpArgItr->first.front()) && !isa<Constant>(hyperOpArgItr->first.front()))) {
 //					assert(!callSite.empty() && "Function without a callsite marked as a hyperop!");
 					unsigned positionOfFormalArg = 0;
@@ -3428,11 +3426,18 @@ struct HyperOpCreationPass: public ModulePass {
 								ai->insertBefore(clonedDefInst->getParent()->getParent()->getEntryBlock().getFirstInsertionPt());
 								StoreInst* storeInst = new StoreInst(clonedDefInst, ai);
 								storeInst->setAlignment(4);
-//								if (isa<PHINode>(clonedDefInst)) {
-//									storeInst->insertAfter(ai);
-//								} else {
-								storeInst->insertAfter(clonedDefInst);
-//								}
+
+								Instruction* storeAfter;
+								if ((&(clonedDefInst->getParent()->getParent()->getEntryBlock())) == clonedDefInst->getParent()) {
+									for (auto instItr = clonedDefInst->getParent()->getParent()->getEntryBlock().begin(); instItr != clonedDefInst->getParent()->getParent()->getEntryBlock().end(); instItr++) {
+										if (&*instItr == ai || &*instItr == clonedDefInst) {
+											storeAfter = instItr;
+										}
+									}
+								} else {
+									storeAfter = clonedDefInst;
+								}
+								storeInst->insertAfter(storeAfter);
 
 								allocaInstCreatedForIntermediateValues.insert(make_pair(clonedDefInst, ai));
 								metadataHost = ai;
@@ -3658,6 +3663,30 @@ struct HyperOpCreationPass: public ModulePass {
 					newCallSite.pop_back();
 					conditionalTargetBB = newCallSite.back()->getParent();
 				}
+
+				for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
+					if (cycleItr->size() > newCallSite.size()) {
+						continue;
+					}
+					auto originalCallsiteItr = newCallSite.rbegin();
+					bool cycleSuffix = true;
+					for (auto callCycleItr = cycleItr->rbegin(); callCycleItr != cycleItr->rend() && originalCallsiteItr != newCallSite.rend(); callCycleItr++, originalCallsiteItr++) {
+						if (callCycleItr->second != *originalCallsiteItr) {
+							cycleSuffix = false;
+							break;
+						}
+					}
+
+					if (cycleSuffix && !newCallSite.empty()) {
+						int size = cycleItr->size();
+						conditionalTargetBB = newCallSite.back()->getParent();
+						while (size--) {
+							newCallSite.pop_back();
+						}
+						break;
+					}
+				}
+
 				if (isa<CallInst>(predicateOperand)) {
 					newCallSite.push_back((CallInst*) predicateOperand);
 					while (!newCallSite.empty()) {
@@ -3928,6 +3957,28 @@ struct HyperOpCreationPass: public ModulePass {
 					newCallSite.pop_back();
 				}
 
+				for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
+					if (cycleItr->size() > newCallSite.size()) {
+						continue;
+					}
+					auto originalCallsiteItr = newCallSite.rbegin();
+					bool cycleSuffix = true;
+					for (auto callCycleItr = cycleItr->rbegin(); callCycleItr != cycleItr->rend() && originalCallsiteItr != newCallSite.rend(); callCycleItr++, originalCallsiteItr++) {
+						if (callCycleItr->second != *originalCallsiteItr) {
+							cycleSuffix = false;
+							break;
+						}
+					}
+
+					if (cycleSuffix && !newCallSite.empty()) {
+						int size = cycleItr->size();
+						while (size--) {
+							newCallSite.pop_back();
+						}
+						break;
+					}
+				}
+
 				errs() << "unconditional branch from parent " << ((Instruction*) unconditionalBranchInstr)->getParent()->getParent()->getName();
 				unconditionalBranchInstr->dump();
 
@@ -4004,8 +4055,6 @@ struct HyperOpCreationPass: public ModulePass {
 				if (isa<Instruction>(unconditionalBranchInstr)) {
 					Function* producerFunction = ((Instruction*) unconditionalBranchInstr)->getParent()->getParent();
 					bool isProducerStatic = createdHyperOpAndType[clonedInstr->getParent()->getParent()];
-					errs()<<"who is the producer?"<<clonedInstr->getParent()->getParent()->getName()<<"\n";
-					errs()<<"is producer static?"<<isProducerStatic<<" and current?"<<(!isStaticHyperOp)<<"\n";
 					//Find the replicas of the consumer HyperOp which also need to be annotated, hence populating a list
 					if (isProducerStatic && !isStaticHyperOp) {
 						//replicate the meta data in the last instance of the HyperOp corresponding to the last HyperOp in the cycle
@@ -4034,7 +4083,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
-				errs()<<"number of clones:"<<clonedInstructionsToBeLabeled.size()<<"\n";
+				errs() << "number of clones:" << clonedInstructionsToBeLabeled.size() << "\n";
 				for (list<Instruction*>::iterator clonedInstItr = clonedInstructionsToBeLabeled.begin(); clonedInstItr != clonedInstructionsToBeLabeled.end(); clonedInstItr++) {
 					Instruction* clonedInstr = *clonedInstItr;
 					errs() << "cloned instruction that belongs to parent " << clonedInstr->getParent()->getParent()->getName() << " with call site size " << callSite.size() << ":";
@@ -4719,6 +4768,7 @@ struct HyperOpCreationPass: public ModulePass {
 //		}
 		DEBUG(dbgs() << "Final module contents:");
 		M.dump();
+		DEBUG(dbgs() << "Completed generating HyperOps\n");
 		return true;
 	}
 
