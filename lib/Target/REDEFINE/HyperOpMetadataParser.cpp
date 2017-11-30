@@ -64,6 +64,7 @@ list<StringRef> parseInstanceIdString(StringRef instanceTag, char seperator = ',
 		StringRef idPart = tokens.first;
 		instanceId.push_back(idPart);
 		tempString = tokens.second;
+		errs() << "what added:" << idPart << "\n";
 	}
 	return instanceId;
 }
@@ -91,6 +92,7 @@ list<unsigned> parseInstanceId(StringRef instanceTag) {
 
 //Take care of unrolling here so that unrolling is performed in a target aware manner instead of at the front end which doesn't know what the target params are
 HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
+	LLVMContext & ctxt = M->getContext();
 	HyperOpInteractionGraph* graph = new HyperOpInteractionGraph();
 	NamedMDNode * RedefineAnnotations = M->getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
 	map<MDNode*, HyperOp*> hyperOpMetadataMap;
@@ -122,18 +124,28 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					hyperOp->setInstanceId(parsedId);
 					if (hyperOpMDNode->getNumOperands() > 5) {
 						hyperOp->setInRange();
-//						StringRef rangeTag = ((MDString*) hyperOpMDNode->getOperand(5))->getName();
-//						list<StringRef> parsedList = parseInstanceIdString(rangeTag, ':');
-//						assert(parsedList.size() == 3 && "Invalid range format");
-//						StringRef lowerBound = parsedList.front().data();
-//						parsedList.pop_front();
-//						StringRef upperBound = parsedList.front().data();
-//						parsedList.pop_front();
-//						StringRef strideFunction = parsedList.front();
-//						pair<StringRef, StringRef> functionAndStride = strideFunction.split('(');
-//						StringRef function = functionAndStride.first;
-//						pair<StringRef, StringRef> strideSplit = functionAndStride.second.split(")");
-//						StringRef stride = strideSplit.first;
+						StringRef rangeTag = ((MDString*) hyperOpMDNode->getOperand(5))->getName();
+						errs() << "range tag:" << rangeTag << "\n";
+						list<StringRef> parsedList = parseInstanceIdString(rangeTag, ':');
+						assert(parsedList.size() == 3 && "Invalid range format");
+						for (auto parsedlistItr : parsedList) {
+							errs() << parsedlistItr << ",";
+						}
+						errs() << "\n";
+						StringRef lowerBound = parsedList.front();
+						parsedList.pop_front();
+						StringRef upperBound = parsedList.front();
+						parsedList.pop_front();
+						StringRef strideFunction = parsedList.front();
+						pair<StringRef, StringRef> functionAndStride = strideFunction.split('(');
+						StringRef function = functionAndStride.first;
+						pair<StringRef, StringRef> strideSplit = functionAndStride.second.split(")");
+						StringRef stride = strideSplit.first;
+						hyperOp->setRangeLowerBound(ConstantInt::get(ctxt, APInt(32, atoi(lowerBound.str().c_str()))));
+						hyperOp->setRangeUpperBound(ConstantInt::get(ctxt, APInt(32, atoi(upperBound.str().c_str()))));
+						if (graph->StridedFunctionKeyValue.find(strideFunction) != graph->StridedFunctionKeyValue.end()) {
+							hyperOp->setInductionVarUpdateFunc(graph->StridedFunctionKeyValue[strideFunction]);
+						}
 					}
 				}
 				graph->addHyperOp(hyperOp);
@@ -270,10 +282,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 									list<unsigned> volumeOfCommunication;
 									Function* consumerFunction = consumerHyperOp->getFunction();
 									AllocaInst* allocInst = getAllocInstrForLocalReferenceData(*M, instr, functionMetadataMap);
-									if (isa<LoadInst>(instr)) {
-										//TODO TERRIBLE CODE, CHECK IF THIS CAN BE CLEANED
-										sourceHyperOp->loadInstrAndAllocaMap[instr] = allocInst;
-									}
+									edge->setValue(allocInst);
 									unsigned volume = REDEFINEUtils::getSizeOfType(allocInst->getType()) / 4;
 									volumeOfCommunication.push_back(volume);
 									edge->setVolume(volumeOfCommunication);
@@ -359,6 +368,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								HyperOpEdge* edge = new HyperOpEdge();
 								edge->Type = HyperOpEdge::PREDICATE;
 								edge->setValue((Value*) instr);
+								errs() << "predicate value set to ";
+								instr->dump();
 								errs() << "number of operands in predicate md node:" << predicatedMDNode->getNumOperands() << "\n";
 								StringRef predicateValue = ((MDString*) predicatedMDNode->getOperand(1))->getName();
 								errs() << "predicate value:" << predicateValue << "\n";
@@ -464,6 +475,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					}
 					MDNode* rangeMDNode = instr->getMetadata(HYPEROP_RANGE);
 					if (rangeMDNode != 0) {
+						errs() << "range node\n";
 						for (unsigned rangeMDNodeIndex = 0; rangeMDNodeIndex != rangeMDNode->getNumOperands(); rangeMDNodeIndex++) {
 							MDNode* indirectionNode = (MDNode*) rangeMDNode->getOperand(rangeMDNodeIndex);
 							if (indirectionNode != 0) {
@@ -482,7 +494,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 			}
 		}
 		if (maxFrameSizeOfHyperOp < frameSizeOfHyperOp) {
-			errs()<<"frame size for hop "<<sourceHyperOp->asString()<<":"<<frameSizeOfHyperOp<<"\n";
+			errs() << "frame size for hop " << sourceHyperOp->asString() << ":" << frameSizeOfHyperOp << "\n";
 			maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
 		}
 	}
@@ -517,8 +529,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 		}
 	}
 
-	errs() << "number of vertices:" << graph->Vertices.size() << "\n";
-
+	graph->updateLocalRefEdgeMemOffset();
 	graph->setMaxMemFrameSize(maxFrameSizeOfHyperOp);
 	graph->print(errs());
 	return graph;

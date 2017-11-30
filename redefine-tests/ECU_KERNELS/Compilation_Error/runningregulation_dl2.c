@@ -1,5 +1,14 @@
+#define MODE_STARTREG						0x00000004
+#define PLA_IDLE							10
+#define PLA_MCR_L							73
+#define PLA_MCR_H							45
+#define PLA_MCM_L							73
+#define PLA_MCM_H							75
+#define PLA_TOP								100
 
-float redefine_in_a[9];
+float NH_REF = 50719.0F, NH_IDLE_GROUND = 53.5, FUEL_PUMP_CMD_MAX_PULSE_WIDTH = 0.920F;
+float NL_REF = 43636.0F, NL_IDLE_GROUND = 30.0F, NL_IDLE_AIR = 47.0;
+float redefine_in_a[11];
 //float redefine_in_current_nh;
 //float redefine_in_dtisa;
 //float redefine_in_p0;
@@ -9,8 +18,10 @@ float redefine_in_a[9];
 //float redefine_in_current_nl;
 //float redefine_in_integrator_nl;
 //float redefine_in_fuel_pump_integrator;
+//float redefine_in_wow;
+//float redefine_in_nh_setpoint;
 
-float redefine_out_b[15];
+float redefine_out_b[16];
 
 float setpoint_nh(float input[]) {
 	float setpoint;
@@ -30,7 +41,7 @@ float setpoint_nh(float input[]) {
 	nh_mcm = nh_top - 2.4F;
 	nh_mcr = nh_top - 3.7F;
 
-	if (wow) {
+	if (input[9]) {
 		nh_idle = NH_IDLE_GROUND;
 	}
 	else {
@@ -64,11 +75,11 @@ float setpoint_nh(float input[]) {
 	else {
 		setpoint = nh_top;
 	}
-
+/*
 #ifndef POWER_MANAGEMENT
 		setpoint = nh_idle + (input[5] * (nh_top - nh_idle) / 100.0F);
 #endif
-
+*/
 	setpoint = setpoint / 100.0F * NH_REF;
 
 	redefine_out_b[0] = nh_top;
@@ -77,6 +88,18 @@ float setpoint_nh(float input[]) {
 	redefine_out_b[3]= nh_idle;
 
 	return setpoint;
+}
+
+float custom_pow(float base, float exponent)
+{
+	int i;
+	float result = 1;
+	if (exponent == 0)
+		return result;
+	for (i = 0; i < exponent; i++) {
+		result = result * base;
+	}
+	return result;
 }
 
 float setpoint_nl(float input[]) {
@@ -90,8 +113,8 @@ float setpoint_nl(float input[]) {
 	float nl_mcr;
 	float nl_idle;
 
-	nl_max_top = 0.0F + 99.44F + 0.0948F * (101.325F - pam) + 0.0004F * __ieee754_pow(101.325F - pam, 2)  - 0.305F * input[1];
-	nl_max_flat = 0.0F + 99.44F + 0.0948F * (101.325F - pam) + 0.0004F * __ieee754_pow(101.325F - pam, 2) + 0.175F * input[1];
+	nl_max_top = 0.0F + 99.44F + 0.0948F * (101.325F - pam) + 0.0004F * custom_pow(101.325F - pam, 2)  - 0.305F * input[1];
+	nl_max_flat = 0.0F + 99.44F + 0.0948F * (101.325F - pam) + 0.0004F * custom_pow(101.325F - pam, 2) + 0.175F * input[1];
 
 	if (nl_max_top > nl_max_flat) {
 		nl_max = nl_max_flat;
@@ -110,7 +133,7 @@ float setpoint_nl(float input[]) {
 		nl_mcm = 105.0F;
 	}
 
-	if (wow) {
+	if (input[9]) {
 		nl_idle = NL_IDLE_GROUND;
 	}
 	else {
@@ -138,11 +161,11 @@ float setpoint_nl(float input[]) {
 	else {
 		setpoint = nl_max;
 	}
-
+/*
 #ifndef POWER_MANAGEMENT
 	setpoint = nl_idle + (input[5] * (nl_max - nl_idle) / 100.0F);
 #endif
-
+*/
 	setpoint = setpoint / 100.0F * NL_REF;
 
 	redefine_out_b[4] = nl_max_top;
@@ -160,7 +183,6 @@ void regulation_dl2(float input[]) {
 	float epsilon_nh;
 	float output_nl;
 	float eps_setpoint;
-	float nh_pla_setpoint;
 
 	float nh_pla_setpoint;
 	float nl_setpoint;
@@ -168,6 +190,7 @@ void regulation_dl2(float input[]) {
 	float inl;
 	float fuel_pump_integrator;
 
+	float nh_setpoint = input[10];
 	/* Compute the NH setpoint */
 	nh_pla_setpoint = setpoint_nh(input);
 	nl_setpoint = setpoint_nl(input);
@@ -220,6 +243,7 @@ void regulation_dl2(float input[]) {
 	redefine_out_b[12] = fuel_pump_cmd;
 	redefine_out_b[13] = integrator_nl;		//inl = integrator_nl, hence not returned again!!
 	redefine_out_b[14] = fuel_pump_integrator;
+	redefine_out_b[15] = nh_setpoint;
 	//return fuel_pump_cmd;
 }
 

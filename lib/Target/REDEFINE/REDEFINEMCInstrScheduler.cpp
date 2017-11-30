@@ -786,6 +786,8 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 //					loadFromMemory.addReg(virtualRegistersForInstAddr[ceContainingInstruction].second);
 					loadFromMemory.addReg(REDEFINE::t5);
 					loadFromMemory.addFrameIndex(frameLocationToReadFrom);
+					errs() << "was this the addi instruction inserted?";
+					loadFromMemory.operator ->()->dump();
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(loadFromMemory.operator llvm::MachineInstr *());
 					allInstructionsOfRegion.push_back(make_pair(loadFromMemory.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
 				}
@@ -1070,6 +1072,8 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 //						loadFromMemory.addReg(virtualRegistersForInstAddr[ceContainingInstruction].second);
 						loadFromMemory.addReg(REDEFINE::t5);
 						loadFromMemory.addFrameIndex(frameLocationToReadFrom);
+						errs() << "was this the addi instruction inserted?";
+						loadFromMemory.operator ->()->dump();
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(loadFromMemory.operator llvm::MachineInstr *());
 						allInstructionsOfRegion.push_back(make_pair(loadFromMemory.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
 					}
@@ -1502,11 +1506,14 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					//Add falloc instruction to create dynamic HyperOp instances
 					unsigned registerContainingConsumerFrameAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					//Is a range of hyperOps
+					errs()<<"whats going on 0?\n";
 					if ((*childHyperOpItr)->getInRange()) {
+						errs()<<"hop range\n";
 						//Parent creates a block of hyperOps, find the memory location that contains data
 						Value* locationContainingCount;
 						for (auto childEdgeItr = hyperOp->ChildMap.begin(); childEdgeItr != hyperOp->ChildMap.end(); childEdgeItr++) {
 							if (childEdgeItr->second == (*childHyperOpItr) && childEdgeItr->first->getType() == HyperOpEdge::RANGE) {
+								errs()<<"there was a range match\n";
 								locationContainingCount = childEdgeItr->first->getValue();
 								break;
 							}
@@ -1533,6 +1540,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							allInstructionsOfRegion.push_back(make_pair((*loopInstrItr), make_pair(currentCE, insertPosition++)));
 						}
 					} else {
+						errs()<<"whats going on?\n";
 						MachineInstrBuilder falloc = BuildMI(lastBB, lastInstruction, dl, TII->get(REDEFINE::FALLOC));
 						falloc.addReg(registerContainingConsumerFrameAddr, RegState::Define);
 						falloc.addImm(0);
@@ -1766,16 +1774,11 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							copy.addReg(virtualReg, RegState::Define);
 							copy.addReg(REDEFINE::t5);
 							unsigned argCount = 0;
-							int frameIndex = -1;
-							for (auto argItr = MF.getFunction()->arg_begin(); argItr != MF.getFunction()->arg_end(); argItr++, argCount++) {
-								if (argCount == parentItr->first->getPositionOfContextSlot()) {
-									break;
-								}
-								if (!MF.getFunction()->getAttributes().hasAttribute(argCount, Attribute::InReg)) {
-									frameIndex--;
-								}
+							int frameOffset = 0;
+							for (int i = 0; i < MF.getFrameInfo()->getNumObjects(); i++) {
+								frameOffset += REDEFINEUtils::getSizeOfType(MF.getFrameInfo()->getObjectAllocation(i)->getType());
 							}
-							copy.addFrameIndex(frameIndex);
+							copy.addImm(frameOffset + parentItr->first->getMemoryOffsetInTargetFrame());
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
 							allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 						}
@@ -2034,42 +2037,30 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				}
 				//if local reference, add writes to the local memory of consumer HyperOp and remove the consumer HyperOp's argument
 				unsigned frameLocationOfSourceData = 0;
-				Type* dataType;
-				int arraySize;
-				if (isa<AllocaInst>(edge->getValue())) {
-					AllocaInst* allocInstr;
-					allocInstr = (AllocaInst*) (edge->getValue());
-					dataType = allocInstr->getAllocatedType();
-					//Get the location of the stack allocated object, starting from 0 because negative offsets from fp contain function arguments
-					for (unsigned int i = 0; i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
-						if (MF.getFrameInfo()->getObjectAllocation(i) == allocInstr) {
-							break;
-						}
-						frameLocationOfSourceData += REDEFINEUtils::getSizeOfType(MF.getFrameInfo()->getObjectAllocation(i)->getType());
-					}
-					arraySize = ((ConstantInt*) allocInstr->getArraySize())->getZExtValue();
-				} else if (isa<LoadInst>(edge->getValue())) {
-					//Find the alloca instruction that allocates the memory location in the first place
-					unsigned argIndex = 0;
-					LoadInst* sourceInstr = (LoadInst*) edge->getValue();
-					AllocaInst* allocaInstr = (AllocaInst*)hyperOp->loadInstrAndAllocaMap[sourceInstr];
-					dataType = allocaInstr->getType();
-					arraySize = ((ConstantInt*) allocaInstr->getArraySize())->getZExtValue();
-					//Get the location of the stack allocated object in the basic block containing the load instruction and not the alloca instruction because alloca might belong
-					//Arguments have negative index and are added in memory locations that succeed the locals of the stack frame
+				AllocaInst* allocaInst = (AllocaInst*) edge->getValue();
+				Type* dataType = allocaInst->getAllocatedType();
+				int arraySize = ((ConstantInt*) allocaInst->getArraySize())->getZExtValue();
+;
+
+				if (allocaInst->getParent()->getParent() == hyperOp->getFunction()) {
+					//find the offset for source data
 					if (MF.getFrameInfo()->getObjectIndexEnd() > 0) {
 						for (unsigned i = 0; i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
 							frameLocationOfSourceData += REDEFINEUtils::getSizeOfType(MF.getFrameInfo()->getObjectAllocation(i)->getType());
 						}
 					}
-
-					for (auto argItr = MF.getFunction()->arg_begin(); argItr != MF.getFunction()->arg_end(); argItr++) {
-						if (argItr == sourceInstr->getOperand(0)) {
+				} else {
+					//Get the location of the stack allocated object in the basic block containing the load instruction and not the alloca instruction because alloca might belong
+					//Arguments have negative index and are added in memory locations that succeed the locals of the stack frame
+//					frameLocationOfSourceData += edge->getMemoryOffsetInTargetFrame();
+					for (auto parentItr : hyperOp->ParentMap) {
+						if (parentItr.first->getValue() == allocaInst) {
+							frameLocationOfSourceData += parentItr.first->getMemoryOffsetInTargetFrame();
 							break;
 						}
-						frameLocationOfSourceData += REDEFINEUtils::getSizeOfType(argItr->getType());
 					}
 				}
+
 				//Compute frame objects' size
 				Function* consumerFunction = consumer->getFunction();
 				unsigned frameLocationOfTargetData = 0;
@@ -2081,17 +2072,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						}
 					}
 				}
-				int beginArgIndex = 0;
-				for (Function::arg_iterator funcArgItr = consumerFunction->arg_begin(); funcArgItr != consumerFunction->arg_end(); funcArgItr++, beginArgIndex++) {
-					if (beginArgIndex == edge->getPositionOfContextSlot()) {
-						break;
-					}
-					Argument* argument = &*funcArgItr;
-					if (!consumerFunction->getAttributes().hasAttribute(beginArgIndex + 1, Attribute::InReg)) {
-						frameLocationOfTargetData += REDEFINEUtils::getSizeOfType(funcArgItr->getType());
-					}
-				}
-
+				frameLocationOfTargetData += edge->getMemoryOffsetInTargetFrame();
 				//Map of primitive data types and their memory locations
 				list<pair<Type*, unsigned> > primitiveTypesMap;
 				list<pair<Type*, int> > containedTypesForTraversal;
@@ -2139,6 +2120,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						ceContainingMemBase = regContainingMemFrameBaseAddress[consumer].begin()->second;
 					}
 				}
+
 				if (regContainingMemFrameBaseAddress.find(consumer) == regContainingMemFrameBaseAddress.end()) {
 					//TODO clean up this mess
 					unsigned maxGlobalSize = 0;
@@ -2313,6 +2295,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					registerContainingMemBase = addFrameSize;
 				}
 
+				errs()<<"whats arraysize though?"<<arraySize<<"\n";
 				for (unsigned allocatedDataIndex = 0; allocatedDataIndex != arraySize; allocatedDataIndex++) {
 					//Add a load instruction from memory and store to the memory frame of the consumer HyperOp
 					for (list<pair<Type*, unsigned> >::iterator containedPrimitiveItr = primitiveTypesMap.begin(); containedPrimitiveItr != primitiveTypesMap.end(); containedPrimitiveItr++) {
@@ -2528,16 +2511,20 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 								copy.addReg(registerContainingConsumerBase, RegState::Define);
 								copy.addReg(REDEFINE::t5);
 								unsigned argCount = 0;
-								int frameIndex = -1;
-								for (auto argItr = MF.getFunction()->arg_begin(); argItr != MF.getFunction()->arg_end(); argItr++, argCount++) {
-									if (argCount == edge->getPositionOfContextSlot()) {
-										break;
-									}
-									if (!MF.getFunction()->getAttributes().hasAttribute(argCount, Attribute::InReg)) {
-										frameIndex--;
-									}
+								int frameOffset = 0;
+//								for (auto argItr = MF.getFunction()->arg_begin(); argItr != MF.getFunction()->arg_end(); argItr++, argCount++) {
+//									if (argCount == edge->getPositionOfContextSlot()) {
+//										break;
+//									}
+//									if (!MF.getFunction()->getAttributes().hasAttribute(argCount, Attribute::InReg)) {
+//										frameIndex--;
+//									}
+//								}
+								for (int i = 0; i < MF.getFrameInfo()->getNumObjects(); i++) {
+									frameOffset += REDEFINEUtils::getSizeOfType(MF.getFrameInfo()->getObjectAllocation(i)->getAllocatedType());
 								}
-								copy.addFrameIndex(frameIndex);
+								frameOffset += edge->getMemoryOffsetInTargetFrame();
+								copy.addImm(frameOffset);
 								LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
 								allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 							}
@@ -2685,16 +2672,20 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 									copy.addReg(registerContainingData, RegState::Define);
 									copy.addReg(REDEFINE::t5);
 									unsigned argCount = 0;
-									int frameIndex = -1;
-									for (auto argItr = MF.getFunction()->arg_begin(); argItr != MF.getFunction()->arg_end(); argItr++, argCount++) {
-										if (argCount == edge->getPositionOfContextSlot()) {
-											break;
-										}
-										if (!MF.getFunction()->getAttributes().hasAttribute(argCount, Attribute::InReg)) {
-											frameIndex--;
-										}
+									int frameOffset = 0;
+									//								for (auto argItr = MF.getFunction()->arg_begin(); argItr != MF.getFunction()->arg_end(); argItr++, argCount++) {
+									//									if (argCount == edge->getPositionOfContextSlot()) {
+									//										break;
+									//									}
+									//									if (!MF.getFunction()->getAttributes().hasAttribute(argCount, Attribute::InReg)) {
+									//										frameIndex--;
+									//									}
+									//								}
+									for (int i = 0; i < MF.getFrameInfo()->getNumObjects(); i++) {
+										frameOffset += REDEFINEUtils::getSizeOfType(MF.getFrameInfo()->getObjectAllocation(i)->getAllocatedType());
 									}
-									copy.addFrameIndex(frameIndex);
+									frameOffset += edge->getMemoryOffsetInTargetFrame();
+									copy.addImm(frameOffset);
 									LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
 									allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 									registerContainingHyperOpFrameAddressAndCEWithFalloc.insert(make_pair(edge->getContextFrameAddress(), make_pair(registerContainingData, 0)));
@@ -2962,15 +2953,16 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 								}
 							}
 						}
-						unsigned argCount = 0;
-						for (auto argItr = consumer->getFunction()->arg_begin(); argItr != consumer->getFunction()->arg_end(); argItr++, argCount++) {
-							if (argCount == edge->getPositionOfContextSlot()) {
-								break;
-							}
-							if (!MF.getFunction()->getAttributes().hasAttribute(argCount, Attribute::InReg)) {
-								offsetInMemory += REDEFINEUtils::getAlignedSizeOfType(argItr->getType());
-							}
-						}
+//						unsigned argCount = 0;
+//						for (auto argItr = consumer->getFunction()->arg_begin(); argItr != consumer->getFunction()->arg_end(); argItr++, argCount++) {
+//							if (argCount == edge->getPositionOfContextSlot()) {
+//								break;
+//							}
+//							if (!MF.getFunction()->getAttributes().hasAttribute(argCount, Attribute::InReg)) {
+//								offsetInMemory += REDEFINEUtils::getAlignedSizeOfType(argItr->getType());
+//							}
+//						}
+						offsetInMemory += edge->getMemoryOffsetInTargetFrame();
 						writeToContextFrame.addImm(offsetInMemory);
 
 					} else {
@@ -3083,7 +3075,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	for (map<HyperOpEdge*, HyperOp*>::iterator childItr = hyperOp->ChildMap.begin(); childItr != hyperOp->ChildMap.end(); childItr++) {
 		HyperOpEdge* edge = childItr->first;
 		HyperOp* consumer = childItr->second;
-		errs()<<"consumer:"<<consumer->asString()<<"\n";
+		errs() << "consumer:" << consumer->asString() << "\n";
 		MachineBasicBlock & lastBB = MF.back();
 		MachineInstr* lastInstruction = lastBB.end();
 		MachineBasicBlock & temp = lastBB;
@@ -3217,17 +3209,20 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 								MachineInstrBuilder copy = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::LW));
 								copy.addReg(registerContainingConsumerBase, RegState::Define);
 								copy.addReg(REDEFINE::t5);
-								unsigned argCount = 0;
-								int frameIndex = -1;
-								for (auto argItr = MF.getFunction()->arg_begin(); argItr != MF.getFunction()->arg_end(); argItr++, argCount++) {
-									if (argCount == edge->getPositionOfContextSlot()) {
-										break;
-									}
-									if (!MF.getFunction()->getAttributes().hasAttribute(argCount, Attribute::InReg)) {
-										frameIndex--;
-									}
+								int frameOffset = 0;
+								//								for (auto argItr = MF.getFunction()->arg_begin(); argItr != MF.getFunction()->arg_end(); argItr++, argCount++) {
+								//									if (argCount == edge->getPositionOfContextSlot()) {
+								//										break;
+								//									}
+								//									if (!MF.getFunction()->getAttributes().hasAttribute(argCount, Attribute::InReg)) {
+								//										frameIndex--;
+								//									}
+								//								}
+								for (int i = 0; i < MF.getFrameInfo()->getNumObjects(); i++) {
+									frameOffset += REDEFINEUtils::getSizeOfType(MF.getFrameInfo()->getObjectAllocation(i)->getAllocatedType());
 								}
-								copy.addFrameIndex(frameIndex);
+								frameOffset += edge->getMemoryOffsetInTargetFrame();
+								copy.addImm(frameOffset);
 								LIS->getSlotIndexes()->insertMachineInstrInMaps(copy.operator llvm::MachineInstr *());
 								allInstructionsOfRegion.push_back(make_pair(copy.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 							}
@@ -3886,5 +3881,15 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 }
 
 currentHyperOp->setpHyperOpDependenceMap(pHopDependenceMap);
+
+errs() << "mcinstsched edges:";
+for (auto vertexItr = ((REDEFINETargetMachine&) TM).HIG->Vertices.begin(); vertexItr != ((REDEFINETargetMachine&) TM).HIG->Vertices.end(); vertexItr++) {
+	HyperOp* hyperOp = *vertexItr;
+	errs() << "\nEdges of hop " << hyperOp << ":";
+	for (auto parentEdgeItr = (*vertexItr)->ParentMap.begin(); parentEdgeItr != (*vertexItr)->ParentMap.end(); parentEdgeItr++) {
+		errs() << parentEdgeItr->first << ",";
+	}
+	errs() << "\n";
+}
 }
 
