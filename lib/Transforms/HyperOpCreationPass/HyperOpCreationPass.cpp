@@ -976,8 +976,6 @@ struct HyperOpCreationPass: public ModulePass {
 			InlineFunction(callInst, info);
 		}
 
-		errs() << "before loop analysis:";
-		M.dump();
 		//Parallel loop and its induction variable so that the loop can be flattened into IR
 //		list<pair<list<BasicBlock*>, LoopIV*> > parallelLoopAndIVMap;
 		list<pair<list<BasicBlock*>, LoopIV*> > originalParallelLoopBB;
@@ -4263,11 +4261,11 @@ struct HyperOpCreationPass: public ModulePass {
 											}
 										}
 										tag.append(">");
-										values[1] = MDString::get(ctxt, tag);
+										values[2] = MDString::get(ctxt, tag);
 									} else {
-										values[1] = MDString::get(ctxt, "<prefixId>");
+										values[2] = MDString::get(ctxt, "<prefixId>");
 									}
-									values[2] = predicateValue;
+									values[1] = predicateValue;
 									newPredicateMetadata = MDNode::get(ctxt, values);
 								} else {
 									Value* values[2];
