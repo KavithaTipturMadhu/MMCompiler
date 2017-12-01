@@ -1,26 +1,26 @@
 #define OIL_VALVE_OPEN_CMD				1
 //#define OIL_PUMP_CMD_MAX_PULSE_WIDTH	0.94F
-//#define OIL_PUMP_CMD_MAX_PULSE_WIDTH	0x3F70A3D7
 
 float OIL_PUMP_CMD_MAX_PULSE_WIDTH = 0.94F;
 
-int redefine_in_a[3];
+float redefine_in_f[2];
 //float redefine_in_current_nh;
-//signed int redefine_in_startup_time;
 //float redefine_in_oil_valve_cmd;
 
+int redefine_in_i;
+//signed int redefine_in_startup_time;
+
+float redefine_out_b[2];
 //float redefine_out_oil_valve_cmd;
 //float redefine_out_oil_pump_cmd;
-//int redefine_out_oil_valve_cmd;
-float redefine_out_b[2];
-
+/*
 int asl_open_oil_valve(void) {
 	return OIL_VALVE_OPEN_CMD;
 }
+*/
 
-
-float regulation_oil(int input[]) {
-	float current_nh = *((float*)&input[0]);
+float regulation_oil(float current_nh) {
+	//float current_nh = input_f[0];
 	float oil_pump_cmd = 0;	
 	float var1 = 1.82e-14;
 	float var2 = 1.46e-09;
@@ -49,26 +49,29 @@ float regulation_oil(int input[]) {
     //return oil_pump_cmd;
 }
 
-float *startup_oil(int input[]) {
-	static float output[2];
+void startup_oil(float input_f[], int input_i) {
+	//static float output[2];
 
-	if (input[1] == 0) {
+	if (input_i == 0) {
 		/* Open OSO */
-		output[0] = asl_open_oil_valve();//OIL_VALVE_OPEN_CMD; //asl_open_oil_valve();
-		output[1] = 0;
-		return output;
+		//output[0] = OIL_VALVE_OPEN_CMD;
+		//output[1] = 0;
+		redefine_out_b[0] = OIL_VALVE_OPEN_CMD;
+		redefine_out_b[1] = 0;
 	}
 	else {
 		/* oil pump regulation */
-		output[0] = *((float*)&input[2]);
-		output[1] = regulation_oil(input);
-		return output;
+		//output[0] = input_f[1];
+		//output[1] = regulation_oil(input_f[0]);
+		redefine_out_b[0] = input_f[1];
+		redefine_out_b[1] = regulation_oil(input_f[0]);
 	}
+	//return output;
 }
 
 void redefine_start()
 {
-	float *output = startup_oil(redefine_in_a);
-	redefine_out_b[0] = output[0];
-	redefine_out_b[1] = output[1];
+	startup_oil(redefine_in_f, redefine_in_i);
+	//redefine_out_b[0] = output[0];
+	//redefine_out_b[1] = output[1];
 }

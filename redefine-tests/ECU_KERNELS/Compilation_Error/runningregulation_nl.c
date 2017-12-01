@@ -18,7 +18,7 @@ float redefine_in_a[9];
 //float redefine_in_p0;
 //float redefine_in_mode;
 
-float redefine_in_b[11];
+float redefine_out_b[11];
 //float redefine_out_fuel_pump_cmd;
 //float redefine_out_ramp_filter_memory;
 //float redefine_out_fuel_pump_integrator;
@@ -30,6 +30,17 @@ float redefine_in_b[11];
 //float redefine_out_nl_idle;
 //float redefine_out_nl_setpoint;
 //float redefine_out_nh_setpoint;
+float custom_pow(float base, float exponent)
+{
+	int i;
+	float result = 1;
+	if (exponent == 0)
+		return result;
+	for (i = 0; i < exponent; i++) {
+		result = result * base;
+	}
+	return result;
+}
 
 float setpoint_nl(float input []) {
 	float setpoint;
@@ -42,8 +53,8 @@ float setpoint_nl(float input []) {
 	float nl_mcr;
 	float nl_idle;
 
-	nl_max_top = 0.0F + 99.44F + 0.0948F * (101.325F - pam) + 0.0004F * __ieee754_pow(101.325F - pam, 2)  - 0.305F * input[4];
-	nl_max_flat = 0.0F + 99.44F + 0.0948F * (101.325F - pam) + 0.0004F * __ieee754_pow(101.325F - pam, 2) + 0.175F * input[4];
+	nl_max_top = 0.0F + 99.44F + 0.0948F * (101.325F - pam) + 0.0004F * custom_pow(101.325F - pam, 2)  - 0.305F * input[4];
+	nl_max_flat = 0.0F + 99.44F + 0.0948F * (101.325F - pam) + 0.0004F * custom_pow(101.325F - pam, 2) + 0.175F * input[4];
 
 	if (nl_max_top > nl_max_flat) {
 		nl_max = nl_max_flat;
@@ -90,11 +101,11 @@ float setpoint_nl(float input []) {
 	else {
 		setpoint = nl_max;
 	}
-
+/*
 #ifndef POWER_MANAGEMENT
 	setpoint = nl_idle + (input[6] * (nl_max - nl_idle) / 100.0F);
 #endif
-
+*/
 	setpoint = setpoint / 100.0F * NL_REF;
 	
 	redefine_out_b[3] = nl_max_top;
@@ -141,13 +152,13 @@ float regulation_nl(float input[]) {
 	/* Compute the NL setpoint */
 	nh_setpoint = 0.0;
 	pla_setpoint = setpoint_nl(input);
-
+/*
 #ifdef BRIDAGE
 	if (pla_setpoint > NL_BRIDAGE) {
 		pla_setpoint = NL_BRIDAGE;
 	}
 #endif
-
+*/
 	sat_eps_up = 4000 + (input[0] - 14000) / (float) (44000 - 14000) * 2600;
 	sat_eps_down = -3200 - (input[0] - 14000) / (float) (44000 - 14000) * 2000;
 
