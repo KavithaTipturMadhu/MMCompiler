@@ -10,8 +10,8 @@ for i in "${testCases[@]}"
 do
    echo "###########Running test case -" $i"###############"
    # or do whatever with individual element of the array
-   ./clang -emit-llvm -target redefine /home/kavitha/Desktop/REDEFINE_MM_REPO/MM_Compiler/redefine-tests/ECU_KERNELS/Compilation_Error/$i.c  -S -o /home/kavitha/Desktop/REDEFINE_MM_REPO/MM_Compiler/redefine-tests/ECU_KERNELS/Compilation_Error/$i.ll
-  ./opt -mem2reg  -load ../lib/HyperOpCreationPass.so -HyperOpCreationPass /home/kavitha/Desktop/REDEFINE_MM_REPO/MM_Compiler/redefine-tests/ECU_KERNELS/Compilation_Error/$i.ll -S -o /home/kavitha/Desktop/REDEFINE_MM_REPO/MM_Compiler/redefine-tests/ECU_KERNELS/Compilation_Error/$i.hop.ll -debug  2>out
+  $LLVM_BIN/clang -emit-llvm -target redefine $LLVM_TESTS/ECU_KERNELS/Compilation_Error/$i.c  -S -o $LLVM_TESTS/ECU_KERNELS/Compilation_Error/$i.ll
+  $LLVM_BIN/opt -mem2reg  -load $LLVM_BIN/../lib/HyperOpCreationPass.so -HyperOpCreationPass $LLVM_TESTS/ECU_KERNELS/Compilation_Error/$i.ll -S -o $LLVM_TESTS/ECU_KERNELS/Compilation_Error/$i.hop.ll -debug  2>out
    grep "Completed generating HyperOps" out | wc -l
    
 done
