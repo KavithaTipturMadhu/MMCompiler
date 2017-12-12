@@ -2718,7 +2718,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 
 void HyperOpInteractionGraph::verify() {
 //Check that sync hyperops are not predicated
-	HyperOp* startHyperOp;
+	HyperOp* startHyperOp = NULL;
 	for (auto vertexItr : Vertices) {
 		assert((!(vertexItr->isBarrierHyperOp() && vertexItr->isPredicatedHyperOp())) && "A HyperOp can't be both predicated and sync barrier");
 		if(vertexItr->isStartHyperOp()){
