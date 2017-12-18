@@ -3476,14 +3476,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			HyperOp* immediateDominator = hyperOp->getImmediateDominator();
 			list<pair<HyperOpEdge*, HyperOp*> > parentPredicateChain = lastPredicateInput(controlFlowGraphAndOriginalHopMap.second[hyperOp], controlFlowGraphAndOriginalHopMap.second[hyperOp->getImmediateDominator()]);
 			pair<HyperOpEdge*, HyperOp*> parentPredicate;
-			if (parentPredicateChain.empty()) {
-				errs() << "empty predicate\n";
-				continue;
-			} else {
-				parentPredicate = parentPredicateChain.front();
-				errs() << "Reaching Predicate:" << parentPredicate.second->asString() << " with value :";
-				parentPredicate.first->getValue()->dump();
-			}
 
 			list<HyperOp*> parentList = hyperOp->getParentList();
 //				if (immediateDominator == parentPredicate.second || pathExistsInHIG(immediateDominator, parentPredicate.second)) {
@@ -3532,15 +3524,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hyperOp = *hopItr;
 		if (hyperOp->isBarrierHyperOp()) {
-			errs() << "\n----\nadding incoming sync count to " << hyperOp->getFunction()->getName() << " that originally has " << hyperOp->getSyncCount(0).size() << " sync values incoming namely:";
-			for (auto sync : hyperOp->getSyncCount(0)) {
-				if (sync.type == HYPEROP_SYNC_TYPE) {
-					errs() << sync.getHyperOp()->getFunction()->getName() << "\n";
-				} else {
-					errs() << sync.getInt() << "\n";
-				}
-			}
-			errs() << "\nnow updating it for predicates\n";
 			//Initialize every incoming path with the same count so that decrements can be performed later
 			list<HyperOp*> syncSourceList;
 			for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
