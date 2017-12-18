@@ -124,13 +124,11 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 			HyperOp* currentHyperOp = ((REDEFINETargetMachine&) ((REDEFINEAsmPrinter&) AsmPrinter).TM).HIG->getHyperOp(const_cast<Function*>(parentFunction));
 			for (auto parentEdgeItr = currentHyperOp->ParentMap.begin(); parentEdgeItr != currentHyperOp->ParentMap.end(); parentEdgeItr++) {
 				HyperOpEdge* edge = parentEdgeItr->first;
-				if (edge->getType() == HyperOpEdge::PREDICATE) {
+				if (edge->getType() != HyperOpEdge::LOCAL_REFERENCE && edge->getType() != HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF){
 					continue;
 				}
-				errs() << "whats the position value?" << edge->getPositionOfContextSlot() << " for edge " << edge << " for hop " << currentHyperOp << " and numscalars:"<<numScalarArgs<<"\n";
 				if (edge->getPositionOfContextSlot() - numScalarArgs - 1 == MO.getIndex()) {
 					currentObjectOffset += edge->getMemoryOffsetInTargetFrame();
-					errs()<<"current offset:"<<edge->getMemoryOffsetInTargetFrame()<<"\n";
 					break;
 				}
 			}
@@ -140,7 +138,6 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 			}
 		}
 		MCOperand retVal = MCOperand::CreateImm(currentObjectOffset);
-		errs() << "lowering frame index for func " << MO.getParent()->getParent()->getParent()->getFunction()->getName() << ":" << MO.getIndex() << " TO VAL:" << currentObjectOffset << "\n";
 		return retVal;
 	}
 

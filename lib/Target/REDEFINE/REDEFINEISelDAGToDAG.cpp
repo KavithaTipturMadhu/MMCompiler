@@ -238,21 +238,15 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 		((REDEFINETargetMachine&) TM).HIG->setNumContextFrames((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getCfCount());
 		((REDEFINETargetMachine&) TM).HIG->setMaxContextFrameSize((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getCfSize());
 		((REDEFINETargetMachine&) TM).HIG->computeDominatorInfo();
-		errs() << "before making graph structured:\n";
-		((REDEFINETargetMachine&) TM).HIG->print(dbgs());
 		((REDEFINETargetMachine&) TM).HIG->makeGraphStructured();
-		errs() << "before adding context frame edges:\n";
-		mf.getFunction()->getParent()->dump();
 		((REDEFINETargetMachine&) TM).HIG->print(dbgs());
 		((REDEFINETargetMachine&) TM).HIG->addContextFrameAddressForwardingEdges();
-		errs() << "after adding context frame edges:\n";
-		((REDEFINETargetMachine&) TM).HIG->print(dbgs());
 		((REDEFINETargetMachine&) TM).HIG->minimizeControlEdges();
 		((REDEFINETargetMachine&) TM).HIG->clusterNodes();
 		((REDEFINETargetMachine&) TM).HIG->associateStaticContextFrames();
 		((REDEFINETargetMachine&) TM).HIG->mapClustersToComputeResources();
+		((REDEFINETargetMachine&) TM).HIG->updateLocalRefEdgeMemOffset();
 		((REDEFINETargetMachine&) TM).HIG->verify();
-		((REDEFINETargetMachine&) TM).HIG->print(dbgs());
 		firstFunction = 1;
 	}
 	return SelectionDAGISel::runOnMachineFunction(mf);

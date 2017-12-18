@@ -494,7 +494,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 			}
 		}
 		if (maxFrameSizeOfHyperOp < frameSizeOfHyperOp) {
-			errs() << "frame size for hop " << sourceHyperOp->asString() << ":" << frameSizeOfHyperOp << "\n";
 			maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
 		}
 	}
@@ -529,7 +528,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 		}
 	}
 
-	graph->updateLocalRefEdgeMemOffset();
 	graph->setMaxMemFrameSize(maxFrameSizeOfHyperOp);
 	graph->print(errs());
 	return graph;
