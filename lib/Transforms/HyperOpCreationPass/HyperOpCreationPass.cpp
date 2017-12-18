@@ -1012,8 +1012,8 @@ struct HyperOpCreationPass: public ModulePass {
 						continue;
 					}
 					list<vector<int> > distanceVectorsList;
-					int distanceVectorArray[100][100];
-					int tempDistanceVectorArray[100][100];
+					int distanceVectorArray[10][10];
+					int tempDistanceVectorArray[10][10];
 					ScalarEvolution& SE = getAnalysis<ScalarEvolution>(*func);
 					DominatorTree & tree = getAnalysis<DominatorTree>(*func);
 					Loop* loop = *loopItr;
@@ -2187,6 +2187,9 @@ struct HyperOpCreationPass: public ModulePass {
 			originalFunctionToHyperOpBBListMap[function] = hyperOpBBAndArgs;
 		}
 
+		for (auto functionListItr : functionList) {
+			free(functionListItr);
+		}
 		//Done partitioning basic blocks of all functions into multiple HyperOps
 		DEBUG(dbgs() << "-----------Creating HyperOps from partitioned functions-----------\n");
 		list<pair<pair<list<BasicBlock*>, HyperOpArgumentList>, list<CallInst*> > > traversalList;
@@ -3050,7 +3053,7 @@ struct HyperOpCreationPass: public ModulePass {
 			for (HyperOpArgumentList::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
 				map<Instruction*, Value*> replacementArg;
 				HyperOpArgumentType replacementArgType = hyperOpArgItr->second;
-				errs()<<"whats the type?"<<replacementArgType<<"\n";
+				errs() << "whats the type?" << replacementArgType << "\n";
 				//the argument is a function argument
 				//second half hack for constant phi args
 				if (hyperOpArgItr->second != GLOBAL_REFERENCE && (!isa<Instruction>(hyperOpArgItr->first.front()) && !isa<Constant>(hyperOpArgItr->first.front()))) {
@@ -3145,7 +3148,6 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 					callSite.push_back(callInst);
 				} else if (isa<CallInst>(hyperOpArgItr->first.front())) {
-					errs()<<"second\n";
 					CallInst* callInst = (CallInst*) hyperOpArgItr->first.front();
 					Function* calledFunction = callInst->getCalledFunction();
 					list<CallInst*> callSiteCopy;
@@ -3155,11 +3157,10 @@ struct HyperOpCreationPass: public ModulePass {
 					Function* replicatedCalledFunction = 0;
 					Value* returnValue = 0;
 
-					errs()<<"one\n";
 					while (true) {
 						CallInst* appendCall = 0;
 						//TODO refactor
-						map<Function*, list<CallInst*> >  replicatedhop;
+						map<Function*, list<CallInst*> > replicatedhop;
 						for (map<Function*, list<CallInst*> >::iterator createdHopItr = createdHyperOpAndCallSite.begin(); createdHopItr != createdHyperOpAndCallSite.end(); createdHopItr++) {
 							replicatedhop.insert(make_pair(createdHopItr->first, createdHopItr->second));
 						}
@@ -3173,7 +3174,6 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 							list<CallInst*>::iterator callSiteItr = callSiteCopy.begin();
 							for (list<CallInst*>::iterator createHopCallSiteItr = createdHopCallSite.begin(); createHopCallSiteItr != createdHopCallSite.end() && callSiteItr != callSiteCopy.end(); createHopCallSiteItr++, callSiteItr++) {
-								(*callSiteItr)->dump();
 								if (*createHopCallSiteItr != *callSiteItr) {
 									callSiteMatch = false;
 									break;
@@ -3203,7 +3203,6 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 						}
 					}
-					errs()<<"two\n";
 					if (returnValue == 0) {
 						continue;
 					}
@@ -3222,7 +3221,6 @@ struct HyperOpCreationPass: public ModulePass {
 						clonedInst = getClonedArgument(returnValue, callSiteCopy, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
 						replacementArg.insert(make_pair(clonedInst, returnValue));
 					}
-					errs()<<"three\n";
 				} else if (hyperOpArgItr->second != GLOBAL_REFERENCE) {
 					for (list<Value*>::iterator individualArgItr = hyperOpArgItr->first.begin(); individualArgItr != hyperOpArgItr->first.end(); individualArgItr++) {
 						Value* argument = *individualArgItr;
@@ -3255,7 +3253,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
-				errs()<<"what is the problem here?\n";
+				errs() << "what is the problem here?\n";
 				if (hyperOpArgItr->second != GLOBAL_REFERENCE && hyperOpArgItr->second != ADDRESS) {
 					for (map<Instruction*, Value*>::iterator clonedReachingDefItr = replacementArg.begin(); clonedReachingDefItr != replacementArg.end(); clonedReachingDefItr++) {
 						Instruction* clonedReachingDefInst = clonedReachingDefItr->first;
@@ -3445,6 +3443,19 @@ struct HyperOpCreationPass: public ModulePass {
 								} else {
 									storeAfter = clonedDefInst;
 								}
+
+								bool seenStoreafter = false;
+								//Find the last phi instruction in the bb containing storeAfter
+								for (auto instItr = storeAfter->getParent()->begin(); instItr != storeAfter->getParent()->end(); instItr++) {
+									if ((Instruction*) instItr == storeAfter) {
+										seenStoreafter = true;
+									}
+									if (!isa<PHINode>(instItr) && seenStoreafter) {
+										storeAfter = instItr;
+										break;
+									}
+								}
+
 								storeInst->insertAfter(storeAfter);
 
 								allocaInstCreatedForIntermediateValues.insert(make_pair(clonedDefInst, ai));
