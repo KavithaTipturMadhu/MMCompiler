@@ -93,6 +93,18 @@ def SDTOther  : SDTypeProfile<1, 0, [SDTCisVT<0, OtherVT>]>; // for 'vt'.
 def SDTUNDEF  : SDTypeProfile<1, 0, []>;                     // for 'undef'.
 def SDTUnaryOp  : SDTypeProfile<1, 1, []>;                   // for bitconvert.
 
+def SDTREDEFINEUnOp : SDTypeProfile<1, 1, [
+	SDTCisSameAs<0, 1>, SDTCisInt<0>
+]>;
+
+def SDTREDEFINESrcOp : SDTypeProfile<0, 2, [
+  SDTCisSameAs<0, 1>, SDTCisInt<0>
+]>;
+
+def SDTREDEFINEBinOp : SDTypeProfile<0, 3, [
+  SDTCisSameAs<0, 1>, SDTCisSameAs<0, 2>, SDTCisInt<0>
+]>;
+
 def SDTIntBinOp : SDTypeProfile<1, 2, [     // add, and, or, xor, udiv, etc.
   SDTCisSameAs<0, 1>, SDTCisSameAs<0, 2>, SDTCisInt<0>
 ]>;
@@ -362,6 +374,13 @@ def bitconvert : SDNode<"ISD::BITCAST"    , SDTUnaryOp>;
 def extractelt : SDNode<"ISD::EXTRACT_VECTOR_ELT", SDTVecExtract>;
 def insertelt  : SDNode<"ISD::INSERT_VECTOR_ELT", SDTVecInsert>;
 
+def createinst		 : SDNode<"ISD::CREATEINST"    , SDTIntBinOp>;
+def falloc				 : SDNode<"ISD::FALLOC"    		 , SDTREDEFINEUnOp>;
+def fdelete				 : SDNode<"ISD::FDELETE"			 , SDTREDEFINESrcOp>;
+def fbind					 : SDNode<"ISD::FBIND"				 , SDTREDEFINEBinOp>;
+def writecm				 : SDNode<"ISD::WRITECM"			 , SDTREDEFINEBinOp>;
+def writecmp			 : SDNode<"ISD::WRITECMP"			 , SDTREDEFINEBinOp>;
+def sync					 : SDNode<"ISD::SYNC"					 , SDTREDEFINEBinOp>;
 
 def fadd       : SDNode<"ISD::FADD"       , SDTFPBinOp, [SDNPCommutative]>;
 def fsub       : SDNode<"ISD::FSUB"       , SDTFPBinOp>;

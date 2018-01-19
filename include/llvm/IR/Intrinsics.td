@@ -298,6 +298,14 @@ let Properties = [IntrNoMem] in {
                                LLVMMatchType<0>]>;
 }
 
+def int_createinst: Intrinsic <[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], [IntrReadArgMem]>;
+def int_falloc: Intrinsic <[llvm_i32_ty], [llvm_i32_ty], [IntrReadArgMem]>;
+def int_fbind: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], [IntrReadArgMem]>;
+def int_fdelete: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty], [IntrReadArgMem]>;
+def int_writecmp: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], [IntrReadArgMem]>;
+def int_writecm: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], [IntrReadArgMem]>;
+def int_sync: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], [IntrReadArgMem]>;
+
 // NOTE: these are internal interfaces.
 def int_setjmp     : Intrinsic<[llvm_i32_ty],  [llvm_ptr_ty]>;
 def int_longjmp    : Intrinsic<[], [llvm_ptr_ty, llvm_i32_ty], [IntrNoReturn]>;
@@ -484,3 +492,4 @@ include "llvm/IR/IntrinsicsHexagon.td"
 include "llvm/IR/IntrinsicsNVVM.td"
 include "llvm/IR/IntrinsicsMips.td"
 include "llvm/IR/IntrinsicsR600.td"
+include "llvm/IR/IntrinsicsREDEFINE.td"

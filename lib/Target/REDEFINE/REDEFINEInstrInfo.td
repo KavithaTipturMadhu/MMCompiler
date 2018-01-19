@@ -147,14 +147,10 @@ def CALL: InstIREDEFINE<"call", 0b0000100, 0b000       , add, GR32, GR32, imm32s
 {
  let Itinerary   = REDEFINEORC;
 }
-def CREATEINST: InstIREDEFINE<"createinst", 0b0000100, 0b001       , add, GR32, GR32, imm32sx12>
-{
- let Itinerary   = REDEFINEORC;
-}
 
 def FALLOC: InstREDEFINE<4, (outs GR32:$dst), (ins imm32sx12:$src), 
-                "falloc\t$dst, $src", 
-                [], REDEFINEORC> {
+     "falloc\t$dst, $src", 
+     [(set i32:$dst, (int_falloc i32:$src))], REDEFINEORC> {
   field bits<32> Inst;
 
   bits<5> RD;
@@ -196,41 +192,134 @@ def END: InstREDEFINE<4, (outs), (ins imm32sx12:$src),
   let Inst{6 - 0} = 0b0000000;
 }
 
-def WRITECM : InstSREDEFINE<"writecm" , 0b0100100, 0b000, add , GR32, GR32, imm32sx12>
-{
- let Itinerary   = REDEFINEORC;
+//def CREATEINST: InstIREDEFINE<"createinst", 0b0000100, 0b001, add, GR32, GR32, imm32sx12>
+//{
+// let Itinerary   = REDEFINEORC;
+//}
+
+def CREATEINST : InstREDEFINE<4, (outs GR32:$dst), (ins GR32:$src1, imm32sx12:$src2),
+		"createinst\t$dst,\t$src1,\t$src2",
+		[(set i32:$dst, (int_createinst i32:$src1, i32:$src2))], REDEFINEORC> {
+
+  field bits<32> Inst;
+  bits<5> RD;
+  bits<5> RS1;
+  bits<12> IMM;
+
+  let Inst{31-20} = IMM{11-0};
+  let Inst{15-19} = RS1;
+  let Inst{12-14} = 0b001;
+  let Inst{7 -11} = RD;
+  let Inst{6 - 0} = 0b0000100;
 }
-def WRITECMP : InstSREDEFINE<"writecmp" , 0b0100100, 0b010 , add , GR32, GR32, imm32sx12>
-{
- let Itinerary   = REDEFINEORC;
+
+//def WRITECM : InstSREDEFINE<"writecm" , 0b0100100, 0b000, add , GR32, GR32, imm32sx12>
+//{
+// let Itinerary   = REDEFINEORC;
+//}
+
+def WRITECM : InstREDEFINE<4, (outs), (ins GR32:$dst1, GR32:$src1, imm32sx12:$dst2),
+		"writecm\t$dst1,\t$src1,\t$dst2",
+		[(set (int_writecm i32:$dst1, i32:$src1, i32:$dst2))], REDEFINEORC> {
+
+  field bits<32> Inst;
+  bits<5> RS2;
+  bits<5> RS1;
+  bits<12> IMM;
+
+  let Inst{31-25} = IMM{11-5};
+  let Inst{20-24} = RS2;
+  let Inst{15-19} = RS1;
+  let Inst{12-14} = 0b001;
+  let Inst{7 -11} = IMM{4-0};
+  let Inst{6 - 0} = 0b0000100;
 }
+
+//def WRITECMP : InstSREDEFINE<"writecmp" , 0b0100100, 0b010 , add , GR32, GR32, imm32sx12>
+//{
+// let Itinerary   = REDEFINEORC;
+//}
+
+def WRITECMP : InstREDEFINE<4, (outs), (ins GR32:$dst1, GR32:$src1, imm32sx12:$dst2),
+		"writecmp\t$dst1,\t$src1,\t$dst2",
+		[(set (int_writecmp i32:$dst1, i32:$src1, i32:$dst2))], REDEFINEORC> {
+
+  field bits<32> Inst;
+  bits<5> RS2;
+  bits<5> RS1;
+  bits<12> IMM;
+
+  let Inst{31-25} = IMM{11-5};
+  let Inst{20-24} = RS2;
+  let Inst{15-19} = RS1;
+  let Inst{12-14} = 0b010;
+  let Inst{7 -11} = IMM{4-0};
+  let Inst{6 - 0} = 0b0000100;
+}
+
 def TRET : InstSREDEFINE<"tret" , 0b0100100, 0b001, add , GR32, GR32, imm32sx12>
 {
  let Itinerary   = REDEFINEORC;
 }
-def SYNC : InstSREDEFINE<"sync" , 0b0100100, 0b011, add , GR32, GR32, imm32sx12>
-{
- let Itinerary   = REDEFINEORC;
-}
-def FBIND : InstSREDEFINE<"fbind" , 0b0000100, 0b011, add , GR32, GR32, imm32sx12>
-{
- let Itinerary   = REDEFINEORC;
-}
-def FDELETE: InstREDEFINE<4, (outs), (ins GR32:$id, imm32sx12:$imm), 
-                "fdelete \t$id, $imm", 
-                [],REDEFINEORC> {
-  field bits<32> Inst;
 
-  bits<5> RS1;
+//def SYNC : InstSREDEFINE<"sync" , 0b0100100, 0b011, add , GR32, GR32, imm32sx12>
+//{
+// let Itinerary   = REDEFINEORC;
+//}
+
+def SYNC: InstREDEFINE<4, (outs), (ins GR32:$dst1, GR32:$src1, imm32sx12:$dst2),
+		"sync\t$dst1,\t$src1,\t$dst2",
+		[(set (int_sync i32:$dst1, i32:$src1, i32:$dst2))], REDEFINEORC> {
+
+  field bits<32> Inst;
   bits<5> RS2;
+  bits<5> RS1;
+  bits<12> IMM;
+
+  let Inst{31-25} = IMM{11-5};
+  let Inst{20-24} = RS2;
+  let Inst{15-19} = RS1;
+  let Inst{12-14} = 0b100;
+  let Inst{7 -11} = IMM{4-0};
+  let Inst{6 - 0} = 0b0000100;
+}
+
+//def FBIND : InstSREDEFINE<"fbind" , 0b0000100, 0b011, add , GR32, GR32, imm32sx12>
+//{
+// let Itinerary   = REDEFINEORC;
+//}
+
+def FBIND: InstREDEFINE<4, (outs), (ins GR32:$dst1, GR32:$src1, imm32sx12:$dst2),
+		"fbind\t$dst1,\t$src1,\t$dst2",
+		[(set (int_fbind i32:$dst1, i32:$src1, i32:$dst2))], REDEFINEORC> {
+
+  field bits<32> Inst;
+  bits<5> RS2;
+  bits<5> RS1;
+  bits<12> IMM;
+
+  let Inst{31-25} = IMM{11-5};
+  let Inst{20-24} = RS2;
+  let Inst{15-19} = RS1;
+  let Inst{12-14} = 0b110;
+  let Inst{7 -11} = IMM{4-0};
+  let Inst{6 - 0} = 0b0000100;
+}
+
+def FDELETE: InstREDEFINE<4, (outs), (ins GR32:$id, imm32sx12:$imm), 
+       "fdelete \t$id, $imm",
+       [(set (int_fdelete i32:$id, i32:$imm))],REDEFINEORC> {
+
+  field bits<32> Inst;
+  bits<5> RS1;
   bits<12> IMM;
 
   let Inst{31-25} = IMM{11-5};
   let Inst{20-24} = 0b00000;
   let Inst{15-19} = RS1;
-  let Inst{12-14} = 0b100;
+  let Inst{12-14} = 0b111;
   let Inst{7 - 11} = IMM{4-0};
-  let Inst{6 - 0} = 0b0000100;
+  let Inst{6 - 0} = 0b0000000;
 }
 
 def WRITEPM : InstSREDEFINE<"writepm" , 0b0100000, 0b010, add , GR32, GR32, imm32sx12>

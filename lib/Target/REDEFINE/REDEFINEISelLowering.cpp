@@ -224,6 +224,14 @@ REDEFINETargetLowering::REDEFINETargetLowering(REDEFINETargetMachine &tm) :
 	setOperationAction(ISD::FP_ROUND, MVT::f32, Legal);
 	setOperationAction(ISD::FNEG, MVT::f32, Expand);
 
+	//	REDEFINE runtime
+	setOperationAction(ISD::CREATEINST, MVT::i32, Legal);
+	setOperationAction(ISD::FALLOC, MVT::i32, Legal);
+	setOperationAction(ISD::WRITECM, MVT::i32, Legal);
+	setOperationAction(ISD::WRITECMP, MVT::i32, Legal);
+	setOperationAction(ISD::FDELETE, MVT::i32, Legal);
+	setOperationAction(ISD::SYNC, MVT::i32, Legal);
+	setOperationAction(ISD::FBIND, MVT::i32, Legal);
 
 
 	// Needed so that we don't try to implement f128 constant loads using

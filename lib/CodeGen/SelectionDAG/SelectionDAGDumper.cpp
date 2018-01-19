@@ -272,6 +272,15 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::LIFETIME_START:             return "lifetime.start";
   case ISD::LIFETIME_END:               return "lifetime.end";
 
+	//	REDEFINE
+	case ISD::CREATEINST:									return "createinst";
+	case ISD::FALLOC:											return "falloc";
+	case ISD::FBIND:											return "fbind";
+	case ISD::FDELETE:										return "fdelete";
+	case ISD::WRITECMP:										return "writecmp";
+	case ISD::WRITECM:										return "writecmp";
+	case ISD::SYNC:												return "sync";
+
   // Bit manipulation
   case ISD::BSWAP:                      return "bswap";
   case ISD::CTPOP:                      return "ctpop";
