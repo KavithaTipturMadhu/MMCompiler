@@ -298,13 +298,13 @@ let Properties = [IntrNoMem] in {
                                LLVMMatchType<0>]>;
 }
 
-def int_createinst: Intrinsic <[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], [IntrReadArgMem]>;
-def int_falloc: Intrinsic <[llvm_i32_ty], [llvm_i32_ty], [IntrReadArgMem]>;
-def int_fbind: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], [IntrReadArgMem]>;
-def int_fdelete: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty], [IntrReadArgMem]>;
-def int_writecmp: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], [IntrReadArgMem]>;
-def int_writecm: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], [IntrReadArgMem]>;
-def int_sync: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], [IntrReadArgMem]>;
+def int_createinst: Intrinsic <[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], [IntrReadWriteArgMem]>;
+def int_falloc: Intrinsic <[llvm_i32_ty], [llvm_i32_ty], [IntrReadWriteArgMem]>;
+def int_fbind: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], [IntrReadWriteArgMem]>;
+def int_fdelete: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty], [IntrReadWriteArgMem]>;
+def int_writecmp: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], [IntrReadWriteArgMem]>;
+def int_writecm: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], [IntrReadWriteArgMem]>;
+def int_sync: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], [IntrReadWriteArgMem]>;
 
 // NOTE: these are internal interfaces.
 def int_setjmp     : Intrinsic<[llvm_i32_ty],  [llvm_ptr_ty]>;
