@@ -220,7 +220,7 @@ def CREATEINST : InstREDEFINE<4, (outs GR32:$dst), (ins GR32:$src1, imm32sx12:$s
 
 def WRITECM : InstREDEFINE<4, (outs), (ins GR32:$dst1, GR32:$src1, imm32sx12:$dst2),
 		"writecm\t$dst1,\t$src1,\t$dst2",
-		[(set (int_writecm i32:$dst1, i32:$src1, i32:$dst2))], REDEFINEORC> {
+		[(int_writecm i32:$dst1, i32:$src1, i32:$dst2)], REDEFINEORC> {
 
   field bits<32> Inst;
   bits<5> RS2;
@@ -242,7 +242,7 @@ def WRITECM : InstREDEFINE<4, (outs), (ins GR32:$dst1, GR32:$src1, imm32sx12:$ds
 
 def WRITECMP : InstREDEFINE<4, (outs), (ins GR32:$dst1, GR32:$src1, imm32sx12:$dst2),
 		"writecmp\t$dst1,\t$src1,\t$dst2",
-		[(set (int_writecmp i32:$dst1, i32:$src1, i32:$dst2))], REDEFINEORC> {
+		[(int_writecmp i32:$dst1, i32:$src1, i32:$dst2)], REDEFINEORC> {
 
   field bits<32> Inst;
   bits<5> RS2;
@@ -269,7 +269,7 @@ def TRET : InstSREDEFINE<"tret" , 0b0100100, 0b001, add , GR32, GR32, imm32sx12>
 
 def SYNC: InstREDEFINE<4, (outs), (ins GR32:$dst1, GR32:$src1, imm32sx12:$dst2),
 		"sync\t$dst1,\t$src1,\t$dst2",
-		[(set (int_sync i32:$dst1, i32:$src1, i32:$dst2))], REDEFINEORC> {
+		[(int_sync i32:$dst1, i32:$src1, i32:$dst2)], REDEFINEORC> {
 
   field bits<32> Inst;
   bits<5> RS2;
@@ -291,7 +291,7 @@ def SYNC: InstREDEFINE<4, (outs), (ins GR32:$dst1, GR32:$src1, imm32sx12:$dst2),
 
 def FBIND: InstREDEFINE<4, (outs), (ins GR32:$dst1, GR32:$src1, imm32sx12:$dst2),
 		"fbind\t$dst1,\t$src1,\t$dst2",
-		[(set (int_fbind i32:$dst1, i32:$src1, i32:$dst2))], REDEFINEORC> {
+		[(int_fbind i32:$dst1, i32:$src1, i32:$dst2)], REDEFINEORC> {
 
   field bits<32> Inst;
   bits<5> RS2;
@@ -308,7 +308,7 @@ def FBIND: InstREDEFINE<4, (outs), (ins GR32:$dst1, GR32:$src1, imm32sx12:$dst2)
 
 def FDELETE: InstREDEFINE<4, (outs), (ins GR32:$id, imm32sx12:$imm), 
        "fdelete \t$id, $imm",
-       [(set (int_fdelete i32:$id, i32:$imm))],REDEFINEORC> {
+       [(int_fdelete i32:$id, i32:$imm)],REDEFINEORC> {
 
   field bits<32> Inst;
   bits<5> RS1;
