@@ -64,7 +64,6 @@ list<StringRef> parseInstanceIdString(StringRef instanceTag, char seperator = ',
 		StringRef idPart = tokens.first;
 		instanceId.push_back(idPart);
 		tempString = tokens.second;
-		errs() << "what added:" << idPart << "\n";
 	}
 	return instanceId;
 }
@@ -216,15 +215,19 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 							HyperOp* consumerHyperOp = 0;
 							//Create an edge between two HyperOps labeled by the instruction
 							MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(consumerMDNodeIndex);
+							errs()<<"dealing with consumed by metadata for hop "<<sourceHyperOp->asString()<<":";
+							consumerMDNode->dump();
 							StringRef dataType = ((MDString*) consumerMDNode->getOperand(1))->getName();
 							unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue();
 							if (consumerMDNode->getNumOperands() > 3) {
+								errs()<<"problem kya hai?\n";
 								//An instance is consuming the data
 								StringRef parseString = ((MDString*) consumerMDNode->getOperand(3))->getName();
 								list<StringRef> consumerInstanceId = parseInstanceIdString(parseString);
 								MDNode* hyperOp = (MDNode*) consumerMDNode->getOperand(0);
 								//TODO
 								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
+								errs()<<"is source unrolled?"<<sourceHyperOp->isUnrolledInstance()<<" or prefix?"<<consumerInstanceId.front().compare("prefixId")<<"\n";
 								if (!sourceHyperOp->isUnrolledInstance() || consumerInstanceId.front().compare("prefixId") == 0) {
 									if (consumerInstanceId.front().compare("id") == 0) {
 										consumerInstanceId.pop_front();
@@ -250,20 +253,28 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 												prefixCount = atoi(consumerInstanceId.front().data());
 											}
 										}
+										errs()<<"prefix count should be 1 yes?"<<prefixCount<<"\n";
 										while (prefixCount--) {
 											consumerHyperOpId.pop_back();
 										}
 										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
-										if (staticFlag.compare("Static") == 0) {
-											if (!consumerHyperOpId.empty()) {
-												consumerHyperOpId.clear();
-											}
+										errs()<<"whats static flag?"<<staticFlag<<" for hyperOp ";
+										hyperOp->dump();
+//										if (staticFlag.compare("Static") == 0) {
+//											if (!consumerHyperOpId.empty()) {
+//												consumerHyperOpId.clear();
+//											}
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
-											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
-										} else {
-											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
-											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
-										}
+//											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
+//										} else {
+//											errs()<<"popped once and looking for dynamic instance:";
+//											for(auto itr:consumerHyperOpId){
+//												errs()<<itr<<",";
+//											}
+//											errs()<<"\n";
+//											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
+//											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
+////										}
 									}
 								}
 							} else {
@@ -344,17 +355,18 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 										while (prefixCount--) {
 											consumerHyperOpId.pop_back();
 										}
-										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
-										if (staticFlag.compare("Static") == 0) {
-											if (!consumerHyperOpId.empty()) {
-												consumerHyperOpId.clear();
-											}
+//										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
+//										errs()<<"how could hyperop be marked static?"<<staticFlag.compare("Static")<<"\n";
+//										if (staticFlag.compare("Static") == 0) {
+//											if (!consumerHyperOpId.empty()) {
+//												consumerHyperOpId.clear();
+//											}
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
-											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
-										} else {
-											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
-											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
-										}
+//											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
+//										} else {
+//											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
+//											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
+//										}
 									}
 								}
 							} else {
@@ -436,18 +448,18 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 										while (prefixCount--) {
 											consumerHyperOpId.pop_back();
 										}
-										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
-										if (staticFlag.compare("Static") == 0) {
-											//Hack
-											if (!consumerHyperOpId.empty()) {
-												consumerHyperOpId.clear();
-											}
+//										StringRef staticFlag = ((MDString*) hyperOp->getOperand(2))->getName();
+//										if (staticFlag.compare("Static") == 0) {
+//											//Hack
+//											if (!consumerHyperOpId.empty()) {
+//												consumerHyperOpId.clear();
+//											}
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
-											errs() << "static consumer:" << consumerHyperOp->asString() << "\n";
-										} else {
-											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
-											errs() << "dynamic consumer:" << consumerHyperOp->asString() << "\n";
-										}
+//											errs() << "static consumer:" << consumerHyperOp->asString() << "\n";
+//										} else {
+//											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
+//											errs() << "dynamic consumer:" << consumerHyperOp->asString() << "\n";
+//										}
 									}
 								}
 							} else {
