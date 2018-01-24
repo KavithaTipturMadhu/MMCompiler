@@ -187,6 +187,34 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD, unsigned Builtin
 	switch (BuiltinID) {
 	default:
 		break;  // Handle intrinsics and libm functions below.
+	case Builtin::BI__builtin_createinst:{
+		Value *F = CGM.getIntrinsic(Intrinsic::createinst);
+		return RValue::get(Builder.CreateCall2(F, EmitScalarExpr(E->getArg(0)), EmitScalarExpr(E->getArg(1))));		
+	}
+	case Builtin::BI__builtin_falloc:{
+		Value *F = CGM.getIntrinsic(Intrinsic::falloc);
+		return RValue::get(Builder.CreateCall(F, EmitScalarExpr(E->getArg(0))));		
+	}
+	case Builtin::BI__builtin_fdelete:{
+		Value *F = CGM.getIntrinsic(Intrinsic::fdelete);
+		return RValue::get(Builder.CreateCall2(F, EmitScalarExpr(E->getArg(0)), EmitScalarExpr(E->getArg(1))));
+	}
+	case Builtin::BI__builtin_fbind:{
+		Value *F = CGM.getIntrinsic(Intrinsic::fbind);
+		return RValue::get(Builder.CreateCall3(F, EmitScalarExpr(E->getArg(0)), EmitScalarExpr(E->getArg(1)), EmitScalarExpr(E->getArg(2))));		
+	}
+	case Builtin::BI__builtin_sync:{
+		Value *F = CGM.getIntrinsic(Intrinsic::sync);
+		return RValue::get(Builder.CreateCall3(F, EmitScalarExpr(E->getArg(0)), EmitScalarExpr(E->getArg(1)), EmitScalarExpr(E->getArg(2))));		
+	}
+	case Builtin::BI__builtin_writecm:{
+		Value *F = CGM.getIntrinsic(Intrinsic::writecm);
+		return RValue::get(Builder.CreateCall3(F, EmitScalarExpr(E->getArg(0)), EmitScalarExpr(E->getArg(1)), EmitScalarExpr(E->getArg(2))));		
+	}
+	case Builtin::BI__builtin_writecmp:{
+		Value *F = CGM.getIntrinsic(Intrinsic::writecmp);
+		return RValue::get(Builder.CreateCall3(F, EmitScalarExpr(E->getArg(0)), EmitScalarExpr(E->getArg(1)), EmitScalarExpr(E->getArg(2))));
+	}
 	case Builtin::BI__builtin___CFStringMakeConstantString:
 	case Builtin::BI__builtin___NSStringMakeConstantString:
 		return RValue::get(CGM.EmitConstantExpr(E, E->getType(), 0));
