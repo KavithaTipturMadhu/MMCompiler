@@ -976,6 +976,7 @@ struct HyperOpCreationPass: public ModulePass {
 //			InlineFunction(callInst, info);
 		}
 
+		M.dump();
 		//Parallel loop and its induction variable so that the loop can be flattened into IR
 //		list<pair<list<BasicBlock*>, LoopIV*> > parallelLoopAndIVMap;
 		list<pair<list<BasicBlock*>, LoopIV*> > originalParallelLoopBB;
@@ -994,13 +995,11 @@ struct HyperOpCreationPass: public ModulePass {
 				//Lets check if there are loop carried dependences
 				int count = 0;
 //				errs() << "canonical induction variable:";
-//				for (LoopInfo::iterator loopItr = LI.begin(); loopItr != LI.end(); loopItr++, count++) {
+				for (LoopInfo::iterator loopItr = LI.begin(); loopItr != LI.end(); loopItr++, count++) {
 //					(*loopItr)->getCanonicalInductionVariable()->dump();
-//				}
+				}
 				int loopCountSecond = 0;
 				for (LoopInfo::iterator loopItr = LI.begin(); loopItr != LI.end(); loopItr++, loopCountSecond++) {
-//					errs()<<"whats going on?";
-//					(*loopItr)->dump();
 					if (loopCountSecond == count) {
 						break;
 					}
@@ -1285,7 +1284,7 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
-					errs() << "final execution order:";
+					errs() << "\nfinal execution order:";
 					for (auto orderItr = executionOrder.begin(); orderItr != executionOrder.end(); orderItr++) {
 						errs() << orderItr->first << ":" << (orderItr->second) << "\n";
 					}
@@ -1309,9 +1308,15 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
+					errs()<<"problem kya hai?\n";
 					for (i = 0; i < maxLevels; i++) {
+						if(nestedLoopDepth.find(i+1)==nestedLoopDepth.end()){
+							continue;
+						}
 						list<Loop*> loopsAtDepth = nestedLoopDepth[i + 1];
+						errs()<<"loops at depth:"<<loopsAtDepth.size()<<"\n";
 						Loop* currentLoop = loopsAtDepth.front();
+						currentLoop->dump();
 						LoopIV* loopIVObject = NULL;
 						//Assuming no overflows in integer, because there's an add 1 in the method invoked in the next line for god knows what reason
 						PHINode* inductionVariable = currentLoop->getCanonicalInductionVariable();
@@ -1321,6 +1326,8 @@ struct HyperOpCreationPass: public ModulePass {
 						unsigned strideUpdateOperation;
 						const char* strideUpdateOperationName;
 						LoopIV::Type type;
+						errs()<<"so i found everything i need\n";
+						inductionVariable->dump();
 						//Compute stride over the induction variable
 						map<BasicBlock*, Value*> entryBBToInductionVarPHI;
 						for (auto phiOperandItr = 0; phiOperandItr != inductionVariable->getNumIncomingValues(); phiOperandItr++) {
@@ -1329,6 +1336,7 @@ struct HyperOpCreationPass: public ModulePass {
 								entryBBToInductionVarPHI.insert(make_pair(incomingBlock, inductionVariable->getIncomingValue(phiOperandItr)));
 							}
 						}
+						errs()<<"problem kya hai 2?\n";
 						assert(entryBBToInductionVarPHI.size() == 1 && "Multiple exit block loop unsupported");
 						//We can't support multiple strides for parallelism or support any operation other than binary or shift operations
 						for (auto entryBBItr = entryBBToInductionVarPHI.begin(); entryBBItr != entryBBToInductionVarPHI.end(); entryBBItr++) {
@@ -1349,6 +1357,7 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 
 						}
+						errs()<<"problem kya hai 3?\n";
 						bool useTripCount = true;
 						if (isa<SCEVConstant>(SE.getBackedgeTakenCount(currentLoop))) {
 							ConstantInt* Result = ((SCEVConstant*) SE.getBackedgeTakenCount(currentLoop))->getValue();
