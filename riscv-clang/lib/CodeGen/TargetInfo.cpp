@@ -4312,7 +4312,7 @@ ABIArgInfo REDEFINEABIInfo::classifyArgumentType(QualType Ty) const {
 	//TODO
     return ABIArgInfo::getDirect(0);
 
-  return ABIArgInfo::getDirect(0);
+  return ABIArgInfo::getDirectInReg(0);
 }
 //End
 //===----------------------------------------------------------------------===//
