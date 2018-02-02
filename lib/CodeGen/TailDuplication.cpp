@@ -138,8 +138,8 @@ bool TailDuplicatePass::runOnMachineFunction(MachineFunction &MF) {
     RS.reset(new RegScavenger());
 
   bool MadeChange = false;
-  while (TailDuplicateBlocks(MF))
-    MadeChange = true;
+  //while (TailDuplicateBlocks(MF))
+  //  MadeChange = true;
 
   return MadeChange;
 }
