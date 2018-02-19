@@ -2730,7 +2730,7 @@ void HyperOpInteractionGraph::verify() {
 		map<int, list<HyperOp*> > contextSlotAndParentList;
 		//check to ensure the the incoming edges to a hyperOp don't share the same context slot, and if they do, they come from different hyperops
 		for (auto parentEdgeItr : vertexItr->ParentMap) {
-			if (parentEdgeItr.first->getType() == HyperOpEdge::SCALAR || parentEdgeItr.first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF || parentEdgeItr.first->getType() == HyperOpEdge::LOCAL_REFERENCE) {
+			if (parentEdgeItr.first->getType() == HyperOpEdge::SCALAR || parentEdgeItr.first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) {
 				list<HyperOp*> srcList;
 				if (contextSlotAndParentList.find(parentEdgeItr.first->getPositionOfContextSlot()) != contextSlotAndParentList.end()) {
 					srcList = contextSlotAndParentList.find(parentEdgeItr.first->getPositionOfContextSlot())->second;
@@ -2739,7 +2739,7 @@ void HyperOpInteractionGraph::verify() {
 					}
 				}
 				srcList.push_back(parentEdgeItr.second);
-				contextSlotAndParentList[parentEdgeItr.first->getPositionOfContextSlot()] = srcList;
+				contextSlotAndParentList.insert(make_pair(parentEdgeItr.first->getPositionOfContextSlot(), srcList));
 			}
 		}
 	}
@@ -2779,11 +2779,20 @@ void HyperOpInteractionGraph::verify() {
 
 	for (unsigned i = 0; i < numVertices; i++) {
 		for (unsigned j = 0; j < numVertices; j++) {
-			errs()<<"at i "<<i<<" and j "<<j<<" and closures:"<<transitiveClosure[i][j] <<", "<<transitiveClosure[j][i]<<"\n";
 			assert((!(transitiveClosure[i][j] && transitiveClosure[j][i])) && "Cycle in HIG\n");
 		}
 	}
 
+	//Ensure that no hyperop with multiple instances is the one deleting a hyperOp
+	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
+		if((*hopItr)->getInRange()){
+			for (list<HyperOp*>::iterator secondHopItr = this->Vertices.begin(); secondHopItr != this->Vertices.end(); secondHopItr++) {
+				if(secondHopItr!=(*hopItr)){
+					assert(((*secondHopItr)->getImmediateDominator()!=*hopItr&& (*secondHopItr)->getImmediatePostDominator()!=*hopItr) && "Range hops can't dominate anything\n");
+				}
+			}
+		}
+	}
 }
 
 //void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrames) {
@@ -3705,7 +3714,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		HyperOp* hyperOp = *hopItr;
 		if (hyperOp->isPredicatedHyperOp()) {
 			HyperOp* immediateDominator = hyperOp->getImmediateDominator();
-			errs() << "finding the last predicate input to " << hyperOp->asString() << "\n";
 			list<pair<HyperOpEdge*, HyperOp*> > parentPredicateChain = lastPredicateInput(controlFlowGraphAndOriginalHopMap.second[hyperOp], controlFlowGraphAndOriginalHopMap.second[hyperOp->getImmediateDominator()]);
 			errs() << "computed predicate length " << parentPredicateChain.size() << "\n";
 			pair<HyperOpEdge*, HyperOp*> parentPredicate;
@@ -3728,7 +3736,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					break;
 				}
 			}
-			errs() << "problem 1\n";
 			unsigned decByValue = 0;
 			//Count number of inputs coming from other parent nodes which are also predicated by the same HyperOp
 			for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
@@ -3736,17 +3743,13 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					decByValue++;
 				}
 			}
-			errs() << "problem 2\n";
 			if (decByValue > 0) {
-				errs() << "how much is the decrement value?" << decByValue << "\n";
 				HyperOpEdge* predicateEdge;
-				errs() << "is it the parent producing the predicate?" << parentProducingPredicate->asString() << "\n";
 				if (find(parentList.begin(), parentList.end(), parentProducingPredicate) == parentList.end()) {
 					//	Add the edge delivering the reaching predicate
 					predicateEdge = new HyperOpEdge();
 					predicateEdge->setValue(parentPredicate.first->getValue());
 					predicateEdge->setType(HyperOpEdge::PREDICATE);
-					errs() << "is it this?" << parentPredicate.first->getPredicateValue() << "\n";
 					predicateEdge->setPredicateValue(parentPredicate.first->getPredicateValue());
 				} else {
 					//Find the predicate edge originating from parentProducingPredicate
@@ -3757,7 +3760,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 						}
 					}
 				}
-				errs() << "problem 3\n";
 
 				predicateEdge->setDecrementOperandCount(decByValue);
 				hyperOp->setPredicatedHyperOp();
