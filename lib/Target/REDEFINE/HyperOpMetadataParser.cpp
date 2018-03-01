@@ -309,10 +309,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 												consumerHyperOpId.clear();
 											}
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
-											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
 										} else {
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
-											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
 										}
 									} else if (consumerInstanceId.front().compare("prefixId") == 0) {
 										unsigned prefixCount = 1;
@@ -361,7 +359,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)) {
 									//						&& !sourceHyperOp->isUnrolledInstance()) {
-									errs() << "added instance:" << consumerHyperOp->asString() << " and is it an instance:" << consumerHyperOp->isUnrolledInstance() << "\n";
 									hyperOpTraversalList.push_back(consumerHyperOp);
 								}
 							}
