@@ -292,20 +292,20 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 void REDEFINEAsmPrinter::printOperand(const MachineInstr *MI, int OpNo, raw_ostream &O) {
 	const MachineOperand &MO = MI->getOperand(OpNo);
 //look at target flags to see if we should wrap this operand
-	switch (MO.getTargetFlags()) {
-	case REDEFINEII::MO_ABS_HI:
-		O << "\"%hi(";
-		break;
-	case REDEFINEII::MO_ABS_LO:
-		O << "\"%lo(";
-		break;
+//	switch (MO.getTargetFlags()) {
+//	case REDEFINEII::MO_ABS_HI:
+//		O << "\"%hi(";
+//		break;
+//	case REDEFINEII::MO_ABS_LO:
+//		O << "\"%lo(";
+//		break;
 //	case REDEFINEII::MO_TPREL_HI:
 //		O << "%tprel_hi(";
 //		break;
 //	case REDEFINEII::MO_TPREL_LO:
 //		O << "%tprel_lo(";
 //		break;
-	}
+//	}
 	switch (MO.getType()) {
 	case MachineOperand::MO_Register:
 	case MachineOperand::MO_Immediate: {

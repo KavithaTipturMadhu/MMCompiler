@@ -2782,17 +2782,6 @@ void HyperOpInteractionGraph::verify() {
 			assert((!(transitiveClosure[i][j] && transitiveClosure[j][i])) && "Cycle in HIG\n");
 		}
 	}
-
-	//Ensure that no hyperop with multiple instances is the one deleting a hyperOp
-	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
-		if((*hopItr)->getInRange()){
-			for (list<HyperOp*>::iterator secondHopItr = this->Vertices.begin(); secondHopItr != this->Vertices.end(); secondHopItr++) {
-				if(secondHopItr!=(*hopItr)){
-					assert(((*secondHopItr)->getImmediateDominator()!=*hopItr&& (*secondHopItr)->getImmediatePostDominator()!=*hopItr) && "Range hops can't dominate anything\n");
-				}
-			}
-		}
-	}
 }
 
 //void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrames) {

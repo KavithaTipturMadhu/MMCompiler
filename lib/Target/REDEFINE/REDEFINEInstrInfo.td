@@ -196,6 +196,40 @@ def END: InstREDEFINE<4, (outs), (ins imm32sx12:$src),
   let Inst{6 - 0} = 0b0000000;
 }
 
+def MOVIMM: InstREDEFINE<4, (outs GR32:$reg), (ins imm32sx12:$src), 
+                "movimm \treg, \t$src", 
+                [],REDEFINEALU> {
+  field bits<32> Inst;
+
+  bits<5> RS1;
+  bits<5> RS2;
+  bits<12> IMM;
+
+  let Inst{31-25} = IMM{11-5};
+  let Inst{20-24} = 0b00000;
+  let Inst{15-19} = 0b00000;
+  let Inst{12-14} = 0b000;
+  let Inst{7 - 11} = IMM{4-0};
+  let Inst{6 - 0} = 0b0000000;
+}
+
+def MOVADDR: InstREDEFINE<4, (outs GR32:$reg), (ins imm32sx12:$src), 
+                "movaddr \treg, \t$src", 
+                [],REDEFINEALU> {
+  field bits<32> Inst;
+
+  bits<5> RS1;
+  bits<5> RS2;
+  bits<12> IMM;
+
+  let Inst{31-25} = IMM{11-5};
+  let Inst{20-24} = 0b00000;
+  let Inst{15-19} = 0b00000;
+  let Inst{12-14} = 0b000;
+  let Inst{7 - 11} = IMM{4-0};
+  let Inst{6 - 0} = 0b0000000;
+}
+
 def WRITECM : InstSREDEFINE<"writecm" , 0b0100100, 0b000, add , GR32, GR32, imm32sx12>
 {
  let Itinerary   = REDEFINEORC;
@@ -250,8 +284,8 @@ def MULH  : InstR<"mulh" , 0b0110011, 0b0000001001, mulhs , GR32, GR32>;
 def MULHU : InstR<"mulhu", 0b0110011, 0b0000001011, mulhu , GR32, GR32>;
 
 //Immediate values
-def : Pat<(i32 imm32sx12:$imm), (ADDI zero, imm32sx12:$imm)>; 
-def : Pat<(i32 imm32:$imm), (ADDI zero, imm32:$imm)>;
+def : Pat<(i32 imm32sx12:$imm), (MOVIMM imm32sx12:$imm)>; 
+def : Pat<(i32 imm32:$imm), (MOVIMM imm32:$imm)>;
   
 //FPU instructions
 defm FADD_S : FPBinOps<"fadd.s", fadd, 0b00000, 0b00>;
@@ -383,10 +417,6 @@ def FNMADD:InstREDEFINE<4, (outs FP32:$dst), (ins FP32:$src3, FP32:$src2, FP32:$
   let Inst{6-0} = 0b1000011;
 
 }
-
-def : Pat<(REDEFINEHi tglobaladdr:$in), (LUI tglobaladdr:$in)>;
-def : Pat<(REDEFINELo tglobaladdr:$in), (ADDI zero, tglobaladdr:$in)>;
-
 
 //Synthesized set operators
 //patterns to be used for 32 and 64bit

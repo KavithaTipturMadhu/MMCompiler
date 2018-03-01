@@ -42,7 +42,7 @@ class InstREDEFINE<int size, dag outs, dag ins, string asmstr,
   let TSFlags{1} = SimpleStore;
 }
 
-class PsuedoInst<dag outs, dag ins, list<dag> pattern>
+class PseudoInst<dag outs, dag ins, list<dag> pattern>
   : InstREDEFINE<4, outs, ins,"PSEUDO", pattern,REDEFINEALU> {
   let isPseudo = 1;
   let isCodeGenOnly = 1;

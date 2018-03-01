@@ -29,18 +29,37 @@ static inline int32_t SignExtend8BitNumberTo12Bits(int8_t x) {
 
 static inline list<MachineInstr*> generateBlockCreateMachineInstructions(MachineBasicBlock* lastBB, unsigned registerContainingCount, unsigned hyperOpType, LiveIntervals* LIS, const TargetMachine &TM, const TargetInstrInfo *TII) {
 	list<MachineInstr*> insertedInstructions;
+	Function* function = const_cast<Function*>(lastBB->getParent()->getFunction());
+	StringRef fnName = function->getName();
+	LLVMContext& ctxt = lastBB->getParent()->getFunction()->getParent()->getContext();
+
 	MachineBasicBlock* loopInit = lastBB->getParent()->CreateMachineBasicBlock();
+	assert(loopInit!=NULL && "Failed to create mbb\n");
+	lastBB->getParent()->push_back(loopInit);
 	LIS->insertMBBInMaps(loopInit);
+
 	MachineBasicBlock* loopStart = lastBB->getParent()->CreateMachineBasicBlock();
-	loopInit->addSuccessor(loopInit);
+	assert(loopStart!=NULL && "Failed to create mbb\n");
+	BasicBlock * loopInitBB = BasicBlock::Create(ctxt, fnName.str().append(".start"), function);
+	lastBB->getParent()->push_back(loopStart);
+	loopInit->addSuccessor(loopStart);
 	LIS->insertMBBInMaps(loopStart);
+
 	MachineBasicBlock* loopBody = lastBB->getParent()->CreateMachineBasicBlock();
-	LIS->insertMBBInMaps(loopBody);
+	assert(loopBody!=NULL && "Failed to create mbb\n");
+	lastBB->getParent()->push_back(loopBody);
 	loopStart->addSuccessor(loopBody);
 	loopBody->addSuccessor(loopStart);
+	LIS->insertMBBInMaps(loopBody);
+
+	MachineBasicBlock* loopEnd = lastBB->getParent()->CreateMachineBasicBlock();
+	assert(loopEnd!=NULL && "Failed to create mbb\n");
+	lastBB->getParent()->push_back(loopEnd);
+	loopStart->addSuccessor(loopEnd);
+	LIS->insertMBBInMaps(loopEnd);
 
 	unsigned indVar = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-	MachineInstrBuilder inductionVarInit = BuildMI(*loopInit, loopInit->begin(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD));
+	MachineInstrBuilder inductionVarInit = BuildMI(*loopInit, loopInit->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD));
 	inductionVarInit.addReg(indVar, RegState::Define);
 	inductionVarInit.addReg(REDEFINE::zero);
 	inductionVarInit.addImm(0);
@@ -48,13 +67,13 @@ static inline list<MachineInstr*> generateBlockCreateMachineInstructions(Machine
 	insertedInstructions.push_back(inductionVarInit.operator ->());
 
 //	Add jump from indvar to loopstart
-	MachineInstrBuilder jumpInstr = BuildMI(*loopInit, loopInit->begin(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::JAL));
-	jumpInstr.addBlockAddress(BlockAddress::get(const_cast<BasicBlock*>(loopStart->getBasicBlock())));
+	MachineInstrBuilder jumpInstr = BuildMI(*loopInit, loopInit->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::JAL));
+	jumpInstr.addMBB(loopStart);
 	LIS->InsertMachineInstrInMaps(jumpInstr);
 	insertedInstructions.push_back(jumpInstr.operator ->());
 
 	for (unsigned i = 0; i < 2; i++) {
-		MachineInstrBuilder nopInstruction = BuildMI(*loopStart, loopStart->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
+		MachineInstrBuilder nopInstruction = BuildMI(*loopInit, loopInit->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
 		nopInstruction.addReg(REDEFINE::zero, RegState::Define);
 		nopInstruction.addReg(REDEFINE::zero);
 		nopInstruction.addImm(0);
@@ -62,10 +81,10 @@ static inline list<MachineInstr*> generateBlockCreateMachineInstructions(Machine
 		insertedInstructions.push_back(nopInstruction.operator ->());
 	}
 
-	MachineInstrBuilder branchInstr = BuildMI(*loopStart, loopStart->begin(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::BGE));
+	MachineInstrBuilder branchInstr = BuildMI(*loopStart, loopStart->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::BGE));
 	branchInstr.addReg(indVar);
 	branchInstr.addReg(registerContainingCount);
-	branchInstr.addBlockAddress(BlockAddress::get(const_cast<BasicBlock*>(lastBB->getBasicBlock())));
+	branchInstr.addMBB(loopBody);
 	LIS->InsertMachineInstrInMaps(branchInstr);
 	insertedInstructions.push_back(branchInstr.operator ->());
 
@@ -76,6 +95,18 @@ static inline list<MachineInstr*> generateBlockCreateMachineInstructions(Machine
 		nopInstruction.addImm(0);
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
 		insertedInstructions.push_back(nopInstruction.operator ->());
+	}
+
+	MachineInstrBuilder branchfallthrough = BuildMI(*loopStart, loopStart->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::JAL));
+	branchfallthrough.addMBB(loopEnd);
+	LIS->getSlotIndexes()->insertMachineInstrInMaps(branchfallthrough);
+
+	for (unsigned i = 0; i < 2; i++) {
+		MachineInstrBuilder nopInstruction = BuildMI(*loopStart, loopStart->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
+		nopInstruction.addReg(REDEFINE::zero, RegState::Define);
+		nopInstruction.addReg(REDEFINE::zero);
+		nopInstruction.addImm(0);
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
 	}
 
 	//Falloc and fbind to be added here
@@ -104,7 +135,7 @@ static inline list<MachineInstr*> generateBlockCreateMachineInstructions(Machine
 	insertedInstructions.push_back(inductionVarIncrement.operator ->());
 
 	MachineInstrBuilder loopbodyJump = BuildMI(*loopBody, loopBody->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::JAL));
-	loopbodyJump.addBlockAddress(BlockAddress::get(const_cast<BasicBlock*>(loopStart->getBasicBlock())));
+	loopbodyJump.addMBB(loopStart);
 	LIS->InsertMachineInstrInMaps(loopbodyJump);
 	insertedInstructions.push_back(loopbodyJump.operator ->());
 
@@ -117,9 +148,28 @@ static inline list<MachineInstr*> generateBlockCreateMachineInstructions(Machine
 		insertedInstructions.push_back(nopInstruction.operator ->());
 	}
 
-//	MachineInstrBuilder
-//inductionVarInit = BuildMI(loopStart, loopStart->begin(),lastBB->);
+	MachineInstrBuilder nopfall = BuildMI(*loopEnd, loopEnd->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
+	nopfall.addReg(REDEFINE::zero, RegState::Define);
+	nopfall.addReg(REDEFINE::zero);
+	insertedInstructions.push_back(nopfall.operator ->());
 
+	assert(!lastBB->back().isBranch() && "Can't have a branch instruction from last bb\n");
+
+	MachineInstrBuilder lastBBJumpInstr = BuildMI(*lastBB, lastBB->end(), lastBB->end()->getDebugLoc(), TII->get(REDEFINE::JAL));
+	lastBBJumpInstr.addMBB(loopInit);
+	LIS->getSlotIndexes()->insertMachineInstrInMaps(lastBBJumpInstr);
+	insertedInstructions.push_back(jumpInstr.operator ->());
+
+	for (unsigned i = 0; i < 2; i++) {
+		MachineInstrBuilder nopInstruction = BuildMI(*loopInit, lastBB->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
+		nopInstruction.addReg(REDEFINE::zero, RegState::Define);
+		nopInstruction.addReg(REDEFINE::zero);
+		nopInstruction.addImm(0);
+		insertedInstructions.push_back(nopInstruction.operator ->());
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
+	}
+
+	return insertedInstructions;
 }
 
 static bool isRegDependence(SDep dependence) {
@@ -1506,14 +1556,11 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					//Add falloc instruction to create dynamic HyperOp instances
 					unsigned registerContainingConsumerFrameAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					//Is a range of hyperOps
-					errs()<<"whats going on 0?\n";
 					if ((*childHyperOpItr)->getInRange()) {
-						errs()<<"hop range\n";
 						//Parent creates a block of hyperOps, find the memory location that contains data
 						Value* locationContainingCount;
 						for (auto childEdgeItr = hyperOp->ChildMap.begin(); childEdgeItr != hyperOp->ChildMap.end(); childEdgeItr++) {
 							if (childEdgeItr->second == (*childHyperOpItr) && childEdgeItr->first->getType() == HyperOpEdge::RANGE) {
-								errs()<<"there was a range match\n";
 								locationContainingCount = childEdgeItr->first->getValue();
 								break;
 							}
@@ -1540,7 +1587,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							allInstructionsOfRegion.push_back(make_pair((*loopInstrItr), make_pair(currentCE, insertPosition++)));
 						}
 					} else {
-						errs()<<"whats going on?\n";
 						MachineInstrBuilder falloc = BuildMI(lastBB, lastInstruction, dl, TII->get(REDEFINE::FALLOC));
 						falloc.addReg(registerContainingConsumerFrameAddr, RegState::Define);
 						falloc.addImm(0);
@@ -2037,30 +2083,42 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				}
 				//if local reference, add writes to the local memory of consumer HyperOp and remove the consumer HyperOp's argument
 				unsigned frameLocationOfSourceData = 0;
-				AllocaInst* allocaInst = (AllocaInst*) edge->getValue();
-				Type* dataType = allocaInst->getAllocatedType();
-				int arraySize = ((ConstantInt*) allocaInst->getArraySize())->getZExtValue();
-;
-
-				if (allocaInst->getParent()->getParent() == hyperOp->getFunction()) {
-					//find the offset for source data
+				Type* dataType;
+				int arraySize;
+				if (isa<AllocaInst>(edge->getValue())) {
+					AllocaInst* allocInstr;
+					allocInstr = (AllocaInst*) (edge->getValue());
+					dataType = allocInstr->getAllocatedType();
+					//Get the location of the stack allocated object, starting from 0 because negative offsets from fp contain function arguments
+					for (unsigned int i = 0; i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
+						if (MF.getFrameInfo()->getObjectAllocation(i) == allocInstr) {
+							break;
+						}
+						frameLocationOfSourceData += REDEFINEUtils::getSizeOfType(MF.getFrameInfo()->getObjectAllocation(i)->getType());
+					}
+					arraySize = ((ConstantInt*) allocInstr->getArraySize())->getZExtValue();
+				} else if (isa<LoadInst>(edge->getValue())) {
+					//Find the alloca instruction that allocates the memory location in the first place
+					unsigned argIndex = 0;
+					LoadInst* sourceInstr = (LoadInst*) edge->getValue();
+					AllocaInst* allocaInstr = (AllocaInst*) hyperOp->loadInstrAndAllocaMap[sourceInstr];
+					dataType = allocaInstr->getType();
+					arraySize = ((ConstantInt*) allocaInstr->getArraySize())->getZExtValue();
+					//Get the location of the stack allocated object in the basic block containing the load instruction and not the alloca instruction because alloca might belong
+					//Arguments have negative index and are added in memory locations that succeed the locals of the stack frame
 					if (MF.getFrameInfo()->getObjectIndexEnd() > 0) {
 						for (unsigned i = 0; i < MF.getFrameInfo()->getObjectIndexEnd(); i++) {
 							frameLocationOfSourceData += REDEFINEUtils::getSizeOfType(MF.getFrameInfo()->getObjectAllocation(i)->getType());
 						}
 					}
-				} else {
-					//Get the location of the stack allocated object in the basic block containing the load instruction and not the alloca instruction because alloca might belong
-					//Arguments have negative index and are added in memory locations that succeed the locals of the stack frame
-//					frameLocationOfSourceData += edge->getMemoryOffsetInTargetFrame();
-					for (auto parentItr : hyperOp->ParentMap) {
-						if (parentItr.first->getValue() == allocaInst) {
-							frameLocationOfSourceData += parentItr.first->getMemoryOffsetInTargetFrame();
+
+					for (auto argItr = MF.getFunction()->arg_begin(); argItr != MF.getFunction()->arg_end(); argItr++) {
+						if (argItr == sourceInstr->getOperand(0)) {
 							break;
 						}
+						frameLocationOfSourceData += REDEFINEUtils::getSizeOfType(argItr->getType());
 					}
 				}
-
 				//Compute frame objects' size
 				Function* consumerFunction = consumer->getFunction();
 				unsigned frameLocationOfTargetData = 0;
@@ -2120,7 +2178,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						ceContainingMemBase = regContainingMemFrameBaseAddress[consumer].begin()->second;
 					}
 				}
-
 				if (regContainingMemFrameBaseAddress.find(consumer) == regContainingMemFrameBaseAddress.end()) {
 					//TODO clean up this mess
 					unsigned maxGlobalSize = 0;
@@ -2295,7 +2352,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					registerContainingMemBase = addFrameSize;
 				}
 
-				errs()<<"whats arraysize though?"<<arraySize<<"\n";
 				for (unsigned allocatedDataIndex = 0; allocatedDataIndex != arraySize; allocatedDataIndex++) {
 					//Add a load instruction from memory and store to the memory frame of the consumer HyperOp
 					for (list<pair<Type*, unsigned> >::iterator containedPrimitiveItr = primitiveTypesMap.begin(); containedPrimitiveItr != primitiveTypesMap.end(); containedPrimitiveItr++) {
