@@ -27,7 +27,7 @@ static inline int32_t SignExtend8BitNumberTo12Bits(int8_t x) {
 	return int32_t(x << 4) >> 4;
 }
 
-static inline list<MachineInstr*> generateBlockCreateMachineInstructions(MachineBasicBlock* lastBB, unsigned registerContainingCount, unsigned hyperOpType, LiveIntervals* LIS, const TargetMachine &TM, const TargetInstrInfo *TII) {
+static inline list<MachineInstr*> generateBlockCreateMachineInstructions(MachineBasicBlock* lastBB, unsigned memSize, unsigned hyperOpType, LiveIntervals* LIS, const TargetMachine &TM, const TargetInstrInfo *TII) {
 	list<MachineInstr*> insertedInstructions;
 	Function* function = const_cast<Function*>(lastBB->getParent()->getFunction());
 	StringRef fnName = function->getName();
@@ -58,6 +58,24 @@ static inline list<MachineInstr*> generateBlockCreateMachineInstructions(Machine
 	loopStart->addSuccessor(loopEnd);
 	LIS->insertMBBInMaps(loopEnd);
 
+	//load trip count from memory location onto a register
+	unsigned tripcountReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+	MachineInstrBuilder load = BuildMI(*lastBB, lastBB->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::LW));
+	load.addReg(tripcountReg, RegState::Define);
+	load.addReg(REDEFINE::t5);
+	load.addImm(memSize);
+	LIS->InsertMachineInstrInMaps(load.operator ->());
+
+	//Falloc
+	MachineInstrBuilder falloc = BuildMI(*loopInit, loopInit->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::FALLOC));
+	unsigned allocatedFrame = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+	falloc.addReg(allocatedFrame, RegState::Define);
+	falloc.addImm(memSize - 1);
+	LIS->getSlotIndexes()->insertMachineInstrInMaps(falloc.operator llvm::MachineInstr *());
+	insertedInstructions.push_back(falloc.operator ->());
+
+	//Save falloc return value in a sp location
+
 	unsigned indVar = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 	MachineInstrBuilder inductionVarInit = BuildMI(*loopInit, loopInit->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD));
 	inductionVarInit.addReg(indVar, RegState::Define);
@@ -83,7 +101,7 @@ static inline list<MachineInstr*> generateBlockCreateMachineInstructions(Machine
 
 	MachineInstrBuilder branchInstr = BuildMI(*loopStart, loopStart->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::BGE));
 	branchInstr.addReg(indVar);
-	branchInstr.addReg(registerContainingCount);
+	branchInstr.addReg(tripcountReg);
 	branchInstr.addMBB(loopBody);
 	LIS->InsertMachineInstrInMaps(branchInstr);
 	insertedInstructions.push_back(branchInstr.operator ->());
@@ -109,16 +127,8 @@ static inline list<MachineInstr*> generateBlockCreateMachineInstructions(Machine
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
 	}
 
-	//Falloc and fbind to be added here
-	MachineInstrBuilder falloc = BuildMI(*loopBody, loopBody->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::FALLOC));
-	unsigned allocatedFrame = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-	falloc.addReg(allocatedFrame, RegState::Define);
-	falloc.addImm(0);
-	LIS->getSlotIndexes()->insertMachineInstrInMaps(falloc.operator llvm::MachineInstr *());
-	insertedInstructions.push_back(falloc.operator ->());
-
 	MachineInstrBuilder fbind = BuildMI(*loopBody, loopBody->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::FBIND));
-	fbind.addReg(REDEFINE::zero);
+	fbind.addReg(indVar);
 	fbind.addReg(allocatedFrame);
 	string hyperOpIDString = HYPEROP_ID_PREFIX;
 	hyperOpIDString.append(itostr(hyperOpType));
@@ -561,10 +571,6 @@ if (RegionBegin == BB->begin() && BB == &BB->getParent()->front()) {
 		unsigned registerForIncrOfInstId = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 		virtualRegistersForInstAddr[i] = make_pair(registerForCopyOfInstId, registerForIncrOfInstId);
 		MachineInstr* firstInstruction = insertionPoint;
-		string globalAddressString = "\"ga";
-
-		globalAddressString.append("#").append(itostr(maxGlobalSize)).append("\"");
-
 		MachineInstrBuilder registerCopy = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForCopyOfInstId, RegState::Define).addReg(REDEFINE::t5).addReg(REDEFINE::zero);
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(registerCopy.operator ->());
 		allInstructionsOfRegion.push_back(make_pair(registerCopy.operator->(), make_pair(i, insertPosition++)));
@@ -573,29 +579,15 @@ if (RegionBegin == BB->begin() && BB == &BB->getParent()->front()) {
 			firstInstructionOfpHyperOpInRegion[i] = registerCopy.operator->();
 		}
 		//add global address to r31 of REDEFINE
-		unsigned registerForTopBits = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder lui = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(registerForTopBits, RegState::Define);
-		string hiGlobalAddrString = string("%hi(").append(globalAddressString).append(")");
-		MCSymbol* hiSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(hiGlobalAddrString));
-		lui.addSym(hiSymbol);
-		LIS->getSlotIndexes()->insertMachineInstrInMaps(lui.operator ->());
-		allInstructionsOfRegion.push_back(make_pair(lui.operator->(), make_pair(i, insertPosition++)));
-
-		unsigned registerForBottomBitsLui = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder addiMacroLui = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(registerForBottomBitsLui, RegState::Define);
-		string lowGlobalAddrString = string("%lo(").append(globalAddressString).append(")");
-		MCSymbol* loSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(lowGlobalAddrString));
-		addiMacroLui.addSym(loSymbol);
-		allInstructionsOfRegion.push_back(make_pair(addiMacroLui.operator->(), make_pair(i, insertPosition++)));
-
-		unsigned registerForBottomBitsSrli = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder addiMacroSrli = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(registerForBottomBitsSrli, RegState::Define).addReg(registerForBottomBitsLui).addImm(12);
-		allInstructionsOfRegion.push_back(make_pair(addiMacroSrli.operator->(), make_pair(i, insertPosition++)));
+		string globalAddressString = "\"ga";
+		globalAddressString.append("#").append(itostr(maxGlobalSize)).append("\"");
+		MCSymbol* gaSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(globalAddressString));
 
 		unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder add = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForGlobalAddr, RegState::Define).addReg(registerForTopBits).addReg(registerForBottomBitsSrli);
-		LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator ->());
-		allInstructionsOfRegion.push_back(make_pair(add.operator->(), make_pair(i, insertPosition++)));
+		MachineInstrBuilder movimm = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVIMM)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(movimm.operator ->());
+		allInstructionsOfRegion.push_back(make_pair(movimm.operator->(), make_pair(i, insertPosition++)));
+
 		memoryFrameBaseAddress[i] = registerForGlobalAddr;
 
 		unsigned registerForMulOperand = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
@@ -1415,9 +1407,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			unsigned registerForCopyOfInstId = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 			unsigned registerForIncrOfInstId = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 			virtualRegistersForInstAddr[i] = make_pair(registerForCopyOfInstId, registerForIncrOfInstId);
-			string globalAddressString = "\"ga";
-
-			globalAddressString.append("#").append(itostr(maxGlobalSize)).append("\"");
 
 			MachineInstrBuilder registerCopy = BuildMI(lastBB, insertionPoint, dl, TII->get(REDEFINE::ADD)).addReg(registerForCopyOfInstId, RegState::Define).addReg(REDEFINE::t5).addReg(REDEFINE::zero);
 			LIS->getSlotIndexes()->insertMachineInstrInMaps(registerCopy.operator ->());
@@ -1427,30 +1416,14 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				firstInstructionOfpHyperOpInRegion[i] = registerCopy.operator->();
 			}
 			//add global address to r31 of REDEFINE
-			unsigned registerForTopBits = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-			MachineInstrBuilder lui = BuildMI(lastBB, insertionPoint, dl, TII->get(REDEFINE::LUI)).addReg(registerForTopBits, RegState::Define);
-			string hiGlobalAddrString = string("%hi(").append(globalAddressString).append(")");
-			MCSymbol* hiSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(hiGlobalAddrString));
-			lui.addSym(hiSymbol);
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(lui.operator ->());
-			allInstructionsOfRegion.push_back(make_pair(lui.operator->(), make_pair(i, insertPosition++)));
-
-			unsigned registerForBottomBitsLui = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-			MachineInstrBuilder addiMacroLui = BuildMI(lastBB, insertionPoint, dl, TII->get(REDEFINE::LUI)).addReg(registerForBottomBitsLui, RegState::Define);
-			string lowGlobalAddrString = string("%lo(").append(globalAddressString).append(")");
-			MCSymbol* loSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(lowGlobalAddrString));
-			addiMacroLui.addSym(loSymbol);
-			allInstructionsOfRegion.push_back(make_pair(addiMacroLui.operator->(), make_pair(i, insertPosition++)));
-
-			unsigned registerForBottomBitsSrli = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-			MachineInstrBuilder addiMacroSrli = BuildMI(lastBB, insertionPoint, dl, TII->get(REDEFINE::SRLI)).addReg(registerForBottomBitsSrli, RegState::Define).addReg(registerForBottomBitsLui).addImm(12);
-			allInstructionsOfRegion.push_back(make_pair(addiMacroSrli.operator->(), make_pair(i, insertPosition++)));
+			string globalAddressString = "\"ga";
+			globalAddressString.append("#").append(itostr(maxGlobalSize)).append("\"");
+			MCSymbol* gaSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(globalAddressString));
 
 			unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-			MachineInstrBuilder add = BuildMI(lastBB, insertionPoint, dl, TII->get(REDEFINE::ADD)).addReg(registerForGlobalAddr, RegState::Define).addReg(registerForTopBits).addReg(registerForBottomBitsSrli);
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator ->());
-			allInstructionsOfRegion.push_back(make_pair(add.operator->(), make_pair(i, insertPosition++)));
-			memoryFrameBaseAddress[i] = registerForGlobalAddr;
+			MachineInstrBuilder movimm = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVIMM)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
+			LIS->getSlotIndexes()->insertMachineInstrInMaps(movimm.operator ->());
+			allInstructionsOfRegion.push_back(make_pair(movimm.operator->(), make_pair(i, insertPosition++)));
 
 			unsigned registerForMulOperand = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 			MachineInstrBuilder addiForMul = BuildMI(lastBB, insertionPoint, dl, TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addImm(graph->getMaxMemFrameSize());
@@ -1547,10 +1520,10 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 //	}
 
 	map<int, unsigned> currentSPLocation;
-	for(int i=0;i<ceCount;i++){
-		currentSPLocation.insert(make_pair(i,0));
+	for (int i = 0; i < ceCount; i++) {
+		currentSPLocation.insert(make_pair(i, 0));
 	}
-	map<HyperOp*, unsigned > rangeHopAndLocation;
+	map<HyperOp*, unsigned> rangeHopAndLocation;
 
 	DEBUG(dbgs() << "Adding all fallocs first to avoid stalls due to sequential fallocs and fbinds\n");
 	map<HyperOp*, pair<unsigned, unsigned> > registerContainingHyperOpFrameAddressAndCEWithFalloc;
@@ -1580,16 +1553,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							memSize += REDEFINEUtils::getSizeOfType(MF.getFrameInfo()->getObjectAllocation(i)->getType());
 						}
 
-						//load trip count from memory location onto a register
-						unsigned tripcountReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-						MachineInstrBuilder load = BuildMI(lastBB, lastInstruction, dl, TII->get(REDEFINE::LW));
-						load.addReg(tripcountReg, RegState::Define);
-						load.addReg(REDEFINE::t5);
-						load.addImm(memSize);
-						LIS->InsertMachineInstrInMaps(load.operator ->());
-						//generate a loop?!?! to create HyperOps in blocks
-						allInstructionsOfRegion.push_back(make_pair(load.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
-						list<MachineInstr*> createdLoopInstructions = generateBlockCreateMachineInstructions(BB, tripcountReg, (*childHyperOpItr)->getHyperOpId(), LIS, TM, TII, currentSPLocation);
+						list<MachineInstr*> createdLoopInstructions = generateBlockCreateMachineInstructions(BB, memSize, (*childHyperOpItr)->getHyperOpId(), LIS, TM, TII);
 						for (auto loopInstrItr = createdLoopInstructions.begin(); loopInstrItr != createdLoopInstructions.end(); loopInstrItr++) {
 							allInstructionsOfRegion.push_back(make_pair((*loopInstrItr), make_pair(currentCE, insertPosition++)));
 						}
@@ -2196,30 +2160,12 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					}
 					string globalAddressString = "\"ga";
 					globalAddressString.append("#").append(itostr(maxGlobalSize)).append("\"");
-
-					unsigned registerForTopBits = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					MachineInstrBuilder lui = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::LUI)).addReg(registerForTopBits, RegState::Define);
-					string hiGlobalAddrString = string("%hi(").append(globalAddressString).append(")");
-					MCSymbol* hiSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(hiGlobalAddrString));
-					lui.addSym(hiSymbol);
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(lui.operator ->());
-					allInstructionsOfRegion.push_back(make_pair(lui.operator->(), make_pair(targetCE, insertPosition++)));
-
-					unsigned registerForBottomBitsLui = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					MachineInstrBuilder addiMacroLui = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::LUI)).addReg(registerForBottomBitsLui, RegState::Define);
-					string lowGlobalAddrString = string("%lo(").append(globalAddressString).append(")");
-					MCSymbol* loSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(lowGlobalAddrString));
-					addiMacroLui.addSym(loSymbol);
-					allInstructionsOfRegion.push_back(make_pair(addiMacroLui.operator->(), make_pair(targetCE, insertPosition++)));
-
-					unsigned registerForBottomBitsSrli = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					MachineInstrBuilder addiMacroSrli = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::SRLI)).addReg(registerForBottomBitsSrli, RegState::Define).addReg(registerForBottomBitsLui).addImm(12);
-					allInstructionsOfRegion.push_back(make_pair(addiMacroSrli.operator->(), make_pair(targetCE, insertPosition++)));
+					MCSymbol* gaSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(globalAddressString));
 
 					unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					MachineInstrBuilder add = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADD)).addReg(registerForGlobalAddr, RegState::Define).addReg(registerForTopBits).addReg(registerForBottomBitsSrli);
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator ->());
-					allInstructionsOfRegion.push_back(make_pair(add.operator->(), make_pair(targetCE, insertPosition++)));
+					MachineInstrBuilder movimm = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::MOVIMM)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
+					LIS->getSlotIndexes()->insertMachineInstrInMaps(movimm.operator ->());
+					allInstructionsOfRegion.push_back(make_pair(movimm.operator->(), make_pair(targetCE, insertPosition++)));
 
 					unsigned registerForMulOperand = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					MachineInstrBuilder addiForMul = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addImm(graph->getMaxMemFrameSize());
@@ -2841,32 +2787,15 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 									maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
 								}
 							}
+
 							string globalAddressString = "\"ga";
 							globalAddressString.append("#").append(itostr(maxGlobalSize)).append("\"");
-
-							unsigned registerForTopBits = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-							MachineInstrBuilder lui = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::LUI)).addReg(registerForTopBits, RegState::Define);
-							string hiGlobalAddrString = string("%hi(").append(globalAddressString).append(")");
-							MCSymbol* hiSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(hiGlobalAddrString));
-							lui.addSym(hiSymbol);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(lui.operator ->());
-							allInstructionsOfRegion.push_back(make_pair(lui.operator->(), make_pair(targetCE, insertPosition++)));
-
-							unsigned registerForBottomBitsLui = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-							MachineInstrBuilder addiMacroLui = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::LUI)).addReg(registerForBottomBitsLui, RegState::Define);
-							string lowGlobalAddrString = string("%lo(").append(globalAddressString).append(")");
-							MCSymbol* loSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(lowGlobalAddrString));
-							addiMacroLui.addSym(loSymbol);
-							allInstructionsOfRegion.push_back(make_pair(addiMacroLui.operator->(), make_pair(targetCE, insertPosition++)));
-
-							unsigned registerForBottomBitsSrli = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-							MachineInstrBuilder addiMacroSrli = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::SRLI)).addReg(registerForBottomBitsSrli, RegState::Define).addReg(registerForBottomBitsLui).addImm(12);
-							allInstructionsOfRegion.push_back(make_pair(addiMacroSrli.operator->(), make_pair(targetCE, insertPosition++)));
+							MCSymbol* gaSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(globalAddressString));
 
 							unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-							MachineInstrBuilder add = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADD)).addReg(registerForGlobalAddr, RegState::Define).addReg(registerForTopBits).addReg(registerForBottomBitsSrli);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator ->());
-							allInstructionsOfRegion.push_back(make_pair(add.operator->(), make_pair(targetCE, insertPosition++)));
+							MachineInstrBuilder movimm = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::MOVIMM)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
+							LIS->getSlotIndexes()->insertMachineInstrInMaps(movimm.operator ->());
+							allInstructionsOfRegion.push_back(make_pair(movimm.operator->(), make_pair(targetCE, insertPosition++)));
 
 							unsigned registerForMulOperand = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 							MachineInstrBuilder addiForMul = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addImm(graph->getMaxMemFrameSize());
@@ -3794,154 +3723,6 @@ for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
 LIS->computeLiveInRegUnits();
 
 PHyperOpInteractionGraph pHopDependenceMap;
-
-//Expand addi pseudos
-for (MachineFunction::iterator bbItr = MF.begin(); bbItr != MF.end(); bbItr++) {
-	for (MachineBasicBlock::instr_iterator instrItr = bbItr->instr_begin(); instrItr != bbItr->instr_end(); instrItr++) {
-		MachineBasicBlock::iterator MI = instrItr;
-		if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(1).getReg() == REDEFINE::zero) {
-			if (MI->getOperand(2).isImm() && MI->getOperand(2).getImm() != 0 && Log2_32_Ceil((uint32_t) (MI->getOperand(2).getImm())) > 10) {
-				//Since immediate value cannot spill 11 bits, we need to expand it to lui and add instructions
-				MachineBasicBlock::instr_iterator Pred, Succ;
-				//TODO We know that an immediate value cannot exceed 32 bit value anyway, so casting to 32 bit is expected to be safe
-				int32_t immediateValue = ((int32_t) MI->getOperand(2).getImm());
-				bool isMIBundledWithPred = MI->isBundledWithPred();
-				bool isMIBundledWithSucc = MI->isBundledWithSucc();
-				if (isMIBundledWithPred) {
-					Pred = MI.getInstrIterator();
-					--Pred;
-				}
-				if (isMIBundledWithSucc) {
-					Succ = MI.getInstrIterator();
-					++Succ;
-				}
-
-				unsigned addiRegister = MI->getOperand(0).getReg();
-
-				MachineInstrBuilder luiForTopBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(addiRegister, RegState::Define).addImm((immediateValue & 0xfffff000) >> 12);
-				if (LIS->isNotInMIMap(luiForTopBits.operator llvm::MachineInstr *())) {
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(luiForTopBits.operator llvm::MachineInstr *());
-				}
-				MachineInstrBuilder luiForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::LUI)).addReg(REDEFINE::a5, RegState::Define).addImm(immediateValue & 0xfff);
-				if (LIS->isNotInMIMap(luiForBottomBits.operator llvm::MachineInstr *())) {
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(luiForBottomBits.operator llvm::MachineInstr *());
-				}
-
-				MachineInstrBuilder srliForBottomBits = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(REDEFINE::a5, RegState::Define).addReg(REDEFINE::a5, RegState::InternalRead).addImm(12);
-				if (LIS->isNotInMIMap(srliForBottomBits.operator llvm::MachineInstr *())) {
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(srliForBottomBits.operator llvm::MachineInstr *());
-				}
-				MachineInstrBuilder add = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(addiRegister).addReg(addiRegister).addReg(REDEFINE::a5);
-				if (LIS->isNotInMIMap(add.operator llvm::MachineInstr *())) {
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(add.operator llvm::MachineInstr *());
-				}
-
-				for (auto pHopItr = pHopInteractionGraph.begin(); pHopItr != pHopInteractionGraph.end(); pHopItr++) {
-					if (pHopItr->first == MI.operator->()) {
-						pHopDependenceMap.push_back(make_pair(add.operator ->(), pHopItr->second));
-						break;
-					}
-				}
-				if (MI->isBundled()) {
-					MI->eraseFromBundle();
-				} else {
-					MI->eraseFromParent();
-				}
-				luiForTopBits->bundleWithSucc();
-				luiForBottomBits->bundleWithSucc();
-				srliForBottomBits->bundleWithSucc();
-
-				if (isMIBundledWithPred) {
-					//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
-					Pred->clearFlag(MachineInstr::BundledSucc);
-					luiForTopBits->bundleWithPred();
-				}
-				if (isMIBundledWithSucc) {
-					Succ->clearFlag(MachineInstr::BundledPred);
-					add->bundleWithSucc();
-				}
-
-				instrItr = add.operator ->();
-
-			} else if (MI->getOperand(2).isGlobal()) {
-				//This is only in case of getting the lower bits of addi
-				const GlobalValue * gv = MI->getOperand(2).getGlobal();
-				const Module* parentModule = MI->getParent()->getParent()->getFunction()->getParent();
-				unsigned maxGlobalSize = 0;
-				if (!parentModule->getGlobalList().empty()) {
-					for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
-						const GlobalVariable *globalVar = &*globalArgItr;
-						if (globalVar->getName().compare(gv->getName()) == 0) {
-							break;
-						}
-						maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
-					}
-				}
-
-				MachineBasicBlock::instr_iterator Pred, Succ;
-				bool isMIBundledWithPred = MI->isBundledWithPred();
-				bool isMIBundledWithSucc = MI->isBundledWithSucc();
-				if (isMIBundledWithPred) {
-					Pred = MI.getInstrIterator();
-					--Pred;
-				}
-				if (isMIBundledWithSucc) {
-					Succ = MI.getInstrIterator();
-					++Succ;
-				}
-
-				unsigned addiRegister = MI->getOperand(0).getReg();
-
-				MachineInstrBuilder lui = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::LUI));
-				lui.addReg(addiRegister, RegState::Define);
-				string lowGlobalAddrString = string("%lo(").append("\"ga#").append(itostr(maxGlobalSize)).append("\")");
-				MCSymbol* loSymbol = lui.operator ->()->getParent()->getParent()->getContext().GetOrCreateSymbol(StringRef(lowGlobalAddrString));
-				lui.addSym(loSymbol);
-
-				MachineInstrBuilder shiftInstr = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(addiRegister).addReg(addiRegister).addImm(12);
-
-				if (LIS->isNotInMIMap(lui.operator llvm::MachineInstr *())) {
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(lui.operator llvm::MachineInstr *());
-				}
-				if (LIS->isNotInMIMap(shiftInstr.operator llvm::MachineInstr *())) {
-					LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftInstr.operator llvm::MachineInstr *());
-				}
-
-				for (auto pHopItr = pHopInteractionGraph.begin(); pHopItr != pHopInteractionGraph.end(); pHopItr++) {
-					if (pHopItr->first == MI.operator->()) {
-						pHopDependenceMap.push_back(make_pair(shiftInstr.operator ->(), pHopItr->second));
-						break;
-					}
-				}
-
-				if (MI->isBundled()) {
-					MI->eraseFromBundle();
-				} else {
-					MI->eraseFromParent();
-				}
-				lui->bundleWithSucc();
-
-				if (isMIBundledWithPred) {
-					//TODO Couldn't use unbundlefromsucc and unbundlefrompredecessor directly here
-					Pred->clearFlag(MachineInstr::BundledSucc);
-					lui->bundleWithPred();
-				}
-				if (isMIBundledWithSucc) {
-					Succ->clearFlag(MachineInstr::BundledPred);
-					shiftInstr->bundleWithSucc();
-				}
-				instrItr = shiftInstr.operator ->();
-			}
-		} else {
-			for (auto pHopItr = pHopInteractionGraph.begin(); pHopItr != pHopInteractionGraph.end(); pHopItr++) {
-				if (pHopItr->first == MI.operator->()) {
-					pHopDependenceMap.push_back(make_pair(MI.operator ->(), pHopItr->second));
-					break;
-				}
-			}
-		}
-	}
-}
 
 currentHyperOp->setpHyperOpDependenceMap(pHopDependenceMap);
 
