@@ -169,6 +169,7 @@ static inline list<MachineInstr*> generateBlockCreateMachineInstructions(Machine
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
 	}
 
+	//Save the frame address in scratchpad location
 	return insertedInstructions;
 }
 
@@ -1545,6 +1546,12 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 //		firstInstructionOfpHyperOpInRegion.push_back(0);
 //	}
 
+	map<int, unsigned> currentSPLocation;
+	for(int i=0;i<ceCount;i++){
+		currentSPLocation.insert(make_pair(i,0));
+	}
+	map<HyperOp*, unsigned > rangeHopAndLocation;
+
 	DEBUG(dbgs() << "Adding all fallocs first to avoid stalls due to sequential fallocs and fbinds\n");
 	map<HyperOp*, pair<unsigned, unsigned> > registerContainingHyperOpFrameAddressAndCEWithFalloc;
 	unsigned currentCE = 0;
@@ -1582,7 +1589,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						LIS->InsertMachineInstrInMaps(load.operator ->());
 						//generate a loop?!?! to create HyperOps in blocks
 						allInstructionsOfRegion.push_back(make_pair(load.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
-						list<MachineInstr*> createdLoopInstructions = generateBlockCreateMachineInstructions(BB, tripcountReg, (*childHyperOpItr)->getHyperOpId(), LIS, TM, TII);
+						list<MachineInstr*> createdLoopInstructions = generateBlockCreateMachineInstructions(BB, tripcountReg, (*childHyperOpItr)->getHyperOpId(), LIS, TM, TII, currentSPLocation);
 						for (auto loopInstrItr = createdLoopInstructions.begin(); loopInstrItr != createdLoopInstructions.end(); loopInstrItr++) {
 							allInstructionsOfRegion.push_back(make_pair((*loopInstrItr), make_pair(currentCE, insertPosition++)));
 						}
