@@ -61,7 +61,8 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 	// Emit target-specific gunk before the function body.
 	EmitFunctionBodyStart();
 	string name = ";";
-	name.append(MF->getFunction()->getName());
+	string hyOpName = MF->getFunction()->getName();
+	name.append(hyOpName);
 	OutStreamer.EmitRawText(StringRef(name));
 
 	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
@@ -94,7 +95,7 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 	for (int pHyperOpIndex = 0; pHyperOpIndex < pHyperOpInstructions.size(); pHyperOpIndex++) {
 		list<const MachineInstr*> pHyperOpItr = pHyperOpInstructions[pHyperOpIndex];
 //	for (vector<list<const MachineInstr*> >::iterator pHyperOpItr = pHyperOpInstructions.begin(); pHyperOpItr != pHyperOpInstructions.end(); pHyperOpItr++, pHyperOpIndex++) {
-		string phyOpId(".PHYOP#");
+		string phyOpId = ".PC_"+hyOpName;
 //		phyOpId.append(hyperOpId).append("#").append(itostr(pHyperOpIndex));
 		string codeSegmentStart = "\t.PHYPEROP ";
 		codeSegmentStart.append(phyOpId).append("\n");
