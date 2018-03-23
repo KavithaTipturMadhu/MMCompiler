@@ -218,6 +218,14 @@ def CREATEINST : InstREDEFINE<4, (outs GR32:$dst), (ins GR32:$src1, imm32sx12:$i
 // let Itinerary   = REDEFINEORC;
 //}
 
+def MOVIMM : InstREDEFINE<4, (outs GR32:$dst), (ins imm32:$imm), "MOVIMM\t$dst,\t$imm", [], REDEFINEALU>{
+	let isPseudo = 1;
+}
+
+def MOVADDR : InstREDEFINE<4, (outs GR32:$dst), (ins imm32:$imm), "MOVADDR\t$dst,\t$imm", [], REDEFINEALU>{
+	let isPseudo = 1;
+}
+
 def WRITECM : InstREDEFINE<4, (outs), (ins GR32:$dst1, GR32:$src1, imm32sx12:$imm),
 		"writecm\t$dst1,\t$src1,\t$imm",
 		[(int_writecm i32:$dst1, i32:$src1, imm:$imm)], REDEFINEORC> {
@@ -339,8 +347,8 @@ def MULH  : InstR<"mulh" , 0b0110011, 0b0000001001, mulhs , GR32, GR32>;
 def MULHU : InstR<"mulhu", 0b0110011, 0b0000001011, mulhu , GR32, GR32>;
 
 //Immediate values
-def : Pat<(i32 imm32sx12:$imm), (ADDI zero, imm32sx12:$imm)>; 
-def : Pat<(i32 imm32:$imm), (ADDI zero, imm32:$imm)>;
+def : Pat<(i32 imm32sx12:$imm), (MOVIMM imm32sx12:$imm)>; 
+def : Pat<(i32 imm32:$imm), (MOVIMM imm32:$imm)>;
   
 //FPU instructions
 defm FADD_S : FPBinOps<"fadd.s", fadd, 0b00000, 0b00>;

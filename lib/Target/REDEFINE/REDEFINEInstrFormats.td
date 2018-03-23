@@ -42,7 +42,7 @@ class InstREDEFINE<int size, dag outs, dag ins, string asmstr,
   let TSFlags{1} = SimpleStore;
 }
 
-class PsuedoInst<dag outs, dag ins, list<dag> pattern>
+class PseudoInst<dag outs, dag ins, list<dag> pattern>
   : InstREDEFINE<4, outs, ins,"PSEUDO", pattern,REDEFINEALU> {
   let isPseudo = 1;
   let isCodeGenOnly = 1;
@@ -56,7 +56,7 @@ class PsuedoInst<dag outs, dag ins, list<dag> pattern>
 class InstR<string mnemonic, bits<7> op, bits<10> funct10, 
             SDPatternOperator operator, RegisterOperand cls1, 
             RegisterOperand cls2>
-  : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src2, cls2:$src1), 
+  : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src1, cls2:$src2), 
                 mnemonic#"\t$dst, $src1, $src2", 
                 [(set cls1:$dst, (operator cls2:$src1, cls2:$src2))],REDEFINEALU> {
   field bits<32> Inst;
@@ -76,7 +76,7 @@ class InstR<string mnemonic, bits<7> op, bits<10> funct10,
 class InstR64<string mnemonic, bits<7> op, bits<10> funct10, 
             SDPatternOperator operator, RegisterOperand cls1, 
             RegisterOperand cls2>
-  : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src2, cls2:$src1), 
+  : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src1, cls2:$src2), 
                 mnemonic#"\t$dst, $src1, $src2", 
                 [(set cls1:$dst, (sext (operator cls2:$src1, cls2:$src2)))],REDEFINEALU> {
   field bits<32> Inst;
@@ -119,7 +119,7 @@ class InstA<string mnemonic, bits<7> op, bits<5> funct5, bits<3> funct3,
 class InstR4<string mnemonic, bits<7> op, bits<5> funct5,
             SDPatternOperator operator1, SDPatternOperator operator2,
             RegisterOperand cls1, RegisterOperand cls2>
-  : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src3, cls2:$src2, cls2:$src1), 
+  : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src3, cls2:$src1, cls2:$src2), 
                 mnemonic#"\t$dst, $src1, $src2, $src3", 
                 [(set cls1:$dst, (operator2 (operator1 cls2:$src1, cls2:$src2), cls2:$src3))],REDEFINEALU> {
   field bits<32> Inst;
@@ -343,7 +343,7 @@ multiclass  FPConvOps<string name, SDPatternOperator op1, RegisterOperand outCls
 class InstSign<string mnemonic, bits<7> op, bits<5> funct5, bits<2> fmt, bits<3> rm,
                SDPatternOperator operator, RegisterOperand cls1, 
                RegisterOperand cls2>
-  : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src2, cls2:$src1), 
+  : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src1, cls2:$src2), 
                 mnemonic#"\t$dst, $src1, $src2", 
                 [(set cls1:$dst, (operator cls2:$src1, cls2:$src2))],REDEFINEALU> {
   field bits<32> Inst;
