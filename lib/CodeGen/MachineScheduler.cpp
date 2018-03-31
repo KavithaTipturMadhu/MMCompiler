@@ -182,6 +182,7 @@ bool MachineScheduler::runOnMachineFunction(MachineFunction &mf) {
 	MDT = &getAnalysis<MachineDominatorTree>();
 	PassConfig = &getAnalysis<TargetPassConfig>();
 	AA = &getAnalysis<AliasAnalysis>();
+	static int bbCount;
 
 	LIS = &getAnalysis<LiveIntervals>();
 	const TargetInstrInfo *TII = MF->getTarget().getInstrInfo();
@@ -210,7 +211,15 @@ bool MachineScheduler::runOnMachineFunction(MachineFunction &mf) {
 	// TODO: Visit blocks in global postorder or postorder within the bottom-up
 	// loop tree. Then we can optionally compute global RegPressure.
 
+	/*
+	 * REDEFINE hack for loop bbs to be skipped during scheduling
+	 */
+	bbCount = MF->getNumBlockIDs();
+
 	for (MachineFunction::iterator MBB = MF->begin(), MBBEnd = MF->end(); MBB != MBBEnd; ++MBB) {
+		if(MBB->getNumber() > bbCount - 1){
+			break;
+		}
 		Scheduler->startBlock(MBB);
 
 		// Break the block into scheduling regions [I, RegionEnd), and schedule each
@@ -246,12 +255,7 @@ bool MachineScheduler::runOnMachineFunction(MachineFunction &mf) {
 
 			// Skip empty scheduling regions (0 or 1 schedulable instructions).
 			//TODO for REDEFINE: Changed this to schedule instructions with 0 or 1 instructions also since the BB might contain terminators only and not necessarily other instructions
-//			if (I == RegionEnd|| I == llvm::prior(RegionEnd)) {
-//			 //Close the current region. Bundle the terminator if needed.
-//			 //This invalidates 'RegionEnd' and 'I'.
-//				Scheduler->exitRegion();
-//				continue;
-//			}
+//
 			DEBUG(dbgs() << "********** MI Scheduling **********\n");
 			DEBUG(dbgs() << MF->getName() << ":BB#" << MBB->getNumber() << " " << MBB->getName() << "\n  From: " << *I << "    To: "; if (RegionEnd != MBB->end()) dbgs() << *RegionEnd; else dbgs() << "End"; dbgs() << " Remaining: " << RemainingInstrs << "\n");
 

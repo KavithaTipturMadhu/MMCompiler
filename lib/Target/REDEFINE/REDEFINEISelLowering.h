@@ -42,18 +42,18 @@ enum {
 	// Wraps a TargetGlobalAddress that should be loaded using PC-relative
 	// accesses (AUIPC).  Operand 0 is the address.
 	PCREL_WRAPPER,
-
-	// Get the Higher 20 bits from a 32-bit immediate
-	// No relation with Mips Hi register
-	Hi,
-
-	// Get the Lower 12 bits from a 32-bit immediate
-	// No relation with Mips Lo register
-	Lo,
-
-	// TprelHi and TprelLo nodes are used to handle Local Exec TLS
-	TprelHi,
-	TprelLo,
+//
+//	// Get the Higher 20 bits from a 32-bit immediate
+//	// No relation with Mips Hi register
+//	Hi,
+//
+//	// Get the Lower 12 bits from a 32-bit immediate
+//	// No relation with Mips Lo register
+//	Lo,
+//
+//	// TprelHi and TprelLo nodes are used to handle Local Exec TLS
+//	TprelHi,
+//	TprelLo,
 
 	// Branches if a condition is true.  Operand 0 is the chain operand;
 	// operand 1 is the 4-bit condition-code mask, with bit N in

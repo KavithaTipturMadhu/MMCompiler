@@ -45,20 +45,20 @@ REDEFINEMCInstLower::REDEFINEMCInstLower(Mangler *mang, MCContext &ctx, REDEFINE
 
 MCOperand REDEFINEMCInstLower::lowerSymbolOperand(const MachineOperand &MO, const MCSymbol *Symbol, int64_t Offset) const {
 	MCSymbolRefExpr::VariantKind Kind = getVariantKind(MO.getTargetFlags());
-	switch (MO.getTargetFlags()) {
-	case REDEFINEII::MO_ABS_HI:
-		Kind = MCSymbolRefExpr::VK_Mips_ABS_HI;
-		break;
-	case REDEFINEII::MO_ABS_LO:
-		Kind = MCSymbolRefExpr::VK_Mips_ABS_LO;
-		break;
-//	case REDEFINEII::MO_TPREL_HI:
-//		Kind = MCSymbolRefExpr::VK_Mips_TPREL_HI;
+//	switch (MO.getTargetFlags()) {
+//	case REDEFINEII::MO_ABS_HI:
+//		Kind = MCSymbolRefExpr::VK_Mips_ABS_HI;
 //		break;
-//	case REDEFINEII::MO_TPREL_LO:
-//		Kind = MCSymbolRefExpr::VK_Mips_TPREL_LO;
+//	case REDEFINEII::MO_ABS_LO:
+//		Kind = MCSymbolRefExpr::VK_Mips_ABS_LO;
 //		break;
-	}
+////	case REDEFINEII::MO_TPREL_HI:
+////		Kind = MCSymbolRefExpr::VK_Mips_TPREL_HI;
+////		break;
+////	case REDEFINEII::MO_TPREL_LO:
+////		Kind = MCSymbolRefExpr::VK_Mips_TPREL_LO;
+////		break;
+//	}
 	const MCExpr *Expr = MCSymbolRefExpr::Create(Symbol, Kind, Ctx);
 	if (Offset) {
 		const MCExpr *OffsetExpr = MCConstantExpr::Create(Offset, Ctx);

@@ -39,10 +39,10 @@ namespace REDEFINEII {
     // @GOT (aka @GOTENT)
     MO_GOT = (1 << 0),
 
-    MO_ABS_HI,
-    MO_ABS_LO,
-    MO_TPREL_HI,
-    MO_TPREL_LO
+//    MO_ABS_HI,
+//    MO_ABS_LO,
+//    MO_TPREL_HI,
+//    MO_TPREL_LO
   };
 }
 
