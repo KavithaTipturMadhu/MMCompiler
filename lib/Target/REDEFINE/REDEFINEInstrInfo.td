@@ -418,6 +418,8 @@ def FNMADD:InstREDEFINE<4, (outs FP32:$dst), (ins FP32:$src3, FP32:$src2, FP32:$
 
 }
 
+def : Pat<(REDEFINEGa tglobaladdr:$in), (MOVIMM tglobaladdr:$in)>;
+
 //Synthesized set operators
 //patterns to be used for 32 and 64bit
 multiclass SeteqPats<RegisterOperand RC, Instruction SLTiuOp, Instruction XOROp,
