@@ -862,21 +862,21 @@ static SDValue getTargetNode(SDValue Op, SelectionDAG &DAG, unsigned Flag) {
 	return SDValue();
 }
 
-static SDValue getAddrNonPIC(SDValue Op, SelectionDAG &DAG) {
-	DebugLoc DL = Op.getDebugLoc();
-	EVT Ty = Op.getValueType();
-	SDValue Hi = getTargetNode(Op, DAG, REDEFINEII::MO_ABS_HI);
-	SDValue Lo = getTargetNode(Op, DAG, REDEFINEII::MO_ABS_LO);
-	SDValue ResHi = DAG.getNode(REDEFINEISD::Hi, DL, Ty, Hi);
-	SDValue ResLo = DAG.getNode(REDEFINEISD::Lo, DL, Ty, Lo);
-	return DAG.getNode(ISD::ADD, DL, Ty, ResHi, ResLo);
-}
-
-static SDValue getAddrPIC(SDValue Op, SelectionDAG &DAG) {
-	DebugLoc DL = Op.getDebugLoc();
-	EVT Ty = Op.getValueType();
-	return DAG.getNode(REDEFINEISD::PCREL_WRAPPER, DL, Ty, Op);
-}
+//static SDValue getAddrNonPIC(SDValue Op, SelectionDAG &DAG) {
+//	DebugLoc DL = Op.getDebugLoc();
+//	EVT Ty = Op.getValueType();
+//	SDValue Hi = getTargetNode(Op, DAG, REDEFINEII::MO_ABS_HI);
+//	SDValue Lo = getTargetNode(Op, DAG, REDEFINEII::MO_ABS_LO);
+//	SDValue ResHi = DAG.getNode(REDEFINEISD::Hi, DL, Ty, Hi);
+//	SDValue ResLo = DAG.getNode(REDEFINEISD::Lo, DL, Ty, Lo);
+//	return DAG.getNode(ISD::ADD, DL, Ty, ResHi, ResLo);
+//}
+//
+//static SDValue getAddrPIC(SDValue Op, SelectionDAG &DAG) {
+//	DebugLoc DL = Op.getDebugLoc();
+//	EVT Ty = Op.getValueType();
+//	return DAG.getNode(REDEFINEISD::PCREL_WRAPPER, DL, Ty, Op);
+//}
 
 SDValue REDEFINETargetLowering::LowerCall(CallLoweringInfo &CLI, SmallVectorImpl<SDValue> &InVals) const {
 	SelectionDAG &DAG = CLI.DAG;
@@ -962,16 +962,18 @@ SDValue REDEFINETargetLowering::LowerCall(CallLoweringInfo &CLI, SmallVectorImpl
 	// Accept direct calls by converting symbolic call addresses to the
 	// associated Target* opcodes.
 	if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee)) {
-		if (TM.getRelocationModel() == Reloc::PIC_) {
-			Callee = getAddrPIC(Callee, DAG);
-		}
-		else Callee = DAG.getTargetGlobalAddress(G->getGlobal(), DL, PtrVT);
+//		if (TM.getRelocationModel() == Reloc::PIC_) {
+//			Callee = getAddrPIC(Callee, DAG);
+//		}
+//		else
+			Callee = DAG.getTargetGlobalAddress(G->getGlobal(), DL, PtrVT);
 	}
 	else if (ExternalSymbolSDNode *E = dyn_cast<ExternalSymbolSDNode>(Callee)) {
-		if (TM.getRelocationModel() == Reloc::PIC_) {
-			Callee = getAddrPIC(DAG.getTargetExternalSymbol(E->getSymbol(), PtrVT), DAG);
-		}
-		else Callee = DAG.getTargetExternalSymbol(E->getSymbol(), PtrVT);
+//		if (TM.getRelocationModel() == Reloc::PIC_) {
+//			Callee = getAddrPIC(DAG.getTargetExternalSymbol(E->getSymbol(), PtrVT), DAG);
+//		}
+//		else
+			Callee = DAG.getTargetExternalSymbol(E->getSymbol(), PtrVT);
 	}
 
 	// The first call operand is the chain and the second is the target address.
@@ -1093,48 +1095,53 @@ SDValue REDEFINETargetLowering::lowerRETURNADDR(SDValue Op, SelectionDAG &DAG) c
 SDValue REDEFINETargetLowering::lowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const {
 	Reloc::Model RM = TM.getRelocationModel();
 
-	if (RM != Reloc::PIC_) {
-		//%hi/%lo relocation
-		return getAddrNonPIC(Op, DAG);
-	}
+//	if (RM != Reloc::PIC_) {
+//		//%hi/%lo relocation
+//		return getAddrNonPIC(Op, DAG);
+//	}
 	if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Op)) {
-		Op = DAG.getTargetGlobalAddress(G->getGlobal(), Op->getDebugLoc(), getPointerTy());
+		SDValue TGAHi = DAG.getTargetGlobalAddress(G->getGlobal(), Op->getDebugLoc(), getPointerTy());
+		Op = DAG.getNode(REDEFINEISD::Ga, Op->getDebugLoc(), getPointerTy(), TGAHi);				
+		Op->dump();
 		return Op;
 	}
 	llvm_unreachable("invalid global addresses to lower");
 }
 
-SDValue REDEFINETargetLowering::lowerGlobalTLSAddress(GlobalAddressSDNode *GA, SelectionDAG &DAG) const {
-	// If the relocation model is PIC, use the General Dynamic TLS Model or
-	// Local Dynamic TLS model, otherwise use the Initial Exec or
-	// Local Exec TLS Model.
-
-	DebugLoc DL = GA->getDebugLoc();
-	const GlobalValue *GV = GA->getGlobal();
-	EVT PtrVT = getPointerTy();
-
-	TLSModel::Model model = getTargetMachine().getTLSModel(GV);
-
-	SDValue Offset;
-	if (model == TLSModel::LocalExec) {
-		// Local Exec TLS Model
-		assert(model == TLSModel::LocalExec);
-		SDValue TGAHi = DAG.getTargetGlobalAddress(GV, DL, PtrVT, 0, REDEFINEII::MO_TPREL_HI);
-		SDValue TGALo = DAG.getTargetGlobalAddress(GV, DL, PtrVT, 0, REDEFINEII::MO_TPREL_LO);
-		SDValue Hi = DAG.getNode(REDEFINEISD::Hi, DL, PtrVT, TGAHi);
-		SDValue Lo = DAG.getNode(REDEFINEISD::Lo, DL, PtrVT, TGALo);
-		Offset = DAG.getNode(ISD::ADD, DL, PtrVT, Hi, Lo);
-	}
-	else {
-		llvm_unreachable("only local-exec TLS mode supported");
-	}
-
-	//SDValue ThreadPointer = DAG.getNode(MipsISD::ThreadPointer, DL, PtrVT);
-	SDValue ThreadPointer = DAG.getRegister(REDEFINE::tp, PtrVT);
-
-	return DAG.getNode(ISD::ADD, DL, PtrVT, ThreadPointer, Offset);
-
-}
+/*
+ * No support for thread local storage, hence commenting out the following method
+ */
+//SDValue REDEFINETargetLowering::lowerGlobalTLSAddress(GlobalAddressSDNode *GA, SelectionDAG &DAG) const {
+//	// If the relocation model is PIC, use the General Dynamic TLS Model or
+//	// Local Dynamic TLS model, otherwise use the Initial Exec or
+//	// Local Exec TLS Model.
+//
+//	DebugLoc DL = GA->getDebugLoc();
+//	const GlobalValue *GV = GA->getGlobal();
+//	EVT PtrVT = getPointerTy();
+//
+//	TLSModel::Model model = getTargetMachine().getTLSModel(GV);
+//
+//	SDValue Offset;
+//	if (model == TLSModel::LocalExec) {
+//		// Local Exec TLS Model
+//		assert(model == TLSModel::LocalExec);
+//		SDValue TGAHi = DAG.getTargetGlobalAddress(GV, DL, PtrVT, 0, REDEFINEII::MO_TPREL_HI);
+//		SDValue TGALo = DAG.getTargetGlobalAddress(GV, DL, PtrVT, 0, REDEFINEII::MO_TPREL_LO);
+//		SDValue Hi = DAG.getNode(REDEFINEISD::Hi, DL, PtrVT, TGAHi);
+//		SDValue Lo = DAG.getNode(REDEFINEISD::Lo, DL, PtrVT, TGALo);
+//		Offset = DAG.getNode(ISD::ADD, DL, PtrVT, Hi, Lo);
+//	}
+//	else {
+//		llvm_unreachable("only local-exec TLS mode supported");
+//	}
+//
+//	//SDValue ThreadPointer = DAG.getNode(MipsISD::ThreadPointer, DL, PtrVT);
+//	SDValue ThreadPointer = DAG.getRegister(REDEFINE::tp, PtrVT);
+//
+//	return DAG.getNode(ISD::ADD, DL, PtrVT, ThreadPointer, Offset);
+//
+//}
 
 SDValue REDEFINETargetLowering::lowerBlockAddress(BlockAddressSDNode *Node, SelectionDAG &DAG) const {
 	const BlockAddress *BA = Node->getBlockAddress();
@@ -1154,18 +1161,21 @@ SDValue REDEFINETargetLowering::lowerJumpTable(JumpTableSDNode *JT, SelectionDAG
 	return DAG.getNode(REDEFINEISD::PCREL_WRAPPER, DL, PtrVT, Result);
 }
 
-SDValue REDEFINETargetLowering::lowerConstantPool(ConstantPoolSDNode *CP, SelectionDAG &DAG) const {
-	EVT PtrVT = getPointerTy();
-
-	SDValue Result;
-	if (CP->isMachineConstantPoolEntry()) Result = DAG.getTargetConstantPool(CP->getMachineCPVal(), PtrVT, CP->getAlignment());
-	else Result = DAG.getTargetConstantPool(CP->getConstVal(), PtrVT, CP->getAlignment(), CP->getOffset());
-
-	Reloc::Model RM = TM.getRelocationModel();
-
-	if (RM != Reloc::PIC_) return getAddrNonPIC(Result, DAG);
-	return getAddrPIC(Result, DAG);
-}
+/*
+ * No support for constant pool yet, hence commenting this out
+ */
+//SDValue REDEFINETargetLowering::lowerConstantPool(ConstantPoolSDNode *CP, SelectionDAG &DAG) const {
+//	EVT PtrVT = getPointerTy();
+//
+//	SDValue Result;
+//	if (CP->isMachineConstantPoolEntry()) Result = DAG.getTargetConstantPool(CP->getMachineCPVal(), PtrVT, CP->getAlignment());
+//	else Result = DAG.getTargetConstantPool(CP->getConstVal(), PtrVT, CP->getAlignment(), CP->getOffset());
+//
+//	Reloc::Model RM = TM.getRelocationModel();
+//
+//	if (RM != Reloc::PIC_) return getAddrNonPIC(Result, DAG);
+//	return getAddrPIC(Result, DAG);
+//}
 
 SDValue REDEFINETargetLowering::lowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const {
 	// check the depth
@@ -1186,15 +1196,14 @@ SDValue REDEFINETargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) co
 		case ISD::SELECT_CC:
 			return lowerSELECT_CC(Op, DAG);
 		case ISD::GlobalAddress:
-			return lowerGlobalAddress(Op, DAG);
 		case ISD::GlobalTLSAddress:
-			return lowerGlobalTLSAddress(cast<GlobalAddressSDNode>(Op), DAG);
+			return lowerGlobalAddress(Op, DAG);
 		case ISD::BlockAddress:
 			return lowerBlockAddress(cast<BlockAddressSDNode>(Op), DAG);
 		case ISD::JumpTable:
 			return lowerJumpTable(cast<JumpTableSDNode>(Op), DAG);
-		case ISD::ConstantPool:
-			return lowerConstantPool(cast<ConstantPoolSDNode>(Op), DAG);
+//		case ISD::ConstantPool:
+//			return lowerConstantPool(cast<ConstantPoolSDNode>(Op), DAG);
 		case ISD::FRAMEADDR:
 			return lowerFRAMEADDR(Op, DAG);
 		default:
@@ -1208,8 +1217,9 @@ const char *REDEFINETargetLowering::getTargetNodeName(unsigned Opcode) const {
 		OPCODE(RET_FLAG)
 ;			OPCODE(CALL);
 			OPCODE(PCREL_WRAPPER);
-			OPCODE(Hi);
-			OPCODE(Lo);
+			OPCODE(Ga);
+//			OPCODE(Hi);
+//			OPCODE(Lo);
 			OPCODE(SELECT_CC);
 		}
 		return NULL;

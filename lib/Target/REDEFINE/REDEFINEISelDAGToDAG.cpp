@@ -185,10 +185,6 @@ class REDEFINEDAGToDAGISel: public SelectionDAGISel {
 
 	// PC-relative address matching routines used by REDEFINEOperands.td.
 	bool selectPCRelAddress(SDValue Addr, SDValue &Target) {
-		if (Addr.getOpcode() == REDEFINEISD::PCREL_WRAPPER) {
-			Target = Addr.getOperand(0);
-			return true;
-		}
 		return false;
 	}
 

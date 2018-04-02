@@ -12,8 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 //global addr
-def REDEFINEHi    : SDNode<"REDEFINEISD::Hi", SDTIntUnaryOp>;
-def REDEFINELo    : SDNode<"REDEFINEISD::Lo", SDTIntUnaryOp>;
+def REDEFINEGa    : SDNode<"REDEFINEISD::Ga", SDTIntUnaryOp>;
 
 //===----------------------------------------------------------------------===//
 // Pattern fragments

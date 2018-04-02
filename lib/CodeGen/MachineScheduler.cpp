@@ -182,6 +182,7 @@ bool MachineScheduler::runOnMachineFunction(MachineFunction &mf) {
 	MDT = &getAnalysis<MachineDominatorTree>();
 	PassConfig = &getAnalysis<TargetPassConfig>();
 	AA = &getAnalysis<AliasAnalysis>();
+	static int bbCount;
 
 	LIS = &getAnalysis<LiveIntervals>();
 	const TargetInstrInfo *TII = MF->getTarget().getInstrInfo();
@@ -210,7 +211,15 @@ bool MachineScheduler::runOnMachineFunction(MachineFunction &mf) {
 	// TODO: Visit blocks in global postorder or postorder within the bottom-up
 	// loop tree. Then we can optionally compute global RegPressure.
 
+	/*
+	 * REDEFINE hack for loop bbs to be skipped during scheduling
+	 */
+	bbCount = MF->getNumBlockIDs();
+
 	for (MachineFunction::iterator MBB = MF->begin(), MBBEnd = MF->end(); MBB != MBBEnd; ++MBB) {
+		if(MBB->getNumber() > bbCount - 1){
+			break;
+		}
 		Scheduler->startBlock(MBB);
 
 		// Break the block into scheduling regions [I, RegionEnd), and schedule each

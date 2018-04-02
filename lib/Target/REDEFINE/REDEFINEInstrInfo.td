@@ -147,6 +147,10 @@ def CALL: InstIREDEFINE<"call", 0b0000100, 0b000       , add, GR32, GR32, imm32s
 {
  let Itinerary   = REDEFINEORC;
 }
+//def CREATEINST: InstIREDEFINE<"createinst", 0b0000100, 0b001       , add, GR32, GR32, imm32sx12>
+//{
+// let Itinerary   = REDEFINEORC;
+//}
 
 def FALLOC: InstREDEFINE<4, (outs GR32:$dst), (ins imm32sx12:$imm), 
      "falloc\t$dst, $imm", 
@@ -481,9 +485,7 @@ def FNMADD:InstREDEFINE<4, (outs FP32:$dst), (ins FP32:$src3, FP32:$src2, FP32:$
 
 }
 
-def : Pat<(REDEFINEHi tglobaladdr:$in), (LUI tglobaladdr:$in)>;
-def : Pat<(REDEFINELo tglobaladdr:$in), (ADDI zero, tglobaladdr:$in)>;
-
+def : Pat<(REDEFINEGa tglobaladdr:$in), (MOVIMM tglobaladdr:$in)>;
 
 //Synthesized set operators
 //patterns to be used for 32 and 64bit

@@ -17,6 +17,7 @@
 #include "llvm/IR/Instructions.h"
 #include "lpsolve/lp_lib.h"
 #include "lpsolve/lp_types.h"
+using namespace llvm;
 
 namespace {
 
@@ -34,6 +35,27 @@ using namespace llvm;
 #include <boost/graph/graphviz.hpp>
 #include <boost/graph/sequential_vertex_coloring.hpp>
 using namespace boost;
+
+//Returns size of the type in bytes
+//Duplicate cos utils can't be added as header
+unsigned duplicateGetSizeOfType(Type * type) {
+	Type* objectType = type;
+	if (isa<PointerType>(type)) {
+		objectType = ((PointerType*) type)->getPointerElementType();
+	}
+	if (objectType->isAggregateType()) {
+		unsigned size = 0;
+		for (unsigned i = 0; i < objectType->getNumContainedTypes(); i++) {
+			size += duplicateGetSizeOfType(objectType->getContainedType(i));
+		}
+		unsigned numElements = 1;
+		if (objectType->isArrayTy()) {
+			numElements = objectType->getArrayNumElements();
+		}
+		return size * numElements;
+	}
+	return (32 / 8);
+}
 
 HyperOp::HyperOp(Function* function) {
 	this->function = function;
@@ -106,6 +128,15 @@ int HyperOpEdge::getPositionOfContextSlot() {
 void HyperOpEdge::setPositionOfContextSlot(int positionOfInput) {
 	this->positionOfContextSlot = positionOfInput;
 }
+
+int HyperOpEdge::getMemoryOffsetInTargetFrame() const {
+	return memoryOffset;
+}
+
+void HyperOpEdge::setMemoryOffsetInTargetFrame(int memoryOffset) {
+	this->memoryOffset = memoryOffset;
+}
+
 void HyperOpEdge::setValue(Value* value) {
 	this->variable = value;
 }
@@ -175,7 +206,7 @@ void HyperOp::setInstanceof(Function* instanceof) {
 	this->instanceof = instanceof;
 }
 
-string HyperOp::asString() {
+string HyperOp::asString(bool ignorePeriod) {
 	stringstream retVal;
 	if (isStaticHyperOp()) {
 		retVal << function->getName().data();
@@ -193,7 +224,13 @@ string HyperOp::asString() {
 //			}
 		}
 	}
-	return retVal.str();
+	if (ignorePeriod) {
+		string str = retVal.str();
+		str.erase(std::remove(str.begin(), str.end(), '.'), str.end());
+		return str;
+	} else {
+		return retVal.str();
+	}
 }
 bool HyperOp::isUnrolledInstance() {
 	return unrolledInstance;
@@ -565,6 +602,38 @@ list<unsigned int> HyperOp::getTopLevel() {
 	return this->topLevel;
 }
 
+StrideFunction HyperOp::getInductionVarUpdateFunc() {
+	return inductionVarUpdateFunc;
+}
+
+void HyperOp::setInductionVarUpdateFunc(StrideFunction inductionVarUpdateFunc) {
+	this->inductionVarUpdateFunc = inductionVarUpdateFunc;
+}
+
+Value* HyperOp::getRangeUpperBound() {
+	return rangeUpperBound;
+}
+
+void HyperOp::setRangeUpperBound(Value* rangeUpperBound) {
+	this->rangeUpperBound = rangeUpperBound;
+}
+
+Value* HyperOp::getRangeLowerBound() {
+	return rangeLowerBound;
+}
+
+void HyperOp::setRangeLowerBound(Value* rangeLowerBound) {
+	this->rangeLowerBound = rangeLowerBound;
+}
+
+Value* HyperOp::getStride() {
+	return stride;
+}
+
+void HyperOp::setStride(Value* stride) {
+	this->stride = stride;
+}
+
 HyperOpEdge::HyperOpEdge() {
 	this->Type = SCALAR;
 	this->isZeroedOut = false;
@@ -604,6 +673,11 @@ void HyperOpEdge::setIsEdgeIgnored(bool isIgnoredEdge) {
 HyperOpInteractionGraph::HyperOpInteractionGraph() {
 	columnCount = 1;
 	rowCount = 1;
+	StridedFunctionKeyValue.insert(make_pair("add", ADD));
+	StridedFunctionKeyValue.insert(make_pair("mul", MUL));
+	StridedFunctionKeyValue.insert(make_pair("sub", SUB));
+	StridedFunctionKeyValue.insert(make_pair("div", DIV));
+	StridedFunctionKeyValue.insert(make_pair("mod", MOD));
 }
 
 HyperOpInteractionGraph::~HyperOpInteractionGraph() {
@@ -669,7 +743,7 @@ list<TileCoordinates> HyperOpInteractionGraph::getEdgePathOnNetwork(HyperOp* sou
 	list<TileCoordinates> path;
 	TileCoordinates sourceCoordinates = make_pair(source->getTargetResource() / columnCount, source->getTargetResource() % columnCount);
 	TileCoordinates targetCoordinates = make_pair(source->getTargetResource() / columnCount, source->getTargetResource() % columnCount);
-	//Set path along column
+//Set path along column
 	unsigned col;
 //	errs() << "col from " << sourceCoordinates.second << " to " << targetCoordinates.second << "\n";
 	if (columnCount == 1) {
@@ -706,12 +780,44 @@ list<TileCoordinates> HyperOpInteractionGraph::getEdgePathOnNetwork(HyperOp* sou
 	return path;
 }
 
+void HyperOpInteractionGraph::updateLocalRefEdgeMemOffset() {
+	for (auto vertexItr = this->Vertices.begin(); vertexItr != this->Vertices.end(); vertexItr++) {
+		HyperOp* hyperOp = *vertexItr;
+		list<HyperOpEdge*> edgeProcessingOrder;
+		for (auto parentEdgeItr = (*vertexItr)->ParentMap.begin(); parentEdgeItr != (*vertexItr)->ParentMap.end(); parentEdgeItr++) {
+			if (parentEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF || parentEdgeItr->first->getType() == HyperOpEdge::LOCAL_REFERENCE) {
+				HyperOpEdge* edge = parentEdgeItr->first;
+				list<HyperOpEdge*> tempEdgeProcessingOrder;
+				list<HyperOpEdge*>::iterator processingItr;
+				int edgeProcessingSize = 0;
+				for (processingItr = edgeProcessingOrder.begin(); processingItr != edgeProcessingOrder.end() && (*processingItr)->getPositionOfContextSlot() <= edge->getPositionOfContextSlot(); processingItr++) {
+					tempEdgeProcessingOrder.push_back(*processingItr);
+					edgeProcessingSize += duplicateGetSizeOfType((*processingItr)->getValue()->getType());
+				}
+
+				//find the size of the edge type and add it to the edge
+				tempEdgeProcessingOrder.push_back(edge);
+				edge->setMemoryOffsetInTargetFrame(edgeProcessingSize);
+				errs() << "setting edge to target " << edge << ":" << edge->getMemoryOffsetInTargetFrame() << "\n";
+				edgeProcessingSize += duplicateGetSizeOfType(edge->getValue()->getType());
+				for (; processingItr != edgeProcessingOrder.end(); processingItr++) {
+					tempEdgeProcessingOrder.push_back(*processingItr);
+					(*processingItr)->setMemoryOffsetInTargetFrame(edgeProcessingSize);
+					edgeProcessingSize += duplicateGetSizeOfType((*processingItr)->getValue()->getType());
+					errs() << "updating edge to target " << (*processingItr) << ":" << (*processingItr)->getMemoryOffsetInTargetFrame() << "\n";
+				}
+				edgeProcessingOrder = tempEdgeProcessingOrder;
+			}
+		}
+	}
+}
+
 void HyperOpInteractionGraph::addHyperOp(HyperOp *Vertex) {
 	this->Vertices.push_back(Vertex);
 }
 
 void HyperOpInteractionGraph::removeHyperOp(HyperOp * vertex) {
-	//Find the parent edges that need to be marked for removal
+//Find the parent edges that need to be marked for removal
 	for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = vertex->ParentMap.begin(); parentItr != vertex->ParentMap.end(); parentItr++) {
 		parentItr->second->removeChildEdge(parentItr->first);
 	}
@@ -726,6 +832,85 @@ void HyperOpInteractionGraph::removeHyperOp(HyperOp * vertex) {
 void HyperOpInteractionGraph::addEdge(HyperOp* SourceVertex, HyperOp * TargetVertex, HyperOpEdge * Edge) {
 	TargetVertex->addParentEdge(Edge, SourceVertex);
 	SourceVertex->addChildEdge(Edge, TargetVertex);
+}
+
+//Returns control flow graph from the cdfg we use, this graph is used to compute mutual exclusion etc
+pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > getCFG(HyperOpInteractionGraph * dfg) {
+	HyperOpInteractionGraph* cfg = new HyperOpInteractionGraph();
+	cfg->setDimensions(dfg->rowCount, dfg->columnCount);
+	map<HyperOp*, HyperOp*> originalToClonedNodesMap;
+	for (list<HyperOp*>::iterator vertexItr = dfg->Vertices.begin(); vertexItr != dfg->Vertices.end(); vertexItr++) {
+		//Create a new Vertex for each original
+		HyperOp* newVertex = new HyperOp((*vertexItr)->getFunction());
+		newVertex->setStaticHyperOp((*vertexItr)->isStaticHyperOp());
+		newVertex->setInstanceof((*vertexItr)->getInstanceof());
+		newVertex->setHyperOpId((*vertexItr)->getHyperOpId());
+		newVertex->setInstanceId((*vertexItr)->getInstanceId());
+		if ((*vertexItr)->isPredicatedHyperOp()) {
+			newVertex->setPredicatedHyperOp();
+		}
+		if ((*vertexItr)->isBarrierHyperOp()) {
+			newVertex->setBarrierHyperOp();
+		}
+		if ((*vertexItr)->isStartHyperOp()) {
+			newVertex->setStartHyperOp();
+		}
+		if ((*vertexItr)->isEndHyperOp()) {
+			newVertex->setEndHyperOp();
+		}
+		cfg->addHyperOp(newVertex);
+		originalToClonedNodesMap[*vertexItr] = newVertex;
+	}
+
+//Copy only predicate and sync edges
+	for (list<HyperOp*>::iterator vertexItr = dfg->Vertices.begin(); vertexItr != dfg->Vertices.end(); vertexItr++) {
+		HyperOp* targetHop = originalToClonedNodesMap[*vertexItr];
+		for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = (*vertexItr)->ParentMap.begin(); parentItr != (*vertexItr)->ParentMap.end(); parentItr++) {
+			HyperOp* sourceHop = originalToClonedNodesMap[parentItr->second];
+			if (parentItr->first->getType() == HyperOpEdge::PREDICATE || parentItr->first->getType() == HyperOpEdge::SYNC) {
+				HyperOpEdge* edge = new HyperOpEdge();
+				edge->Type = parentItr->first->getType();
+				edge->setVolume(parentItr->first->getVolume());
+				edge->setValue(parentItr->first->getValue());
+				edge->setPredicateValue(parentItr->first->getPredicateValue());
+				edge->setContextFrameAddress(parentItr->first->getContextFrameAddress());
+				edge->setPositionOfContextSlot(parentItr->first->getPositionOfContextSlot());
+				targetHop->addParentEdge(edge, sourceHop);
+				sourceHop->addChildEdge(edge, targetHop);
+			}
+		}
+	}
+
+//Check if there are hanging hyperops
+	for (list<HyperOp*>::iterator vertexItr = dfg->Vertices.begin(); vertexItr != dfg->Vertices.end(); vertexItr++) {
+		HyperOp* targetHop = originalToClonedNodesMap[*vertexItr];
+		if (!targetHop->isStartHyperOp() && targetHop->ParentMap.empty()) {
+			auto parentItr = (*vertexItr)->ParentMap.begin();
+			HyperOp* sourceHop = originalToClonedNodesMap[parentItr->second];
+			HyperOpEdge* edge = new HyperOpEdge();
+			edge->Type = parentItr->first->getType();
+			edge->setVolume(parentItr->first->getVolume());
+			edge->setValue(parentItr->first->getValue());
+			edge->setPredicateValue(parentItr->first->getPredicateValue());
+			targetHop->addParentEdge(edge, sourceHop);
+			sourceHop->addChildEdge(edge, targetHop);
+		}
+		if (!targetHop->isEndHyperOp() && targetHop->ChildMap.empty()) {
+			auto childItr = (*vertexItr)->ChildMap.begin();
+			HyperOp* sourceHop = originalToClonedNodesMap[childItr->second];
+			HyperOpEdge* edge = new HyperOpEdge();
+			edge->Type = childItr->first->getType();
+			edge->setVolume(childItr->first->getVolume());
+			edge->setValue(childItr->first->getValue());
+			edge->setPredicateValue(childItr->first->getPredicateValue());
+			sourceHop->addParentEdge(edge, targetHop);
+			targetHop->addChildEdge(edge, sourceHop);
+		}
+	}
+	errs() << "generated cfg:";
+//	dfg->Vertices.front()->getFunction()->getParent()->dump();
+//	cfg->print(errs());
+	return make_pair(cfg, originalToClonedNodesMap);
 }
 
 list<HyperOp*> setIntersection(list<HyperOp*> firstSet, list<HyperOp*> secondSet) {
@@ -806,7 +991,7 @@ void HyperOpInteractionGraph::computePostImmediateDominatorInfo() {
 		}
 	} while (change);
 
-	//Compute immediate post-dominator for each node
+//Compute immediate post-dominator for each node
 	map<HyperOp*, list<HyperOp*> > temporaryPostIdomMap;
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		list<HyperOp*> postDominatorForVertex = postDominatorMap.find(*vertexIterator)->second;
@@ -841,7 +1026,7 @@ void HyperOpInteractionGraph::computePostImmediateDominatorInfo() {
 			(*temporaryIdomIterator).first->setImmediatePostDominator(*((*temporaryIdomIterator).second.begin()));
 		}
 	}
-	//End of computing immediate post-dominator
+//End of computing immediate post-dominator
 }
 
 void HyperOpInteractionGraph::computeImmediateDominatorInfo() {
@@ -892,7 +1077,7 @@ void HyperOpInteractionGraph::computeImmediateDominatorInfo() {
 		}
 	} while (change);
 
-	//Compute immediate dominator for each node
+//Compute immediate dominator for each node
 	map<HyperOp*, list<HyperOp*> > temporaryIdomMap;
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		list<HyperOp*> dominatorForVertex = dominatorMap.find(*vertexIterator)->second;
@@ -926,9 +1111,9 @@ void HyperOpInteractionGraph::computeImmediateDominatorInfo() {
 			(*temporaryIdomIterator).first->setImmediateDominator(*((*temporaryIdomIterator).second.begin()));
 		}
 	}
-	//End of computing immediate dominator
+//End of computing immediate dominator
 
-	//Compute and set dominance frontier
+//Compute and set dominance frontier
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		HyperOp* vertex = *vertexIterator;
 		errs() << "finding domf of vertex " << vertex->asString() << "\n";
@@ -942,7 +1127,7 @@ void HyperOpInteractionGraph::computeImmediateDominatorInfo() {
 					list<HyperOp*> dominatorOfChild = dominatorMap.find(*childItr)->second;
 					if ((*childItr == vertex || std::find(dominatorOfChild.begin(), dominatorOfChild.end(), vertex) == dominatorOfChild.end()) && find(dominanceFrontier.begin(), dominanceFrontier.end(), *childItr) == dominanceFrontier.end()) {
 						dominanceFrontier.push_back(*childItr);
-						errs()<<"added to domf:"<<(*childItr)->asString()<<"\n";
+						errs() << "added to domf:" << (*childItr)->asString() << "\n";
 					}
 				}
 			}
@@ -970,11 +1155,21 @@ void HyperOpInteractionGraph::computeDominatorInfo() {
 
 //Add nodes to make the HIG structured if necessary
 void HyperOpInteractionGraph::makeGraphStructured() {
-	print(dbgs());
+	pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > cfgMap = getCFG(this);
+	HyperOpInteractionGraph* cfg = cfgMap.first;
+	cfg->computeDominatorInfo();
+	map<HyperOp*, HyperOp*> vertexMap = cfgMap.second;
 	bool change = true;
+	int i = 0;
 	while (change) {
+		errs() << "change " << i << "\n";
+		i++;
 		change = false;
-		map<HyperOp*, HyperOp*> hyperOpForFix;
+		map<HyperOp*, HyperOp*> hyperOpForFixWithMerges;
+		//First HyperOp containing the HyperOp that ought to take in all edges instead of the original source
+		map<HyperOp*, HyperOp*> dummyMap;
+		HyperOp* dummyptr = NULL;
+		pair<HyperOp*, map<HyperOp*, HyperOp*> > edgeForFix = make_pair(dummyptr, dummyMap);
 		for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
 			HyperOp* vertex = *vertexItr;
 //			errs() << "\n-----\nexamining vertex:" << vertex->asString() << ":";
@@ -1003,19 +1198,34 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 //			}
 
 			if (vertex->getChildList().size() > 1 && vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() == vertex->getImmediatePostDominator()) {
-				hyperOpForFix[vertex->getImmediatePostDominator()] = vertex;
+				if (vertexMap[vertex->getImmediateDominator()->getImmediatePostDominator()] == vertexMap[vertex->getImmediateDominator()]->getImmediatePostDominator()) {
+					//Find out if the immediate post dom is one of the children of the current HyperOp
+					hyperOpForFixWithMerges[vertex->getImmediatePostDominator()] = vertex;
+					break;
+				} else {
+					HyperOp* fixSource = vertexMap[vertex];
+					map<HyperOp*, HyperOp*> edgeFixMap;
+					for (auto mappedVertex : vertexMap) {
+						HyperOp* cfgVertex = mappedVertex.second;
+						if (cfgVertex->getImmediateDominator() == fixSource && vertexMap[mappedVertex.first->getImmediateDominator()] == fixSource->getImmediateDominator() && vertex->getImmediateDominator() == mappedVertex.first->getImmediateDominator()) {
+							HyperOp* edgeDestToModify = mappedVertex.first;
+							edgeFixMap.insert(make_pair(vertex->getImmediateDominator(), edgeDestToModify));
+						}
+					}
+					edgeForFix = make_pair(vertex, edgeFixMap);
+					break;
+				}
 			}
 		}
 
-		if (hyperOpForFix.empty()) {
+		if (hyperOpForFixWithMerges.empty() && edgeForFix.first == NULL) {
 			//No more hyperops for fixing
 			break;
 		}
-		for (auto mapItr : hyperOpForFix) {
+		for (auto mapItr : hyperOpForFixWithMerges) {
 			HyperOp* forkSink = mapItr.first;
 			HyperOp* forkSource = mapItr.second;
 //			assert(!forkSink->isPredicatedHyperOp() && "sync node can't be a predicated HyperOp");
-			errs() << "fixing fork sync:" << forkSink->asString() << "\n";
 			list<HyperOp*> parentsWithPath;
 			for (auto parent : forkSink->getParentList()) {
 				//If parent has a path from the forkSource
@@ -1060,6 +1270,7 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 					}
 				}
 			}
+			//TODO
 			FunctionType *FT = FunctionType::get(Type::getVoidTy(ctxt), argList, false);
 			Function *joinFunction = Function::Create(FT, Function::ExternalLinkage, "joinFunction", forkSink->getFunction()->getParent());
 			for (unsigned i = 1; i <= scalarArgs; i++) {
@@ -1130,12 +1341,62 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 			change = true;
 			break;
 		}
+
+		if (edgeForFix.first != dummyptr) {
+			errs() << "Fixing edge problem\n";
+			//HyperOp that is actually supposed to be the dominator and not the one
+			HyperOp* supposedDomHop = edgeForFix.first;
+			for (map<HyperOp*, HyperOp*>::iterator edgeItr = edgeForFix.second.begin(); edgeItr != edgeForFix.second.end(); edgeItr++) {
+				HyperOp* edgeSource = edgeItr->first;
+				HyperOp* edgeDestination = edgeItr->second;
+				map<HyperOpEdge*, HyperOp*> updatedChildMap;
+				for (auto childEdge : edgeSource->ChildMap) {
+					if (childEdge.second == edgeDestination && (childEdge.first->getType() == HyperOpEdge::LOCAL_REFERENCE || childEdge.first->getType() == HyperOpEdge::SCALAR)) {
+						//Replicate the edge
+						HyperOpEdge* replicatedEdge = new HyperOpEdge();
+						replicatedEdge->setType(childEdge.first->getType());
+						replicatedEdge->setMemoryOffsetInTargetFrame(childEdge.first->getMemoryOffsetInTargetFrame());
+						replicatedEdge->setValue(childEdge.first->getValue());
+						//Recompute the context slot
+						int slot = -1;
+						for (auto edgeItr : supposedDomHop->ParentMap) {
+							if (slot < edgeItr.first->getPositionOfContextSlot()) {
+								slot = edgeItr.first->getPositionOfContextSlot();
+							}
+						}
+						slot++;
+						int replicatedEdgeSlot = 0;
+						for (auto argItr = supposedDomHop->getFunction()->arg_begin(); argItr != supposedDomHop->getFunction()->arg_end(); argItr++) {
+							replicatedEdgeSlot++;
+						}
+						replicatedEdge->setPositionOfContextSlot(replicatedEdgeSlot);
+						childEdge.first->setPositionOfContextSlot(slot);
+						replicatedEdge->setValue(childEdge.first->getValue());
+						this->addEdge(supposedDomHop, edgeDestination, replicatedEdge);
+						edgeSource->ChildMap[childEdge.first] = supposedDomHop;
+						map<HyperOpEdge*, HyperOp*> updatedParentMap;
+						for (auto parentMapItr : supposedDomHop->ParentMap) {
+							if (parentMapItr.first == childEdge.first) {
+								updatedParentMap.insert(make_pair(parentMapItr.first, supposedDomHop));
+							} else {
+								errs() << "added edge " << parentMapItr.first->getType() << " and value :";
+								parentMapItr.first->getValue()->dump();
+								updatedParentMap.insert(make_pair(parentMapItr.first, parentMapItr.second));
+							}
+						}
+						supposedDomHop->ParentMap = updatedParentMap;
+						//Update the parentmap
+						edgeDestination->ParentMap.erase(childEdge.first);
+					}
+				}
+			}
+		}
+//		updateLocalRefEdgeMemOffset();
 		computeDominatorInfo();
 	}
 
-	computeDominatorInfo();
-	errs() << "after making the graph structured:";
-	this->print(dbgs());
+	errs() << "after making the graph structured\n";
+	this->print(errs());
 }
 /**
  * Indicates additional edges corresponding to WriteCM instructions for forwarding context frame addresses
@@ -1145,7 +1406,6 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		HyperOp* vertex = *vertexIterator;
 		list<HyperOp*> vertexDomFrontier;
-
 		list<HyperOp*> originalDomFrontier = vertex->getDominanceFrontier();
 		errs() << "\n------\nforwarding address to " << vertex->asString() << ":";
 		for (list<HyperOp*>::iterator originalDomfItr = originalDomFrontier.begin(); originalDomfItr != originalDomFrontier.end(); originalDomfItr++) {
@@ -1179,6 +1439,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 				HyperOpEdge* contextFrameEdge = new HyperOpEdge();
 				contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR);
 				contextFrameEdge->setContextFrameAddress(dominanceFrontierHyperOp);
+				int position = -1;
 
 				int freeContextSlot;
 				int max = -1, maxAvailableContextSlots = maxContextFrameSize;
@@ -1205,125 +1466,21 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						if (freeContextSlot >= maxAvailableContextSlots) {
 							//TODO test this
 							//Set the address to be passed as local reference
-							list<Argument*> scalarArgs;
-							list<Argument*> localRefArgs;
-							int position = -1;
-							Function* consumerFunction = vertex->getFunction();
-							map<unsigned, Argument*> replicatedArgIndexMap;
-							for (Function::arg_iterator argItr = consumerFunction->arg_begin(); argItr != consumerFunction->arg_end(); argItr++) {
-								if (!consumerFunction->getAttributes().hasAttribute(argItr->getArgNo() + 1, Attribute::InReg)) {
-									localRefArgs.push_back(argItr);
-									continue;
-								}
-								if (position < argItr->getArgNo()) {
-									position = argItr->getArgNo();
-								}
-								scalarArgs.push_back(argItr);
-							}
-
-							if (position == -1) {
-								position++;
-							}
-
-							vector<Type*> coalescedList;
-							map<unsigned, unsigned> originalToReplicatedArgIndexMap;
-
-							unsigned argIndex = 0;
-							for (list<Argument*>::iterator scalarArgItr = scalarArgs.begin(); scalarArgItr != scalarArgs.end(); scalarArgItr++, argIndex++) {
-								coalescedList.push_back((*scalarArgItr)->getType());
-								originalToReplicatedArgIndexMap[argIndex] = argIndex;
-							}
-							Argument *newArgument = new Argument(Type::getInt32Ty(consumerFunction->getContext()));
-							coalescedList.push_back(newArgument->getType());
-							unsigned numScalarArgs = scalarArgs.size();
-
-							for (list<Argument*>::iterator localRefArgItr = localRefArgs.begin(); localRefArgItr != localRefArgs.end(); localRefArgItr++, argIndex++) {
-								coalescedList.push_back((*localRefArgItr)->getType());
-								originalToReplicatedArgIndexMap[argIndex] = argIndex + 1;
-							}
-
-							FunctionType *FT = FunctionType::get(Type::getVoidTy(consumerFunction->getParent()->getContext()), coalescedList, false);
-							Function *replacementFunction = Function::Create(FT, Function::ExternalLinkage, consumerFunction->getName(), consumerFunction->getParent());
-
-							unsigned replicatedArgIndex = 0;
-							for (Function::arg_iterator replicatedArgItr = replacementFunction->arg_begin(); replicatedArgItr != replacementFunction->arg_end(); replicatedArgItr++, replicatedArgIndex++) {
-								replicatedArgIndexMap[replicatedArgIndex] = replicatedArgItr;
-							}
-
-							for (unsigned i = 1; i <= numScalarArgs; i++) {
-								replacementFunction->addAttribute(i, Attribute::InReg);
-							}
-
-							map<BasicBlock*, BasicBlock*> originalAndReplicatedBBMap;
-							map<Instruction*, Instruction*> localInstCloneMap;
-							map<Instruction*, Instruction*> originalInstAndCloneMap;
-							for (Function::iterator bbItr = consumerFunction->begin(); bbItr != consumerFunction->end(); bbItr++) {
-								BasicBlock *newBB = BasicBlock::Create(consumerFunction->getParent()->getContext(), replacementFunction->getName().str().append(bbItr->getName()), replacementFunction);
-								originalAndReplicatedBBMap[bbItr] = newBB;
-								for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
-									Instruction* clonedInst = instItr->clone();
-									Instruction* key = 0;
-									//Check if the instruction has been inserted previously as a clone of some other instruction
-									for (map<Instruction*, Instruction*>::iterator cloneMapItr = originalInstAndCloneMap.begin(); cloneMapItr != originalInstAndCloneMap.end(); cloneMapItr++) {
-										if (cloneMapItr->second == instItr) {
-											key = cloneMapItr->first;
-											break;
-										}
-									}
-
-									if (key != 0) {
-										originalInstAndCloneMap.erase(key);
-									} else {
-										key = instItr;
-									}
-									originalInstAndCloneMap[key] = clonedInst;
-									localInstCloneMap[instItr] = clonedInst;
-									newBB->getInstList().insert(newBB->end(), clonedInst);
+							int maxOffset = 0;
+							for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = vertex->ParentMap.begin(); parentEdgeItr != vertex->ParentMap.end(); parentEdgeItr++) {
+								HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
+								if (previouslyAddedEdge->getType() == HyperOpEdge::LOCAL_REFERENCE || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) {
+									int offset = (previouslyAddedEdge->getMemoryOffsetInTargetFrame()) + duplicateGetSizeOfType(previouslyAddedEdge->getValue()->getType());
+									maxOffset = offset > maxOffset ? offset : maxOffset;
 								}
 							}
 
-							for (Function::iterator bbItr = replacementFunction->begin(); bbItr != replacementFunction->end(); bbItr++) {
-								for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
-									unsigned operatorIndex = 0;
-									for (Instruction::op_iterator opItr = instItr->op_begin(); opItr != instItr->op_end(); opItr++, operatorIndex++) {
-										unsigned argIndex = 0;
-										bool argReplaced = false;
-										for (Function::arg_iterator argItr = consumerFunction->arg_begin(); argItr != consumerFunction->arg_end(); argItr++, argIndex++) {
-											if (opItr->get() == argItr) {
-												Argument* replacementArg = replicatedArgIndexMap[originalToReplicatedArgIndexMap[argIndex]];
-												instItr->setOperand(operatorIndex, replacementArg);
-												argReplaced = true;
-												break;
-											}
-										}
-										if (!argReplaced && !isa<BranchInst>(opItr->get()) && localInstCloneMap.find((Instruction*) opItr->get()) != localInstCloneMap.end()) {
-											instItr->setOperand(operatorIndex, localInstCloneMap[(Instruction*) opItr->get()]);
-										} else if (originalAndReplicatedBBMap.find((BasicBlock*) opItr->get()) != originalAndReplicatedBBMap.end()) {
-											instItr->setOperand(operatorIndex, originalAndReplicatedBBMap[(BasicBlock*) opItr->get()]);
-										}
-									}
-								}
-							}
 							//Add a store in source HyperOp function
 							contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF);
-							string oldName = consumerFunction->getName();
-							vertex->setFunction(replacementFunction);
-							for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
-								if ((*vertexItr)->getFunction() == consumerFunction) {
-									(*vertexItr)->setFunction(replacementFunction);
-								}
-								if ((*vertexItr)->getInstanceof() == consumerFunction) {
-									(*vertexItr)->setInstanceof(replacementFunction);
-								}
-							}
-							consumerFunction->eraseFromParent();
-							replacementFunction->setName(oldName);
-							contextFrameEdge->setPositionOfContextSlot(position);
-						} else {
-							contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
+							contextFrameEdge->setMemoryOffsetInTargetFrame(maxOffset);
 						}
+						contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
 					}
-
 				} else {
 					list<HyperOp*> immediateDominatorDominanceFrontier = immediateDominator->getDominanceFrontier();
 					HyperOp* prevVertex = vertex;
@@ -1346,124 +1503,19 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						if (freeContextSlot >= maxContextFrameSize) {
 							//TODO test this
 							//Set the address to be passed as local reference
-							list<Argument*> scalarArgs;
-							list<Argument*> localRefArgs;
-							int position = -1;
-							Function* consumerFunction = vertex->getFunction();
-							map<unsigned, Argument*> replicatedArgIndexMap;
-							for (Function::arg_iterator argItr = consumerFunction->arg_begin(); argItr != consumerFunction->arg_end(); argItr++) {
-								if (!consumerFunction->getAttributes().hasAttribute(argItr->getArgNo() + 1, Attribute::InReg)) {
-									localRefArgs.push_back(argItr);
-									continue;
-								}
-								if (position < argItr->getArgNo()) {
-									position = argItr->getArgNo();
-								}
-								scalarArgs.push_back(argItr);
-							}
-
-							if (position == -1) {
-								position++;
-							}
-
-							vector<Type*> coalescedList;
-							map<unsigned, unsigned> originalToReplicatedArgIndexMap;
-
-							unsigned argIndex = 0;
-							for (list<Argument*>::iterator scalarArgItr = scalarArgs.begin(); scalarArgItr != scalarArgs.end(); scalarArgItr++, argIndex++) {
-								coalescedList.push_back((*scalarArgItr)->getType());
-								originalToReplicatedArgIndexMap[argIndex] = argIndex;
-							}
-							Argument *newArgument = new Argument(Type::getInt32Ty(consumerFunction->getContext()));
-							coalescedList.push_back(newArgument->getType());
-							unsigned numScalarArgs = scalarArgs.size();
-
-							for (list<Argument*>::iterator localRefArgItr = localRefArgs.begin(); localRefArgItr != localRefArgs.end(); localRefArgItr++, argIndex++) {
-								coalescedList.push_back((*localRefArgItr)->getType());
-								originalToReplicatedArgIndexMap[argIndex] = argIndex + 1;
-							}
-
-							FunctionType *FT = FunctionType::get(Type::getVoidTy(consumerFunction->getParent()->getContext()), coalescedList, false);
-							Function *replacementFunction = Function::Create(FT, Function::ExternalLinkage, consumerFunction->getName(), consumerFunction->getParent());
-
-							unsigned replicatedArgIndex = 0;
-							for (Function::arg_iterator replicatedArgItr = replacementFunction->arg_begin(); replicatedArgItr != replacementFunction->arg_end(); replicatedArgItr++, replicatedArgIndex++) {
-								replicatedArgIndexMap[replicatedArgIndex] = replicatedArgItr;
-							}
-
-							for (unsigned i = 1; i <= numScalarArgs; i++) {
-								replacementFunction->addAttribute(i, Attribute::InReg);
-							}
-
-							map<BasicBlock*, BasicBlock*> originalAndReplicatedBBMap;
-							map<Instruction*, Instruction*> localInstCloneMap;
-							map<Instruction*, Instruction*> originalInstAndCloneMap;
-							for (Function::iterator bbItr = consumerFunction->begin(); bbItr != consumerFunction->end(); bbItr++) {
-								BasicBlock *newBB = BasicBlock::Create(consumerFunction->getParent()->getContext(), replacementFunction->getName().str().append(bbItr->getName()), replacementFunction);
-								originalAndReplicatedBBMap[bbItr] = newBB;
-								for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
-									Instruction* clonedInst = instItr->clone();
-									Instruction* key = 0;
-									//Check if the instruction has been inserted previously as a clone of some other instruction
-									for (map<Instruction*, Instruction*>::iterator cloneMapItr = originalInstAndCloneMap.begin(); cloneMapItr != originalInstAndCloneMap.end(); cloneMapItr++) {
-										if (cloneMapItr->second == instItr) {
-											key = cloneMapItr->first;
-											break;
-										}
-									}
-
-									if (key != 0) {
-										originalInstAndCloneMap.erase(key);
-									} else {
-										key = instItr;
-									}
-									originalInstAndCloneMap[key] = clonedInst;
-									localInstCloneMap[instItr] = clonedInst;
-									newBB->getInstList().insert(newBB->end(), clonedInst);
+							int maxOffset = 0;
+							for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = vertex->ParentMap.begin(); parentEdgeItr != vertex->ParentMap.end(); parentEdgeItr++) {
+								HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
+								if (previouslyAddedEdge->getType() == HyperOpEdge::LOCAL_REFERENCE || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) {
+									int offset = (previouslyAddedEdge->getMemoryOffsetInTargetFrame()) + duplicateGetSizeOfType(previouslyAddedEdge->getValue()->getType());
+									maxOffset = offset > maxOffset ? offset : maxOffset;
 								}
 							}
-
-							for (Function::iterator bbItr = replacementFunction->begin(); bbItr != replacementFunction->end(); bbItr++) {
-								for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
-									unsigned operatorIndex = 0;
-									for (Instruction::op_iterator opItr = instItr->op_begin(); opItr != instItr->op_end(); opItr++, operatorIndex++) {
-										unsigned argIndex = 0;
-										bool argReplaced = false;
-										for (Function::arg_iterator argItr = consumerFunction->arg_begin(); argItr != consumerFunction->arg_end(); argItr++, argIndex++) {
-											if (opItr->get() == argItr) {
-												Argument* replacementArg = replicatedArgIndexMap[originalToReplicatedArgIndexMap[argIndex]];
-												instItr->setOperand(operatorIndex, replacementArg);
-												argReplaced = true;
-												break;
-											}
-										}
-										if (!argReplaced && !isa<BranchInst>(opItr->get()) && localInstCloneMap.find((Instruction*) opItr->get()) != localInstCloneMap.end()) {
-											instItr->setOperand(operatorIndex, localInstCloneMap[(Instruction*) opItr->get()]);
-										} else if (originalAndReplicatedBBMap.find((BasicBlock*) opItr->get()) != originalAndReplicatedBBMap.end()) {
-											instItr->setOperand(operatorIndex, originalAndReplicatedBBMap[(BasicBlock*) opItr->get()]);
-										}
-									}
-								}
-							}
+							frameForwardChainEdge->setMemoryOffsetInTargetFrame(maxOffset);
 							//Add a store in source HyperOp function
 							frameForwardChainEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF);
-							vertex->setFunction(replacementFunction);
-							string oldName = consumerFunction->getName();
-							vertex->setFunction(replacementFunction);
-							for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
-								if ((*vertexItr)->getFunction() == consumerFunction) {
-									(*vertexItr)->setFunction(replacementFunction);
-								}
-								if ((*vertexItr)->getInstanceof() == consumerFunction) {
-									(*vertexItr)->setInstanceof(replacementFunction);
-								}
-							}
-							consumerFunction->eraseFromParent();
-							replacementFunction->setName(oldName);
-							frameForwardChainEdge->setPositionOfContextSlot(position);
-						} else {
-							frameForwardChainEdge->setPositionOfContextSlot(freeContextSlot);
 						}
+						frameForwardChainEdge->setPositionOfContextSlot(freeContextSlot);
 
 						bool edgeAddedPreviously = false;
 						for (map<HyperOpEdge*, HyperOp*>::iterator childMapItr = immediateDominator->ChildMap.begin(); childMapItr != immediateDominator->ChildMap.end(); childMapItr++) {
@@ -1505,126 +1557,21 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						freeContextSlot = max + 1;
 						errs() << "final edge added between " << immediateDominator->asString() << " and " << prevVertex->asString() << " to fwd " << dominanceFrontierHyperOp->asString() << " at slot:" << freeContextSlot << "\n";
 						if (freeContextSlot >= maxAvailableContextSlots) {
-
 							//TODO test this
 							//Set the address to be passed as local reference
-							list<Argument*> scalarArgs;
-							list<Argument*> localRefArgs;
-							int position = -1;
-							Function* consumerFunction = vertex->getFunction();
-							map<unsigned, Argument*> replicatedArgIndexMap;
-							for (Function::arg_iterator argItr = consumerFunction->arg_begin(); argItr != consumerFunction->arg_end(); argItr++) {
-								if (!consumerFunction->getAttributes().hasAttribute(argItr->getArgNo() + 1, Attribute::InReg)) {
-									localRefArgs.push_back(argItr);
-									continue;
-								}
-								if (position < argItr->getArgNo()) {
-									position = argItr->getArgNo();
-								}
-								scalarArgs.push_back(argItr);
-							}
-
-							if (position == -1) {
-								position++;
-							}
-
-							vector<Type*> coalescedList;
-							map<unsigned, unsigned> originalToReplicatedArgIndexMap;
-
-							unsigned argIndex = 0;
-							for (list<Argument*>::iterator scalarArgItr = scalarArgs.begin(); scalarArgItr != scalarArgs.end(); scalarArgItr++, argIndex++) {
-								coalescedList.push_back((*scalarArgItr)->getType());
-								originalToReplicatedArgIndexMap[argIndex] = argIndex;
-							}
-							Argument *newArgument = new Argument(Type::getInt32Ty(consumerFunction->getContext()));
-							coalescedList.push_back(newArgument->getType());
-							unsigned numScalarArgs = scalarArgs.size();
-
-							for (list<Argument*>::iterator localRefArgItr = localRefArgs.begin(); localRefArgItr != localRefArgs.end(); localRefArgItr++, argIndex++) {
-								coalescedList.push_back((*localRefArgItr)->getType());
-								originalToReplicatedArgIndexMap[argIndex] = argIndex + 1;
-							}
-
-							FunctionType *FT = FunctionType::get(Type::getVoidTy(consumerFunction->getParent()->getContext()), coalescedList, false);
-							Function *replacementFunction = Function::Create(FT, Function::ExternalLinkage, consumerFunction->getName(), consumerFunction->getParent());
-
-							unsigned replicatedArgIndex = 0;
-							for (Function::arg_iterator replicatedArgItr = replacementFunction->arg_begin(); replicatedArgItr != replacementFunction->arg_end(); replicatedArgItr++, replicatedArgIndex++) {
-								replicatedArgIndexMap[replicatedArgIndex] = replicatedArgItr;
-							}
-
-							for (unsigned i = 1; i <= numScalarArgs; i++) {
-								replacementFunction->addAttribute(i, Attribute::InReg);
-							}
-
-							map<BasicBlock*, BasicBlock*> originalAndReplicatedBBMap;
-							map<Instruction*, Instruction*> localInstCloneMap;
-							map<Instruction*, Instruction*> originalInstAndCloneMap;
-							for (Function::iterator bbItr = consumerFunction->begin(); bbItr != consumerFunction->end(); bbItr++) {
-								BasicBlock *newBB = BasicBlock::Create(consumerFunction->getParent()->getContext(), replacementFunction->getName().str().append(bbItr->getName()), replacementFunction);
-								originalAndReplicatedBBMap[bbItr] = newBB;
-								for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
-									Instruction* clonedInst = instItr->clone();
-									Instruction* key = 0;
-									//Check if the instruction has been inserted previously as a clone of some other instruction
-									for (map<Instruction*, Instruction*>::iterator cloneMapItr = originalInstAndCloneMap.begin(); cloneMapItr != originalInstAndCloneMap.end(); cloneMapItr++) {
-										if (cloneMapItr->second == instItr) {
-											key = cloneMapItr->first;
-											break;
-										}
-									}
-
-									if (key != 0) {
-										originalInstAndCloneMap.erase(key);
-									} else {
-										key = instItr;
-									}
-									originalInstAndCloneMap[key] = clonedInst;
-									localInstCloneMap[instItr] = clonedInst;
-									newBB->getInstList().insert(newBB->end(), clonedInst);
-								}
-							}
-
-							for (Function::iterator bbItr = replacementFunction->begin(); bbItr != replacementFunction->end(); bbItr++) {
-								for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
-									unsigned operatorIndex = 0;
-									for (Instruction::op_iterator opItr = instItr->op_begin(); opItr != instItr->op_end(); opItr++, operatorIndex++) {
-										unsigned argIndex = 0;
-										bool argReplaced = false;
-										for (Function::arg_iterator argItr = consumerFunction->arg_begin(); argItr != consumerFunction->arg_end(); argItr++, argIndex++) {
-											if (opItr->get() == argItr) {
-												Argument* replacementArg = replicatedArgIndexMap[originalToReplicatedArgIndexMap[argIndex]];
-												instItr->setOperand(operatorIndex, replacementArg);
-												argReplaced = true;
-												break;
-											}
-										}
-										if (!argReplaced && !isa<BranchInst>(opItr->get()) && localInstCloneMap.find((Instruction*) opItr->get()) != localInstCloneMap.end()) {
-											instItr->setOperand(operatorIndex, localInstCloneMap[(Instruction*) opItr->get()]);
-										} else if (originalAndReplicatedBBMap.find((BasicBlock*) opItr->get()) != originalAndReplicatedBBMap.end()) {
-											instItr->setOperand(operatorIndex, originalAndReplicatedBBMap[(BasicBlock*) opItr->get()]);
-										}
-									}
+							int maxOffset = 0;
+							for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = vertex->ParentMap.begin(); parentEdgeItr != vertex->ParentMap.end(); parentEdgeItr++) {
+								HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
+								if (previouslyAddedEdge->getType() == HyperOpEdge::LOCAL_REFERENCE || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) {
+									int offset = (previouslyAddedEdge->getMemoryOffsetInTargetFrame()) + duplicateGetSizeOfType(previouslyAddedEdge->getValue()->getType());
+									maxOffset = offset > maxOffset ? offset : maxOffset;
 								}
 							}
 							//Add a store in source HyperOp function
 							contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF);
-							string oldName = consumerFunction->getName();
-							vertex->setFunction(replacementFunction);
-							for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
-								if ((*vertexItr)->getFunction() == consumerFunction) {
-									(*vertexItr)->setFunction(replacementFunction);
-								}
-								if ((*vertexItr)->getInstanceof() == consumerFunction) {
-									(*vertexItr)->setInstanceof(replacementFunction);
-								}
-							}
-							consumerFunction->eraseFromParent();
-							replacementFunction->setName(oldName);
-							contextFrameEdge->setPositionOfContextSlot(position);
-						} else {
-							contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
+							contextFrameEdge->setMemoryOffsetInTargetFrame(maxOffset);
 						}
+						contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
 					}
 
 				}
@@ -1824,7 +1771,7 @@ list<HyperOp*> getIntersection(list<HyperOp*> first, list<HyperOp*> second) {
  * Returns execution time of the merged cluster
  */
 pair<list<unsigned int>, list<pair<list<HyperOp*>, unsigned int> > > mergeNodesAndReturnExecutionTime(HyperOp* startHyperOp, pair<list<HyperOp*>, unsigned int> sourceClusterPair, pair<list<HyperOp*>, unsigned int> targetClusterPair, list<pair<list<HyperOp*>, unsigned int> > clusterList,
-bool revert) {
+		bool revert) {
 	list<HyperOp*> sourceCluster = sourceClusterPair.first;
 	list<HyperOp*> targetCluster = targetClusterPair.first;
 	list<HyperOpEdge*> stateChangedEdges;
@@ -1835,13 +1782,13 @@ bool revert) {
 //Merge target cluster with source cluster and create zeroed out edges between them
 	for (list<HyperOp*>::iterator targetClusterIterator = targetCluster.begin(); targetClusterIterator != targetCluster.end(); targetClusterIterator++) {
 		HyperOp* targetNodeForMerge = *targetClusterIterator;
-		//Find the child nodes of the node
+//Find the child nodes of the node
 		list<HyperOp*> targetNodeChildNodes = targetNodeForMerge->getChildList();
 
-		//Find the bottom level of node
+//Find the bottom level of node
 		list<unsigned int> targetNodeTopLevel = computeTopLevelofNode(targetNodeForMerge);
 
-		//The source node which is at a higher level in the graph as compared to the node being merged into the cluster
+//The source node which is at a higher level in the graph as compared to the node being merged into the cluster
 		HyperOp* sourceClusterNodeFirst = 0;
 		HyperOp* sourceClusterNodeSecond = 0;
 		list<HyperOp*>::iterator itr, secondItr;
@@ -1876,10 +1823,10 @@ bool revert) {
 
 		list<HyperOp*> temporaryInserter;
 		temporaryInserter.push_back(targetNodeForMerge);
-		//Add target node that gets merged into source cluster
+//Add target node that gets merged into source cluster
 		sourceCluster.splice(itr, temporaryInserter);
 
-		//Find out if there are edges to the same node from a node in nodesBelowTarget and mark them as ignored
+//Find out if there are edges to the same node from a node in nodesBelowTarget and mark them as ignored
 		for (list<HyperOp*>::iterator bottomLevelNodeItr = nodesBelowTarget.begin(); bottomLevelNodeItr != nodesBelowTarget.end(); bottomLevelNodeItr++) {
 			HyperOp* bottomLevelNode = *bottomLevelNodeItr;
 			list<HyperOp*> bottomLevelNodeChildren = bottomLevelNode->getChildList();
@@ -1893,7 +1840,7 @@ bool revert) {
 			}
 		}
 
-		//Find out if there are edges to the same node from a node in nodesAboveTarget and mark them as ignored
+//Find out if there are edges to the same node from a node in nodesAboveTarget and mark them as ignored
 		for (list<HyperOp*>::iterator topLevelNodeItr = nodesAboveTarget.begin(); topLevelNodeItr != nodesAboveTarget.end(); topLevelNodeItr++) {
 			HyperOp* topLevelNode = *topLevelNodeItr;
 			list<HyperOp*> topLevelNodeChildren = topLevelNode->getChildList();
@@ -1907,7 +1854,7 @@ bool revert) {
 			}
 		}
 
-		//Ignore all the edges from the same cluster to the target node
+//Ignore all the edges from the same cluster to the target node
 		for (list<HyperOp*>::iterator nodeAboveTargetItr = nodesAboveTarget.begin(); nodeAboveTargetItr != nodesAboveTarget.end(); nodeAboveTargetItr++) {
 			HyperOp* nodeAboveTarget = *nodeAboveTargetItr;
 			list<HyperOp*> childNodesOfNodeAboveTarget = nodeAboveTarget->getChildList();
@@ -1917,7 +1864,7 @@ bool revert) {
 			}
 		}
 
-		//Ignore all the edges from the target to the same cluster
+//Ignore all the edges from the target to the same cluster
 		for (list<HyperOp*>::iterator nodeBelowTargetItr = nodesBelowTarget.begin(); nodeBelowTargetItr != nodesBelowTarget.end(); nodeBelowTargetItr++) {
 			HyperOp* nodeBelowTarget = *nodeBelowTargetItr;
 			list<HyperOp*> parentNodesOfNodeAboveTarget = nodeBelowTarget->getParentList();
@@ -1927,7 +1874,7 @@ bool revert) {
 			}
 		}
 
-		//Merge represents a serial schedule being generated between two clusters, edges need to be added such that there is a serial schedule between the
+//Merge represents a serial schedule being generated between two clusters, edges need to be added such that there is a serial schedule between the
 		if (sourceClusterNodeFirst != 0) {
 			//The edge ensures that the parent node has been executed and always receives a true predicate from the parent
 			HyperOpEdge *edge = new HyperOpEdge();
@@ -1989,263 +1936,284 @@ void printDS(list<HyperOp*> dominantSequence) {
 }
 
 void HyperOpInteractionGraph::clusterNodes() {
-	list<pair<list<HyperOp*>, unsigned int> > computeClusterList;
-	HyperOp* startHyperOp;
-	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
-		list<HyperOp*> newCluster;
-		newCluster.push_back(*vertexIterator);
-		estimateExecutionTime(*vertexIterator);
-		unsigned int hyperOpType = 2;
-		if ((*vertexIterator)->isStartHyperOp()) {
-			startHyperOp = *vertexIterator;
-			hyperOpType = 0;
+
+	errs() << "rowcount:" << this->rowCount << " and column count:" << columnCount << "\n";
+
+//Create a wrapper to HyperOp class to hierarchically cluster nodes
+	class HIGSubtree {
+	public:
+		list<HyperOp*> hyperOpsInCluster;
+		list<pair<list<HyperOp*>, unsigned int> > subtreeClusterList;
+		list<unsigned int> executionTimeEstimate;
+		HyperOp* startHyperOp;
+		HyperOp* endHyperOp;
+		HIGSubtree(list<HyperOp*> hyperOpList, HyperOp* startHyperOp, HyperOp* endHyperOp) {
+			hyperOpsInCluster = hyperOpList;
+			this->startHyperOp = startHyperOp;
+			this->endHyperOp = endHyperOp;
 		}
-		if ((*vertexIterator)->isEndHyperOp()) {
-			hyperOpType = 1;
+
+		void clusterSubTree() {
+			errs() << "total number of nodes:" << hyperOpsInCluster.size() << "\n";
+			//Compute start and end HyperOps for the subtree
+			list<pair<list<HyperOp*>, unsigned int> > computeClusterList;
+			for (list<HyperOp*>::iterator vertexIterator = hyperOpsInCluster.begin(); vertexIterator != hyperOpsInCluster.end(); vertexIterator++) {
+				list<HyperOp*> hopList;
+				hopList.push_back(*vertexIterator);
+				estimateExecutionTime(*vertexIterator);
+				unsigned int hyperOpType = 2;
+				if ((*vertexIterator) == startHyperOp) {
+					hyperOpType = 0;
+				}
+				if ((*vertexIterator) == endHyperOp) {
+					hyperOpType = 1;
+				}
+				//		hierarchicalComputeClusterList.push_back(std::make_pair(newClusterNode, hyperOpType));
+				computeClusterList.push_back(std::make_pair(hopList, hyperOpType));
+			}
+			errs() << "initial number of compute clusters:" << computeClusterList.size() << "\n";
+
+			//Cluster all the nodes in a queue first and replace the nodes with the cluster node
+			list<pair<HyperOp*, HyperOp*> > examinedEdges;
+			list<list<HyperOp*> > excludeList;
+			//Find the initial Dominant Sequence
+			list<HyperOp*> partialDominantSequence;
+			partialDominantSequence.push_back(startHyperOp);
+			pair<list<HyperOp*>, list<unsigned int> > dominantSequencePair = computeDominantSequence(partialDominantSequence);
+			//	printDS(dominantSequencePair.first);
+			list<HyperOp*> dominantSequence = dominantSequencePair.first;
+			list<unsigned int> executionTime = dominantSequencePair.second;
+
+			while (true) {
+				HyperOp* source;
+				HyperOp* target;
+				bool noEdgeToExamine = true;
+				for (list<HyperOp*>::iterator dominantSequenceEdgeItr = dominantSequence.begin(); dominantSequenceEdgeItr != --dominantSequence.end();) {
+					source = *dominantSequenceEdgeItr;
+					target = *(++dominantSequenceEdgeItr);
+
+					if (!alreadyExamined(source, target, examinedEdges)) {
+						noEdgeToExamine = false;
+						break;
+					}
+				}
+
+				if (noEdgeToExamine) {
+					//No more edges to examine
+					break;
+				}
+				//		errs() << "dominant sequence computed:";
+				//		printDS(dominantSequence);
+				//Find the cluster containing source and target
+				list<HyperOp*> sourceCluster;
+				list<HyperOp*> targetCluster;
+				pair<list<HyperOp*>, unsigned int> sourceClusterPair;
+				pair<list<HyperOp*>, unsigned int> targetClusterPair;
+
+				for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterListIterator = computeClusterList.begin(); clusterListIterator != computeClusterList.end(); clusterListIterator++) {
+					list<HyperOp*> cluster = (*clusterListIterator).first;
+					if (std::find(cluster.begin(), cluster.end(), source) != cluster.end()) {
+						sourceCluster = cluster;
+						sourceClusterPair = (*clusterListIterator);
+					}
+					if (std::find(cluster.begin(), cluster.end(), target) != cluster.end()) {
+						targetCluster = cluster;
+						targetClusterPair = (*clusterListIterator);
+					}
+				}
+
+				//Variables used to revert the changes made previously
+				list<pair<HyperOpEdge*, pair<HyperOp*, HyperOp*> > > additionalEdgesMap;
+
+				list<pair<list<HyperOp*>, unsigned int> > tempClusterList;
+				std::copy(computeClusterList.begin(), computeClusterList.end(), std::back_inserter(tempClusterList));
+
+				//Zero out the edges between source and target nodes
+				source->zeroOutChildEdge(target, true);
+
+				list<HyperOpEdge*> stateChangedEdgeList;
+				//Merge target cluster with source cluster and create zeroed out edges between them
+				for (list<HyperOp*>::iterator targetClusterIterator = targetCluster.begin(); targetClusterIterator != targetCluster.end(); targetClusterIterator++) {
+					HyperOp* targetNodeForMerge = *targetClusterIterator;
+					//Find the child nodes of the node
+					list<HyperOp*> targetNodeChildNodes = targetNodeForMerge->getChildList();
+
+					//Find the bottom level of node
+					list<unsigned int> targetNodeTopLevel = computeTopLevelofNode(targetNodeForMerge);
+
+					//The source node which is at a higher level in the graph as compared to the node being merged into the cluster
+					HyperOp* sourceClusterNodeFirst = 0;
+					HyperOp* sourceClusterNodeSecond = 0;
+					list<HyperOp*>::iterator itr, secondItr;
+					list<HyperOp*> nodesBelowTarget;
+					list<HyperOp*> nodesAboveTarget;
+					bool first = true;
+					for (list<HyperOp*>::iterator sourceClusterIterator = sourceCluster.begin(); sourceClusterIterator != sourceCluster.end(); sourceClusterIterator++) {
+						//Compute bottom level of sourceClusterNode
+						list<unsigned int> topLevel = computeTopLevelofNode(*sourceClusterIterator);
+						//First hyperOp which is below the target node that needs merging
+						if (compareHierarchicalVolume(targetNodeTopLevel, topLevel) < 0) {
+							if (first) {
+								itr = sourceClusterIterator;
+								secondItr = sourceClusterIterator;
+								sourceClusterNodeSecond = *sourceClusterIterator;
+								first = false;
+							}
+							nodesBelowTarget.push_back(*sourceClusterIterator);
+						} else {
+							nodesAboveTarget.push_back(*sourceClusterIterator);
+						}
+					}
+
+					if (sourceClusterNodeSecond == 0) {
+						sourceClusterNodeFirst = sourceCluster.back();
+						itr = sourceCluster.end();
+						secondItr = sourceCluster.end();
+					} else if (sourceClusterNodeSecond != sourceCluster.front()) {
+						std::advance(secondItr, -1);
+						sourceClusterNodeFirst = *secondItr;
+					}
+
+					list<HyperOp*> temporaryInserter;
+					temporaryInserter.push_back(targetNodeForMerge);
+					//Add target node that gets merged into source cluster
+					sourceCluster.splice(itr, temporaryInserter);
+
+					//Find out if there are edges to the same node from a node in nodesBelowTarget and mark them as ignored
+					for (list<HyperOp*>::iterator bottomLevelNodeItr = nodesBelowTarget.begin(); bottomLevelNodeItr != nodesBelowTarget.end(); bottomLevelNodeItr++) {
+						HyperOp* bottomLevelNode = *bottomLevelNodeItr;
+						list<HyperOp*> bottomLevelNodeChildren = bottomLevelNode->getChildList();
+						list<HyperOp*> intersectionSet = getIntersection(bottomLevelNodeChildren, targetNodeChildNodes);
+						if (!intersectionSet.empty()) {
+							//Mark the edges between the target node and the child nodes as ignored edges
+							for (list<HyperOp*>::iterator childNodeItr = intersectionSet.begin(); childNodeItr != intersectionSet.end(); childNodeItr++) {
+								list<HyperOpEdge*> stateChangedEdges = targetNodeForMerge->ignoreChildEdge(*childNodeItr, true);
+								stateChangedEdgeList.merge(stateChangedEdgeList);
+							}
+						}
+					}
+
+					//Find out if there are edges to the same node from a node in nodesAboveTarget and mark them as ignored
+					for (list<HyperOp*>::iterator topLevelNodeItr = nodesAboveTarget.begin(); topLevelNodeItr != nodesAboveTarget.end(); topLevelNodeItr++) {
+						HyperOp* topLevelNode = *topLevelNodeItr;
+						list<HyperOp*> topLevelNodeChildren = topLevelNode->getChildList();
+						list<HyperOp*> intersectionSet = getIntersection(topLevelNodeChildren, targetNodeChildNodes);
+						if (!intersectionSet.empty()) {
+							//Mark the edges between the target node and the child nodes as ignored edges
+							for (list<HyperOp*>::iterator childNodeItr = intersectionSet.begin(); childNodeItr != intersectionSet.end(); childNodeItr++) {
+								list<HyperOpEdge*> stateChangedEdges = topLevelNode->ignoreChildEdge(*childNodeItr, true);
+								stateChangedEdgeList.merge(stateChangedEdges);
+							}
+						}
+					}
+
+					//Ignore all the edges from the same cluster to the target node
+					for (list<HyperOp*>::iterator nodeAboveTargetItr = nodesAboveTarget.begin(); nodeAboveTargetItr != nodesAboveTarget.end(); nodeAboveTargetItr++) {
+						HyperOp* nodeAboveTarget = *nodeAboveTargetItr;
+						if (!(nodeAboveTarget == source && targetNodeForMerge == target)) {
+							list<HyperOp*> childNodesOfNodeAboveTarget = nodeAboveTarget->getChildList();
+							if (std::find(childNodesOfNodeAboveTarget.begin(), childNodesOfNodeAboveTarget.end(), targetNodeForMerge) != childNodesOfNodeAboveTarget.end()) {
+								list<HyperOpEdge*> stateChangedEdges = nodeAboveTarget->ignoreChildEdge(targetNodeForMerge, true);
+								stateChangedEdgeList.merge(stateChangedEdges);
+							}
+						}
+					}
+					//Ignore all the edges from the target to the same cluster
+					for (list<HyperOp*>::iterator nodeBelowTargetItr = nodesBelowTarget.begin(); nodeBelowTargetItr != nodesBelowTarget.end(); nodeBelowTargetItr++) {
+						HyperOp* nodeBelowTarget = *nodeBelowTargetItr;
+						if (!(nodeBelowTarget == source && targetNodeForMerge == target)) {
+							list<HyperOp*> parentNodesOfNodeAboveTarget = nodeBelowTarget->getParentList();
+							if (std::find(parentNodesOfNodeAboveTarget.begin(), parentNodesOfNodeAboveTarget.end(), targetNodeForMerge) != parentNodesOfNodeAboveTarget.end()) {
+								list<HyperOpEdge*> stateChangedEdges = targetNodeForMerge->ignoreParentEdge(nodeBelowTarget, true);
+								stateChangedEdgeList.merge(stateChangedEdges);
+							}
+						}
+					}
+
+					//Merge represents a serial schedule being generated between two clusters, edges need to be added such that there is a serial schedule between the merged clusters
+					if (sourceClusterNodeFirst != 0) {
+						HyperOpEdge *edge = new HyperOpEdge();
+						edge->setType(HyperOpEdge::ORDERING);
+						edge->setIsEdgeIgnored(true);
+						additionalEdgesMap.push_back(std::make_pair((HyperOpEdge*) edge, make_pair(sourceClusterNodeFirst, targetNodeForMerge)));
+						sourceClusterNodeFirst->addChildEdge((HyperOpEdge*) edge, targetNodeForMerge);
+						targetNodeForMerge->addParentEdge((HyperOpEdge*) edge, sourceClusterNodeFirst);
+					}
+					if (sourceClusterNodeSecond != 0) {
+						HyperOpEdge *edge = new HyperOpEdge();
+						edge->setType(HyperOpEdge::ORDERING);
+						edge->setIsEdgeIgnored(true);
+						additionalEdgesMap.push_back(std::make_pair(edge, make_pair(targetNodeForMerge, sourceClusterNodeSecond)));
+						targetNodeForMerge->addChildEdge((HyperOpEdge*) edge, sourceClusterNodeSecond);
+						sourceClusterNodeSecond->addParentEdge((HyperOpEdge*) edge, targetNodeForMerge);
+					}
+				}
+
+				//remove the merged cluster from the original cluster list
+				computeClusterList.remove(targetClusterPair);
+				//Set the merged cluster
+				for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterItr = computeClusterList.begin(); clusterItr != computeClusterList.end(); clusterItr++) {
+					if (*clusterItr == sourceClusterPair) {
+						(*clusterItr).first = sourceCluster;
+						break;
+					}
+				}
+
+				//Check if zeroing helped reduce execution time
+				list<HyperOp*> tempDominantSequence;
+				tempDominantSequence.push_back(startHyperOp);
+				pair<list<HyperOp*>, list<unsigned int> > computedDominantSequencePair = computeDominantSequence(tempDominantSequence);
+				//				, excludeList);
+				//If execution time decreases from the previous step, clustering is acceptable
+				if (compareHierarchicalVolume(executionTime, computedDominantSequencePair.second) >= 0) {
+					//			excludeList.clear();
+					dominantSequence = computedDominantSequencePair.first;
+					executionTime = computedDominantSequencePair.second;
+					for (list<pair<HyperOpEdge*, pair<HyperOp*, HyperOp*> > >::iterator addedEdgeIterator = additionalEdgesMap.begin(); addedEdgeIterator != additionalEdgesMap.end(); addedEdgeIterator++) {
+						examinedEdges.push_back(make_pair((*addedEdgeIterator).second.first, (*addedEdgeIterator).second.second));
+					}
+				} else {
+					computeClusterList.clear();
+					std::copy(tempClusterList.begin(), tempClusterList.end(), back_inserter(computeClusterList));
+					for (list<pair<HyperOpEdge*, pair<HyperOp*, HyperOp*> > >::iterator addedEdgeIterator = additionalEdgesMap.begin(); addedEdgeIterator != additionalEdgesMap.end(); addedEdgeIterator++) {
+						(*addedEdgeIterator).second.first->removeChildEdge((*addedEdgeIterator).first);
+						(*addedEdgeIterator).second.second->removeParentEdge((*addedEdgeIterator).first);
+					}
+					for (list<HyperOpEdge*>::iterator ignoreEdgeIterator = stateChangedEdgeList.begin(); ignoreEdgeIterator != stateChangedEdgeList.end(); ignoreEdgeIterator++) {
+						(*ignoreEdgeIterator)->setIsEdgeIgnored(false);
+					}
+					source->zeroOutChildEdge(target, false);
+					//			excludeList.push_back(dominantSequencePair.first);
+				}
+
+				examinedEdges.push_back(std::make_pair(source, target));
+			}
+			subtreeClusterList = computeClusterList;
 		}
-		computeClusterList.push_back(std::make_pair(newCluster, hyperOpType));
-	}
+//		printDS(dominantSequence);
+	};
 
 //	pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > controlFlowGraphAndOriginalHopMap = getCFG(this);
 //	map<HyperOp*, HyperOp*> originalToCFGVertexMap = controlFlowGraphAndOriginalHopMap.second;
 //	HyperOpInteractionGraph* cfg = controlFlowGraphAndOriginalHopMap.first;
 //	cfg->computeDominatorInfo();
 //	//Find subtrees in cfg
-//	for (auto vertex : cfg->Vertices) {
+//	for(auto vertex:cfg->Vertices){
 //		//Check if any of the children of the vertex is predicated
 //		bool hasPredicatedChildren = false;
-//		for (auto childVertex : vertex->ChildMap) {
-//			if (childVertex.second->isPredicatedHyperOp()) {
+//		for(auto childVertex:vertex->ChildMap){
+//			if(childVertex.second->isPredicatedHyperOp()){
 //				hasPredicatedChildren = true;
 //				break;
 //			}
 //		}
 //
-//		if (hasPredicatedChildren) {
+//		if(hasPredicatedChildren){
 //			//Treat the vertex as the root of a subtree and
 //		}
 //	}
 
-//Cluster all the nodes in a queue first and replace the nodes with the cluster node
-	list<pair<HyperOp*, HyperOp*> > examinedEdges;
-	list<list<HyperOp*> > excludeList;
-//Find the initial Dominant Sequence
-	list<HyperOp*> partialDominantSequence;
-	partialDominantSequence.push_back(startHyperOp);
-	pair<list<HyperOp*>, list<unsigned int> > dominantSequencePair = computeDominantSequence(partialDominantSequence);
-//	printDS(dominantSequencePair.first);
-	list<HyperOp*> dominantSequence = dominantSequencePair.first;
-	list<unsigned int> executionTime = dominantSequencePair.second;
-
-	while (true) {
-		HyperOp* source;
-		HyperOp* target;
-		bool noEdgeToExamine = true;
-		for (list<HyperOp*>::iterator dominantSequenceEdgeItr = dominantSequence.begin(); dominantSequenceEdgeItr != --dominantSequence.end();) {
-			source = *dominantSequenceEdgeItr;
-			target = *(++dominantSequenceEdgeItr);
-
-			if (!alreadyExamined(source, target, examinedEdges)) {
-				noEdgeToExamine = false;
-				break;
-			}
-		}
-
-		if (noEdgeToExamine) {
-			//No more edges to examine
-			break;
-		}
-
-//		errs() << "dominant sequence computed:";
-//		printDS(dominantSequence);
-//		errs() << "zeroing edge between " << source->getFunction()->getName() << " and " << target->getFunction()->getName() << "\n";
-		//Find the cluster containing source and target
-		list<HyperOp*> sourceCluster;
-		list<HyperOp*> targetCluster;
-		pair<list<HyperOp*>, unsigned int> sourceClusterPair;
-		pair<list<HyperOp*>, unsigned int> targetClusterPair;
-
-		for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterListIterator = computeClusterList.begin(); clusterListIterator != computeClusterList.end(); clusterListIterator++) {
-			list<HyperOp*> cluster = (*clusterListIterator).first;
-			if (std::find(cluster.begin(), cluster.end(), source) != cluster.end()) {
-				sourceCluster = cluster;
-				sourceClusterPair = (*clusterListIterator);
-			} else if (std::find(cluster.begin(), cluster.end(), target) != cluster.end()) {
-				targetCluster = cluster;
-				targetClusterPair = (*clusterListIterator);
-			}
-		}
-
-		//Variables used to revert the changes made previously
-		list<pair<HyperOpEdge*, pair<HyperOp*, HyperOp*> > > additionalEdgesMap;
-
-		list<pair<list<HyperOp*>, unsigned int> > tempClusterList;
-		std::copy(computeClusterList.begin(), computeClusterList.end(), std::back_inserter(tempClusterList));
-
-		//Zero out the edges between source and target nodes
-		source->zeroOutChildEdge(target, true);
-
-		list<HyperOpEdge*> stateChangedEdgeList;
-		//Merge target cluster with source cluster and create zeroed out edges between them
-		for (list<HyperOp*>::iterator targetClusterIterator = targetCluster.begin(); targetClusterIterator != targetCluster.end(); targetClusterIterator++) {
-			HyperOp* targetNodeForMerge = *targetClusterIterator;
-			//Find the child nodes of the node
-			list<HyperOp*> targetNodeChildNodes = targetNodeForMerge->getChildList();
-
-			//Find the bottom level of node
-			list<unsigned int> targetNodeTopLevel = computeTopLevelofNode(targetNodeForMerge);
-
-			//The source node which is at a higher level in the graph as compared to the node being merged into the cluster
-			HyperOp* sourceClusterNodeFirst = 0;
-			HyperOp* sourceClusterNodeSecond = 0;
-			list<HyperOp*>::iterator itr, secondItr;
-			list<HyperOp*> nodesBelowTarget;
-			list<HyperOp*> nodesAboveTarget;
-			bool first = true;
-			for (list<HyperOp*>::iterator sourceClusterIterator = sourceCluster.begin(); sourceClusterIterator != sourceCluster.end(); sourceClusterIterator++) {
-				//Compute bottom level of sourceClusterNode
-				list<unsigned int> topLevel = computeTopLevelofNode(*sourceClusterIterator);
-				//First hyperOp which is below the target node that needs merging
-				if (compareHierarchicalVolume(targetNodeTopLevel, topLevel) < 0) {
-					if (first) {
-						itr = sourceClusterIterator;
-						secondItr = sourceClusterIterator;
-						sourceClusterNodeSecond = *sourceClusterIterator;
-						first = false;
-					}
-					nodesBelowTarget.push_back(*sourceClusterIterator);
-				} else {
-					nodesAboveTarget.push_back(*sourceClusterIterator);
-				}
-			}
-
-			if (sourceClusterNodeSecond == 0) {
-				sourceClusterNodeFirst = sourceCluster.back();
-				itr = sourceCluster.end();
-				secondItr = sourceCluster.end();
-			} else if (sourceClusterNodeSecond != sourceCluster.front()) {
-				std::advance(secondItr, -1);
-				sourceClusterNodeFirst = *secondItr;
-			}
-
-			list<HyperOp*> temporaryInserter;
-			temporaryInserter.push_back(targetNodeForMerge);
-			//Add target node that gets merged into source cluster
-			sourceCluster.splice(itr, temporaryInserter);
-
-			//Find out if there are edges to the same node from a node in nodesBelowTarget and mark them as ignored
-			for (list<HyperOp*>::iterator bottomLevelNodeItr = nodesBelowTarget.begin(); bottomLevelNodeItr != nodesBelowTarget.end(); bottomLevelNodeItr++) {
-				HyperOp* bottomLevelNode = *bottomLevelNodeItr;
-				list<HyperOp*> bottomLevelNodeChildren = bottomLevelNode->getChildList();
-				list<HyperOp*> intersectionSet = getIntersection(bottomLevelNodeChildren, targetNodeChildNodes);
-				if (!intersectionSet.empty()) {
-					//Mark the edges between the target node and the child nodes as ignored edges
-					for (list<HyperOp*>::iterator childNodeItr = intersectionSet.begin(); childNodeItr != intersectionSet.end(); childNodeItr++) {
-						list<HyperOpEdge*> stateChangedEdges = targetNodeForMerge->ignoreChildEdge(*childNodeItr, true);
-						stateChangedEdgeList.merge(stateChangedEdgeList);
-					}
-				}
-			}
-
-			//Find out if there are edges to the same node from a node in nodesAboveTarget and mark them as ignored
-			for (list<HyperOp*>::iterator topLevelNodeItr = nodesAboveTarget.begin(); topLevelNodeItr != nodesAboveTarget.end(); topLevelNodeItr++) {
-				HyperOp* topLevelNode = *topLevelNodeItr;
-				list<HyperOp*> topLevelNodeChildren = topLevelNode->getChildList();
-				list<HyperOp*> intersectionSet = getIntersection(topLevelNodeChildren, targetNodeChildNodes);
-				if (!intersectionSet.empty()) {
-					//Mark the edges between the target node and the child nodes as ignored edges
-					for (list<HyperOp*>::iterator childNodeItr = intersectionSet.begin(); childNodeItr != intersectionSet.end(); childNodeItr++) {
-						list<HyperOpEdge*> stateChangedEdges = topLevelNode->ignoreChildEdge(*childNodeItr, true);
-						stateChangedEdgeList.merge(stateChangedEdges);
-					}
-				}
-			}
-
-			//Ignore all the edges from the same cluster to the target node
-			for (list<HyperOp*>::iterator nodeAboveTargetItr = nodesAboveTarget.begin(); nodeAboveTargetItr != nodesAboveTarget.end(); nodeAboveTargetItr++) {
-				HyperOp* nodeAboveTarget = *nodeAboveTargetItr;
-				if (!(nodeAboveTarget == source && targetNodeForMerge == target)) {
-					list<HyperOp*> childNodesOfNodeAboveTarget = nodeAboveTarget->getChildList();
-					if (std::find(childNodesOfNodeAboveTarget.begin(), childNodesOfNodeAboveTarget.end(), targetNodeForMerge) != childNodesOfNodeAboveTarget.end()) {
-						list<HyperOpEdge*> stateChangedEdges = nodeAboveTarget->ignoreChildEdge(targetNodeForMerge, true);
-						stateChangedEdgeList.merge(stateChangedEdges);
-					}
-				}
-			}
-			//Ignore all the edges from the target to the same cluster
-			for (list<HyperOp*>::iterator nodeBelowTargetItr = nodesBelowTarget.begin(); nodeBelowTargetItr != nodesBelowTarget.end(); nodeBelowTargetItr++) {
-				HyperOp* nodeBelowTarget = *nodeBelowTargetItr;
-				if (!(nodeBelowTarget == source && targetNodeForMerge == target)) {
-					list<HyperOp*> parentNodesOfNodeAboveTarget = nodeBelowTarget->getParentList();
-					if (std::find(parentNodesOfNodeAboveTarget.begin(), parentNodesOfNodeAboveTarget.end(), targetNodeForMerge) != parentNodesOfNodeAboveTarget.end()) {
-						list<HyperOpEdge*> stateChangedEdges = targetNodeForMerge->ignoreParentEdge(nodeBelowTarget, true);
-						stateChangedEdgeList.merge(stateChangedEdges);
-					}
-				}
-			}
-
-			//Merge represents a serial schedule being generated between two clusters, edges need to be added such that there is a serial schedule between the merged clusters
-			if (sourceClusterNodeFirst != 0) {
-				HyperOpEdge *edge = new HyperOpEdge();
-				edge->setType(HyperOpEdge::ORDERING);
-				edge->setIsEdgeIgnored(true);
-				additionalEdgesMap.push_back(std::make_pair((HyperOpEdge*) edge, make_pair(sourceClusterNodeFirst, targetNodeForMerge)));
-				sourceClusterNodeFirst->addChildEdge((HyperOpEdge*) edge, targetNodeForMerge);
-				targetNodeForMerge->addParentEdge((HyperOpEdge*) edge, sourceClusterNodeFirst);
-			}
-			if (sourceClusterNodeSecond != 0) {
-				HyperOpEdge *edge = new HyperOpEdge();
-				edge->setType(HyperOpEdge::ORDERING);
-				edge->setIsEdgeIgnored(true);
-				additionalEdgesMap.push_back(std::make_pair(edge, make_pair(targetNodeForMerge, sourceClusterNodeSecond)));
-				targetNodeForMerge->addChildEdge((HyperOpEdge*) edge, sourceClusterNodeSecond);
-				sourceClusterNodeSecond->addParentEdge((HyperOpEdge*) edge, targetNodeForMerge);
-			}
-		}
-
-		//remove the merged cluster from the original cluster list
-		computeClusterList.remove(targetClusterPair);
-		//Set the merged cluster
-		for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterItr = computeClusterList.begin(); clusterItr != computeClusterList.end(); clusterItr++) {
-			if (*clusterItr == sourceClusterPair) {
-				(*clusterItr).first = sourceCluster;
-				break;
-			}
-		}
-
-		//Check if zeroing helped reduce execution time
-		list<HyperOp*> tempDominantSequence;
-		tempDominantSequence.push_back(startHyperOp);
-		pair<list<HyperOp*>, list<unsigned int> > computedDominantSequencePair = computeDominantSequence(tempDominantSequence);
-//				, excludeList);
-		//If execution time decreases from the previous step, clustering is acceptable
-		if (compareHierarchicalVolume(executionTime, computedDominantSequencePair.second) >= 0) {
-//			excludeList.clear();
-			dominantSequence = computedDominantSequencePair.first;
-			executionTime = computedDominantSequencePair.second;
-			for (list<pair<HyperOpEdge*, pair<HyperOp*, HyperOp*> > >::iterator addedEdgeIterator = additionalEdgesMap.begin(); addedEdgeIterator != additionalEdgesMap.end(); addedEdgeIterator++) {
-				examinedEdges.push_back(make_pair((*addedEdgeIterator).second.first, (*addedEdgeIterator).second.second));
-			}
-		} else {
-			computeClusterList.clear();
-			std::copy(tempClusterList.begin(), tempClusterList.end(), back_inserter(computeClusterList));
-			for (list<pair<HyperOpEdge*, pair<HyperOp*, HyperOp*> > >::iterator addedEdgeIterator = additionalEdgesMap.begin(); addedEdgeIterator != additionalEdgesMap.end(); addedEdgeIterator++) {
-				(*addedEdgeIterator).second.first->removeChildEdge((*addedEdgeIterator).first);
-				(*addedEdgeIterator).second.second->removeParentEdge((*addedEdgeIterator).first);
-			}
-			for (list<HyperOpEdge*>::iterator ignoreEdgeIterator = stateChangedEdgeList.begin(); ignoreEdgeIterator != stateChangedEdgeList.end(); ignoreEdgeIterator++) {
-				(*ignoreEdgeIterator)->setIsEdgeIgnored(false);
-			}
-			source->zeroOutChildEdge(target, false);
-//			excludeList.push_back(dominantSequencePair.first);
-		}
-		//Add the edge to examined list;
-		examinedEdges.push_back(std::make_pair(source, target));
-
-		printDS(dominantSequence);
-	}
-
-	errs() << "before merging, num of clusters:" << computeClusterList.size() << "\n";
+//Add the edge to examined list;
 
 //TODO uncomment the following
 //Merge clusters till the number of compute resources matches the number of clusters created
@@ -2286,8 +2254,23 @@ void HyperOpInteractionGraph::clusterNodes() {
 //		computeClusterList = returnValue.second;
 //	}
 
+	HyperOp* startHyperOp;
+	HyperOp* endHyperOp;
+	for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
+		if ((*vertexItr)->isStartHyperOp()) {
+			startHyperOp = *vertexItr;
+		}
+		if ((*vertexItr)->isEndHyperOp()) {
+			endHyperOp = *vertexItr;
+		}
+	}
+	HIGSubtree subtree(Vertices, startHyperOp, endHyperOp);
+	subtree.clusterSubTree();
+
 	map<unsigned, list<HyperOp*> > roundRobinClusterDist;
 //	roundRobinClusterDist.reserve(this->rowCount*this->columnCount);
+	auto computeClusterList = subtree.subtreeClusterList;
+
 	unsigned crId = 0;
 	for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterItr = computeClusterList.begin(); clusterItr != computeClusterList.end(); clusterItr++) {
 		if (roundRobinClusterDist.find(crId) == roundRobinClusterDist.end()) {
@@ -2305,23 +2288,9 @@ void HyperOpInteractionGraph::clusterNodes() {
 		errs() << "each cluster:\n";
 		for (list<HyperOp*>::iterator printItr = clusterItr->second.begin(); printItr != clusterItr->second.end(); printItr++) {
 			errs() << (*printItr)->asString() << ",";
-//			clusterList.push_back()
 		}
 		errs() << "\n";
 	}
-
-//	//TODO: temp fix since the previous snippet is taking forever
-//	unsigned distributionIntoCR = 0;
-//	unsigned numberOfResources = this->rowCount * this->columnCount;
-//	for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterItr = computeClusterList.begin(); clusterItr != computeClusterList.end(); clusterItr++) {
-//		clusterList.push_back(clusterItr->first);
-//		errs() << "each cluster:\n";
-//		for (list<HyperOp*>::iterator printItr = clusterItr->first.begin(); printItr != clusterItr->first.end(); printItr++) {
-//			errs() << (*printItr)->asString() << ",";
-//		}
-//		distributionIntoCR = (distributionIntoCR + 1) % numberOfResources;
-//		errs() << "\n";
-//	}
 
 	DEBUG(dbgs() << "Minimizing ordering edges\n");
 	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
@@ -2352,7 +2321,6 @@ void HyperOpInteractionGraph::clusterNodes() {
 			}
 		}
 	}
-
 }
 
 int linearizeTime(list<unsigned int> time) {
@@ -2460,10 +2428,10 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 	int i;
 // Set bounds on x,y coordinates being computed as a map of clusters
 	for (i = 1; i <= Ncol; i += 2) {
-		//X bound
+//X bound
 		set_bounds(lp, i, 0, maxDimM - 1);
 		set_int(lp, i, 1);
-		//Y bound
+//Y bound
 		set_bounds(lp, i + 1, 0, maxDimN - 1);
 		set_int(lp, i + 1, 1);
 	}
@@ -2553,7 +2521,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 		int targetx = communicationItr->first.second + 1;
 		int targety = targetx + 1;
 
-		//Add constraints for |x1-x2|<d1
+//Add constraints for |x1-x2|<d1
 		colno[0] = sourcex;
 		row[0] = 1;
 		colno[1] = targetx;
@@ -2575,12 +2543,12 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 		set_int(lp, addedVariableIndex, 1);
 		set_lowbo(lp, addedVariableIndex, 0);
 
-		//Associate weightage
+//Associate weightage
 		minimizationColumn[j] = addedVariableIndex;
 		minimizationRow[j] = linearizeTime(communicationItr->second.first);
 		j++;
 
-		//Add constraints for |y1-y2|<d2
+//Add constraints for |y1-y2|<d2
 		colno[0] = sourcey;
 		row[0] = 1;
 		colno[1] = targety;
@@ -2599,7 +2567,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 		add_constraintex(lp, 3, row, colno, LE, 0);
 		numRows++;
 
-		//Associate weightage
+//Associate weightage
 		minimizationColumn[j] = addedVariableIndex + 1;
 		minimizationRow[j] = linearizeTime(communicationItr->second.first);
 		j++;
@@ -2733,7 +2701,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 	list<list<HyperOp*> >::iterator clusterItr = clusterList.begin();
 	if (ret == 0) {
 		get_variables(lp, clusterCRMap);
-		//TODO (previously:a solution is calculated, now lets compute the overlap in edges; this part is now commented out because we need to employ branch and bound to eliminate each solution from the next problem being solved)
+//TODO (previously:a solution is calculated, now lets compute the overlap in edges; this part is now commented out because we need to employ branch and bound to eliminate each solution from the next problem being solved)
 		for (i = 0; i < Ncol; i += 2) {
 			list<HyperOp*> cluster = *clusterItr;
 			int x = (int) clusterCRMap[i];
@@ -2750,10 +2718,69 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 	}
 }
 
-void HyperOpInteractionGraph::verify(){
-	//Check that sync hyperops are not predicated
-	for(auto vertexItr : Vertices){
-		assert((!(vertexItr->isBarrierHyperOp()&&vertexItr->isPredicatedHyperOp()))&&"A HyperOp can't be both predicated and sync barrier");
+void HyperOpInteractionGraph::verify() {
+//Check that sync hyperops are not predicated
+	HyperOp* startHyperOp = NULL;
+	for (auto vertexItr : Vertices) {
+		assert((!(vertexItr->isBarrierHyperOp() && vertexItr->isPredicatedHyperOp())) && "A HyperOp can't be both predicated and sync barrier");
+		if (vertexItr->isStartHyperOp()) {
+			assert(startHyperOp==NULL && "Multiple Start HyperOps not allowed\n");
+			startHyperOp = vertexItr;
+		}
+		map<int, list<HyperOp*> > contextSlotAndParentList;
+		//check to ensure the the incoming edges to a hyperOp don't share the same context slot, and if they do, they come from different hyperops
+		for (auto parentEdgeItr : vertexItr->ParentMap) {
+			if (parentEdgeItr.first->getType() == HyperOpEdge::SCALAR || parentEdgeItr.first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) {
+				list<HyperOp*> srcList;
+				if (contextSlotAndParentList.find(parentEdgeItr.first->getPositionOfContextSlot()) != contextSlotAndParentList.end()) {
+					srcList = contextSlotAndParentList.find(parentEdgeItr.first->getPositionOfContextSlot())->second;
+					for (auto srcItr : srcList) {
+						assert(srcItr != parentEdgeItr.second && "Edges can't share same context slot\n");
+					}
+				}
+				srcList.push_back(parentEdgeItr.second);
+				contextSlotAndParentList.insert(make_pair(parentEdgeItr.first->getPositionOfContextSlot(), srcList));
+			}
+		}
+	}
+
+	unsigned numVertices = this->Vertices.size();
+	bool transitiveClosure[numVertices][numVertices];
+	map<HyperOp*, unsigned> hyperOpAndIndexMap;
+	unsigned indexMap = 0;
+	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++, indexMap++) {
+		hyperOpAndIndexMap[*hopItr] = indexMap;
+		for (unsigned i = 0; i < this->Vertices.size(); i++) {
+			transitiveClosure[indexMap][i] = 0;
+		}
+	}
+	//Populate adjacency matrix
+	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
+		list<HyperOp*> children = (*hopItr)->getChildList();
+		unsigned producerIndex = hyperOpAndIndexMap[*hopItr];
+		errs()<<"hig index "<<producerIndex<<" for "<<(*hopItr)->asString()<<"\n";
+		for (map<HyperOpEdge*, HyperOp*>::iterator childEdgeItr = (*hopItr)->ChildMap.begin(); childEdgeItr != (*hopItr)->ChildMap.end(); childEdgeItr++) {
+			HyperOpEdge::EdgeType edgeType = childEdgeItr->first->getType();
+			unsigned consumerIndex = hyperOpAndIndexMap[childEdgeItr->second];
+			if (transitiveClosure[producerIndex][consumerIndex] == 0 && (edgeType == HyperOpEdge::SCALAR || edgeType == HyperOpEdge::PREDICATE || edgeType == HyperOpEdge::ORDERING || edgeType == HyperOpEdge::SYNC)) {
+				transitiveClosure[producerIndex][consumerIndex] = 1;
+			}
+		}
+	}
+
+	//Compute transitive closure
+	for (unsigned k = 0; k < numVertices; k++) {
+		for (unsigned i = 0; i < numVertices; i++) {
+			for (unsigned j = 0; j < numVertices; j++) {
+				transitiveClosure[i][j] = transitiveClosure[i][j] || (transitiveClosure[i][k] && transitiveClosure[k][j]);
+			}
+		}
+	}
+
+	for (unsigned i = 0; i < numVertices; i++) {
+		for (unsigned j = 0; j < numVertices; j++) {
+			assert((!(transitiveClosure[i][j] && transitiveClosure[j][i])) && "Cycle in HIG\n");
+		}
 	}
 }
 
@@ -3115,9 +3142,7 @@ list<list<pair<HyperOpEdge*, HyperOp*> > > mergePredicateChains(list<list<pair<H
 		change = false;
 		list<list<pair<HyperOpEdge*, HyperOp*> > > removalList;
 		list<list<pair<HyperOpEdge*, HyperOp*> > > additionList;
-		errs() << "\n======\nnum chains before :" << predicateChains.size() << "\n";
-		//remove duplicate predicate chains
-		errs() << "Removing duplicate predicate chains\n";
+//remove duplicate predicate chains
 		int i = 0;
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++, i++) {
 			if (*predicateChainItr != predicateChains.back()) {
@@ -3155,8 +3180,6 @@ list<list<pair<HyperOpEdge*, HyperOp*> > > mergePredicateChains(list<list<pair<H
 		}
 		removalList.clear();
 
-		errs() << "predicates now:" << predicateChains.size() << "\n";
-		errs() << "Removing redundant chains that are prefixes of longer chains\n";
 		i = 0;
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++, i++) {
 			if (*predicateChainItr != predicateChains.back()) {
@@ -3200,24 +3223,21 @@ list<list<pair<HyperOpEdge*, HyperOp*> > > mergePredicateChains(list<list<pair<H
 		}
 		removalList.clear();
 
-		errs() << "predicates now:" << predicateChains.size() << "\n";
-		//		unsigned chainCount = 0;
-		//		for (auto chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++, chainCount++) {
-		//			errs() << "\nchain " << chainCount << ":";
-		//			for (auto chainContentsItr = chainItr->rbegin(); chainContentsItr != chainItr->rend(); chainContentsItr++) {
-		//				errs() << chainContentsItr->second->asString() << "(";
-		//				chainContentsItr->first->getValue()->print(errs());
-		//				errs() << ":" << chainContentsItr->first->getPredicateValue() << ")->";
-		//			}
-		//			errs() << "\n---------------------------------------------------------------------------------------------------------\n";
-		//		}
+//		unsigned chainCount = 0;
+//		for (auto chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++, chainCount++) {
+//			errs() << "\nchain " << chainCount << ":";
+//			for (auto chainContentsItr = chainItr->rbegin(); chainContentsItr != chainItr->rend(); chainContentsItr++) {
+//				errs() << chainContentsItr->second->asString() << "(";
+//				chainContentsItr->first->getValue()->print(errs());
+//				errs() << ":" << chainContentsItr->first->getPredicateValue() << ")->";
+//			}
+//			errs() << "\n---------------------------------------------------------------------------------------------------------\n";
+//		}
 
 		assert(predicateChains.size() <= previousPredChainSize && "Removal of duplicate chains resulted in inconsistent number of chains remaining\n");
 
-		errs() << "Removing predicate chains that are mutually exclusive\n";
-
-		//		errs() << "number of chains before finding prefixes:" << predicateChains.size() << "\n";
-		//Check if the predicate chains are mutually exclusive
+//		errs() << "number of chains before finding prefixes:" << predicateChains.size() << "\n";
+//Check if the predicate chains are mutually exclusive
 		unsigned one = 0;
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator firstPredicateChainItr = predicateChains.begin(); firstPredicateChainItr != predicateChains.end(); firstPredicateChainItr++, one++) {
 			if (*firstPredicateChainItr != predicateChains.back()) {
@@ -3278,21 +3298,11 @@ list<list<pair<HyperOpEdge*, HyperOp*> > > mergePredicateChains(list<list<pair<H
 			}
 		}
 
-		//		errs() << "num chains after pairwise compare:" << predicateChains.size() << ", num removal:" << removalList.size() << ", num addition:" << additionList.size() << "\n";
+//		errs() << "num chains after pairwise compare:" << predicateChains.size() << ", num removal:" << removalList.size() << ", num addition:" << additionList.size() << "\n";
 		previousPredChainSize = predicateChains.size();
 
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator removalItr = removalList.begin(); removalItr != removalList.end(); removalItr++) {
 			predicateChains.remove(*removalItr);
-		}
-
-		errs() << "after merging mutually exclusive stuff, what is in predicate chains list?";
-		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
-			errs() << "\neach chain:";
-			for (list<pair<HyperOpEdge*, HyperOp*> >::iterator printItr = chainItr->begin(); printItr != chainItr->end(); printItr++) {
-				errs() << printItr->second->asString() << "(";
-				printItr->first->getValue()->print(errs());
-				errs() << printItr->first->getPredicateValue() << ")->";
-			}
 		}
 
 		for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator additionItr = additionList.begin(); additionItr != additionList.end(); additionItr++) {
@@ -3303,50 +3313,18 @@ list<list<pair<HyperOpEdge*, HyperOp*> > > mergePredicateChains(list<list<pair<H
 			change = true;
 		}
 
-		errs() << "predicates now:" << predicateChains.size() << "\n";
 		assert(predicateChains.size() <= previousPredChainSize && "Merge of mutually exclusive chains resulted in inconsistent number of chains remaining\n");
 	}
 	return predicateChains;
 }
 
 //Returns predicate from start hyperop
-list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp * currentHyperOp) {
-//	list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains = getReachingPredicateChain(currentHyperOp, currentHyperOp->getImmediateDominator());
-//	errs() << "\n---\ncomputing last predicate to hyperop:" << currentHyperOp->asString() << "\n";
-//	predicateChains = mergePredicateChains(predicateChains);
-//
-//	errs() << "num chains in the end:" << predicateChains.size() << "\n";
-//	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator chainItr = predicateChains.begin(); chainItr != predicateChains.end(); chainItr++) {
-//		errs() << "\neach chain:";
-//		if (chainItr->empty()) {
-//			errs() << "empty chain\n";
-//		} else {
-//			for (list<pair<HyperOpEdge*, HyperOp*> >::reverse_iterator printItr = chainItr->rbegin(); printItr != chainItr->rend(); printItr++) {
-//				errs() << printItr->second->asString() << "(";
-//				printItr->first->getValue()->print(errs());
-//				errs() << printItr->first->getPredicateValue() << ")->";
-//			}
-//		}
-//		errs() << "\n";
-//	}
-//
-////	assert(predicateChains.size() <= 1 && "moar predicates\n");
-//	if (predicateChains.empty()) {
-//		list<pair<HyperOpEdge*, HyperOp*> > emptyChain;
-//		return emptyChain;
-//	}
-
-//	for (list<list<pair<HyperOpEdge*, HyperOp*> > >::iterator predicateChainItr = predicateChains.begin(); predicateChainItr != predicateChains.end(); predicateChainItr++) {
-//		if (!predicateChainItr->empty() && longestChain.size() < predicateChainItr->size()) {
-//			longestChain = *predicateChainItr;
-//		}
-//	}
-
+list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp * currentHyperOp, HyperOp* idom) {
 //Now we find the shortest predicate chain
 	list<pair<HyperOpEdge*, HyperOp*> > reachingPredicateChain;
 	while (!currentHyperOp->isStartHyperOp()) {
 		HyperOp* immediateDominator = currentHyperOp->getImmediateDominator();
-		//Check if the current HyperOp is an immediate child of the immediateDom HyperOp
+//Check if the current HyperOp is an immediate child of the immediateDom HyperOp
 		list<HyperOpEdge*> parentEdgeList;
 		for (auto childItr = immediateDominator->ChildMap.begin(); childItr != immediateDominator->ChildMap.end(); childItr++) {
 			if (childItr->second == currentHyperOp) {
@@ -3367,12 +3345,12 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp * currentHyperOp)
 }
 
 //Returns predicate from the argument parent hyperop
-list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInputUptoParent(HyperOp * currentHyperOp, HyperOp* parentHyperOp) {
+list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInputUptoParent(HyperOp * currentHyperOp, HyperOp * parentHyperOp) {
 //Now we find the shortest predicate chain
 	list<pair<HyperOpEdge*, HyperOp*> > reachingPredicateChain;
 	while (currentHyperOp != parentHyperOp) {
 		HyperOp* immediateDominator = currentHyperOp->getImmediateDominator();
-		//Check if the current HyperOp is an immediate child of the immediateDom HyperOp
+//Check if the current HyperOp is an immediate child of the immediateDom HyperOp
 		list<HyperOpEdge*> parentEdgeList;
 		for (auto childItr = immediateDominator->ChildMap.begin(); childItr != immediateDominator->ChildMap.end(); childItr++) {
 			if (childItr->second == currentHyperOp) {
@@ -3392,85 +3370,6 @@ list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInputUptoParent(HyperOp * curre
 	return reachingPredicateChain;
 }
 
-//Returns control flow graph from the cdfg we use, this graph is used to compute mutual exclusion etc
-pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > getCFG(HyperOpInteractionGraph * dfg) {
-	HyperOpInteractionGraph* cfg = new HyperOpInteractionGraph();
-	cfg->setDimensions(dfg->rowCount, dfg->columnCount);
-	map<HyperOp*, HyperOp*> originalToClonedNodesMap;
-	for (list<HyperOp*>::iterator vertexItr = dfg->Vertices.begin(); vertexItr != dfg->Vertices.end(); vertexItr++) {
-		//Create a new Vertex for each original
-		HyperOp* newVertex = new HyperOp((*vertexItr)->getFunction());
-		newVertex->setStaticHyperOp((*vertexItr)->isStaticHyperOp());
-		newVertex->setInstanceof((*vertexItr)->getInstanceof());
-		newVertex->setHyperOpId((*vertexItr)->getHyperOpId());
-		newVertex->setInstanceId((*vertexItr)->getInstanceId());
-		if ((*vertexItr)->isPredicatedHyperOp()) {
-			newVertex->setPredicatedHyperOp();
-		}
-		if ((*vertexItr)->isBarrierHyperOp()) {
-			newVertex->setBarrierHyperOp();
-		}
-		if ((*vertexItr)->isStartHyperOp()) {
-			newVertex->setStartHyperOp();
-		}
-		if ((*vertexItr)->isEndHyperOp()) {
-			newVertex->setEndHyperOp();
-		}
-		cfg->addHyperOp(newVertex);
-		originalToClonedNodesMap[*vertexItr] = newVertex;
-	}
-
-//Copy only predicate and sync edges
-	for (list<HyperOp*>::iterator vertexItr = dfg->Vertices.begin(); vertexItr != dfg->Vertices.end(); vertexItr++) {
-		HyperOp* targetHop = originalToClonedNodesMap[*vertexItr];
-		for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = (*vertexItr)->ParentMap.begin(); parentItr != (*vertexItr)->ParentMap.end(); parentItr++) {
-			HyperOp* sourceHop = originalToClonedNodesMap[parentItr->second];
-			if (parentItr->first->getType() == HyperOpEdge::PREDICATE || parentItr->first->getType() == HyperOpEdge::SYNC) {
-				HyperOpEdge* edge = new HyperOpEdge();
-				edge->Type = parentItr->first->getType();
-				edge->setVolume(parentItr->first->getVolume());
-				edge->setValue(parentItr->first->getValue());
-				edge->setPredicateValue(parentItr->first->getPredicateValue());
-				edge->setContextFrameAddress(parentItr->first->getContextFrameAddress());
-				edge->setPositionOfContextSlot(parentItr->first->getPositionOfContextSlot());
-				targetHop->addParentEdge(edge, sourceHop);
-				sourceHop->addChildEdge(edge, targetHop);
-			}
-		}
-	}
-
-//Check if there are hanging hyperops
-	for (list<HyperOp*>::iterator vertexItr = dfg->Vertices.begin(); vertexItr != dfg->Vertices.end(); vertexItr++) {
-		HyperOp* targetHop = originalToClonedNodesMap[*vertexItr];
-		if (!targetHop->isStartHyperOp() && targetHop->ParentMap.empty()) {
-			auto parentItr = (*vertexItr)->ParentMap.begin();
-			HyperOp* sourceHop = originalToClonedNodesMap[parentItr->second];
-			HyperOpEdge* edge = new HyperOpEdge();
-			edge->Type = parentItr->first->getType();
-			edge->setVolume(parentItr->first->getVolume());
-			edge->setValue(parentItr->first->getValue());
-			edge->setPredicateValue(parentItr->first->getPredicateValue());
-			targetHop->addParentEdge(edge, sourceHop);
-			sourceHop->addChildEdge(edge, targetHop);
-		}
-		if (!targetHop->isEndHyperOp() && targetHop->ChildMap.empty()) {
-			auto childItr = (*vertexItr)->ChildMap.begin();
-			HyperOp* sourceHop = originalToClonedNodesMap[childItr->second];
-			HyperOpEdge* edge = new HyperOpEdge();
-			edge->Type = childItr->first->getType();
-			edge->setVolume(childItr->first->getVolume());
-			edge->setValue(childItr->first->getValue());
-			edge->setPredicateValue(childItr->first->getPredicateValue());
-			sourceHop->addParentEdge(edge, targetHop);
-			targetHop->addChildEdge(edge, sourceHop);
-		}
-	}
-	errs() << "generated cfg:";
-//	dfg->Vertices.front()->getFunction()->getParent()->dump();
-//	cfg->print(errs());
-	return make_pair(cfg, originalToClonedNodesMap);
-}
-
 bool mutuallyExclusiveHyperOps(HyperOp* firstHyperOp, HyperOp* secondHyperOp) {
 	list<HyperOp*> firstHyperOpDomf = firstHyperOp->getDominanceFrontier();
 	list<HyperOp*> secondHyperOpDomf = firstHyperOp->getDominanceFrontier();
@@ -3482,8 +3381,10 @@ bool mutuallyExclusiveHyperOps(HyperOp* firstHyperOp, HyperOp* secondHyperOp) {
 			//HyperOps are on different paths
 			//Check if the HyperOps are on mutually exclusive predicates at all
 			list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains;
-			auto firstHyperOpPredicateChain = lastPredicateInput(firstHyperOp);
-			auto secondHyperOpPredicateChain = lastPredicateInput(secondHyperOp);
+			auto firstHyperOpPredicateChain = lastPredicateInput(firstHyperOp,
+			NULL);
+			auto secondHyperOpPredicateChain = lastPredicateInput(secondHyperOp,
+			NULL);
 
 			predicateChains.push_back(firstHyperOpPredicateChain);
 			predicateChains.push_back(secondHyperOpPredicateChain);
@@ -3614,6 +3515,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 						originalToReplicatedArgIndexMap[argIndex] = argIndex + 1;
 					}
 
+					//TODO
 					FunctionType *FT = FunctionType::get(Type::getVoidTy(consumerFunction->getParent()->getContext()), coalescedList, false);
 					Function *replacementFunction = Function::Create(FT, Function::ExternalLinkage, consumerFunction->getName(), consumerHyperOp->getFunction()->getParent());
 
@@ -3629,7 +3531,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					map<BasicBlock*, BasicBlock*> originalAndReplicatedBBMap;
 					map<Instruction*, Instruction*> localInstCloneMap;
 					for (Function::iterator bbItr = consumerFunction->begin(); bbItr != consumerFunction->end(); bbItr++) {
-						BasicBlock *newBB = BasicBlock::Create(consumerFunction->getParent()->getContext(), replacementFunction->getName().str().append(bbItr->getName()), replacementFunction);
+						BasicBlock *newBB = BasicBlock::Create(consumerFunction->getParent()->getContext(), bbItr->getName(), replacementFunction);
 						originalAndReplicatedBBMap[bbItr] = newBB;
 						for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
 							Instruction* clonedInst = instItr->clone();
@@ -3709,52 +3611,52 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 
 //Update the HyperOps with newly created functions and delete the old ones
 	for (map<Function*, Function*>::iterator replacementFunctionItr = originalAndReplacementFunctionMap.begin(); replacementFunctionItr != originalAndReplacementFunctionMap.end(); replacementFunctionItr++) {
-		HyperOp* hyperOpForUpdate = this->getHyperOp(replacementFunctionItr->first);
-		errs() << "updating hyperop:" << hyperOpForUpdate->asString() << ", whats in alloca?" << hyperOpForUpdate->loadInstrAndAllocaMap.size() << "\n";
-		//Replace the load and alloc map
-		if (!hyperOpForUpdate->loadInstrAndAllocaMap.empty()) {
-			errs() << "some entries in allocamap\n";
-			map<Instruction*, Instruction*> newLoadInstrAndAllocaMap;
-			//Find the equivalent of each load instruction in the original map and place it in the new one
-			for (map<Instruction*, Instruction*>::iterator loadItr = hyperOpForUpdate->loadInstrAndAllocaMap.begin(); loadItr != hyperOpForUpdate->loadInstrAndAllocaMap.end(); loadItr++) {
-				if (originalInstAndCloneMap.find(loadItr->second) != originalInstAndCloneMap.end()) {
-					newLoadInstrAndAllocaMap[originalInstAndCloneMap[loadItr->first]] = originalInstAndCloneMap[loadItr->second];
-				} else {
-					newLoadInstrAndAllocaMap[originalInstAndCloneMap[loadItr->first]] = loadItr->second;
-				}
-			}
-
-			hyperOpForUpdate->loadInstrAndAllocaMap.clear();
-			for (map<Instruction*, Instruction*>::iterator updatedMapItr = newLoadInstrAndAllocaMap.begin(); updatedMapItr != newLoadInstrAndAllocaMap.end(); updatedMapItr++) {
-				hyperOpForUpdate->loadInstrAndAllocaMap.insert(make_pair(updatedMapItr->first, updatedMapItr->second));
-			}
-		}
-
-		//replace alloc instructions in other hyperops that possibly use the alloc instruction belonging to the updated the hyperop
-		for (auto vertexItr : this->Vertices) {
-			if (vertexItr != hyperOpForUpdate) {
-				map<Instruction*, Instruction*> tempMap;
-				for (auto loadInstItr : vertexItr->loadInstrAndAllocaMap) {
-					if (loadInstItr.second->getParent()->getParent() == hyperOpForUpdate->getFunction()) {
-						tempMap.insert(make_pair(loadInstItr.first, originalInstAndCloneMap[loadInstItr.second]));
-					} else {
-						tempMap.insert(make_pair(loadInstItr.first, loadInstItr.second));
-					}
-				}
-				vertexItr->loadInstrAndAllocaMap = tempMap;
-			}
-		}
-
-		hyperOpForUpdate->setFunction(replacementFunctionItr->second);
-
-//Update the edges of outgoing edges of consumer hyperOp
-		for (map<HyperOpEdge*, HyperOp*>::iterator edgeItr = hyperOpForUpdate->ChildMap.begin(); edgeItr != hyperOpForUpdate->ChildMap.end(); edgeItr++) {
-			if (edgeItr->first->getValue() != NULL) {
-//				errs() << "edge whose type is " << edgeItr->first->getType() << ", updated edge to contain value from " << ((Instruction*) edgeItr->first->getValue())->getParent()->getParent()->getName() << "\n";
-				edgeItr->first->setValue(originalInstAndCloneMap[(Instruction*) edgeItr->first->getValue()]);
-//				errs() << "to instead contain value from " << ((Instruction*) edgeItr->first->getValue())->getParent()->getParent()->getName() << "\n";
-			}
-		}
+//		HyperOp* hyperOpForUpdate = this->getHyperOp(replacementFunctionItr->first);
+//		errs() << "updating hyperop:" << hyperOpForUpdate->asString() << ", whats in alloca?" << hyperOpForUpdate->loadInstrAndAllocaMap.size() << "\n";
+////Replace the load and alloc map
+//		if (!hyperOpForUpdate->loadInstrAndAllocaMap.empty()) {
+//			errs() << "some entries in allocamap\n";
+//			map<Instruction*, Instruction*> newLoadInstrAndAllocaMap;
+//			//Find the equivalent of each load instruction in the original map and place it in the new one
+//			for (map<Instruction*, Instruction*>::iterator loadItr = hyperOpForUpdate->loadInstrAndAllocaMap.begin(); loadItr != hyperOpForUpdate->loadInstrAndAllocaMap.end(); loadItr++) {
+//				if (originalInstAndCloneMap.find(loadItr->second) != originalInstAndCloneMap.end()) {
+//					newLoadInstrAndAllocaMap[originalInstAndCloneMap[loadItr->first]] = originalInstAndCloneMap[loadItr->second];
+//				} else {
+//					newLoadInstrAndAllocaMap[originalInstAndCloneMap[loadItr->first]] = loadItr->second;
+//				}
+//			}
+//
+//			hyperOpForUpdate->loadInstrAndAllocaMap.clear();
+//			for (map<Instruction*, Instruction*>::iterator updatedMapItr = newLoadInstrAndAllocaMap.begin(); updatedMapItr != newLoadInstrAndAllocaMap.end(); updatedMapItr++) {
+//				hyperOpForUpdate->loadInstrAndAllocaMap.insert(make_pair(updatedMapItr->first, updatedMapItr->second));
+//			}
+//		}
+//
+////replace alloc instructions in other hyperops that possibly use the alloc instruction belonging to the updated the hyperop
+//		for (auto vertexItr : this->Vertices) {
+//			if (vertexItr != hyperOpForUpdate) {
+//				map<Instruction*, Instruction*> tempMap;
+//				for (auto loadInstItr : vertexItr->loadInstrAndAllocaMap) {
+//					if (loadInstItr.second->getParent()->getParent() == hyperOpForUpdate->getFunction()) {
+//						tempMap.insert(make_pair(loadInstItr.first, originalInstAndCloneMap[loadInstItr.second]));
+//					} else {
+//						tempMap.insert(make_pair(loadInstItr.first, loadInstItr.second));
+//					}
+//				}
+//				vertexItr->loadInstrAndAllocaMap = tempMap;
+//			}
+//		}
+//
+//		hyperOpForUpdate->setFunction(replacementFunctionItr->second);
+//
+////Update the edges of outgoing edges of consumer hyperOp
+//		for (map<HyperOpEdge*, HyperOp*>::iterator edgeItr = hyperOpForUpdate->ChildMap.begin(); edgeItr != hyperOpForUpdate->ChildMap.end(); edgeItr++) {
+//			if (edgeItr->first->getValue() != NULL) {
+////				errs() << "edge whose type is " << edgeItr->first->getType() << ", updated edge to contain value from " << ((Instruction*) edgeItr->first->getValue())->getParent()->getParent()->getName() << "\n";
+//				edgeItr->first->setValue(originalInstAndCloneMap[(Instruction*) edgeItr->first->getValue()]);
+////				errs() << "to instead contain value from " << ((Instruction*) edgeItr->first->getValue())->getParent()->getParent()->getName() << "\n";
+//			}
+//		}
 
 		functionsForDeletion.push_back(replacementFunctionItr->first);
 	}
@@ -3801,9 +3703,8 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		HyperOp* hyperOp = *hopItr;
 		if (hyperOp->isPredicatedHyperOp()) {
 			HyperOp* immediateDominator = hyperOp->getImmediateDominator();
-//			errs() << "finding the last predicate input to " << hyperOp->asString() << "\n";
-			list<pair<HyperOpEdge*, HyperOp*> > parentPredicateChain = lastPredicateInput(controlFlowGraphAndOriginalHopMap.second[hyperOp]);
-//			errs() << "computed predicate length " << parentPredicateChain.size() << "\n";
+			list<pair<HyperOpEdge*, HyperOp*> > parentPredicateChain = lastPredicateInput(controlFlowGraphAndOriginalHopMap.second[hyperOp], controlFlowGraphAndOriginalHopMap.second[hyperOp->getImmediateDominator()]);
+			errs() << "computed predicate length " << parentPredicateChain.size() << "\n";
 			pair<HyperOpEdge*, HyperOp*> parentPredicate;
 			if (parentPredicateChain.empty()) {
 				errs() << "empty predicate\n";
@@ -3827,12 +3728,10 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			unsigned decByValue = 0;
 			//Count number of inputs coming from other parent nodes which are also predicated by the same HyperOp
 			for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
-				errs() << "considering parent of the HyperOp " << parentItr->second->asString() << "\n";
 				if ((parentItr->first->getType() == HyperOpEdge::SCALAR || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) && parentItr->second != immediateDominator && transitiveClosure[hyperOpAndIndexMap[parentProducingPredicate]][hyperOpAndIndexMap[parentItr->second]]) {
 					decByValue++;
 				}
 			}
-			errs() << "decrement value of writecmp " << decByValue << " for HyperOp " << hyperOp->asString() << "\n";
 			if (decByValue > 0) {
 				HyperOpEdge* predicateEdge;
 				if (find(parentList.begin(), parentList.end(), parentProducingPredicate) == parentList.end()) {
@@ -3851,7 +3750,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					}
 				}
 
-				errs() << "setting predicate edge decrement count to " << decByValue << " and the edge is between " << parentPredicate.second->asString() << " and " << hyperOp->asString() << "\n";
 				predicateEdge->setDecrementOperandCount(decByValue);
 				hyperOp->setPredicatedHyperOp();
 				this->addEdge(parentPredicate.second, hyperOp, predicateEdge);
@@ -3859,14 +3757,12 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		}
 	}
 
-	errs() << "before decrementing sync, graph:";
 //	cfg->print(dbgs());
 	DEBUG(dbgs() << "Decrementing sync count for nodes with sync edges coming from mutually exclusive paths\n");
 //Update the sync count of nodes with sync edges incoming from mutually exclusive paths
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hyperOp = *hopItr;
 		if (hyperOp->isBarrierHyperOp()) {
-			errs() << "updating node with incoming sync edges " << hyperOp->asString() << "\n";
 			//Initialize every incoming path with the same count so that decrements can be performed later
 			hyperOp->setIncomingSyncCount(1, hyperOp->getSyncCount(0));
 
@@ -3903,12 +3799,9 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			syncOnPredicate[1] = 0;
 			bool syncFromPredicatedSources = false;
 			for (list<HyperOp*>::iterator syncSourceItr = syncSourceList.begin(); syncSourceItr != syncSourceList.end(); syncSourceItr++) {
-				errs() << "source of synchronization:" << (*syncSourceItr)->asString() << "\n";
 				auto predicateChain = lastPredicateInputUptoParent(*syncSourceItr, hyperOp->getImmediateDominator());
-				errs() << "predicate chain to syncsource:" << predicateChain.size() << "\n";
 
 				while (!predicateChain.empty() && predicateChain.front().first->getType() != HyperOpEdge::PREDICATE) {
-					errs() << "predicate:" << predicateChain.front().second->asString() << "\n";
 					predicateChain.pop_front();
 				}
 				if (!predicateChain.empty()) {
@@ -3945,7 +3838,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 	if (!this->Vertices.empty()) {
 		for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 			HyperOp* vertex = *vertexIterator;
-			os << vertex->asString();
+			os << vertex->asString(true);
 			os << "[";
 			if (!vertex->isStaticHyperOp()) {
 				os << "style=filled,";
@@ -3954,6 +3847,9 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 				} else {
 					os << "fillcolor=gray,";
 				}
+			}
+			if (vertex->isPredicatedHyperOp()) {
+				os << "shape=polygon,";
 			}
 			os << "label=\"Name:" << vertex->asString() << ",";
 
@@ -3972,7 +3868,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 			os << "Dom:" << dom << ", PostDom:" << postdom << ",";
 			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
 			os << "SyncCount:" << (*vertexIterator)->getSyncCount(0);
-			os << "Domf:"<<vertex->getDominanceFrontier().size()<<":";
+			os << "Domf:" << vertex->getDominanceFrontier().size() << ":";
 			if (!vertex->getDominanceFrontier().empty()) {
 				list<HyperOp*> domf = vertex->getDominanceFrontier();
 				for (list<HyperOp*>::iterator domfItr = domf.begin(); domfItr != domf.end(); domfItr++) {

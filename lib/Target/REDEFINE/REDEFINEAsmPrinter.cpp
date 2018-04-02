@@ -338,12 +338,12 @@ void REDEFINEAsmPrinter::printOperand(const MachineInstr *MI, int OpNo, raw_ostr
 	const MachineOperand &MO = MI->getOperand(OpNo);
 //look at target flags to see if we should wrap this operand
 	switch (MO.getTargetFlags()) {
-	case REDEFINEII::MO_ABS_HI:
-		O << "\"%hi(";
-		break;
-	case REDEFINEII::MO_ABS_LO:
-		O << "\"%lo(";
-		break;
+//	case REDEFINEII::MO_ABS_HI:
+//		O << "\"%hi(";
+//		break;
+//	case REDEFINEII::MO_ABS_LO:
+//		O << "\"%lo(";
+//		break;
 //	case REDEFINEII::MO_TPREL_HI:
 //		O << "%tprel_hi(";
 //		break;

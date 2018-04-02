@@ -45,20 +45,20 @@ REDEFINEMCInstLower::REDEFINEMCInstLower(Mangler *mang, MCContext &ctx, REDEFINE
 
 MCOperand REDEFINEMCInstLower::lowerSymbolOperand(const MachineOperand &MO, const MCSymbol *Symbol, int64_t Offset) const {
 	MCSymbolRefExpr::VariantKind Kind = getVariantKind(MO.getTargetFlags());
-	switch (MO.getTargetFlags()) {
-	case REDEFINEII::MO_ABS_HI:
-		Kind = MCSymbolRefExpr::VK_Mips_ABS_HI;
-		break;
-	case REDEFINEII::MO_ABS_LO:
-		Kind = MCSymbolRefExpr::VK_Mips_ABS_LO;
-		break;
-//	case REDEFINEII::MO_TPREL_HI:
-//		Kind = MCSymbolRefExpr::VK_Mips_TPREL_HI;
+//	switch (MO.getTargetFlags()) {
+//	case REDEFINEII::MO_ABS_HI:
+//		Kind = MCSymbolRefExpr::VK_Mips_ABS_HI;
 //		break;
-//	case REDEFINEII::MO_TPREL_LO:
-//		Kind = MCSymbolRefExpr::VK_Mips_TPREL_LO;
+//	case REDEFINEII::MO_ABS_LO:
+//		Kind = MCSymbolRefExpr::VK_Mips_ABS_LO;
 //		break;
-	}
+////	case REDEFINEII::MO_TPREL_HI:
+////		Kind = MCSymbolRefExpr::VK_Mips_TPREL_HI;
+////		break;
+////	case REDEFINEII::MO_TPREL_LO:
+////		Kind = MCSymbolRefExpr::VK_Mips_TPREL_LO;
+////		break;
+//	}
 	const MCExpr *Expr = MCSymbolRefExpr::Create(Symbol, Kind, Ctx);
 	if (Offset) {
 		const MCExpr *OffsetExpr = MCConstantExpr::Create(Offset, Ctx);
@@ -114,14 +114,22 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 				}
 			}
 			const Function* parentFunction = MO.getParent()->getParent()->getParent()->getFunction();
-			int argIndex = -1;
-			int argItrIndex = 1;
-			for (Function::const_arg_iterator argItr = parentFunction->arg_begin(); argItr != parentFunction->arg_end(); argItr++, argIndex--, argItrIndex++) {
-				if (argIndex == MO.getIndex()) {
-					break;
+			int numScalarArgs = 0;
+			int argIndex = 1;
+			for (Function::const_arg_iterator argItr = parentFunction->arg_begin(); argItr != parentFunction->arg_end(); argItr++, argIndex++) {
+				if (parentFunction->getAttributes().hasAttribute(argIndex, Attribute::InReg)) {
+					numScalarArgs++;
 				}
-				if (!parentFunction->getAttributes().hasAttribute(argItrIndex, Attribute::InReg)) {
-					currentObjectOffset += REDEFINEUtils::getSizeOfType(argItr->getType());
+			}
+			HyperOp* currentHyperOp = ((REDEFINETargetMachine&) ((REDEFINEAsmPrinter&) AsmPrinter).TM).HIG->getHyperOp(const_cast<Function*>(parentFunction));
+			for (auto parentEdgeItr = currentHyperOp->ParentMap.begin(); parentEdgeItr != currentHyperOp->ParentMap.end(); parentEdgeItr++) {
+				HyperOpEdge* edge = parentEdgeItr->first;
+				if (edge->getType() != HyperOpEdge::LOCAL_REFERENCE && edge->getType() != HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF){
+					continue;
+				}
+				if (edge->getPositionOfContextSlot() - numScalarArgs - 1 == MO.getIndex()) {
+					currentObjectOffset += edge->getMemoryOffsetInTargetFrame();
+					break;
 				}
 			}
 		} else {
@@ -130,7 +138,6 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 			}
 		}
 		MCOperand retVal = MCOperand::CreateImm(currentObjectOffset);
-		errs() << "lowering frame index for func " << MO.getParent()->getParent()->getParent()->getFunction()->getName() << ":" << MO.getIndex() << " TO VAL:" << currentObjectOffset << "\n";
 		return retVal;
 	}
 
