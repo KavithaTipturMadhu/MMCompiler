@@ -2758,7 +2758,7 @@ void HyperOpInteractionGraph::verify() {
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		list<HyperOp*> children = (*hopItr)->getChildList();
 		unsigned producerIndex = hyperOpAndIndexMap[*hopItr];
-		errs()<<"hig index "<<producerIndex<<" for "<<(*hopItr)->asString()<<"\n";
+		errs() << "hig index " << producerIndex << " for " << (*hopItr)->asString() << "\n";
 		for (map<HyperOpEdge*, HyperOp*>::iterator childEdgeItr = (*hopItr)->ChildMap.begin(); childEdgeItr != (*hopItr)->ChildMap.end(); childEdgeItr++) {
 			HyperOpEdge::EdgeType edgeType = childEdgeItr->first->getType();
 			unsigned consumerIndex = hyperOpAndIndexMap[childEdgeItr->second];
@@ -3806,7 +3806,12 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 				}
 				if (!predicateChain.empty()) {
 					assert(predicateChain.front().first->getType() == HyperOpEdge::PREDICATE && "Non predicate edge in predicate chain");
-					syncOnPredicate[predicateChain.front().first->getPredicateValue()]++;
+					if ((*syncSourceItr)->getInRange()) {
+						//TODO
+						syncOnPredicate[predicateChain.front().first->getPredicateValue()] += ((ConstantInt*) (*syncSourceItr)->getRangeUpperBound())->getUniqueInteger().getZExtValue() - ((ConstantInt*) (*syncSourceItr)->getRangeLowerBound())->getUniqueInteger().getZExtValue();
+					} else {
+						syncOnPredicate[predicateChain.front().first->getPredicateValue()]++;
+					}
 					hyperOp->setIncomingSyncPredicate(predicateChain.front().first->getPredicateValue(), predicateChain.front().first->getValue());
 					syncFromPredicatedSources = true;
 				}

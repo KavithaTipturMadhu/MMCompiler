@@ -140,6 +140,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 						StringRef function = functionAndStride.first;
 						pair<StringRef, StringRef> strideSplit = functionAndStride.second.split(")");
 						StringRef stride = strideSplit.first;
+						//TODO support for variable bounds too
 						hyperOp->setRangeLowerBound(ConstantInt::get(ctxt, APInt(32, atoi(lowerBound.str().c_str()))));
 						hyperOp->setRangeUpperBound(ConstantInt::get(ctxt, APInt(32, atoi(upperBound.str().c_str()))));
 						if (graph->StridedFunctionKeyValue.find(strideFunction) != graph->StridedFunctionKeyValue.end()) {
