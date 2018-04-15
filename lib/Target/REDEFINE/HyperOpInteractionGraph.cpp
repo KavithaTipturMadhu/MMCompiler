@@ -2685,7 +2685,7 @@ void HyperOpInteractionGraph::verify() {
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		list<HyperOp*> children = (*hopItr)->getChildList();
 		unsigned producerIndex = hyperOpAndIndexMap[*hopItr];
-		errs()<<"hig index "<<producerIndex<<" for "<<(*hopItr)->asString()<<"\n";
+		errs() << "hig index " << producerIndex << " for " << (*hopItr)->asString() << "\n";
 		for (map<HyperOpEdge*, HyperOp*>::iterator childEdgeItr = (*hopItr)->ChildMap.begin(); childEdgeItr != (*hopItr)->ChildMap.end(); childEdgeItr++) {
 			HyperOpEdge::EdgeType edgeType = childEdgeItr->first->getType();
 			unsigned consumerIndex = hyperOpAndIndexMap[childEdgeItr->second];
