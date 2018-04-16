@@ -692,7 +692,7 @@ if (RegionBegin == BB->begin() && BB == &BB->getParent()->front()) {
 		MCSymbol* gaSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(globalAddressString));
 
 		unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder movimm = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVIMM)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
+		MachineInstrBuilder movimm = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVADDR)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(movimm.operator ->());
 		allInstructionsOfRegion.push_back(make_pair(movimm.operator->(), make_pair(i, insertPosition++)));
 
@@ -1539,7 +1539,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			MCSymbol* gaSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(globalAddressString));
 
 			unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-			MachineInstrBuilder movimm = BuildMI(*lastBB, lastBB->end(), BB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVIMM)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
+			MachineInstrBuilder movimm = BuildMI(*lastBB, lastBB->end(), BB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVADDR)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
 			LIS->getSlotIndexes()->insertMachineInstrInMaps(movimm.operator ->());
 			allInstructionsOfRegion.push_back(make_pair(movimm.operator->(), make_pair(i, insertPosition++)));
 
@@ -2362,7 +2362,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					MCSymbol* gaSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(globalAddressString));
 
 					unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					MachineInstrBuilder movimm = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::MOVIMM)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
+					MachineInstrBuilder movimm = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::MOVADDR)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(movimm.operator ->());
 					LIS->addLiveRangeToEndOfBlock(registerForGlobalAddr, movimm.operator ->());
 					allInstructionsOfRegion.push_back(make_pair(movimm.operator->(), make_pair(targetCE, insertPosition++)));
@@ -3139,7 +3139,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							MCSymbol* gaSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(globalAddressString));
 
 							unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-							MachineInstrBuilder movimm = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::MOVIMM)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
+							MachineInstrBuilder movimm = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::MOVADDR)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(movimm.operator ->());
 							LIS->addLiveRangeToEndOfBlock(registerForGlobalAddr, movimm.operator ->());
 							allInstructionsOfRegion.push_back(make_pair(movimm.operator->(), make_pair(targetCE, insertPosition++)));
