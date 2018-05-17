@@ -1308,13 +1308,11 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
-					errs()<<"problem kya hai?\n";
 					for (i = 0; i < maxLevels; i++) {
-						if(nestedLoopDepth.find(i+1)==nestedLoopDepth.end()){
+						if (nestedLoopDepth.find(i + 1) == nestedLoopDepth.end()) {
 							continue;
 						}
 						list<Loop*> loopsAtDepth = nestedLoopDepth[i + 1];
-						errs()<<"loops at depth:"<<loopsAtDepth.size()<<"\n";
 						Loop* currentLoop = loopsAtDepth.front();
 						currentLoop->dump();
 						LoopIV* loopIVObject = NULL;
@@ -1326,8 +1324,6 @@ struct HyperOpCreationPass: public ModulePass {
 						unsigned strideUpdateOperation;
 						const char* strideUpdateOperationName;
 						LoopIV::Type type;
-						errs()<<"so i found everything i need\n";
-						inductionVariable->dump();
 						//Compute stride over the induction variable
 						map<BasicBlock*, Value*> entryBBToInductionVarPHI;
 						for (auto phiOperandItr = 0; phiOperandItr != inductionVariable->getNumIncomingValues(); phiOperandItr++) {
@@ -1336,7 +1332,6 @@ struct HyperOpCreationPass: public ModulePass {
 								entryBBToInductionVarPHI.insert(make_pair(incomingBlock, inductionVariable->getIncomingValue(phiOperandItr)));
 							}
 						}
-						errs()<<"problem kya hai 2?\n";
 						assert(entryBBToInductionVarPHI.size() == 1 && "Multiple exit block loop unsupported");
 						//We can't support multiple strides for parallelism or support any operation other than binary or shift operations
 						for (auto entryBBItr = entryBBToInductionVarPHI.begin(); entryBBItr != entryBBToInductionVarPHI.end(); entryBBItr++) {
@@ -1346,8 +1341,6 @@ struct HyperOpCreationPass: public ModulePass {
 
 							for (unsigned i = 0; i < ((Instruction*) incomingValue)->getNumOperands(); i++) {
 								Value* operand = ((Instruction*) incomingValue)->getOperand(i);
-								errs() << "whats the operand:";
-								operand->dump();
 								if (operand != inductionVariable && (((Instruction*) incomingValue)->isBinaryOp() || ((Instruction*) incomingValue)->isShift())) {
 									strideUpdateOperation = ((Instruction*) incomingValue)->getOpcode();
 									strideUpdateOperationName = ((Instruction*) incomingValue)->getOpcodeName();
@@ -1357,7 +1350,6 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 
 						}
-						errs()<<"problem kya hai 3?\n";
 						bool useTripCount = true;
 						if (isa<SCEVConstant>(SE.getBackedgeTakenCount(currentLoop))) {
 							ConstantInt* Result = ((SCEVConstant*) SE.getBackedgeTakenCount(currentLoop))->getValue();
@@ -1526,7 +1518,9 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 						}
 
-						parallelLoopFunctionList.push_back(innerLoopFunction);
+						if (executionOrder[i] == PARALLEL) {
+							parallelLoopFunctionList.push_back(innerLoopFunction);
+						}
 						functionList.push_back(innerLoopFunction);
 						LoopInfo& innerLoopInfo = getAnalysis<LoopInfo>(*innerLoopFunction);
 						list<BasicBlock*> currentBBList;
@@ -2672,6 +2666,7 @@ struct HyperOpCreationPass: public ModulePass {
 						currentBB = idom;
 						idom = idomTree.getNode(idom)->getIDom()->getBlock();
 					}
+
 					//if the idom is not in accumulated list, add it as a branch source
 					if (idom != NULL) {
 						if (idomPredecessor && (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), idom) == accumulatedBasicBlocks.end() || find(newlyAcquiredBBList.begin(), newlyAcquiredBBList.end(), originalBB) != newlyAcquiredBBList.end())) {
@@ -2814,10 +2809,16 @@ struct HyperOpCreationPass: public ModulePass {
 				//Check if the accumulated bbs are supposed to be a range of HyperOps
 				LoopIV* loopIV = NULL;
 				bool mismatch = false;
+
 				for (auto accumulatedbbItr = accumulatedBasicBlocks.begin(); accumulatedbbItr != accumulatedBasicBlocks.end(); accumulatedbbItr++) {
 					//Only loop header needs range
 					bool accumulatedBBInParallelLoop = false;
 					loopIV = NULL;
+					errs() << "how many parallel loops:";
+					for (auto it : parallelLoopFunctionList) {
+						errs() << it->getName() << ",";
+					}
+					errs() << "\n";
 					for (auto parallelLoopItr = parallelLoopFunctionList.begin(); parallelLoopItr != parallelLoopFunctionList.end(); parallelLoopItr++) {
 						bool bbInList = false;
 						for (auto bbItr = (*parallelLoopItr)->begin(); bbItr != (*parallelLoopItr)->end(); bbItr++) {
@@ -2829,14 +2830,21 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 
 						if (bbInList) {
+							BasicBlock* clonedBB = &((*parallelLoopItr)->front());
+							errs() << "cloned bb:" << clonedBB->getName() << "\n";
+							StringRef originalParallelLoopItrName = (*parallelLoopItr)->getName();
+							errs() << "original func name:" << originalParallelLoopItrName << "\n";
 							for (auto originalParallelLoopItr : originalParallelLoopBB) {
 								list<BasicBlock*> loopBBList = originalParallelLoopItr.first;
 								for (auto bbItr : loopBBList) {
-									if (isa<CallInst>(bbItr->front()) && ((CallInst*) (&bbItr->front()))->getCalledFunction()->getName().compare((*parallelLoopItr)->getName()) == 0) {
+									errs() << "parallel bb:" << bbItr->getName() << "\n";
+									bbItr->front().dump();
+									if (isa<CallInst>(bbItr->front()) && ((CallInst*) (&bbItr->front()))->getCalledFunction()->getName().compare(originalParallelLoopItrName) == 0) {
 										loopIV = originalParallelLoopItr.second;
 										break;
 									}
 								}
+								errs() << "\n";
 								if (loopIV) {
 									break;
 								}
@@ -2846,10 +2854,10 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 					if (loopIV == NULL && find(originalHeaderBB.begin(), originalHeaderBB.end(), *accumulatedbbItr) == originalHeaderBB.end()) {
 						mismatch = true;
-						loopIV = NULL;
 						break;
 					}
 				}
+
 				if (!mismatch) {
 					tag.clear();
 					tag.append("<");
@@ -2923,6 +2931,7 @@ struct HyperOpCreationPass: public ModulePass {
 					callSiteCopy.pop_front();
 				}
 			}
+
 			//Force a new exit HyperOp
 //			if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &mainFunction->back()) != accumulatedBasicBlocks.end()) {
 //				isKernelExit = true;
@@ -2949,6 +2958,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 			}
+			errs() << "is there a problem 6?\n";
 
 			//Is the function an entry node/exit node/intermediate ?
 			if (isKernelEntry) {
