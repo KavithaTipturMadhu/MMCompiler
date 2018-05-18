@@ -65,6 +65,9 @@ public:
 		PREDICATE,
 		CONTEXT_FRAME_ADDRESS_SCALAR,
 		CONTEXT_FRAME_ADDRESS_LOCALREF,
+//		CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF,
+//		CONTEXT_FRAME_ADDRESS_RANGE_BASE_SCALAR,
+		CONTEXT_FRAME_ADDRESS_RANGE_SCALAR,
 		//Edge used for ordering HyperOps to maintain partial order
 		ORDERING,
 		//Edge to ensure completion of the hyperOp by inserting equivalent delay instruction in the end HyperOp
@@ -324,6 +327,9 @@ public:
 
 	//Update all the localref edges with memory offsets wrt base 0, needs updating when the functions are lowered to machine functions
 	void updateLocalRefEdgeMemOffset();
+
+	//Add context frame address block base address forwarding edges, since we need to execute some instructions conditionally in range hyperOps
+	void addContextFrameblockSizeEdges();
 
 };
 #endif /* LIB_TARGET_RISCV_HYPEROPINTERACTIONGRAPH_H_ */

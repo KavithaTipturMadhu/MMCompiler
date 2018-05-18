@@ -5,7 +5,7 @@
  *      Author: kavitha
  */
 
-#include "REDEFINEUtils.h"
+#include "llvm/IR/REDEFINEUtils.h"
 using namespace llvm;
 
 //Returns size of the type in bytes

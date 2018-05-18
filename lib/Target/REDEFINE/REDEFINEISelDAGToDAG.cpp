@@ -10,8 +10,8 @@
 // This file defines an instruction selector for the REDEFINE target.
 //
 //===----------------------------------------------------------------------===//
-#include "HyperOpInteractionGraph.h"
-#include "HyperOpMetadataParser.h"
+#include "llvm/IR/HyperOpInteractionGraph.h"
+#include "llvm/IR/HyperOpMetadataParser.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
 #include "llvm/ADT/PostOrderIterator.h"
@@ -230,12 +230,11 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 		//Parse the HIG metadata the first time, subsequent HyperOps can use the graph
 		HyperOpMetadataParser parser;
 		((REDEFINETargetMachine&) TM).HIG = parser.parseMetadata(const_cast<Module*>(Fn->getParent()));
-		((REDEFINETargetMachine&) TM).HIG->verify();
 		((REDEFINETargetMachine&) TM).HIG->setDimensions((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getM(), (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getN());
 		((REDEFINETargetMachine&) TM).HIG->setNumContextFrames((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getCfCount());
 		((REDEFINETargetMachine&) TM).HIG->setMaxContextFrameSize((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getCfSize());
 		((REDEFINETargetMachine&) TM).HIG->computeDominatorInfo();
-		((REDEFINETargetMachine&) TM).HIG->makeGraphStructured();
+//		((REDEFINETargetMachine&) TM).HIG->makeGraphStructured();
 		((REDEFINETargetMachine&) TM).HIG->print(dbgs());
 		((REDEFINETargetMachine&) TM).HIG->addContextFrameAddressForwardingEdges();
 		((REDEFINETargetMachine&) TM).HIG->minimizeControlEdges();

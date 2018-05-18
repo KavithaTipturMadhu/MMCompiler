@@ -44,9 +44,9 @@
 #include "llvm/Pass.h"
 #include "llvm/Target/TargetMachine.h"
 #include <llvm/Analysis/LoopInfo.h>
-#include "HyperOpInteractionGraph.h"
+#include "llvm/IR/HyperOpInteractionGraph.h"
 #include "REDEFINETargetMachine.h"
-#include "REDEFINEUtils.h"
+#include "llvm/IR/REDEFINEUtils.h"
 
 #define s(x) errs()<< #x <<" = "<< x <<std::endl
 #define pb errs()<<"------------------------------------------------"<<std::endl;

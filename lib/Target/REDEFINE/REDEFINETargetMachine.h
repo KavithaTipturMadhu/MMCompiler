@@ -22,7 +22,7 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetSelectionDAGInfo.h"
-#include "HyperOpInteractionGraph.h"
+#include "llvm/IR/HyperOpInteractionGraph.h"
 #include "REDEFINEMCInstrScheduler.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "REDEFINEMCInstrScheduler.h"

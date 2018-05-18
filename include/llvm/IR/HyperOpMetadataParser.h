@@ -41,7 +41,7 @@ class HyperOpMetadataParser {
 public:
 	HyperOpMetadataParser();
 	virtual ~HyperOpMetadataParser();
-	HyperOpInteractionGraph * parseMetadata(Module *);
+	static HyperOpInteractionGraph * parseMetadata(Module *);
 };
 
 

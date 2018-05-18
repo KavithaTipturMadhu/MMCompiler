@@ -22,7 +22,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
 #include "REDEFINE.h"
-#include "HyperOpInteractionGraph.h"
+#include "llvm/IR/HyperOpInteractionGraph.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 //#include "metis.h"
 

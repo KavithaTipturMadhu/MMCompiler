@@ -10,7 +10,7 @@
 
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Type.h"
-#include "HyperOpInteractionGraph.h"
+#include "llvm/IR/HyperOpInteractionGraph.h"
 #include <execinfo.h>
 
 namespace llvm {

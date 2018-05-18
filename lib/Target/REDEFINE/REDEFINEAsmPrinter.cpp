@@ -25,7 +25,7 @@
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/ADT/StringExtras.h"
-#include "REDEFINEUtils.h"
+#include "llvm/IR/REDEFINEUtils.h"
 
 using namespace llvm;
 
@@ -57,7 +57,6 @@ void REDEFINEAsmPrinter::EmitMachineConstantPoolValue(MachineConstantPoolValue *
 	OutStreamer.EmitValue(Expr, Size);
 }
 void REDEFINEAsmPrinter::EmitFunctionBody() {
-	static int maxFrameValue = 0;
 	int ceCount = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
 	// Emit target-specific gunk before the function body.
 	EmitFunctionBodyStart();
@@ -130,7 +129,6 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 
 	if (MF->getFunctionNumber() == (MF->getFunction())->getParent()->getFunctionList().size() - 2) {
 		string maxFrameString;
-		maxFrameString.append(";FS = ").append(itostr(maxFrameValue)).append("\n");
 		OutStreamer.EmitRawText(StringRef(maxFrameString));
 	 }
 	//EmitFunctionBodyEnd();
@@ -219,7 +217,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		//nextHyperOpInst.append("\t").append("0").append("\n");
 
 		//OutStreamer.EmitRawText(StringRef(isNextHyperOpInstValid));
-		//OutStreamer.EmitRawText(StringRef(nextHyperOpInst));
+		//OutStreamer.EmitRawText(StringRef(nextHyperOpI	nst));
 	}
 	OutStreamer.EmitRawText(StringRef(".HYOP_END\n\n"));
 }
@@ -455,6 +453,9 @@ void REDEFINEAsmPrinter::EmitEndOfAsmFile(Module &M) {
 	}
 	string ioEndLabel = ".IO_END";
 	OutStreamer.EmitRawText(StringRef(ioEndLabel));
+	string maxFrameString;
+	maxFrameString.append(";FS = ").append(itostr(maxFrameValue)).append("\n");
+	OutStreamer.EmitRawText(StringRef(maxFrameString));
 }
 
 bool REDEFINEAsmPrinter::doFinalization(Module &M) {

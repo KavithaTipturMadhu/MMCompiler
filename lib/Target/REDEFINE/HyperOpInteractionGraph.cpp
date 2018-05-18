@@ -5,8 +5,6 @@
  *      Author: kavitha
  */
 
-#include "HyperOpInteractionGraph.h"
-
 #include <cassert>
 #include <cstdlib>
 #include <iterator>
@@ -17,6 +15,7 @@
 #include "llvm/IR/Instructions.h"
 #include "lpsolve/lp_lib.h"
 #include "lpsolve/lp_types.h"
+#include "llvm/IR/HyperOpInteractionGraph.h"
 using namespace llvm;
 
 namespace {
@@ -1152,10 +1151,24 @@ void HyperOpInteractionGraph::computeImmediateDominatorInfo() {
 	}
 }
 
+void HyperOpInteractionGraph::addContextFrameblockSizeEdges() {
+	for (auto vertexItr : this->Vertices) {
+		HyperOp* idom = vertexItr->getImmediateDominator();
+		if (idom != NULL && vertexItr->getInRange()) {
+			HyperOpEdge* edge = new HyperOpEdge();
+			edge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR);
+			edge->setPositionOfContextSlot(0);
+			edge->setValue(ConstantInt::get(Type::getInt32Ty(idom->getFunction()->getParent()->getContext()), APInt(32, 1)));
+			this->addEdge(idom, vertexItr, edge);
+		}
+	}
+
+}
 //Associate immediate dominator and dominance frontier information with vertices
 void HyperOpInteractionGraph::computeDominatorInfo() {
 	computeImmediateDominatorInfo();
 	computePostImmediateDominatorInfo();
+	addContextFrameblockSizeEdges();
 
 //	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 //		HyperOp* vertex = *vertexIterator;
@@ -1441,12 +1454,10 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 			//Address also needs to be forwarded to the HyperOp deleting the context frame
 			if ((*tempItr)->isPredicatedHyperOp() && liveEndOfVertex != 0 && liveEndOfVertex == vertex && *tempItr != vertex && find(originalDomFrontier.begin(), originalDomFrontier.end(), *tempItr) == originalDomFrontier.end()) {
 //						&& !(*tempItr)->isStaticHyperOp() && ) {
-				errs() << "added for deletion:" << (*tempItr)->asString() << "\n";
 				vertexDomFrontier.push_back(*tempItr);
 			}
 		}
 
-		errs() << "whats in domf:\n";
 		for (list<HyperOp*>::iterator dominanceFrontierIterator = vertexDomFrontier.begin(); dominanceFrontierIterator != vertexDomFrontier.end(); dominanceFrontierIterator++) {
 			errs() << (*dominanceFrontierIterator)->asString() << ",";
 		}
@@ -1454,11 +1465,16 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 		errs() << "\n";
 		for (list<HyperOp*>::iterator dominanceFrontierIterator = vertexDomFrontier.begin(); dominanceFrontierIterator != vertexDomFrontier.end(); dominanceFrontierIterator++) {
 			HyperOp* dominanceFrontierHyperOp = *dominanceFrontierIterator;
+			bool isRangeHop = dominanceFrontierHyperOp->getInRange();
 			if (dominanceFrontierHyperOp != vertex) {
 				HyperOp* immediateDominator = vertex->getImmediateDominator();
 				HyperOpEdge* contextFrameEdge = new HyperOpEdge();
 				contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR);
 				contextFrameEdge->setContextFrameAddress(dominanceFrontierHyperOp);
+//				HyperOpEdge* instanceCountEdge = new HyperOpEdge();
+//				instanceCountEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE_SCALAR);
+//				instanceCountEdge->setValue(ConstantInt::get(Type::getInt32Ty(dominanceFrontierHyperOp->getFunction()->getParent()->getContext()), APInt(32, 1)));
+//				instanceCountEdge->setContextFrameAddress(dominanceFrontierHyperOp);
 				int position = -1;
 
 				int freeContextSlot;
@@ -1473,9 +1489,13 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 					}
 					if (!edgeAddedPreviously) {
 						this->addEdge(immediateDominator, vertex, (HyperOpEdge*) contextFrameEdge);
+//						if (isRangeHop) {
+//							this->addEdge(immediateDominator, vertex, (HyperOpEdge*) instanceCountEdge);
+//						}
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = vertex->ParentMap.begin(); parentEdgeItr != vertex->ParentMap.end(); parentEdgeItr++) {
 							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
-							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
+							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR
+									) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
 								max = previouslyAddedEdge->getPositionOfContextSlot();
 							} else if (previouslyAddedEdge->getType() == HyperOpEdge::SYNC) {
 								maxAvailableContextSlots = maxContextFrameSize - 1;
@@ -1483,7 +1503,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						}
 						freeContextSlot = max + 1;
 						errs() << "edge added between " << immediateDominator->asString() << " and " << vertex->asString() << " containing " << dominanceFrontierHyperOp->asString() << "\n";
-						if (freeContextSlot >= maxAvailableContextSlots) {
+						if (freeContextSlot >= maxAvailableContextSlots){
 							//TODO test this
 							//Set the address to be passed as local reference
 							int maxOffset = 0;
@@ -1498,8 +1518,12 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 							//Add a store in source HyperOp function
 							contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF);
 							contextFrameEdge->setMemoryOffsetInTargetFrame(maxOffset);
+//							instanceCountEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF);
+//							//Integer size to be added
+//							instanceCountEdge->setMemoryOffsetInTargetFrame(maxOffset + 4);
 						}
 						contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
+//						instanceCountEdge->setPositionOfContextSlot(freeContextSlot + 1);
 					}
 				} else {
 					list<HyperOp*> immediateDominatorDominanceFrontier = immediateDominator->getDominanceFrontier();
@@ -1508,19 +1532,24 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						HyperOpEdge* frameForwardChainEdge = new HyperOpEdge();
 						frameForwardChainEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR);
 						frameForwardChainEdge->setContextFrameAddress(dominanceFrontierHyperOp);
+//						HyperOpEdge* frameForwardInstanceCountEdge = new HyperOpEdge();
+//						frameForwardInstanceCountEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE_SCALAR);
+//						frameForwardInstanceCountEdge->setContextFrameAddress(dominanceFrontierHyperOp);
+//						frameForwardInstanceCountEdge->setValue(ConstantInt::get(Type::getInt32Ty(dominanceFrontierHyperOp->getFunction()->getParent()->getContext()), APInt(32, 1)));
 						//Find the last free context slot at consumer
 						int freeContextSlot;
 						int max = -1, maxAvailableContextSlots = maxContextFrameSize;
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = prevVertex->ParentMap.begin(); parentEdgeItr != prevVertex->ParentMap.end(); parentEdgeItr++) {
 							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
-							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
+							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR
+									) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
 								max = previouslyAddedEdge->getPositionOfContextSlot();
 							} else if (previouslyAddedEdge->getType() == HyperOpEdge::SYNC) {
 								maxAvailableContextSlots = maxContextFrameSize - 1;
 							}
 						}
 						freeContextSlot = max + 1;
-						if (freeContextSlot >= maxContextFrameSize) {
+						if (freeContextSlot >= maxAvailableContextSlots) {
 							//TODO test this
 							//Set the address to be passed as local reference
 							int maxOffset = 0;
@@ -1536,6 +1565,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 							frameForwardChainEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF);
 						}
 						frameForwardChainEdge->setPositionOfContextSlot(freeContextSlot);
+//						frameForwardInstanceCountEdge->setPositionOfContextSlot(freeContextSlot + 1);
 
 						bool edgeAddedPreviously = false;
 						for (map<HyperOpEdge*, HyperOp*>::iterator childMapItr = immediateDominator->ChildMap.begin(); childMapItr != immediateDominator->ChildMap.end(); childMapItr++) {
@@ -1546,6 +1576,9 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						}
 						if (!edgeAddedPreviously) {
 							this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) frameForwardChainEdge);
+//							if (isRangeHop) {
+//								this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) frameForwardInstanceCountEdge);
+//							}
 							errs() << "chain edge added between " << immediateDominator->asString() << " and " << prevVertex->asString() << " to fwd " << dominanceFrontierHyperOp->asString() << " at slot:" << frameForwardChainEdge->getPositionOfContextSlot() << "\n";
 						}
 						prevVertex = immediateDominator;
@@ -1564,11 +1597,14 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 					}
 					if (!edgeAddedPreviously) {
 						this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) contextFrameEdge);
+//						if (isRangeHop) {
+//							this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) instanceCountEdge);
+//						}
 						int freeContextSlot;
 						int max = -1, maxAvailableContextSlots = maxContextFrameSize;
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = prevVertex->ParentMap.begin(); parentEdgeItr != prevVertex->ParentMap.end(); parentEdgeItr++) {
 							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
-							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
+							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
 								max = previouslyAddedEdge->getPositionOfContextSlot();
 							} else if (previouslyAddedEdge->getType() == HyperOpEdge::SYNC) {
 								maxAvailableContextSlots = maxContextFrameSize - 1;
@@ -1590,10 +1626,13 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 							//Add a store in source HyperOp function
 							contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF);
 							contextFrameEdge->setMemoryOffsetInTargetFrame(maxOffset);
+//							instanceCountEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF);
+//							//Integer size to be added
+//							instanceCountEdge->setMemoryOffsetInTargetFrame(maxOffset + 4);
 						}
 						contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
+//						instanceCountEdge->setPositionOfContextSlot(freeContextSlot + 1);
 					}
-
 				}
 			}
 		}
@@ -2774,7 +2813,7 @@ void HyperOpInteractionGraph::verify() {
 			transitiveClosure[indexMap][i] = 0;
 		}
 	}
-	//Populate adjacency matrix
+//Populate adjacency matrix
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		list<HyperOp*> children = (*hopItr)->getChildList();
 		unsigned producerIndex = hyperOpAndIndexMap[*hopItr];
@@ -2788,7 +2827,7 @@ void HyperOpInteractionGraph::verify() {
 		}
 	}
 
-	//Compute transitive closure
+//Compute transitive closure
 	for (unsigned k = 0; k < numVertices; k++) {
 		for (unsigned i = 0; i < numVertices; i++) {
 			for (unsigned j = 0; j < numVertices; j++) {
