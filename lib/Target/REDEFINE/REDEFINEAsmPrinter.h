@@ -38,6 +38,7 @@ private:
 	const char* NEXT_HYPEROP_INST_ANNOTATION = ".nextHypOpInst";
 	const char* HYPEROP_INSTANCE_PREFIX =".HyOpInst#";
 	list<MCSymbol*> hyperOpLabelsHoistedAsConstants;
+	int maxFrameValue = 0;
 
 public:
 	REDEFINEAsmPrinter(TargetMachine &TM, MCStreamer &Streamer) :

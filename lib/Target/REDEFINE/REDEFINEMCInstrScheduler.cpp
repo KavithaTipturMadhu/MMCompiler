@@ -1875,7 +1875,6 @@ if (BB->getNumber() == MF.back().getNumber()) {
 					firstSyncPredLoad.addImm(firstPredMemSize);
 					allInstructionsOfRegion.push_back(make_pair(firstSyncPredLoad.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(firstSyncPredLoad.operator llvm::MachineInstr *());
-//					LIS->addLiveRangeToEndOfBlock(firstPred, lastInstruction);
 
 					unsigned secondPred;
 					if (firstPredicate == secondPredicate) {
@@ -1886,7 +1885,6 @@ if (BB->getNumber() == MF.back().getNumber()) {
 						secondSyncPredLoad.addReg(secondPred, RegState::Define).addReg(REDEFINE::t5).addImm(secondPredMemSize);
 						allInstructionsOfRegion.push_back(make_pair(secondSyncPredLoad.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(secondSyncPredLoad.operator llvm::MachineInstr *());
-//						LIS->addLiveRangeToEndOfBlock(secondPred, lastInstruction);
 					}
 
 					unsigned firstPredMul = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);

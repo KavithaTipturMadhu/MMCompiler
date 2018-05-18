@@ -1199,6 +1199,18 @@ void HyperOpInteractionGraph::addContextFrameblockSizeEdges() {
 void HyperOpInteractionGraph::computeDominatorInfo() {
 	computeImmediateDominatorInfo();
 	computePostImmediateDominatorInfo();
+	addContextFrameblockSizeEdges();
+
+//	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
+//		HyperOp* vertex = *vertexIterator;
+//		list<HyperOp*> immediatelyDominatedHyperOps;
+//		for (list<HyperOp*>::iterator dominatedItr = Vertices.begin(); dominatedItr != Vertices.end(); dominatedItr++) {
+//			if ((*dominatedItr)->getImmediateDominator() == vertex) {
+//				immediatelyDominatedHyperOps.push_back(*dominatedItr);
+//			}
+//		}
+//		vertex->setCreateFrameList(immediatelyDominatedHyperOps);
+//	}
 }
 
 //Add nodes to make the HIG structured if necessary
@@ -1264,7 +1276,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 		for (list<HyperOp*>::iterator dominanceFrontierIterator = vertexDomFrontier.begin(); dominanceFrontierIterator != vertexDomFrontier.end(); dominanceFrontierIterator++) {
 			HyperOp* dominanceFrontierHyperOp = *dominanceFrontierIterator;
 			bool isRangeHop = dominanceFrontierHyperOp->getInRange();
-			if (dominanceFrontierHyperOp != vertex && !dominanceFrontierHyperOp->isStaticHyperOp()) {
+			if (dominanceFrontierHyperOp != vertex) {
 				HyperOp* immediateDominator = vertex->getImmediateDominator();
 				HyperOpEdge* contextFrameEdge = new HyperOpEdge();
 				contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR);
@@ -1292,8 +1304,8 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 //						}
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = vertex->ParentMap.begin(); parentEdgeItr != vertex->ParentMap.end(); parentEdgeItr++) {
 							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
-							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR)
-									&& previouslyAddedEdge->getPositionOfContextSlot() > max) {
+							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR
+									) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
 								max = previouslyAddedEdge->getPositionOfContextSlot();
 							} else if (previouslyAddedEdge->getType() == HyperOpEdge::SYNC) {
 								maxAvailableContextSlots = maxContextFrameSize - 1;
@@ -1301,7 +1313,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						}
 						freeContextSlot = max + 1;
 						errs() << "edge added between " << immediateDominator->asString() << " and " << vertex->asString() << " containing " << dominanceFrontierHyperOp->asString() << "\n";
-						if (freeContextSlot >= maxAvailableContextSlots) {
+						if (freeContextSlot >= maxAvailableContextSlots){
 							//TODO test this
 							//Set the address to be passed as local reference
 							int maxOffset = 0;
@@ -1374,6 +1386,9 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						}
 						if (!edgeAddedPreviously) {
 							this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) frameForwardChainEdge);
+//							if (isRangeHop) {
+//								this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) frameForwardInstanceCountEdge);
+//							}
 							errs() << "chain edge added between " << immediateDominator->asString() << " and " << prevVertex->asString() << " to fwd " << dominanceFrontierHyperOp->asString() << " at slot:" << frameForwardChainEdge->getPositionOfContextSlot() << "\n";
 						}
 						prevVertex = immediateDominator;
@@ -1392,11 +1407,14 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 					}
 					if (!edgeAddedPreviously) {
 						this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) contextFrameEdge);
+//						if (isRangeHop) {
+//							this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) instanceCountEdge);
+//						}
 						int freeContextSlot;
 						int max = -1, maxAvailableContextSlots = maxContextFrameSize;
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = prevVertex->ParentMap.begin(); parentEdgeItr != prevVertex->ParentMap.end(); parentEdgeItr++) {
 							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
-							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
+							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
 								max = previouslyAddedEdge->getPositionOfContextSlot();
 							} else if (previouslyAddedEdge->getType() == HyperOpEdge::SYNC) {
 								maxAvailableContextSlots = maxContextFrameSize - 1;
@@ -1418,10 +1436,13 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 							//Add a store in source HyperOp function
 							contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF);
 							contextFrameEdge->setMemoryOffsetInTargetFrame(maxOffset);
+//							instanceCountEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF);
+//							//Integer size to be added
+//							instanceCountEdge->setMemoryOffsetInTargetFrame(maxOffset + 4);
 						}
 						contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
+//						instanceCountEdge->setPositionOfContextSlot(freeContextSlot + 1);
 					}
-
 				}
 			}
 		}
@@ -2668,45 +2689,6 @@ void HyperOpInteractionGraph::verify() {
 				}
 			}
 			assert(funcInputHasValidInput && "Invalid input to a function");
-		}
-	}
-
-	unsigned numVertices = this->Vertices.size();
-	bool transitiveClosure[numVertices][numVertices];
-	map<HyperOp*, unsigned> hyperOpAndIndexMap;
-	unsigned indexMap = 0;
-	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++, indexMap++) {
-		hyperOpAndIndexMap[*hopItr] = indexMap;
-		for (unsigned i = 0; i < this->Vertices.size(); i++) {
-			transitiveClosure[indexMap][i] = 0;
-		}
-	}
-	//Populate adjacency matrix
-	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
-		list<HyperOp*> children = (*hopItr)->getChildList();
-		unsigned producerIndex = hyperOpAndIndexMap[*hopItr];
-		errs() << "hig index " << producerIndex << " for " << (*hopItr)->asString() << "\n";
-		for (map<HyperOpEdge*, HyperOp*>::iterator childEdgeItr = (*hopItr)->ChildMap.begin(); childEdgeItr != (*hopItr)->ChildMap.end(); childEdgeItr++) {
-			HyperOpEdge::EdgeType edgeType = childEdgeItr->first->getType();
-			unsigned consumerIndex = hyperOpAndIndexMap[childEdgeItr->second];
-			if (transitiveClosure[producerIndex][consumerIndex] == 0 && (edgeType == HyperOpEdge::SCALAR || edgeType == HyperOpEdge::PREDICATE || edgeType == HyperOpEdge::ORDERING || edgeType == HyperOpEdge::SYNC)) {
-				transitiveClosure[producerIndex][consumerIndex] = 1;
-			}
-		}
-	}
-
-	//Compute transitive closure
-	for (unsigned k = 0; k < numVertices; k++) {
-		for (unsigned i = 0; i < numVertices; i++) {
-			for (unsigned j = 0; j < numVertices; j++) {
-				transitiveClosure[i][j] = transitiveClosure[i][j] || (transitiveClosure[i][k] && transitiveClosure[k][j]);
-			}
-		}
-	}
-
-	for (unsigned i = 0; i < numVertices; i++) {
-		for (unsigned j = 0; j < numVertices; j++) {
-			assert((!(transitiveClosure[i][j] && transitiveClosure[j][i])) && "Cycle in HIG\n");
 		}
 	}
 }
