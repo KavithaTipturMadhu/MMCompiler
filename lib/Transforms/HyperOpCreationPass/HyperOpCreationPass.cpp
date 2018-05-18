@@ -30,6 +30,8 @@ using namespace std;
 #include "LoopInterchange.h"
 #include "llvm/Transforms/Utils/CodeExtractor.h"
 #include "llvm/IR/Instruction.def"
+#include "llvm/IR/HyperopMetadataParser.h"
+#include "llvm/IR/HyperopInteractionGraph.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "HyperOpCreationPass"
@@ -1030,7 +1032,6 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
-					errs() << "max level computed:" << maxLevels << "\n";
 					vector<BasicBlock*> basicBlocksList = loop->getBlocks();
 					for (auto bbItr = basicBlocksList.begin(); bbItr != basicBlocksList.end(); bbItr++) {
 						BasicBlock* basicBlock = *bbItr;
@@ -1079,11 +1080,6 @@ struct HyperOpCreationPass: public ModulePass {
 												if (distanceVector.size() == D->getLevels()) {
 													//Check if the distance vector has a leading negative value
 													bool leadingNegativeValue = false;
-													errs() << "trying to add new vector with dependence levels " << D->getLevels() << ":";
-													for (unsigned i = 0; i < distanceVector.size(); i++) {
-														errs() << distanceVector[i] << ",";
-													}
-													errs() << "\n";
 													for (auto distanceVectorItr = distanceVector.begin(); distanceVectorItr != distanceVector.end(); distanceVectorItr++) {
 														if ((*distanceVectorItr) > 0) {
 															break;
@@ -1096,24 +1092,10 @@ struct HyperOpCreationPass: public ModulePass {
 
 													if (!leadingNegativeValue) {
 														distanceVectorsList.push_back(distanceVector);
-														errs() << "adding new vector with dependence levels " << D->getLevels() << ":";
-														for (unsigned i = 0; i < distanceVector.size(); i++) {
-															errs() << distanceVector[i] << ",";
-														}
-														errs() << "\n";
-													} else {
-														errs() << "ignoring invalid dependence:";
-														for (unsigned i = 0; i < distanceVector.size(); i++) {
-															errs() << distanceVector[i] << ",";
-														}
-														errs() << "\n";
 													}
 												}
 											}
-
 //											delete D;
-										} else {
-											errs() << "no dependence\n";
 										}
 									}
 								}
@@ -1133,13 +1115,6 @@ struct HyperOpCreationPass: public ModulePass {
 						for (unsigned j = 0; j < vector.size(); j++) {
 							distanceVectorArray[i][j + k] = vector[j];
 						}
-					}
-					errs() << "dependence array with max levels:" << maxLevels << "\n";
-					for (i = 0; i < numVectors; i++) {
-						for (unsigned j = 0; j < maxLevels; j++) {
-							errs() << distanceVectorArray[i][j] << ",";
-						}
-						errs() << "\n";
 					}
 
 					//Shuffle the dependence vectors such that the levels carrying most dependences may be moved to the outer levels
@@ -1211,8 +1186,6 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 						}
 
-						errs() << "number of swaps recorded:" << vectorSwapList.size() << "\n";
-
 						//Perform swaps
 						for (auto swapItr = vectorSwapList.begin(); swapItr != vectorSwapList.end(); swapItr++) {
 							//depth of loop
@@ -1256,10 +1229,6 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
-					errs() << "shuffled execution order:";
-					for (auto orderItr = positiveColumnsOrder.begin(); orderItr != positiveColumnsOrder.end(); orderItr++) {
-						errs() << (*orderItr) << ",";
-					}
 					//Find the column corresponding to a level with maximum number of zeros which has not been eliminated yet
 					eliminatedRows.clear();
 					enum ExecutionMode {
@@ -1284,10 +1253,6 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 
-					errs() << "\nfinal execution order:";
-					for (auto orderItr = executionOrder.begin(); orderItr != executionOrder.end(); orderItr++) {
-						errs() << orderItr->first << ":" << (orderItr->second) << "\n";
-					}
 					//depth of loop
 					map<unsigned, list<Loop*> > nestedLoopDepth;
 					list<Loop*> loopQueue;
@@ -1359,7 +1324,6 @@ struct HyperOpCreationPass: public ModulePass {
 						} else {
 							useTripCount = false;
 						}
-						errs() << (SE.getBackedgeTakenCount(currentLoop) == SE.getCouldNotCompute()) << ", " << SE.getSmallConstantTripMultiple(currentLoop, currentLoop->getExitBlock()) << "\n";
 						Value* loopBound = NULL;
 						if (!useTripCount) {
 							for (auto instItr = currentLoop->getHeader()->begin(); instItr != currentLoop->getHeader()->end(); instItr++) {
@@ -1566,9 +1530,6 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 		}
 
-		errs() << "Module state:";
-		M.dump();
-
 		while (!functionList.empty()) {
 			Function* function = functionList.front();
 			functionList.pop_front();
@@ -1674,7 +1635,6 @@ struct HyperOpCreationPass: public ModulePass {
 							tempPredecessor = predecessorDom;
 						}
 
-//						errs() << "is the edge going backwards?" << isBackEdge << "\n";
 						if (isBackEdge) {
 							backEdgePredecessors.push_back(predecessor);
 							continue;
@@ -1687,9 +1647,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 
 					bool allParentsAcquired = (numParentsAcquired == numPredecessors);
-//					errs() << "no parent acquired?" << noParentAcquired << ", all parents acquired?" << allParentsAcquired << "\n";
 					if (!(noParentAcquired || allParentsAcquired)) {
-//						errs() << "stopping hop creation here\n";
 						canAcquireBBItr = false;
 					}
 					//Check if the basic block's inclusion results introduces multiple entry points to the same HyperOp
@@ -1970,57 +1928,6 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 
-//				if (!endOfHyperOp) {
-//					bool conditionalJumpToBB = false;
-//					errs() << "checking if something is conditionally executed:" << bbItr->getName() << "\n";
-//					for (auto predItr = pred_begin(bbItr); predItr != pred_end(bbItr); predItr++) {
-//						BasicBlock* predecessor = *predItr;
-//						if (isa<BranchInst>(predecessor->getTerminator()) && ((BranchInst*) predecessor->getTerminator())->getNumSuccessors() > 1) {
-//							conditionalJumpToBB = true;
-//							break;
-//						}
-//					}
-//
-//					if (conditionalJumpToBB) {
-//						errs() << "conditional jump\n";
-//						//Check if one of the children contains a recursive call or may unfold into dynamic instances
-//						DominatorTree & domTree = getAnalysis<DominatorTree>(*bbItr->getParent());
-//						PostDominatorTree& postdomtree = getAnalysis<PostDominatorTree>(*bbItr->getParent());
-//						if (domTree.getNode(bbItr)->getIDom()!=NULL&&postdomtree.getNode(domTree.getNode(bbItr)->getIDom()->getBlock())->getIDom()!=NULL) {
-//							list<BasicBlock*> childNodesToBeExamined;
-//							BasicBlock* traverseEnd = postdomtree.getNode(domTree.getNode(bbItr)->getIDom()->getBlock())->getIDom()->getBlock();
-//							list<BasicBlock*> tempStack;
-//							tempStack.push_back(bbItr);
-//							while(!tempStack.empty()){
-//								BasicBlock* subTreeBB= tempStack.back();
-//								tempStack.pop_back();
-//								for(auto childItr = succ_begin(subTreeBB);childItr!=succ_end(subTreeBB);childItr++){
-//									BasicBlock* childBB = *childItr;
-//									if(childBB==traverseEnd){
-//										continue;
-//									}
-//									if(find(childNodesToBeExamined.begin(), childNodesToBeExamined.end(), childBB)==childNodesToBeExamined.end()){
-//										tempStack.push_back(childBB);
-//										childNodesToBeExamined.push_back(childBB);
-//									}
-//								}
-//							}
-//							errs()<<"examining child nodes:\n";
-//							for(auto childBBItr = childNodesToBeExamined.begin(); childBBItr!=childNodesToBeExamined.end();childBBItr++){
-//								BasicBlock* childBB = *childBBItr;
-//								errs()<<childBB->getName()<<",";
-//								for(auto instItr=childBB->begin();instItr!=childBB->end();instItr++){
-//									Instruction* inst = instItr;
-//									if(isa<CallInst>(inst)){
-//										endOfHyperOp = true;
-//										break;
-//									}
-//								}
-//							}
-//						}
-//					}
-//				}
-
 				//Create a new HyperOp
 				if (endOfHyperOp) {
 					//First remove args due to back edges
@@ -2039,7 +1946,6 @@ struct HyperOpCreationPass: public ModulePass {
 								BasicBlock* parentBB = ((Instruction*) argument)->getParent();
 								list<pair<list<BasicBlock*>, LoopIV*> > tempLoopBlocks;
 								std::copy(originalParallelLoopBB.begin(), originalParallelLoopBB.end(), std::back_inserter(tempLoopBlocks));
-//								std::copy(originalSerialLoopBB.begin(), originalSerialLoopBB.end(), std::back_inserter(tempLoopBlocks));
 								for (auto loopItr = tempLoopBlocks.begin(); loopItr != tempLoopBlocks.end(); loopItr++) {
 									auto loopList = loopItr->first;
 									if (find(loopList.begin(), loopList.end(), parentBB) != loopList.end()) {
@@ -2054,11 +1960,6 @@ struct HyperOpCreationPass: public ModulePass {
 					for (auto deleteItr = deleteList.begin(); deleteItr != deleteList.end(); deleteItr++) {
 						hyperOpArguments.erase(*deleteItr);
 					}
-
-//					errs() << "final set of hyperOp args:" << hyperOpArguments.size() << "\n";
-//					for (auto hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
-//						hyperOpArgItr->first.front()->dump();
-//					}
 
 					//Shuffle the arguments to the HyperOp such that scalar arguments are positioned first and the rest of the arguments are positioned after
 					HyperOpArgumentList tempHyperOpArguments;
@@ -4811,6 +4712,7 @@ struct HyperOpCreationPass: public ModulePass {
 		DEBUG(dbgs() << "Final module contents:");
 		M.dump();
 		DEBUG(dbgs() << "Completed generating HyperOps\n");
+		HyperOpMetadataParser::parseMetadata(&M);
 		return true;
 	}
 

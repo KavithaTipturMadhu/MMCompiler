@@ -25,7 +25,7 @@
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/ADT/StringExtras.h"
-#include "REDEFINEUtils.h"
+#include "llvm/IR/REDEFINEUtils.h"
 
 using namespace llvm;
 

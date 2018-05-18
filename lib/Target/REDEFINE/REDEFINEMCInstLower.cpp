@@ -15,7 +15,7 @@
 #include "llvm/Target/Mangler.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
-#include "REDEFINEUtils.h"
+#include "llvm/IR/REDEFINEUtils.h"
 #include "llvm/ADT/StringExtras.h"
 using namespace llvm;
 

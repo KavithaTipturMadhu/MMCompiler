@@ -20,7 +20,7 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Module.h"
 #include "llvm/ADT/StringExtras.h"
-#include "REDEFINEUtils.h"
+#include "llvm/IR/REDEFINEUtils.h"
 
 #define GET_INSTRINFO_CTOR
 #define GET_INSTRMAP_INFO

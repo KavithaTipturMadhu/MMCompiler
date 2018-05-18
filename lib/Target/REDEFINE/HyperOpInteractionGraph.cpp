@@ -5,8 +5,6 @@
  *      Author: kavitha
  */
 
-#include "HyperOpInteractionGraph.h"
-
 #include <cassert>
 #include <cstdlib>
 #include <iterator>
@@ -17,6 +15,7 @@
 #include "llvm/IR/Instructions.h"
 #include "lpsolve/lp_lib.h"
 #include "lpsolve/lp_types.h"
+#include "llvm/IR/HyperOpInteractionGraph.h"
 using namespace llvm;
 
 namespace {

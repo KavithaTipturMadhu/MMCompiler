@@ -5,7 +5,7 @@
  *      Author: kavitha
  */
 
-#include "HyperOpMetadataParser.h"
+#include "llvm/IR/HyperOpMetadataParser.h"
 #include "llvm/Support/Debug.h"
 
 HyperOpMetadataParser::HyperOpMetadataParser() {
@@ -493,13 +493,13 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 				}
 			}
 		}
-		if (maxFrameSizeOfHyperOp < frameSizeOfHyperOp) {
-			errs() << "frame size for hop " << sourceHyperOp->asString() << ":" << frameSizeOfHyperOp << "\n";
-			maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
-		}
+//		if (maxFrameSizeOfHyperOp < frameSizeOfHyperOp) {
+//			errs() << "frame size for hop " << sourceHyperOp->asString() << ":" << frameSizeOfHyperOp << "\n";
+//			maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
+//		}
 	}
-	errs() << "before deleting nodes:";
-	graph->print(errs());
+//	errs() << "before deleting nodes:";
+//	graph->print(errs());
 
 	//This had to be written as follows because removal of one node may cause other nodes to go hanging
 	while (true) {
