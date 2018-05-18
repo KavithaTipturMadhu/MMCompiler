@@ -63,3 +63,16 @@ void REDEFINEUtils::print_backtrace(void)
         }
     free(bt_syms);
 }
+
+bool REDEFINEUtils::isInteger(StringRef inputString){
+	const char * str = inputString.data();
+	if(inputString.empty()){
+		return false;
+	}
+	for(int i=0;i<inputString.size();i++){
+		if(str[i]>'9' || str[i]<'0'){
+			return false;
+		}
+	}
+	return true;
+}

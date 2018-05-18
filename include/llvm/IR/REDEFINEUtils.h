@@ -24,6 +24,7 @@ public:
 	static unsigned getAlignedSizeOfType(Type * type);
 	static unsigned getHyperOpId(HyperOp* hyperOp);
 	static void print_backtrace(void);
+	static bool isInteger(StringRef);
 };
 }
 #endif /* LIB_TARGET_REDEFINE_REDEFINEUTILS_H_ */
