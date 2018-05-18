@@ -71,8 +71,10 @@ HyperOp::HyperOp(Function* function) {
 	this->fbindRequired = false;
 	this->gcRequired = false;
 	this->staticHyperOp = true;
-	this->numIncomingSyncEdges[0] = 0;
-	this->numIncomingSyncEdges[1] = 0;
+	list<Value*> zeroPredList;
+	list<Value*> onePredList;
+	this->numIncomingSyncEdges[0] = zeroPredList;
+	this->numIncomingSyncEdges[1] = onePredList;
 	this->unrolledInstance = false;
 	this->instanceof = NULL;
 	this->InRange = false;
@@ -164,7 +166,7 @@ void HyperOp::setStaticHyperOp(bool staticHyperOp) {
 	this->staticHyperOp = staticHyperOp;
 }
 
-void HyperOp::incrementIncomingSyncCount(unsigned predicateValue) {
+void HyperOp::addSyncSource(unsigned predicateValue) {
 	this->numIncomingSyncEdges[predicateValue]++;
 }
 
@@ -183,7 +185,7 @@ Value* HyperOp::getIncomingSyncPredicate(unsigned predicateValue) {
 void HyperOp::decrementIncomingSyncCount(unsigned predicateValue) {
 	this->numIncomingSyncEdges[predicateValue]--;
 }
-unsigned HyperOp::getSyncCount(unsigned predicateValue) {
+Value* HyperOp::getSyncCount(unsigned predicateValue) {
 	return this->numIncomingSyncEdges[predicateValue];
 }
 

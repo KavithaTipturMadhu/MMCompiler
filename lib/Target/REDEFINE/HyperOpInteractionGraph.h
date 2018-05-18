@@ -137,7 +137,7 @@ class HyperOp {
 	unsigned hyperOpId;
 	vector<unsigned> numInputsPerCE;
 	//map of predicate value to sync count
-	unsigned numIncomingSyncEdges[2];
+	list<Value*> numIncomingSyncEdges[2];
 	bool hasMutexSyncSources;
 	Value* predicateForSyncSource[2];
 	//Map of source instruction in a CE and the first consumer instruction in a different CE
@@ -210,7 +210,7 @@ public:
 	void setIncomingSyncCount(unsigned predicateValue, unsigned syncCount);
 	void incrementIncomingSyncCount(unsigned predicateValue);
 	void decrementIncomingSyncCount(unsigned predicateValue);
-	unsigned getSyncCount(unsigned predicateValue);
+	Value* getSyncCount(unsigned predicateValue);
 	list<unsigned> getInstanceId();
 	void setInstanceId(list<unsigned> instanceId);
 	Function* getInstanceof();
