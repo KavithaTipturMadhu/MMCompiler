@@ -166,12 +166,21 @@ void HyperOp::setStaticHyperOp(bool staticHyperOp) {
 	this->staticHyperOp = staticHyperOp;
 }
 
-void HyperOp::addSyncSource(unsigned predicateValue) {
-	this->numIncomingSyncEdges[predicateValue]++;
+//void HyperOp::addSyncSource(unsigned predicateValue) {
+////	this->numIncomingSyncEdges[predicateValue].push_back(ConstantInt::get(hyperOp->getFunction()->getParent()->getContext(), APInt(32, 1)));
+//}
+
+void HyperOp::incrementIncomingSyncCount(unsigned predicateValue) {
+    Value* prevPred = this->numIncomingSyncEdges[predicateValue].front();
+    int updatedValue  = ((ConstantInt*)prevPred)->getValue().getZExtValue()+1;
+    this->numIncomingSyncEdges[predicateValue].pop_front();
+	this->numIncomingSyncEdges[predicateValue].push_back(ConstantInt::get(this->function->getParent()->getContext(), APInt(32, updatedValue)));
 }
 
-void HyperOp::setIncomingSyncCount(unsigned predicateValue, unsigned syncCount) {
-	this->numIncomingSyncEdges[predicateValue] = syncCount;
+void HyperOp::setIncomingSyncCount(unsigned predicateValue, list<Value*> syncCountList) {
+	for (auto syncCount : syncCountList) {
+		this->numIncomingSyncEdges[predicateValue].push_back(syncCount);
+	}
 }
 
 void HyperOp::setIncomingSyncPredicate(unsigned predicateValue, Value* predicate) {
@@ -182,10 +191,10 @@ Value* HyperOp::getIncomingSyncPredicate(unsigned predicateValue) {
 	return this->predicateForSyncSource[predicateValue];
 }
 
-void HyperOp::decrementIncomingSyncCount(unsigned predicateValue) {
-	this->numIncomingSyncEdges[predicateValue]--;
-}
-Value* HyperOp::getSyncCount(unsigned predicateValue) {
+//void HyperOp::decrementIncomingSyncCount(unsigned predicateValue) {
+//	this->numIncomingSyncEdges[predicateValue]--;
+//}
+list<Value*> HyperOp::getSyncCount(unsigned predicateValue) {
 	return this->numIncomingSyncEdges[predicateValue];
 }
 
@@ -334,7 +343,7 @@ HyperOp* HyperOp::getImmediatePostDominator() {
 
 void HyperOp::setStartHyperOp() {
 	this->IsStart = true;
-	this->incrementIncomingSyncCount(0);
+//	this->incrementIncomingSyncCount(0);
 	this->setBarrierHyperOp();
 	this->setNumCEInputs(0, 1);
 }
@@ -1323,8 +1332,8 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 				forkSink->ParentMap[hopEdge] = joinHyperOp;
 			}
 
-			forkSink->setIncomingSyncCount(0, 1);
-			forkSink->setIncomingSyncCount(1, 1);
+			forkSink->setIncomingSyncCount(0, ConstantInt::get(joinFunction->getParent()->getContext(), APInt(32, 1)));
+			forkSink->setIncomingSyncCount(1, ConstantInt::get(joinFunction->getParent()->getContext(), APInt(32, 1)));
 
 			//Update the edges from parent that existed previously
 			for (auto incomingEdgeItr = parentVertexList.begin(); incomingEdgeItr != parentVertexList.end(); incomingEdgeItr++) {
@@ -3823,8 +3832,14 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			} else {
 				hyperOp->setHasMutexSyncSources(false);
 			}
-			hyperOp->setIncomingSyncCount(0, syncOnPredicate[0]);
-			hyperOp->setIncomingSyncCount(1, syncOnPredicate[1]);
+
+			list<Value*> incomingSyncAlongZeroPred;
+			incomingSyncAlongZeroPred.push_back(ConstantInt::get(hyperOp->getFunction()->getParent()->getContext(), APInt(32, syncOnPredicate[0])));
+			hyperOp->setIncomingSyncCount(0, incomingSyncAlongZeroPred);
+
+			list<Value*> incomingSyncAlongOnePred;
+			incomingSyncAlongOnePred.push_back(ConstantInt::get(hyperOp->getFunction()->getParent()->getContext(), APInt(32, syncOnPredicate[1])));
+			hyperOp->setIncomingSyncCount(1, incomingSyncAlongOnePred);
 		}
 	}
 
@@ -3874,7 +3889,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 
 			os << "Dom:" << dom << ", PostDom:" << postdom << ",";
 			os << "Map:" << ((*vertexIterator)->getTargetResource() / columnCount) << ":" << ((*vertexIterator)->getTargetResource() % columnCount) << ", Context frame:" << (*vertexIterator)->getContextFrame() << ",";
-			os << "SyncCount:" << (*vertexIterator)->getSyncCount(0);
+//			os << "SyncCount:" << (*vertexIterator)->getSyncCount(0);
 			os << "Domf:" << vertex->getDominanceFrontier().size() << ":";
 			if (!vertex->getDominanceFrontier().empty()) {
 				list<HyperOp*> domf = vertex->getDominanceFrontier();

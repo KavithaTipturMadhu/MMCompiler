@@ -57,18 +57,21 @@ void REDEFINEAsmPrinter::EmitMachineConstantPoolValue(MachineConstantPoolValue *
 	OutStreamer.EmitValue(Expr, Size);
 }
 void REDEFINEAsmPrinter::EmitFunctionBody() {
+	static int maxFrameValue = 0;
 	int ceCount = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
 	// Emit target-specific gunk before the function body.
 	EmitFunctionBodyStart();
 	string name = ";";
-	name.append(MF->getFunction()->getName());
+	string hyOpName = MF->getFunction()->getName();
+	name.append(hyOpName);
 	OutStreamer.EmitRawText(StringRef(name));
+
+	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
+//	HyperOp* hyperOp = HIG->getHyperOp(const_cast<Function*>(MF->getFunction()));
 
 	const MachineInstr *LastMI = 0;
 	vector<list<const MachineInstr*> > pHyperOpInstructions(ceCount);
 	vector<list<const MachineInstr*> > startOfBBInPHyperOp(ceCount);
-	errs() << "current state of mf:";
-	MF->dump();
 	for (MachineFunction::const_iterator I = MF->begin(), E = MF->end(); I != E; ++I) {
 		int pHyperOpIndex = -1;
 //		if (I->empty()) {
@@ -87,11 +90,15 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 //		}
 	}
 
+//	string hyperOpId(itostr(hyperOp->getHyperOpId()));
 	for (int pHyperOpIndex = 0; pHyperOpIndex < pHyperOpInstructions.size(); pHyperOpIndex++) {
 		list<const MachineInstr*> pHyperOpItr = pHyperOpInstructions[pHyperOpIndex];
 //	for (vector<list<const MachineInstr*> >::iterator pHyperOpItr = pHyperOpInstructions.begin(); pHyperOpItr != pHyperOpInstructions.end(); pHyperOpItr++, pHyperOpIndex++) {
-		string codeSegmentStart = ".PHYOP#";
-		codeSegmentStart.append(itostr(pHyperOpIndex)).append("\n");
+		string phyOpId = ".PC_"+hyOpName;
+//		phyOpId.append(hyperOpId).append("#").append(itostr(pHyperOpIndex));
+		string codeSegmentStart = "\t.PHYPEROP ";
+		codeSegmentStart.append(phyOpId).append("\n");
+		codeSegmentStart.append(phyOpId).append(":\n"); //p-HyperOp-PC label
 		OutStreamer.EmitRawText(StringRef(codeSegmentStart));
 
 		for (list<const MachineInstr*>::iterator mcItr = pHyperOpItr.begin(); mcItr != pHyperOpItr.end(); mcItr++) {
@@ -107,10 +114,26 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 			}
 			EmitInstruction(*mcItr);
 		}
-		OutStreamer.EmitRawText(StringRef(".PHYOP_END\n"));
+		//OutStreamer.EmitRawText(StringRef(".PHYOP_END\n"));
 	}
 
-	EmitFunctionBodyEnd();
+	//The object is a reference being passed via memory
+	int mfFrameSize = 0;
+	if (MF->getFrameInfo()->getObjectIndexEnd() > 0) {
+		for (int i = 0; i < MF->getFrameInfo()->getObjectIndexEnd(); i++) {
+			mfFrameSize += REDEFINEUtils::getSizeOfType(MF->getFrameInfo()->getObjectAllocation(i)->getType());
+		}
+	}
+	if(mfFrameSize>maxFrameValue){
+		maxFrameValue = mfFrameSize;
+	}
+
+	if (MF->getFunctionNumber() == (MF->getFunction())->getParent()->getFunctionList().size() - 2) {
+		string maxFrameString;
+		maxFrameString.append(";FS = ").append(itostr(maxFrameValue)).append("\n");
+		OutStreamer.EmitRawText(StringRef(maxFrameString));
+	 }
+	//EmitFunctionBodyEnd();
 }
 
 void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
@@ -467,7 +490,7 @@ void REDEFINEAsmPrinter::EmitFunctionHeader() {
 
 	// Emit the CurrentFnSym.  This is a virtual function to allow targets to
 	// do their wild and crazy things as required.
-	EmitFunctionEntryLabel();
+	//EmitFunctionEntryLabel();
 
 	// If the function had address-taken blocks that got deleted, then we have
 	// references to the dangling symbols.  Emit them at the start of the function

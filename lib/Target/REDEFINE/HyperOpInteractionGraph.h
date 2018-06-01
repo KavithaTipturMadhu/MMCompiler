@@ -207,10 +207,10 @@ public:
 	void setFbindRequired(bool fbindRequired);
 	bool isStaticHyperOp() const;
 	void setStaticHyperOp(bool staticHyperOp);
-	void setIncomingSyncCount(unsigned predicateValue, unsigned syncCount);
+	void setIncomingSyncCount(unsigned predicateValue, list<Value*> syncCountList);
 	void incrementIncomingSyncCount(unsigned predicateValue);
-	void decrementIncomingSyncCount(unsigned predicateValue);
-	Value* getSyncCount(unsigned predicateValue);
+//	void decrementIncomingSyncCount(unsigned predicateValue);
+	list<Value*> getSyncCount(unsigned predicateValue);
 	list<unsigned> getInstanceId();
 	void setInstanceId(list<unsigned> instanceId);
 	Function* getInstanceof();

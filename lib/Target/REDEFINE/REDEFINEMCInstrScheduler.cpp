@@ -691,6 +691,9 @@ if (RegionBegin == BB->begin() && BB == &BB->getParent()->front()) {
 		globalAddressString.append(itostr(maxGlobalSize));
 		MCSymbol* gaSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(globalAddressString));
 
+		string frameSizeString = "fs";
+		MCSymbol* frameSizeSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(frameSizeString));
+
 		unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 		MachineInstrBuilder movimm = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVADDR)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(movimm.operator ->());
@@ -699,7 +702,7 @@ if (RegionBegin == BB->begin() && BB == &BB->getParent()->front()) {
 		memoryFrameBaseAddress[i] = registerForGlobalAddr;
 
 		unsigned registerForMulOperand = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder addiForMul = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addImm(graph->getMaxMemFrameSize());
+		MachineInstrBuilder addiForMul = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addSym(frameSizeSymbol);
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(addiForMul.operator ->());
 		allInstructionsOfRegion.push_back(make_pair(addiForMul.operator->(), make_pair(i, insertPosition++)));
 		memoryFrameMaxSizeReg[i] = registerForMulOperand;
@@ -1538,13 +1541,16 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 			globalAddressString.append(itostr(maxGlobalSize));
 			MCSymbol* gaSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(globalAddressString));
 
+			string frameSizeString = "fs";
+			MCSymbol* frameSizeSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(frameSizeString));
+
 			unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 			MachineInstrBuilder movimm = BuildMI(*lastBB, lastBB->end(), BB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVADDR)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
 			LIS->getSlotIndexes()->insertMachineInstrInMaps(movimm.operator ->());
 			allInstructionsOfRegion.push_back(make_pair(movimm.operator->(), make_pair(i, insertPosition++)));
 
 			unsigned registerForMulOperand = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-			MachineInstrBuilder addiForMul = BuildMI(*lastBB, lastBB->end(), dl, TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addImm(graph->getMaxMemFrameSize());
+			MachineInstrBuilder addiForMul = BuildMI(*lastBB, lastBB->end(), dl, TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addSym(frameSizeSymbol);
 			LIS->getSlotIndexes()->insertMachineInstrInMaps(addiForMul.operator ->());
 			allInstructionsOfRegion.push_back(make_pair(addiForMul.operator->(), make_pair(i, insertPosition++)));
 			memoryFrameMaxSizeReg[i] = registerForMulOperand;
@@ -1721,9 +1727,9 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					mutexInstr = true;
 					Value* firstPredicate = (*childHyperOpItr)->getIncomingSyncPredicate(0);
 					//TODO
-					unsigned firstPredicateValue = (*childHyperOpItr)->getSyncCount(0);
+					int firstPredicateValue = ((ConstantInt*)(*childHyperOpItr)->getSyncCount(0).front())->getZExtValue();
 					Value* secondPredicate = (*childHyperOpItr)->getIncomingSyncPredicate(1);
-					unsigned secondPredicateValue = (*childHyperOpItr)->getSyncCount(1);
+					int secondPredicateValue = ((ConstantInt*)(*childHyperOpItr)->getSyncCount(1).front())->getZExtValue();
 					unsigned firstPredMemSize, secondPredMemSize, memsize = 0;
 					if (firstPredicate == NULL && secondPredicate != NULL) {
 						firstPredicate = secondPredicate;
@@ -1791,7 +1797,8 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					addi.addReg(registerWithSyncCount, RegState::Define).addReg(firstPredMul).addReg(secondPredMul);
 				} else {
 					addi = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADDI));
-					addi.addReg(registerWithSyncCount, RegState::Define).addReg(REDEFINE::zero).addImm((*childHyperOpItr)->getSyncCount(0));
+					int immediate  = ((ConstantInt*)(*childHyperOpItr)->getSyncCount(0).front())->getZExtValue();
+					addi.addReg(registerWithSyncCount, RegState::Define).addReg(REDEFINE::zero).addImm(immediate);
 				}
 
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
@@ -2361,6 +2368,9 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					globalAddressString.append(itostr(maxGlobalSize));
 					MCSymbol* gaSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(globalAddressString));
 
+					string frameSizeString = "fs";
+					MCSymbol* frameSizeSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(frameSizeString));
+
 					unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					MachineInstrBuilder movimm = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::MOVADDR)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(movimm.operator ->());
@@ -2373,7 +2383,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						firstInstructionOfpHyperOpInRegion[targetCE] == movimm.operator ->();
 					}
 					unsigned registerForMulOperand = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-					MachineInstrBuilder addiForMul = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addImm(graph->getMaxMemFrameSize());
+					MachineInstrBuilder addiForMul = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addSym(frameSizeSymbol);
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(addiForMul.operator ->());
 					LIS->addLiveRangeToEndOfBlock(registerForMulOperand, addiForMul.operator ->());
 					allInstructionsOfRegion.push_back(make_pair(addiForMul.operator->(), make_pair(targetCE, insertPosition++)));
@@ -3138,6 +3148,9 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							globalAddressString.append(itostr(maxGlobalSize));
 							MCSymbol* gaSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(globalAddressString));
 
+							string frameSizeString = "fs";
+							MCSymbol* frameSizeSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(frameSizeString));
+
 							unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 							MachineInstrBuilder movimm = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::MOVADDR)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(movimm.operator ->());
@@ -3150,7 +3163,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							}
 
 							unsigned registerForMulOperand = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-							MachineInstrBuilder addiForMul = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addImm(graph->getMaxMemFrameSize());
+							MachineInstrBuilder addiForMul = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addSym(frameSizeSymbol);
 							LIS->getSlotIndexes()->insertMachineInstrInMaps(addiForMul.operator ->());
 							LIS->addLiveRangeToEndOfBlock(registerForMulOperand, addiForMul.operator ->());
 							allInstructionsOfRegion.push_back(make_pair(addiForMul.operator->(), make_pair(targetCE, insertPosition++)));
