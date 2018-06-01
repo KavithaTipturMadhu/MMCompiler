@@ -205,7 +205,10 @@ HyperOpInteractionGraph* HyperOp::getParentGraph(){
 	return hig;
 }
 
-Value* HyperOp::getSyncCount(unsigned predicateValue) {
+//void HyperOp::decrementIncomingSyncCount(unsigned predicateValue) {
+//	this->numIncomingSyncEdges[predicateValue]--;
+//}
+list<Value*> HyperOp::getSyncCount(unsigned predicateValue) {
 	return this->numIncomingSyncEdges[predicateValue];
 }
 
