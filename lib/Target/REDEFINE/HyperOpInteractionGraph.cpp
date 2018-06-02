@@ -1332,8 +1332,12 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 				forkSink->ParentMap[hopEdge] = joinHyperOp;
 			}
 
-			forkSink->setIncomingSyncCount(0, ConstantInt::get(joinFunction->getParent()->getContext(), APInt(32, 1)));
-			forkSink->setIncomingSyncCount(1, ConstantInt::get(joinFunction->getParent()->getContext(), APInt(32, 1)));
+			list<Value*> zeroPred;
+			zeroPred.push_back(ConstantInt::get(joinFunction->getParent()->getContext(), APInt(32, 1)));
+			list<Value*> onePred;
+			onePred.push_back(ConstantInt::get(joinFunction->getParent()->getContext(), APInt(32, 1)));
+			forkSink->setIncomingSyncCount(0, zeroPred);
+			forkSink->setIncomingSyncCount(1, onePred);
 
 			//Update the edges from parent that existed previously
 			for (auto incomingEdgeItr = parentVertexList.begin(); incomingEdgeItr != parentVertexList.end(); incomingEdgeItr++) {
