@@ -4672,7 +4672,8 @@ struct HyperOpCreationPass: public ModulePass {
 		DEBUG(dbgs() << "Final module contents:");
 		M.dump();
 		DEBUG(dbgs() << "Completed generating HyperOps\n");
-		HyperOpMetadataParser::parseMetadata(&M);
+		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
+		graph->print(errs());
 		return true;
 	}
 
