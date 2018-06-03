@@ -141,11 +141,21 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 						pair<StringRef, StringRef> strideSplit = functionAndStride.second.split(")");
 						StringRef stride = strideSplit.first;
 						//TODO support for variable bounds too
-//						if(REDEFINEUtils::isInteger(lowerBound.data())){
 						hyperOp->setRangeLowerBound(ConstantInt::get(ctxt, APInt(32, atoi(lowerBound.str().c_str()))));
-//						}else{
-//						}
-						hyperOp->setRangeUpperBound(ConstantInt::get(ctxt, APInt(32, atoi(upperBound.str().c_str()))));
+						int isIntegerBound = 1;
+						int i = 0;
+						while (upperBound.data()[i] != '\0') {
+							if (upperBound.data()[i] > '9' || upperBound.data()[i] < '0') {
+								isIntegerBound = 0;
+								break;
+							}
+							i++;
+						}
+						if (isIntegerBound) {
+							hyperOp->setRangeUpperBound(ConstantInt::get(ctxt, APInt(32, atoi(upperBound.str().c_str()))));
+						} else {
+							hyperOp->setRangeUpperBound(ConstantInt::get(ctxt, APInt(32, 1)));
+						}
 						if (graph->StridedFunctionKeyValue.find(strideFunction) != graph->StridedFunctionKeyValue.end()) {
 							hyperOp->setInductionVarUpdateFunc(graph->StridedFunctionKeyValue[strideFunction]);
 						}
@@ -261,7 +271,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 //											if (!consumerHyperOpId.empty()) {
 //												consumerHyperOpId.clear();
 //											}
-											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
+										consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
 //											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
 //										} else {
 //											errs()<<"popped once and looking for dynamic instance:";
@@ -354,7 +364,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 //											if (!consumerHyperOpId.empty()) {
 //												consumerHyperOpId.clear();
 //											}
-											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
+										consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
 //											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
 //										} else {
 //											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
@@ -436,7 +446,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 //											if (!consumerHyperOpId.empty()) {
 //												consumerHyperOpId.clear();
 //											}
-											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
+										consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
 //											errs() << "static consumer:" << consumerHyperOp->asString() << "\n";
 //										} else {
 //											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
