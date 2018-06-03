@@ -2747,7 +2747,7 @@ struct HyperOpCreationPass: public ModulePass {
 						//Minus 1 for the exact bound
 						tag.append(itostr(loopIV->getConstantUpperBound() - 1));
 					} else {
-						tag.append(loopIV->getVariableUpperBound()->getName());
+						tag.append(((Instruction*) loopIV->getVariableUpperBound())->getOperand(0)->getName());
 					}
 
 					tag.append(":");
