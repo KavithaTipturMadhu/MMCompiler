@@ -124,28 +124,26 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					hyperOp->setInstanceId(parsedId);
 					if (hyperOpMDNode->getNumOperands() > 5) {
 						hyperOp->setInRange();
-						StringRef rangeTag = ((MDString*) hyperOpMDNode->getOperand(5))->getName();
-						errs() << "range tag:" << rangeTag << "\n";
-						list<StringRef> parsedList = parseInstanceIdString(rangeTag, ':');
-						assert(parsedList.size() == 3 && "Invalid range format");
-						for (auto parsedlistItr : parsedList) {
-							errs() << parsedlistItr << ",";
+						if (isa<MDString>(hyperOpMDNode->getOperand(5))) {
+							StringRef lowerBound = ((MDString*) hyperOpMDNode->getOperand(5))->getName();
+							hyperOp->setRangeLowerBound(ConstantInt::get(ctxt, APInt(32, atoi(lowerBound.str().c_str()))));
+						} else {
+							hyperOp->setRangeLowerBound(hyperOpMDNode->getOperand(5));
 						}
-						errs() << "\n";
-						StringRef lowerBound = parsedList.front();
-						parsedList.pop_front();
-						StringRef upperBound = parsedList.front();
-						parsedList.pop_front();
-						StringRef strideFunction = parsedList.front();
-						pair<StringRef, StringRef> functionAndStride = strideFunction.split('(');
-						StringRef function = functionAndStride.first;
-						pair<StringRef, StringRef> strideSplit = functionAndStride.second.split(")");
-						StringRef stride = strideSplit.first;
-						hyperOp->setRangeLowerBound(ConstantInt::get(ctxt, APInt(32, atoi(lowerBound.str().c_str()))));
-						hyperOp->setRangeUpperBound(ConstantInt::get(ctxt, APInt(32, atoi(upperBound.str().c_str()))));
+						if (isa<MDString>(hyperOpMDNode->getOperand(6))) {
+							StringRef upperBound = ((MDString*) hyperOpMDNode->getOperand(6))->getName();
+							hyperOp->setRangeUpperBound(ConstantInt::get(ctxt, APInt(32, atoi(upperBound.str().c_str()))));
+						} else {
+							hyperOp->setRangeUpperBound(hyperOpMDNode->getOperand(6));
+						}
+						assert(isa<MDString>(hyperOpMDNode->getOperand(7)) && "Unsupported induction var update function");
+						StringRef strideFunction = ((MDString*) hyperOpMDNode->getOperand(7))->getName();
 						if (graph->StridedFunctionKeyValue.find(strideFunction) != graph->StridedFunctionKeyValue.end()) {
 							hyperOp->setInductionVarUpdateFunc(graph->StridedFunctionKeyValue[strideFunction]);
 						}
+
+						assert(isa<ConstantInt>(hyperOpMDNode->getOperand(8)) && "Unsupported increment value, only constants allowed at this point");
+						hyperOp->setStride(hyperOpMDNode->getOperand(8));
 					}
 				}
 				graph->addHyperOp(hyperOp);
@@ -501,7 +499,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 //	errs() << "before deleting nodes:";
 //	graph->print(errs());
 
-	//This had to be written as follows because removal of one node may cause other nodes to go hanging
+//This had to be written as follows because removal of one node may cause other nodes to go hanging
 	while (true) {
 		bool updatedGraph = false;
 		list<HyperOp*> vertices = graph->Vertices;

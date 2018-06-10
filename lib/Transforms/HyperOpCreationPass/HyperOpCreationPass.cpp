@@ -59,49 +59,82 @@ struct HyperOpCreationPass: public ModulePass {
 
 	class LoopIV {
 	public:
-		enum Type {
+		typedef enum Type {
 			CONSTANT, VARIABLE
-		} ivType;
+		} boundType;
 
-		unsigned constantUpperbound;
-		unsigned constantLowerbound;
+		boundType upperBoundType, lowerBoundType;
+
+		union {
+			unsigned constantLowerbound;
+			Value* variableLowerBound;
+		} lowerBound;
+
+		union {
+			unsigned constantUpperbound;
+			Value* variableUpperbound;
+		} upperBound;
+
 		PHINode* inductionVar;
-		Value* bound;
 		Value* stride;
 		unsigned operation;
 		const char* operationName;
 
-		LoopIV(Type ivType, unsigned constantLowerBound, unsigned constantUpperBound, Value* stride, PHINode* inductionVar, Value* bound, unsigned operation, const char* operationName) {
-			this->ivType = ivType;
-			this->constantUpperbound = constantUpperBound;
-			this->constantLowerbound = constantLowerBound;
+		LoopIV(Value* stride, PHINode* inductionVar, unsigned operation, const char* operationName) {
 			this->inductionVar = inductionVar;
-			this->bound = bound;
 			this->stride = stride;
 			this->operation = operation;
 			this->operationName = operationName;
+			this->lowerBoundType = CONSTANT;
+			this->upperBoundType = CONSTANT;
 		}
 
-		Type getType() {
-			return ivType;
+		Type getLowerBoundType() {
+			return lowerBoundType;
 		}
+		Type getUpperBoundType() {
+			return upperBoundType;
+		}
+
+		void setConstantUpperBound(unsigned upperBound) {
+			this->upperBound.constantUpperbound = upperBound;
+			this->upperBoundType = CONSTANT;
+		}
+
 		unsigned getConstantUpperBound() {
-			return constantUpperbound;
+			return this->upperBound.constantUpperbound;
+		}
+		void setVariableUpperBound(Value* upperBound) {
+			this->upperBound.variableUpperbound = upperBound;
+			this->upperBoundType = VARIABLE;
+		}
+		Value* getVariableUpperBound() {
+			return this->upperBound.variableUpperbound;
+		}
+
+		void setConstantLowerBound(unsigned lowerBound) {
+			this->lowerBound.constantLowerbound = lowerBound;
+			this->lowerBoundType = CONSTANT;
 		}
 		unsigned getConstantLowerBound() {
-			return constantLowerbound;
+			return this->lowerBound.constantLowerbound;
+		}
+		void setVariableLowerBound(Value* lowerBound) {
+			this->lowerBound.variableLowerBound = lowerBound;
+			this->lowerBoundType = VARIABLE;
+		}
+
+		Value* getVariableLowerBound() {
+			return this->lowerBound.variableLowerBound;
 		}
 
 		PHINode* getInductionVar() {
 			return inductionVar;
 		}
-		Value* getVariableUpperBound() {
-			return bound;
-		}
+
 		Value* getStride() {
 			return stride;
 		}
-
 		const char* getIncOperation() {
 			return this->operationName;
 		}
@@ -1321,7 +1354,8 @@ struct HyperOpCreationPass: public ModulePass {
 						} else {
 							useTripCount = false;
 						}
-						Value* loopBound = NULL;
+						Instruction* loopBound = NULL;
+						Value* loopBoundValue = NULL;
 						if (!useTripCount) {
 							for (auto instItr = currentLoop->getHeader()->begin(); instItr != currentLoop->getHeader()->end(); instItr++) {
 								if (!isa<CmpInst>(instItr)) {
@@ -1356,7 +1390,8 @@ struct HyperOpCreationPass: public ModulePass {
 										}
 
 										if (operand != inductionVariable) {
-											loopBound = operand;
+											loopBound = instItr;
+											loopBoundValue = operand;
 											break;
 										}
 									}
@@ -1364,11 +1399,11 @@ struct HyperOpCreationPass: public ModulePass {
 								}
 							}
 
-							assert(loopBound!=NULL&&"Loop bound can't be null\n");
+							assert(loopBoundValue!=NULL&&"Loop bound can't be null\n");
 							//Check if loopbound is undefined recursively
 							bool undefVal = false;
 							list<Value*> traverseOperands;
-							traverseOperands.push_back(loopBound);
+							traverseOperands.push_back(loopBoundValue);
 							while (!traverseOperands.empty()) {
 								Value* val = traverseOperands.front();
 								traverseOperands.pop_front();
@@ -1388,7 +1423,13 @@ struct HyperOpCreationPass: public ModulePass {
 						} else {
 							type = LoopIV::CONSTANT;
 						}
-						loopIVObject = new LoopIV(type, lowerBound, upperBound, stride, inductionVariable, loopBound, strideUpdateOperation, strideUpdateOperationName);
+						loopIVObject = new LoopIV(stride, inductionVariable, strideUpdateOperation, strideUpdateOperationName);
+						loopIVObject->setConstantLowerBound(lowerBound);
+						if (type == LoopIV::CONSTANT) {
+							loopIVObject->setConstantUpperBound(upperBound);
+						} else {
+							loopIVObject->setVariableUpperBound(loopBoundValue);
+						}
 						list<BasicBlock*> loopBBList;
 						std::copy(currentLoop->getBlocks().begin(), currentLoop->getBlocks().end(), std::back_inserter(loopBBList));
 						bool nestedParallelLoop = false;
@@ -2644,10 +2685,10 @@ struct HyperOpCreationPass: public ModulePass {
 			MDNode *funcAnnotation;
 			//Keep the following branch structure
 			if (!isStaticHyperOp) {
-				Value * values[6];
-				values[0] = MDString::get(ctxt, HYPEROP);
-				values[1] = newFunction;
-				values[2] = MDString::get(ctxt, DYNAMIC_HYPEROP);
+				vector<Value*> values;
+				values.push_back(MDString::get(ctxt, HYPEROP));
+				values.push_back(newFunction);
+				values.push_back(MDString::get(ctxt, DYNAMIC_HYPEROP));
 				list<CallInst*> parentCallSite;
 				std::copy(callSite.begin(), callSite.end(), back_inserter(parentCallSite));
 				//pop from call site till you end up with a function thats marked static
@@ -2664,7 +2705,7 @@ struct HyperOpCreationPass: public ModulePass {
 				//The called function doesn't match the callsite of the current hyperop which means that the current HyperOp is not the first in the recursion cycle
 				//todo uncomment
 				if (parentCallSite.empty() || callSite.empty() || parentCallSite.back()->getCalledFunction() != callSite.back()->getCalledFunction()) {
-					values[3] = newFunction;
+					values.push_back(newFunction);
 				} else {
 					//Find the original function from which the parent function was created
 					for (list<Function*>::iterator parentFuncItr = parentFunctionList.begin(); parentFuncItr != parentFunctionList.end(); parentFuncItr++) {
@@ -2677,12 +2718,11 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 						}
 						if (matchFound) {
-							values[3] = *parentFuncItr;
+							values.push_back(*parentFuncItr);
 							break;
 						}
 					}
 				}
-
 				//Convert the id to a tag string
 				list<unsigned> uniqueIdInCallTree = getHyperOpInstanceTag(callSite, newFunction, createdHyperOpAndCallSite, createdHyperOpAndUniqueId, accumulatedBasicBlocks, createdHyperOpAndOriginalBasicBlockAndArgMap);
 				string tag = "<";
@@ -2695,7 +2735,7 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 //				}
 				tag.append(">");
-				values[4] = MDString::get(ctxt, tag);
+				values.push_back(MDString::get(ctxt, tag));
 				//Check if the accumulated bbs are supposed to be a range of HyperOps
 				LoopIV* loopIV = NULL;
 				bool mismatch = false;
@@ -2739,44 +2779,53 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 
 				if (!mismatch) {
-					tag.clear();
-					tag.append("<");
-					tag.append(itostr(loopIV->getConstantLowerBound()));
-					tag.append(":");
-					if (loopIV->getType() == LoopIV::CONSTANT) {
-						//Minus 1 for the exact bound
-						tag.append(itostr(loopIV->getConstantUpperBound() - 1));
+//					tag.clear();
+//					tag.append("<");
+//					tag.append(itostr(loopIV->getConstantLowerBound()));
+//					tag.append(":");
+//					if (loopIV->getType() == LoopIV::CONSTANT) {
+//						values.push_back(MDString::get(ctxt, StringRef(loopIV->getConstantUpperBound())));
+//						//Minus 1 for the exact bound
+//						tag.append(itostr(loopIV->getConstantUpperBound()));
+//					} else {
+//						((Instruction*) loopIV->getVariableUpperBound())->dump();
+//						tag.append(loopIV->getVariableUpperBound()->getName());
+//					}
+//
+//					tag.append(":");
+//					tag.append(loopIV->getIncOperation());
+//					tag.append("(");
+//					if (isa<ConstantInt>(loopIV->getStride())) {
+//						tag.append(itostr(((ConstantInt*) loopIV->getStride())->getUniqueInteger().getSExtValue()));
+//					} else {
+//						tag.append(loopIV->getStride()->getName());
+//					}
+//					tag.append(")");
+//					tag.append(">");
+					if (loopIV->getLowerBoundType() == LoopIV::CONSTANT) {
+						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantLowerBound())));
 					} else {
-						tag.append(((Instruction*) loopIV->getVariableUpperBound())->getOperand(0)->getName());
+						Value* lowerBound = loopIV->getVariableLowerBound();
+						//Now the bounds to be a global because I need to think of how to support variable bounds
+						//Global value, use as is
+						assert(isa<LoadInst>(lowerBound) && "Non global bounds not supported currently");
+						values.push_back(((Instruction*) lowerBound)->getOperand(0));
 					}
 
-					tag.append(":");
-					tag.append(loopIV->getIncOperation());
-					tag.append("(");
-					if (isa<ConstantInt>(loopIV->getStride())) {
-						tag.append(itostr(((ConstantInt*) loopIV->getStride())->getUniqueInteger().getSExtValue()));
+					if (loopIV->getUpperBoundType() == LoopIV::CONSTANT) {
+						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantUpperBound())));
 					} else {
-						tag.append(loopIV->getStride()->getName());
+						Value* upperBound = loopIV->getVariableUpperBound();
+						upperBound->dump();
+						assert(isa<LoadInst>(upperBound) && "Non global bounds not supported currently");
+						values.push_back(((Instruction*) upperBound)->getOperand(0));
 					}
-					tag.append(")");
-					tag.append(">");
-					values[5] = MDString::get(ctxt, tag);
-				}
 
-				//Dirty stuff, replace with dynamic allocation of values array
-				if (loopIV == NULL) {
-					Value* tempValues[5];
-					for (unsigned i = 0; i < 5; i++) {
-						tempValues[i] = values[i];
-					}
-					funcAnnotation = MDNode::get(ctxt, tempValues);
-				} else {
-					Value* tempValues[6];
-					for (unsigned i = 0; i < 6; i++) {
-						tempValues[i] = values[i];
-					}
-					funcAnnotation = MDNode::get(ctxt, tempValues);
+					values.push_back(MDString::get(ctxt, StringRef(loopIV->getIncOperation())));
+					values.push_back(loopIV->getStride());
 				}
+				ArrayRef<Value*> valueArray(values);
+				funcAnnotation = MDNode::get(ctxt, valueArray);
 				createdHyperOpAndUniqueId[newFunction] = uniqueIdInCallTree;
 			} else {
 				Value * values[3];
