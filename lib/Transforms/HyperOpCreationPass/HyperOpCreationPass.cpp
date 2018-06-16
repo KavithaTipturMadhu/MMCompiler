@@ -2215,6 +2215,49 @@ struct HyperOpCreationPass: public ModulePass {
 			list<unsigned> localRefReplacementArgIndex;
 			map<unsigned, Value*> localRefReplacementArgMap;
 			unsigned argIndex = 0;
+
+			bool loopInstanceHop = false;
+			for (auto accumulatedbbItr = accumulatedBasicBlocks.begin(); accumulatedbbItr != accumulatedBasicBlocks.end(); accumulatedbbItr++) {
+				bool temploopInstanceHop = false;
+				//Only loop header needs range
+				bool accumulatedBBInParallelLoop = false;
+				for (auto parallelLoopItr = parallelLoopFunctionList.begin(); parallelLoopItr != parallelLoopFunctionList.end(); parallelLoopItr++) {
+					bool bbInList = false;
+					for (auto bbItr = (*parallelLoopItr)->begin(); bbItr != (*parallelLoopItr)->end(); bbItr++) {
+						BasicBlock* bb = bbItr;
+						if (bb == *accumulatedbbItr) {
+							bbInList = true;
+							break;
+						}
+					}
+
+					if (bbInList) {
+						BasicBlock* clonedBB = &((*parallelLoopItr)->front());
+						StringRef originalParallelLoopItrName = (*parallelLoopItr)->getName();
+						for (auto originalParallelLoopItr : originalParallelLoopBB) {
+							list<BasicBlock*> loopBBList = originalParallelLoopItr.first;
+							for (auto bbItr : loopBBList) {
+								if (isa<CallInst>(bbItr->front()) && ((CallInst*) (&bbItr->front()))->getCalledFunction()->getName().compare(originalParallelLoopItrName) == 0) {
+									temploopInstanceHop = true;
+									break;
+								}
+							}
+							if (temploopInstanceHop) {
+								break;
+							}
+						}
+						break;
+					}
+				}
+				if (temploopInstanceHop && find(originalHeaderBB.begin(), originalHeaderBB.end(), *accumulatedbbItr) == originalHeaderBB.end()) {
+					loopInstanceHop = true;
+					break;
+				}
+			}
+
+			if(loopInstanceHop){
+				argsList.push_back(Type::getInt32Ty(ctxt));
+			}
 			for (HyperOpArgumentList::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
 				//Set type of each argument of the HyperOp
 				Value* argument = hyperOpArgumentItr->first.front();
@@ -2246,6 +2289,12 @@ struct HyperOpCreationPass: public ModulePass {
 			unsigned originalIndex = 0;
 			map<unsigned, unsigned> originalIndexAndfuncArgIndexMap;
 			unsigned functionArgIndex = 0;
+			if(loopInstanceHop){
+				newFunction->addAttribute(functionArgIndex + 1, Attribute::InReg);
+//				originalIndexAndfuncArgIndexMap.insert(make_pair(originalIndex, functionArgIndex));
+//				originalIndex++;
+				functionArgIndex++;
+			}
 			for (HyperOpArgumentList::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
 				HyperOpArgumentType type = hyperOpArgItr->second;
 				Value* argument = hyperOpArgItr->first.front();
@@ -2294,7 +2343,6 @@ struct HyperOpCreationPass: public ModulePass {
 
 				list<pair<list<BasicBlock*>, LoopIV*> > tempLoopBlocks;
 				std::copy(originalParallelLoopBB.begin(), originalParallelLoopBB.end(), std::back_inserter(tempLoopBlocks));
-//						std::copy(originalSerialLoopBB.begin(), originalSerialLoopBB.end(), std::back_inserter(tempLoopBlocks));
 				for (auto parallelLoopItr = tempLoopBlocks.begin(); parallelLoopItr != tempLoopBlocks.end(); parallelLoopItr++) {
 					list<BasicBlock*> bbList = parallelLoopItr->first;
 					if (find(bbList.begin(), bbList.end(), *accumulatedBBItr) != bbList.end()) {
@@ -2466,30 +2514,6 @@ struct HyperOpCreationPass: public ModulePass {
 				for (BasicBlock::iterator instItr = (*accumulatedBBItr)->begin(); instItr != (*accumulatedBBItr)->end(); instItr++) {
 					if (isa<PHINode>(instItr)) {
 						Instruction* clonedInst = (Instruction*) originalToClonedInstMap.find(instItr)->second;
-//						if (find(originalHeaderBB.begin(), originalHeaderBB.end(), instItr->getParent()) != originalHeaderBB.end()) {
-//							BasicBlock* incomingBlock = ((PHINode*) clonedInst)->getIncomingBlock(0);
-//							BasicBlock* originalIncomingBB;
-//							//either all parents are acquired or none
-//							for (auto clonedbbItr : originalToClonedBasicBlockMap) {
-//								if (clonedbbItr.second == incomingBlock) {
-//									originalIncomingBB = clonedbbItr.first;
-//									break;
-//								}
-//							}
-//							errs()<<"which original incoming bb:"<<originalIncomingBB->getName()<<"\n";
-//							if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), originalIncomingBB) == accumulatedBasicBlocks.end()) {
-//								Value* setValue = ((PHINode*) clonedInst)->getIncomingValue(0);
-//								assert(setValue!=NULL&&"Setting NULL as an argument to phi node is not legal");
-//								((PHINode*) clonedInst)->setIncomingValue(0, setValue);
-//								((PHINode*) clonedInst)->setIncomingBlock(0, NULL);
-//								for (unsigned i = 1; i < ((PHINode*) &*instItr)->getNumIncomingValues(); i++) {
-//									((PHINode*) clonedInst)->removeIncomingValue(((PHINode*) clonedInst)->getIncomingBlock(i));
-//								}
-//								errs()<<"to ";
-//								((PHINode*) clonedInst)->dump();
-//							}
-//						}
-
 						list<int> patchIncomingValues;
 						for (int i = 0; i < ((PHINode*) &*instItr)->getNumIncomingValues(); i++) {
 							BasicBlock* incomingBlock = ((PHINode*) &*instItr)->getIncomingBlock(i);
@@ -2500,7 +2524,6 @@ struct HyperOpCreationPass: public ModulePass {
 
 						Value* setValue = ((PHINode*) clonedInst)->getIncomingValue(0);
 						((PHINode*) clonedInst)->setIncomingValue(0, setValue);
-//						((PHINode*) clonedInst)->setIncomingBlock(0, NULL);
 						for (auto incomingValItr : patchIncomingValues) {
 							if (incomingValItr) {
 								((PHINode*) clonedInst)->removeIncomingValue(((PHINode*) clonedInst)->getIncomingBlock(incomingValItr));
@@ -2623,9 +2646,7 @@ struct HyperOpCreationPass: public ModulePass {
 								}
 								if (terminator->getSuccessor(i) == originalBB || terminator->getSuccessor(i) == currentBB || postIdomOfSucc == currentBB || postIdomOfSucc == originalBB) {
 									//Add only those successors that correspond to a basic block in the current HyperOp
-//									if (terminator->getSuccessor(i) == originalBB || terminator->getSuccessor(i) == currentBB) {
 									successorBBList.push_back(make_pair(originalBB, i));
-//									}
 									numSuccessorsCovered++;
 								}
 							}
@@ -2726,14 +2747,12 @@ struct HyperOpCreationPass: public ModulePass {
 				//Convert the id to a tag string
 				list<unsigned> uniqueIdInCallTree = getHyperOpInstanceTag(callSite, newFunction, createdHyperOpAndCallSite, createdHyperOpAndUniqueId, accumulatedBasicBlocks, createdHyperOpAndOriginalBasicBlockAndArgMap);
 				string tag = "<";
-//				if (!callSite.empty() && isa<CallInst>(instanceCallSite) && ((isHyperOpInstanceInCycle(instanceCallSite, cyclesInCallGraph)) || find(parallelLoopFunctionList.begin(), parallelLoopFunctionList.end(), instanceCallSite->getCalledFunction()) != parallelLoopFunctionList.end())) {
 				for (list<unsigned>::iterator tagItr = uniqueIdInCallTree.begin(); tagItr != uniqueIdInCallTree.end(); tagItr++) {
 					tag.append(itostr(*tagItr));
 					if (*tagItr != uniqueIdInCallTree.back()) {
 						tag.append(",");
 					}
 				}
-//				}
 				tag.append(">");
 				values.push_back(MDString::get(ctxt, tag));
 				//Check if the accumulated bbs are supposed to be a range of HyperOps
@@ -2779,29 +2798,6 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 
 				if (!mismatch) {
-//					tag.clear();
-//					tag.append("<");
-//					tag.append(itostr(loopIV->getConstantLowerBound()));
-//					tag.append(":");
-//					if (loopIV->getType() == LoopIV::CONSTANT) {
-//						values.push_back(MDString::get(ctxt, StringRef(loopIV->getConstantUpperBound())));
-//						//Minus 1 for the exact bound
-//						tag.append(itostr(loopIV->getConstantUpperBound()));
-//					} else {
-//						((Instruction*) loopIV->getVariableUpperBound())->dump();
-//						tag.append(loopIV->getVariableUpperBound()->getName());
-//					}
-//
-//					tag.append(":");
-//					tag.append(loopIV->getIncOperation());
-//					tag.append("(");
-//					if (isa<ConstantInt>(loopIV->getStride())) {
-//						tag.append(itostr(((ConstantInt*) loopIV->getStride())->getUniqueInteger().getSExtValue()));
-//					} else {
-//						tag.append(loopIV->getStride()->getName());
-//					}
-//					tag.append(")");
-//					tag.append(">");
 					if (loopIV->getLowerBoundType() == LoopIV::CONSTANT) {
 						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantLowerBound())));
 					} else {
