@@ -161,7 +161,7 @@ static inline unsigned getSyncCountInReg(MachineBasicBlock* lastBB, MachineInstr
 }
 
 static inline MachineBasicBlock* generateRangeConditionalInstructions(MachineBasicBlock* originalBB, MachineBasicBlock* lastBB, MachineInstr* lastInst, LiveIntervals* LIS, const TargetMachine &TM, const TargetInstrInfo *TII, int currentCE, unsigned* argInsertPosition,
-		list<pair<MachineInstr*, pair<unsigned, unsigned> > >* allInstructionsOfRegion, MachineBasicBlock* loopEnd) {
+		list<pair<MachineInstr*, pair<unsigned, unsigned> > >* allInstructionsOfRegion, MachineBasicBlock* loopEnd, int ceCount) {
 	list<MachineInstr*> insertedInstructions;
 	Function* function = const_cast<Function*>(lastBB->getParent()->getFunction());
 	StringRef fnName = function->getName();
@@ -209,6 +209,23 @@ static inline MachineBasicBlock* generateRangeConditionalInstructions(MachineBas
 		allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(currentCE, insertPosition++)));
 	}
 
+	for (unsigned i = 1; i < ceCount; i++) {
+		//Add jump from indvar to loopstart
+		MachineInstrBuilder jumpInstr = BuildMI(*lastBB, lastInst, lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::JAL));
+		jumpInstr.addMBB(conditionalExit);
+		LIS->InsertMachineInstrInMaps(jumpInstr);
+		allInstructionsOfRegion->push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
+
+		for (unsigned j = 0; j < 2; j++) {
+			MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastInst, lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
+			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
+			nopInstruction.addReg(REDEFINE::zero);
+			nopInstruction.addImm(0);
+			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
+			allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
+		}
+	}
+
 	MachineInstrBuilder conditionalBodyjumpInstr = BuildMI(*conditionalBasicBlock, conditionalBasicBlock->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::JAL));
 	conditionalBodyjumpInstr.addMBB(conditionalExit);
 	LIS->InsertMachineInstrInMaps(conditionalBodyjumpInstr);
@@ -221,6 +238,23 @@ static inline MachineBasicBlock* generateRangeConditionalInstructions(MachineBas
 		nopInstruction.addImm(0);
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
 		allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(currentCE, insertPosition++)));
+	}
+
+	for (unsigned i = 1; i < ceCount; i++) {
+		//Add jump from indvar to loopstart
+		MachineInstrBuilder jumpInstr = BuildMI(*lastBB, lastInst, lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::JAL));
+		jumpInstr.addMBB(conditionalExit);
+		LIS->InsertMachineInstrInMaps(jumpInstr);
+		allInstructionsOfRegion->push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
+
+		for (unsigned j = 0; j < 2; j++) {
+			MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastInst, lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
+			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
+			nopInstruction.addReg(REDEFINE::zero);
+			nopInstruction.addImm(0);
+			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
+			allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
+		}
 	}
 
 	*argInsertPosition = insertPosition;
@@ -414,7 +448,6 @@ static inline unsigned generateBlockCreateMachineInstructions(MachineBasicBlock*
 	}
 
 	(*firstInstructionsOfBB)[loopStart] = loopStartInstruction;
-	errs() << "size of first loop bb set to " << (*firstInstructionsOfBB)[loopStart].size() << " while " << loopStartInstruction.size() << "\n";
 
 	vector<MachineInstr*> loopBodyStartInstruction;
 	loopBodyStartInstruction.reserve(ceCount);
@@ -3718,7 +3751,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					} else if (edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) {
 						//Guard by a conditional if the current hyperop is a range hop
 						if (hyperOp->getInRange()) {
-							lastBB = generateRangeConditionalInstructions(BB, lastBB, lastInstruction, LIS, TM, TII, currentCE, &insertPosition, &allInstructionsOfRegion, loopEnd);
+							lastBB = generateRangeConditionalInstructions(BB, lastBB, lastInstruction, LIS, TM, TII, currentCE, &insertPosition, &allInstructionsOfRegion, loopEnd, ceCount);
 							lastInstruction = lastBB->end();
 						}
 						writeToContextFrame = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::SW));
