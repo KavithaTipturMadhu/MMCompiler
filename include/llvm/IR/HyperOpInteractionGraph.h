@@ -106,6 +106,28 @@ enum StrideFunction {
 	ADD, MUL, SUB, DIV, MOD
 };
 
+class HyperOp;
+
+enum SyncValueType{
+	HYPEROPTYPE,
+	INTVAL
+};
+
+struct SyncValue{
+	union{
+		HyperOp* rangeHyperOpValue;
+		int intValue;
+	} syncVal;
+
+	SyncValueType type;
+
+	SyncValue(HyperOp*);
+	SyncValue(int);
+	HyperOp* getHyperOp();
+	int getInt();
+	SyncValueType getType();
+};
+
 class HyperOp {
 	/**
 	 * Bundle instruction corresponding to the HyperOp
@@ -140,7 +162,7 @@ class HyperOp {
 	unsigned hyperOpId;
 	vector<unsigned> numInputsPerCE;
 	//map of predicate value to sync count
-	list<Value*> numIncomingSyncEdges[2];
+	list<SyncValue> numIncomingSyncEdges[2];
 	bool hasMutexSyncSources;
 	Value* predicateForSyncSource[2];
 	//Map of source instruction in a CE and the first consumer instruction in a different CE
@@ -210,10 +232,9 @@ public:
 	void setFbindRequired(bool fbindRequired);
 	bool isStaticHyperOp() const;
 	void setStaticHyperOp(bool staticHyperOp);
-	void setIncomingSyncCount(unsigned predicateValue, list<Value*> syncCountList);
-	void incrementIncomingSyncCount(unsigned predicateValue);
-//	void decrementIncomingSyncCount(unsigned predicateValue);
-	list<Value*> getSyncCount(unsigned predicateValue);
+	void setIncomingSyncCount(unsigned predicateValue, list<SyncValue> syncCountList);
+	void addIncomingSyncValue(unsigned predicateValue, SyncValue value);
+	list<SyncValue> getSyncCount(unsigned predicateValue);
 	list<unsigned> getInstanceId();
 	void setInstanceId(list<unsigned> instanceId);
 	Function* getInstanceof();

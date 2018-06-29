@@ -70,9 +70,9 @@ HyperOp::HyperOp(Function* function) {
 	this->fbindRequired = false;
 	this->gcRequired = false;
 	this->staticHyperOp = true;
-	list<Value*> zeroPredList;
+	list<SyncValue> zeroPredList;
 	this->numIncomingSyncEdges[0] = zeroPredList;
-	list<Value*> onePredList;
+	list<SyncValue> onePredList;
 	this->numIncomingSyncEdges[1] = onePredList;
 	this->unrolledInstance = false;
 	this->instanceof = NULL;
@@ -169,19 +169,19 @@ void HyperOp::setStaticHyperOp(bool staticHyperOp) {
 ////	this->numIncomingSyncEdges[predicateValue].push_back(ConstantInt::get(hyperOp->getFunction()->getParent()->getContext(), APInt(32, 1)));
 //}
 
-void HyperOp::incrementIncomingSyncCount(unsigned predicateValue) {
+void HyperOp::addIncomingSyncValue(unsigned predicateValue, SyncValue value) {
 	int updatedValue = 0;
-	if (!this->numIncomingSyncEdges[predicateValue].empty()) {
-		Value* prevPred = this->numIncomingSyncEdges[predicateValue].front();
-		updatedValue = ((ConstantInt*) prevPred)->getValue().getZExtValue() + 1;
-		this->numIncomingSyncEdges[predicateValue].pop_front();
-	} else {
-		updatedValue = 1;
-	}
-	this->numIncomingSyncEdges[predicateValue].push_back(ConstantInt::get(this->function->getParent()->getContext(), APInt(32, updatedValue)));
+//	if (!this->numIncomingSyncEdges[predicateValue].empty()) {
+//		Value* prevPred = this->numIncomingSyncEdges[predicateValue].front();
+//		updatedValue = ((ConstantInt*) prevPred)->getValue().getZExtValue() + 1;
+//		this->numIncomingSyncEdges[predicateValue].pop_front();
+//	} else {
+//		updatedValue = 1;
+//	}
+	this->numIncomingSyncEdges[predicateValue].push_back(value);
 }
 
-void HyperOp::setIncomingSyncCount(unsigned predicateValue, list<Value*> syncCountList) {
+void HyperOp::setIncomingSyncCount(unsigned predicateValue, list<SyncValue> syncCountList) {
 	for (auto syncCount : syncCountList) {
 		this->numIncomingSyncEdges[predicateValue].push_back(syncCount);
 	}
@@ -198,7 +198,7 @@ Value* HyperOp::getIncomingSyncPredicate(unsigned predicateValue) {
 //void HyperOp::decrementIncomingSyncCount(unsigned predicateValue) {
 //	this->numIncomingSyncEdges[predicateValue]--;
 //}
-list<Value*> HyperOp::getSyncCount(unsigned predicateValue) {
+list<SyncValue> HyperOp::getSyncCount(unsigned predicateValue) {
 	return this->numIncomingSyncEdges[predicateValue];
 }
 
@@ -685,14 +685,35 @@ void HyperOpEdge::setIsEdgeIgnored(bool isIgnoredEdge) {
 	this->isIgnoredEdge = isIgnoredEdge;
 }
 
+SyncValue::SyncValue(HyperOp* rangeHyperOpValue){
+	this->syncVal.rangeHyperOpValue = rangeHyperOpValue;
+	this->type = SyncValueType::HYPEROPTYPE;
+}
+SyncValue::SyncValue(int intValue){
+	this->syncVal.intValue = intValue;
+	this->type = SyncValueType::INTVAL;
+}
+
+HyperOp* SyncValue::getHyperOp(){
+	assert(this->type == SyncValueType::HYPEROPTYPE);
+	return this->syncVal.rangeHyperOpValue;
+}
+int SyncValue::getInt(){
+	assert(this->type == SyncValueType::INTVAL);
+	return this->syncVal.intValue;
+}
+
+SyncValueType SyncValue::getType(){
+	return this->type;
+}
 HyperOpInteractionGraph::HyperOpInteractionGraph() {
 	columnCount = 1;
 	rowCount = 1;
 	StridedFunctionKeyValue.insert(make_pair("add", ADD));
-	StridedFunctionKeyValue.insert(make_pair("mul", MUL));
-	StridedFunctionKeyValue.insert(make_pair("sub", SUB));
-	StridedFunctionKeyValue.insert(make_pair("div", DIV));
-	StridedFunctionKeyValue.insert(make_pair("mod", MOD));
+//	StridedFunctionKeyValue.insert(make_pair("mul", MUL));
+//	StridedFunctionKeyValue.insert(make_pair("sub", SUB));
+//	StridedFunctionKeyValue.insert(make_pair("div", DIV));
+//	StridedFunctionKeyValue.insert(make_pair("mod", MOD));
 }
 
 HyperOpInteractionGraph::~HyperOpInteractionGraph() {
@@ -1350,10 +1371,10 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 				forkSink->ParentMap[hopEdge] = joinHyperOp;
 			}
 
-			list<Value*> zeroPred;
-			zeroPred.push_back(ConstantInt::get(joinFunction->getParent()->getContext(), APInt(32, 1)));
-			list<Value*> onePred;
-			onePred.push_back(ConstantInt::get(joinFunction->getParent()->getContext(), APInt(32, 1)));
+			list<SyncValue> zeroPred;
+			zeroPred.push_back((SyncValue)1);
+			list<SyncValue> onePred;
+			onePred.push_back((SyncValue)1);
 			forkSink->setIncomingSyncCount(0, zeroPred);
 			forkSink->setIncomingSyncCount(1, onePred);
 
@@ -3526,7 +3547,11 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					producerHyperOp->addChildEdge(syncEdge, consumerHyperOp);
 					consumerHyperOp->addParentEdge(syncEdge, producerHyperOp);
 					consumerHyperOp->setBarrierHyperOp();
-					consumerHyperOp->incrementIncomingSyncCount(0);
+					if(producerHyperOp->getInRange()){
+						consumerHyperOp->addIncomingSyncValue(0, (SyncValue)producerHyperOp);
+					}else{
+						consumerHyperOp->addIncomingSyncValue(0, (SyncValue)1);
+					}
 				} else if ((originalAndReplacementFunctionMap.find(consumerHyperOp->getFunction()) == originalAndReplacementFunctionMap.end() && consumerHyperOp->getFunction()->getNumOperands() < this->getMaxMemFrameSize())
 						|| originalAndReplacementFunctionMap[consumerHyperOp->getFunction()]->getNumOperands() < this->getMaxContextFrameSize()) {
 					DEBUG(dbgs() << "adding sync via context frame from " << producerHyperOp->asString() << " to " << consumerHyperOp->asString() << " by creating a new function\n");
@@ -3853,7 +3878,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 //			}
 
 			//Identify the number of sync tokens expected on each path to a sync barrier hyperop
-			unsigned syncOnPredicate[2];
+			int syncOnPredicate[2];
 			syncOnPredicate[0] = 0;
 			syncOnPredicate[1] = 0;
 			bool syncFromPredicatedSources = false;
@@ -3881,12 +3906,12 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 				hyperOp->setHasMutexSyncSources(false);
 			}
 
-			list<Value*> incomingSyncAlongZeroPred;
-			incomingSyncAlongZeroPred.push_back(ConstantInt::get(hyperOp->getFunction()->getParent()->getContext(), APInt(32, syncOnPredicate[0])));
+			list<SyncValue> incomingSyncAlongZeroPred;
+			incomingSyncAlongZeroPred.push_back((SyncValue)syncOnPredicate[0]);
 			hyperOp->setIncomingSyncCount(0, incomingSyncAlongZeroPred);
 
-			list<Value*> incomingSyncAlongOnePred;
-			incomingSyncAlongOnePred.push_back(ConstantInt::get(hyperOp->getFunction()->getParent()->getContext(), APInt(32, syncOnPredicate[1])));
+			list<SyncValue> incomingSyncAlongOnePred;
+			incomingSyncAlongOnePred.push_back((SyncValue)syncOnPredicate[1]);
 			hyperOp->setIncomingSyncCount(1, incomingSyncAlongOnePred);
 		}
 	}

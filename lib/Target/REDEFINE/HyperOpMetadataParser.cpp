@@ -462,7 +462,11 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 								consumerHyperOp->setBarrierHyperOp();
-								consumerHyperOp->incrementIncomingSyncCount(0);
+								if (sourceHyperOp->getInRange()) {
+									consumerHyperOp->addIncomingSyncValue(0, (SyncValue)sourceHyperOp);
+								} else {
+									consumerHyperOp->addIncomingSyncValue(0, (SyncValue)1);
+								}
 								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)) {
 									//						&& !sourceHyperOp->isUnrolledInstance()) {
 									errs() << "added instance:" << consumerHyperOp->asString() << " and is it an instance:" << consumerHyperOp->isUnrolledInstance() << "\n";
