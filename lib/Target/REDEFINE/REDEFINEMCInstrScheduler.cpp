@@ -28,9 +28,10 @@ static inline int32_t SignExtend8BitNumberTo12Bits(int8_t x) {
 }
 
 static inline unsigned getSyncCountInReg(MachineBasicBlock* lastBB, MachineInstr* lastInst, const TargetMachine &TM, const TargetInstrInfo *TII, list<SyncValue> syncCount, list<pair<MachineInstr*, pair<unsigned, unsigned> > >* allInstructionsOfRegion, LiveIntervals* LIS, int currentCE,
-		int insertPosition) {
+		unsigned* argInsertPosition) {
 	unsigned syncCountReg;
 	bool first = true;
+	unsigned insertPosition = *argInsertPosition;
 	const Module* parentModule = lastBB->getParent()->getFunction()->getParent();
 	for (list<SyncValue>::iterator syncCountIterator = syncCount.begin(); syncCountIterator != syncCount.end(); syncCountIterator++) {
 		MachineInstrBuilder addInstr;
@@ -155,16 +156,18 @@ static inline unsigned getSyncCountInReg(MachineBasicBlock* lastBB, MachineInstr
 		}
 	}
 
+	*argInsertPosition = insertPosition;
 	return syncCountReg;
 }
 
-static inline MachineBasicBlock* generateRangeConditionalInstructions(MachineBasicBlock* originalBB, MachineBasicBlock* lastBB, MachineInstr* lastInst, LiveIntervals* LIS, const TargetMachine &TM, const TargetInstrInfo *TII, int currentCE, int insertPosition,
+static inline MachineBasicBlock* generateRangeConditionalInstructions(MachineBasicBlock* originalBB, MachineBasicBlock* lastBB, MachineInstr* lastInst, LiveIntervals* LIS, const TargetMachine &TM, const TargetInstrInfo *TII, int currentCE, unsigned* argInsertPosition,
 		list<pair<MachineInstr*, pair<unsigned, unsigned> > >* allInstructionsOfRegion, MachineBasicBlock* loopEnd) {
 	list<MachineInstr*> insertedInstructions;
 	Function* function = const_cast<Function*>(lastBB->getParent()->getFunction());
 	StringRef fnName = function->getName();
 	LLVMContext& ctxt = lastBB->getParent()->getFunction()->getParent()->getContext();
 	list<MachineBasicBlock*> createdBBList;
+	int insertPosition = *argInsertPosition;
 
 	MachineBasicBlock* conditionalBasicBlock = lastBB->getParent()->CreateMachineBasicBlock();
 	createdBBList.push_back(conditionalBasicBlock);
@@ -220,6 +223,7 @@ static inline MachineBasicBlock* generateRangeConditionalInstructions(MachineBas
 		allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(currentCE, insertPosition++)));
 	}
 
+	*argInsertPosition = insertPosition;
 	return conditionalBasicBlock;
 }
 
@@ -227,12 +231,13 @@ static inline MachineBasicBlock* generateRangeConditionalInstructions(MachineBas
  *Returns register containing allocated context frame address and last basic block
  */
 static inline unsigned generateBlockCreateMachineInstructions(MachineBasicBlock* originalBB, MachineBasicBlock* lastBB, MachineInstr* lastInst, Value* min, Value* max, Value* stride, unsigned hyperOpType, LiveIntervals* LIS, const TargetMachine &TM, const TargetInstrInfo *TII, int currentCE,
-		int insertPosition, int ceCount, list<pair<MachineInstr*, pair<unsigned, unsigned> > >* allInstructionsOfRegion, vector<MachineInstr*>* firstInstructionOfpHyperOpInRegion, map<MachineBasicBlock*, vector<MachineInstr*> >* firstInstructionsOfBB) {
+		unsigned* argInsertPosition, int ceCount, list<pair<MachineInstr*, pair<unsigned, unsigned> > >* allInstructionsOfRegion, vector<MachineInstr*>* firstInstructionOfpHyperOpInRegion, map<MachineBasicBlock*, vector<MachineInstr*> >* firstInstructionsOfBB) {
 	list<MachineInstr*> insertedInstructions;
 	Function* function = const_cast<Function*>(lastBB->getParent()->getFunction());
 	StringRef fnName = function->getName();
 	LLVMContext& ctxt = lastBB->getParent()->getFunction()->getParent()->getContext();
 	list<MachineBasicBlock*> createdBBList;
+	unsigned insertPosition = *argInsertPosition;
 
 	MachineBasicBlock* loopStart = lastBB->getParent()->CreateMachineBasicBlock();
 	createdBBList.push_back(loopStart);
@@ -508,6 +513,7 @@ static inline unsigned generateBlockCreateMachineInstructions(MachineBasicBlock*
 	}
 	(*firstInstructionsOfBB)[loopEnd] = loopEndStartInstruction;
 
+	*argInsertPosition = insertPosition;
 	return indVar;
 }
 
@@ -1871,7 +1877,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						Value* min = (*childHyperOpItr)->getRangeLowerBound();
 						Value* max = (*childHyperOpItr)->getRangeUpperBound();
 						Value* stride = (*childHyperOpItr)->getStride();
-						registerContainingConsumerFrameAddr = generateBlockCreateMachineInstructions(BB, lastBB, lastInstruction, min, max, stride, (*childHyperOpItr)->getHyperOpId(), LIS, TM, TII, currentCE, insertPosition, ceCount, &allInstructionsOfRegion, &firstInstructionOfpHyperOpInRegion,
+						registerContainingConsumerFrameAddr = generateBlockCreateMachineInstructions(BB, lastBB, lastInstruction, min, max, stride, (*childHyperOpItr)->getHyperOpId(), LIS, TM, TII, currentCE, &insertPosition, ceCount, &allInstructionsOfRegion, &firstInstructionOfpHyperOpInRegion,
 								&firstInstructionsInLoopBB);
 						lastBB = &BB->getParent()->back();
 						lastInstruction = lastBB->end();
@@ -1947,9 +1953,9 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				MachineInstrBuilder addi;
 				unsigned addSync;
 				Value* firstPredicate = (*childHyperOpItr)->getIncomingSyncPredicate(0);
-				unsigned firstPredSyncCount = getSyncCountInReg(lastBB, lastInstruction, TM, TII, (*childHyperOpItr)->getSyncCount(0), &allInstructionsOfRegion, LIS, currentCE, insertPosition);
+				unsigned firstPredSyncCount = getSyncCountInReg(lastBB, lastInstruction, TM, TII, (*childHyperOpItr)->getSyncCount(0), &allInstructionsOfRegion, LIS, currentCE, &insertPosition);
 				Value* secondPredicate = (*childHyperOpItr)->getIncomingSyncPredicate(1);
-				unsigned secondPredSyncCount = getSyncCountInReg(lastBB, lastInstruction, TM, TII, (*childHyperOpItr)->getSyncCount(1), &allInstructionsOfRegion, LIS, currentCE, insertPosition);
+				unsigned secondPredSyncCount = getSyncCountInReg(lastBB, lastInstruction, TM, TII, (*childHyperOpItr)->getSyncCount(1), &allInstructionsOfRegion, LIS, currentCE, &insertPosition);
 
 				unsigned firstPredMemSize, secondPredMemSize, memsize = 0;
 				if (firstPredicate == NULL && secondPredicate != NULL) {
@@ -3712,7 +3718,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					} else if (edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) {
 						//Guard by a conditional if the current hyperop is a range hop
 						if (hyperOp->getInRange()) {
-							lastBB = generateRangeConditionalInstructions(BB, lastBB, lastInstruction, LIS, TM, TII, currentCE, insertPosition, &allInstructionsOfRegion, loopEnd);
+							lastBB = generateRangeConditionalInstructions(BB, lastBB, lastInstruction, LIS, TM, TII, currentCE, &insertPosition, &allInstructionsOfRegion, loopEnd);
 							lastInstruction = lastBB->end();
 						}
 						writeToContextFrame = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::SW));
