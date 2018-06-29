@@ -187,7 +187,6 @@ void HyperOp::addIncomingSyncValue(unsigned predicateValue, SyncValue value) {
 }
 
 void HyperOp::setIncomingSyncCount(unsigned predicateValue, list<SyncValue> syncCountList) {
-	this->numIncomingSyncEdges[predicateValue].clear();
 	for (auto syncCount : syncCountList) {
 		this->numIncomingSyncEdges[predicateValue].push_back(syncCount);
 	}
@@ -208,7 +207,7 @@ HyperOpInteractionGraph* HyperOp::getParentGraph(){
 //void HyperOp::decrementIncomingSyncCount(unsigned predicateValue) {
 //	this->numIncomingSyncEdges[predicateValue]--;
 //}
-list<Value*> HyperOp::getSyncCount(unsigned predicateValue) {
+list<SyncValue> HyperOp::getSyncCount(unsigned predicateValue) {
 	return this->numIncomingSyncEdges[predicateValue];
 }
 
@@ -3254,10 +3253,10 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					producerHyperOp->addChildEdge(syncEdge, consumerHyperOp);
 					consumerHyperOp->addParentEdge(syncEdge, producerHyperOp);
 					consumerHyperOp->setBarrierHyperOp();
-					if (producerHyperOp->getInRange()) {
-						consumerHyperOp->addIncomingSyncValue(0, (SyncValue) producerHyperOp);
-					} else {
-						consumerHyperOp->addIncomingSyncValue(0, (SyncValue) 1);
+					if(producerHyperOp->getInRange()){
+						consumerHyperOp->addIncomingSyncValue(0, (SyncValue)producerHyperOp);
+					}else{
+						consumerHyperOp->addIncomingSyncValue(0, (SyncValue)1);
 					}
 				} else if ((originalAndReplacementFunctionMap.find(consumerHyperOp->getFunction()) == originalAndReplacementFunctionMap.end() && consumerHyperOp->getFunction()->getNumOperands() < this->getMaxMemFrameSize())
 						|| originalAndReplacementFunctionMap[consumerHyperOp->getFunction()]->getNumOperands() < this->getMaxContextFrameSize()) {
@@ -3627,8 +3626,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			} else {
 				hyperOp->setHasMutexSyncSources(false);
 			}
-
-			errs() << "hop "<<hyperOp->getFunction()->getName()<<" incoming preds at zero:"<<incomingSyncAlongZeroPred.size()<<", one:"<<incomingSyncAlongOnePred.size()<<", two:"<<incomingSyncAlongNoPred.size()<<"\n";
 
 			hyperOp->setIncomingSyncCount(0, incomingSyncAlongZeroPred);
 			hyperOp->setIncomingSyncCount(1, incomingSyncAlongOnePred);
