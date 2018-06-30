@@ -43,16 +43,19 @@ static inline unsigned getSyncCountInReg(MachineBasicBlock* lastBB, MachineInstr
 				addInstr.addReg(syncCountReg, RegState::Define);
 				addInstr.addReg(REDEFINE::zero);
 				addInstr.addImm(currentCount);
-				LIS->addLiveRangeToEndOfBlock(syncCountReg, addInstr.operator ->());
+				LIS->getSlotIndexes()->insertMachineInstrInMaps(addInstr.operator llvm::MachineInstr *());
+				allInstructionsOfRegion->push_back(make_pair(addInstr.operator->(), make_pair(currentCE, insertPosition++)));
 				first = false;
 			} else {
-				addInstr = BuildMI(*lastBB, lastInst, lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD));
+				addInstr = BuildMI(*lastBB, lastInst, lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
 				addInstr.addReg(syncCountReg);
 				addInstr.addReg(syncCountReg);
 				addInstr.addImm(currentCount);
+				LIS->getSlotIndexes()->insertMachineInstrInMaps(addInstr.operator llvm::MachineInstr *());
+				allInstructionsOfRegion->push_back(make_pair(addInstr.operator->(), make_pair(currentCE, insertPosition++)));
 			}
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(addInstr.operator llvm::MachineInstr *());
-			allInstructionsOfRegion->push_back(make_pair(addInstr.operator->(), make_pair(currentCE, insertPosition++)));
+			LIS->getOrCreateInterval(syncCountReg);
+			LIS->addLiveRangeToEndOfBlock(syncCountReg, addInstr.operator ->());
 		} else {
 			Value* min = syncCountIterator->getHyperOp()->getRangeLowerBound();
 			Value* max = syncCountIterator->getHyperOp()->getRangeUpperBound();
@@ -67,6 +70,8 @@ static inline unsigned getSyncCountInReg(MachineBasicBlock* lastBB, MachineInstr
 
 			if (isa<ConstantInt>(min)) {
 				movmin = BuildMI(*lastBB, lastBB->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(minregisterForGlobalAddr, RegState::Define).addReg(REDEFINE::zero).addImm(((ConstantInt*) min)->getZExtValue());
+				LIS->addLiveRangeToEndOfBlock(minregisterForGlobalAddr, movmin.operator ->());
+				allInstructionsOfRegion->push_back(make_pair(movmin.operator ->(), make_pair(currentCE, insertPosition++)));
 			} else {
 				immediate = 0;
 				if (!parentModule->getGlobalList().empty()) {
@@ -83,13 +88,15 @@ static inline unsigned getSyncCountInReg(MachineBasicBlock* lastBB, MachineInstr
 				MCSymbol* gaSymbol = lastBB->getParent()->getContext().GetOrCreateSymbol(StringRef(globalAddressString));
 
 				movmin = BuildMI(*lastBB, lastBB->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVADDR)).addReg(minregisterForGlobalAddr, RegState::Define).addSym(gaSymbol);
-				LIS->InsertMachineInstrInMaps(movmin);
 				LIS->addLiveRangeToEndOfBlock(minregisterForGlobalAddr, movmin.operator ->());
 				allInstructionsOfRegion->push_back(make_pair(movmin.operator ->(), make_pair(currentCE, insertPosition++)));
+				LIS->InsertMachineInstrInMaps(movmin);
 			}
 
 			if (isa<ConstantInt>(min)) {
 				movmax = BuildMI(*lastBB, lastBB->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(maxregisterForGlobalAddr, RegState::Define).addReg(REDEFINE::zero).addImm(((ConstantInt*) max)->getZExtValue());
+				LIS->addLiveRangeToEndOfBlock(maxregisterForGlobalAddr, movmax.operator ->());
+				allInstructionsOfRegion->push_back(make_pair(movmax.operator ->(), make_pair(currentCE, insertPosition++)));
 			} else {
 				immediate = 0;
 				if (!parentModule->getGlobalList().empty()) {
