@@ -142,7 +142,12 @@ def : Pat<(select (i32 (seteq GR32:$lhs, 0)), GR32:$T, GR32:$F),
 /**
 REDEFINE specific instructions
 **/
-def CREATEINST: InstIREDEFINE<"pscreateinst", 0b0000100, 0b001 , add, GR32, GR32>
+//REDEFINE I instructions 
+def CALL: InstIREDEFINE<"call", 0b0000100, 0b000       , add, GR32, GR32, imm32sx12>
+{
+ let Itinerary   = REDEFINEORC;
+}
+def CREATEINST: InstIREDEFINE<"pscreateinst", 0b0000100, 0b001       , add, GR32, GR32, imm32sx12>
 {
  let Itinerary   = REDEFINEORC;
 }
@@ -233,7 +238,7 @@ def MOVADDR: InstREDEFINE<4, (outs GR32:$reg), (ins imm32sx12:$src),
 }
 
 def MOVIMM: InstREDEFINE<4, (outs GR32:$reg), (ins imm32sx12:$src), 
-                "movimm \treg, \t$src", 
+                "movimm \t$reg, \t$src", 
                 [],REDEFINEALU> {
   field bits<32> Inst;
 
@@ -250,7 +255,7 @@ def MOVIMM: InstREDEFINE<4, (outs GR32:$reg), (ins imm32sx12:$src),
 }
 
 def MOVADDR: InstREDEFINE<4, (outs GR32:$reg), (ins imm32sx12:$src), 
-                "movaddr \treg, \t$src", 
+                "movaddr \t$reg, \t$src", 
                 [],REDEFINEALU> {
   field bits<32> Inst;
 
@@ -282,7 +287,7 @@ def FBIND : InstSREDEFINE<"fbind" , 0b0000100, 0b011, add , GR32, GR32>
 {
  let Itinerary   = REDEFINEORC;
 }
-def PSFBIND : InstSREDEFINEImm<"psfbind" , 0b0000100, 0b011, add , GR32, GR32, imm32sx12>
+def FBIND : InstSREDEFINE<"psfbind" , 0b0000100, 0b011, add , GR32, GR32, imm32sx12>
 {
  let Itinerary   = REDEFINEORC;
 }
@@ -447,7 +452,7 @@ def FNMADD:InstREDEFINE<4, (outs FP32:$dst), (ins FP32:$src3, FP32:$src2, FP32:$
 
 }
 
-def : Pat<(REDEFINEGa tglobaladdr:$in), (MOVIMM tglobaladdr:$in)>;
+def : Pat<(REDEFINEGa tglobaladdr:$in), (MOVADDR tglobaladdr:$in)>;
 
 //Synthesized set operators
 //patterns to be used for 32 and 64bit
