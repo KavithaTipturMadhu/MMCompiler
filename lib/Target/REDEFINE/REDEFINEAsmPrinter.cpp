@@ -30,7 +30,7 @@
 using namespace llvm;
 
 void REDEFINEAsmPrinter::EmitInstruction(const MachineInstr *MI) {
-	errs()<<"printing instruction:";
+	errs() << "printing instruction:";
 	MI->dump();
 	REDEFINEMCInstLower Lower(Mang, MF->getContext(), *this);
 	MCInst LoweredMI;
@@ -60,13 +60,9 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 	int ceCount = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
 	// Emit target-specific gunk before the function body.
 	EmitFunctionBodyStart();
-	string name = ";";
-	string hyOpName = MF->getFunction()->getName();
-	name.append(hyOpName);
-	OutStreamer.EmitRawText(StringRef(name));
 
 	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
-//	HyperOp* hyperOp = HIG->getHyperOp(const_cast<Function*>(MF->getFunction()));
+	HyperOp* hyperOp = HIG->getHyperOp(const_cast<Function*>(MF->getFunction()));
 
 	const MachineInstr *LastMI = 0;
 	vector<list<const MachineInstr*> > pHyperOpInstructions(ceCount);
@@ -78,26 +74,34 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 //				startOfBBInPHyperOp[pHyperOpIndex] = NULL;
 //			}
 //		} else {
-			for (MachineBasicBlock::const_instr_iterator instrItr = I->instr_begin(); instrItr != I->instr_end(); ++instrItr) {
-				//First instruction of the pHyperOp is never in a bundle
-				if (!instrItr->isInsideBundle()) {
-					pHyperOpIndex++;
-					startOfBBInPHyperOp[pHyperOpIndex].push_back(instrItr);
-				}
-				pHyperOpInstructions[pHyperOpIndex].push_back(instrItr);
+		for (MachineBasicBlock::const_instr_iterator instrItr = I->instr_begin(); instrItr != I->instr_end(); ++instrItr) {
+			//First instruction of the pHyperOp is never in a bundle
+			if (!instrItr->isInsideBundle()) {
+				pHyperOpIndex++;
+				startOfBBInPHyperOp[pHyperOpIndex].push_back(instrItr);
 			}
+			pHyperOpInstructions[pHyperOpIndex].push_back(instrItr);
+		}
 //		}
 	}
+	bool added = false;
+	string codeSegmentStart = "\t.align\t16\n\t.PHYPEROP\t";
+	for (int pHyperOpIndex = 0; pHyperOpIndex < pHyperOpInstructions.size(); pHyperOpIndex++) {
+		if (added) {
+			codeSegmentStart.append(",\t");
+		}
+		codeSegmentStart.append(".PC_").append(hyperOp->getFunction()->getName()).append(itostr(pHyperOpIndex)); //p-HyperOp-PC label
+		added = true;
+	}
+	codeSegmentStart.append("\n");
+	OutStreamer.EmitRawText(StringRef(codeSegmentStart));
 
 //	string hyperOpId(itostr(hyperOp->getHyperOpId()));
 	for (int pHyperOpIndex = 0; pHyperOpIndex < pHyperOpInstructions.size(); pHyperOpIndex++) {
 		list<const MachineInstr*> pHyperOpItr = pHyperOpInstructions[pHyperOpIndex];
 //	for (vector<list<const MachineInstr*> >::iterator pHyperOpItr = pHyperOpInstructions.begin(); pHyperOpItr != pHyperOpInstructions.end(); pHyperOpItr++, pHyperOpIndex++) {
-		string phyOpId = ".PC_"+hyOpName;
-//		phyOpId.append(hyperOpId).append("#").append(itostr(pHyperOpIndex));
-		string codeSegmentStart = "\t.PHYPEROP ";
-		codeSegmentStart.append(phyOpId).append("\n");
-		codeSegmentStart.append(phyOpId).append(":\n"); //p-HyperOp-PC label
+		string codeSegmentStart(".");
+		codeSegmentStart.append("PC_").append(hyperOp->getFunction()->getName()).append(itostr(pHyperOpIndex)).append(":\n"); //p-HyperOp-PC label
 		OutStreamer.EmitRawText(StringRef(codeSegmentStart));
 
 		for (list<const MachineInstr*>::iterator mcItr = pHyperOpItr.begin(); mcItr != pHyperOpItr.end(); mcItr++) {
@@ -123,15 +127,15 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 			mfFrameSize += REDEFINEUtils::getSizeOfType(MF->getFrameInfo()->getObjectAllocation(i)->getType());
 		}
 	}
-	if(mfFrameSize>maxFrameValue){
+	if (mfFrameSize > maxFrameValue) {
 		maxFrameValue = mfFrameSize;
 	}
 
 	if (MF->getFunctionNumber() == (MF->getFunction())->getParent()->getFunctionList().size() - 2) {
 		string maxFrameString;
 		OutStreamer.EmitRawText(StringRef(maxFrameString));
-	 }
-	//EmitFunctionBodyEnd();
+	}
+	EmitFunctionBodyEnd();
 }
 
 void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
@@ -140,174 +144,229 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 	HyperOp* hyperOp = HIG->getHyperOp(const_cast<Function*>(MF->getFunction()));
 	//Add instance metadata
 
-	//TODO additional changes for instances of the same HyperOp
-	string isStaticHyperOp(STATIC_HYPEROP_ANNOTATION);
-	isStaticHyperOp.append("\t").append(hyperOp->isStaticHyperOp() ? "Y" : "N").append("\n");
-	OutStreamer.EmitRawText(StringRef(isStaticHyperOp));
-
 	if (hyperOp->isStaticHyperOp()) {
-		OutStreamer.EmitRawText(StringRef(".IMD_BEGIN\n"));
-
-		string instanceId(HYPEROP_INSTANCE_PREFIX);
-		instanceId.append(itostr(REDEFINEUtils::getHyperOpId(hyperOp))).append("\t");
+		OutStreamer.EmitRawText(StringRef(".STATICINSTANCE_BEGIN\n"));
+		string instanceId = (".INSTID ");
+		instanceId.append(hyperOp->getFunction()->getName()).append("\n");
+		instanceId.append(".INSTOF ").append(hyperOp->getFunction()->getName()).append("\n");
+		instanceId.append(".INSTADDR ").append(itostr(REDEFINEUtils::getHyperOpId(hyperOp))).append("\n");
 		OutStreamer.EmitRawText(StringRef(instanceId));
 
-		AttributeSet attributes = MF->getFunction()->getAttributes();
-		unsigned i = 1;
-		unsigned argCount = 0;
-		for (Function::const_arg_iterator argItr = MF->getFunction()->arg_begin(); argItr != MF->getFunction()->arg_end(); argItr++, i++) {
-			if (attributes.hasAttribute(i, Attribute::InReg) && !argItr->getType()->isPointerTy()) {
-				argCount++;
-			}
-		}
-
-		//Add context frame addresses and ordering edges also
-		for (map<HyperOpEdge*, HyperOp*>::iterator parentMapItr = hyperOp->ParentMap.begin(); parentMapItr != hyperOp->ParentMap.end(); parentMapItr++) {
-			if (parentMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) {
-				argCount++;
-			}
-		}
-
-		// Added By Arka Instance Metadata Annotations
-		string instAnn(".ANN\t");
-		instAnn.append("\t").append(hyperOp->isStartHyperOp() ? "A" : "A").append("\t");
-		instAnn.append("\t").append(hyperOp->isBarrierHyperOp() ? "B" : "").append("\t");
-		instAnn.append("\t").append(hyperOp->isPredicatedHyperOp() ? "P" : "").append("\t");
+		string instAnn(".ANNO I ");
+		instAnn.append(hyperOp->isStartHyperOp() ? "A" : "").append("\n");
 		OutStreamer.EmitRawText(StringRef(instAnn));
 
-		string depthHEG(DEPTH_HEG_ANNOTATION);
-		depthHEG.append("\t").append(itostr(hyperOp->computeDepthInGraph())).append("\n");
-		OutStreamer.EmitRawText(StringRef(depthHEG));
+//		string instanceId(HYPEROP_INSTANCE_PREFIX);
+//		instanceId.append(itostr(REDEFINEUtils::getHyperOpId(hyperOp))).append("\t");
+//		OutStreamer.EmitRawText(StringRef(instanceId));
+//
+//		AttributeSet attributes = MF->getFunction()->getAttributes();
+//		unsigned i = 1;
+//		unsigned argCount = 0;
+//		for (Function::const_arg_iterator argItr = MF->getFunction()->arg_begin(); argItr != MF->getFunction()->arg_end(); argItr++, i++) {
+//			if (attributes.hasAttribute(i, Attribute::InReg) && !argItr->getType()->isPointerTy()) {
+//				argCount++;
+//			}
+//		}
+//
+//		//Add context frame addresses and ordering edges also
+//		for (map<HyperOpEdge*, HyperOp*>::iterator parentMapItr = hyperOp->ParentMap.begin(); parentMapItr != hyperOp->ParentMap.end(); parentMapItr++) {
+//			if (parentMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) {
+//				argCount++;
+//			}
+//		}
+//
+//		// Added By Arka Instance Metadata Annotations
+//		string instAnn(".ANN\t");
+//		instAnn.append("\t").append(hyperOp->isStartHyperOp() ? "A" : "A").append("\t");
+//		instAnn.append("\t").append(hyperOp->isBarrierHyperOp() ? "B" : "").append("\t");
+//		instAnn.append("\t").append(hyperOp->isPredicatedHyperOp() ? "P" : "").append("\t");
+//		OutStreamer.EmitRawText(StringRef(instAnn));
+//
+//		string depthHEG(DEPTH_HEG_ANNOTATION);
+//		depthHEG.append("\t").append(itostr(hyperOp->computeDepthInGraph())).append("\n");
+//		OutStreamer.EmitRawText(StringRef(depthHEG));
+//
+//		string numphy = ".numphy\t";
+//		numphy.append(itostr(ceCount)).append("\n");
+//		OutStreamer.EmitRawText(StringRef(numphy));
+//
+//		string launchCount(LAUNCH_CNT_ANNOTATION);
+//		launchCount.append("\t").append(itostr(argCount)).append("\n");
+//		OutStreamer.EmitRawText(StringRef(launchCount));
+//
+//		string operandValidity(OPERAND_VALIDITY_ANNOTATION);
+//		operandValidity.append("\t");
+//		if (hyperOp->isStartHyperOp()) {
+//			operandValidity.append("1000000000000000").append("\n");
+//		} else {
+//			operandValidity.append(bitset<16>(0).to_string()).append("\n");
+//		}
+//		OutStreamer.EmitRawText(StringRef(operandValidity));
+//
+//		if (hyperOp->isStartHyperOp()) {
+//			string operandbegin(OPERAND_BEGIN_ANNOTATION);
+//			operandbegin.append("\t").append("\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n1\n");
+//			operandbegin.append(OPERAND_END_ANNOTATION);
+//			OutStreamer.EmitRawText(StringRef(operandbegin));
+//		}
+//		string opWaitCount(OP_WAIT_CNT_ANNOTATION);
+//		if (hyperOp->isBarrierHyperOp() && !hyperOp->isStartHyperOp()) {
+//			opWaitCount.append("\t").append(itostr(argCount + 1)).append("\n");
+//		} else {
+//			opWaitCount.append("\t").append(itostr(argCount)).append("\n");
+//		}
+//		OutStreamer.EmitRawText(StringRef(opWaitCount));
 
-		string numphy = ".numphy\t";
-		numphy.append(itostr(ceCount)).append("\n");
-		OutStreamer.EmitRawText(StringRef(numphy));
-
-		string launchCount(LAUNCH_CNT_ANNOTATION);
-		launchCount.append("\t").append(itostr(argCount)).append("\n");
-		OutStreamer.EmitRawText(StringRef(launchCount));
-
-		string operandValidity(OPERAND_VALIDITY_ANNOTATION);
-		operandValidity.append("\t");
-		if(hyperOp->isStartHyperOp()){
-			operandValidity.append("1000000000000000").append("\n");
-		}else{
-			operandValidity.append(bitset<16>(0).to_string()).append("\n");
-		}
-		OutStreamer.EmitRawText(StringRef(operandValidity));
-
-		if(hyperOp->isStartHyperOp()){
-			string operandbegin(OPERAND_BEGIN_ANNOTATION);
-			operandbegin.append("\t").append("\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n1\n");
-			operandbegin.append(OPERAND_END_ANNOTATION);
-			OutStreamer.EmitRawText(StringRef(operandbegin));
-		}
-		string opWaitCount(OP_WAIT_CNT_ANNOTATION);
-		if (hyperOp->isBarrierHyperOp()&&!hyperOp->isStartHyperOp()) {
-			opWaitCount.append("\t").append(itostr(argCount + 1)).append("\n");
-		} else {
-			opWaitCount.append("\t").append(itostr(argCount)).append("\n");
-		}
-		OutStreamer.EmitRawText(StringRef(opWaitCount));
-
-		OutStreamer.EmitRawText(StringRef(".IMD_END\n"));
-		//string isNextHyperOpInstValid(ISNEXT_HOP_INST_VALID_ANNOTATION);
-		//string nextHyperOpInst(NEXT_HYPEROP_INST_ANNOTATION);
-		//isNextHyperOpInstValid.append("\t").append("0").append("\n");
-		//nextHyperOpInst.append("\t").append("0").append("\n");
-
-		//OutStreamer.EmitRawText(StringRef(isNextHyperOpInstValid));
-		//OutStreamer.EmitRawText(StringRef(nextHyperOpI	nst));
+		OutStreamer.EmitRawText(StringRef(".STATICINSTANCE_END\n"));
 	}
-	OutStreamer.EmitRawText(StringRef(".HYOP_END\n\n"));
 }
 
 void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
-	static bool firstFunctionBeingProcessed = true;
-	static list<unsigned> crWithNumHopsPrinted;
+//	static bool firstFunctionBeingProcessed = true;
+//	static list<unsigned> crWithNumHopsPrinted;
 	int ceCount = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
-	int dgmSize = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getDgm();
+//	int dgmSize = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getDgm();
 	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
 	HyperOp* hyperOp = HIG->getHyperOp(const_cast<Function*>(MF->getFunction()));
 
-	//TODO couldn't find any method that gets invoked that could insert topology details
-	if (firstFunctionBeingProcessed) {
-		int maxXInTopology = 0, maxYInTopology = 0, minXInTopology = -1, minYInTopology = -1;
-		int fabricRowCount = (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getM();
-		int fabricColumnCount = (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getN();
-		for (list<HyperOp*>::iterator hyperOpItr = HIG->Vertices.begin(); hyperOpItr != HIG->Vertices.end(); hyperOpItr++) {
-			HyperOp* hyperOp = *hyperOpItr;
-//			if (!hyperOp->isStaticHyperOp()) {
-//				continue;
+	OutStreamer.EmitRawText(";" + StringRef(MF->getFunction()->getName()));
+//
+//	//TODO couldn't find any method that gets invoked that could insert topology details
+//	if (firstFunctionBeingProcessed) {
+//		int maxXInTopology = 0, maxYInTopology = 0, minXInTopology = -1, minYInTopology = -1;
+//		int fabricRowCount = (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getM();
+//		int fabricColumnCount = (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getN();
+//		for (list<HyperOp*>::iterator hyperOpItr = HIG->Vertices.begin(); hyperOpItr != HIG->Vertices.end(); hyperOpItr++) {
+//			HyperOp* hyperOp = *hyperOpItr;
+////			if (!hyperOp->isStaticHyperOp()) {
+////				continue;
+////			}
+//			int mappedToX = hyperOp->getTargetResource() / fabricColumnCount;
+//			int mappedToY = hyperOp->getTargetResource() % fabricColumnCount;
+//			if (mappedToX > maxXInTopology) {
+//				maxXInTopology = mappedToX;
 //			}
-			int mappedToX = hyperOp->getTargetResource() / fabricColumnCount;
-			int mappedToY = hyperOp->getTargetResource() % fabricColumnCount;
-			if (mappedToX > maxXInTopology) {
-				maxXInTopology = mappedToX;
-			}
-			if (minXInTopology == -1 || mappedToX < minXInTopology) {
-				minXInTopology = mappedToX;
-			}
-			if (mappedToY > maxYInTopology) {
-				maxYInTopology = mappedToY;
-			}
+//			if (minXInTopology == -1 || mappedToX < minXInTopology) {
+//				minXInTopology = mappedToX;
+//			}
+//			if (mappedToY > maxYInTopology) {
+//				maxYInTopology = mappedToY;
+//			}
+//
+//			if (minYInTopology == -1 || mappedToY < minYInTopology) {
+//				minYInTopology = mappedToY;
+//			}
+//		}
+//		errs() << "max x:" << maxXInTopology << ", min x:" << minXInTopology << "\n";
+//		errs() << "max y:" << maxYInTopology << ", min y:" << minYInTopology << "\n";
+//
+//		long int maxGlobalSize = 0;
+//		for (Module::const_global_iterator globalArgItr = MF->getFunction()->getParent()->global_begin(); globalArgItr != MF->getFunction()->getParent()->global_end(); globalArgItr++) {
+//			maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalArgItr->getType());
+//		}
+//
+//		while (maxGlobalSize > ((maxXInTopology - minXInTopology + 1) * (maxYInTopology - minYInTopology + 1) * dgmSize)) {
+//			if (maxXInTopology < maxYInTopology) {
+//				maxXInTopology++;
+//			} else {
+//				maxYInTopology++;
+//			}
+//		}
+//
+//		string topology(".topology");
+//		topology.append("\t").append(itostr(maxXInTopology - minXInTopology)).append("\t").append(itostr(maxYInTopology - minYInTopology)).append("\n");
+//		OutStreamer.EmitRawText(StringRef(topology));
+//		firstFunctionBeingProcessed = false;
+//
+//		// Added By Arka
+//		string startAddr(".startaddr"); // Start Address of the Code Data Segment
+//		startAddr.append("\t").append(itostr(0)).append("\n");
+//		OutStreamer.EmitRawText(StringRef(startAddr));
+//	}
+//
+//	// Added By Arka, HyperOp Static Metadeta
+//	string hyperOpLabel = ".HyOp#";
+//	hyperOpLabel.append(itostr(hyperOp->getHyperOpId())).append(":\n");
+//	OutStreamer.EmitRawText(StringRef(hyperOpLabel));
 
-			if (minYInTopology == -1 || mappedToY < minYInTopology) {
-				minYInTopology = mappedToY;
-			}
+	string staticMetadata = "\n\t.align 16\n\t.SMD_BEGIN\t\n";
+	string hyperOpLabel = "\t\t.HYPEROPID\t.";
+	hyperOpLabel.append("HyOp#").append(itostr(hyperOp->getHyperOpId())).append("\n");
+	staticMetadata.append(StringRef(hyperOpLabel));
+
+	if (hyperOp->isEndHyperOp() || hyperOp->isStartHyperOp() || hyperOp->isBarrierHyperOp() || hyperOp->isPredicatedHyperOp()) {
+		staticMetadata.append("\t\t.anno\t");
+		bool added = false;
+
+		if (hyperOp->isStartHyperOp()) {
+			staticMetadata.append("S");
+			added = true;
 		}
-		errs() << "max x:" << maxXInTopology << ", min x:" << minXInTopology << "\n";
-		errs() << "max y:" << maxYInTopology << ", min y:" << minYInTopology << "\n";
-
-		long int maxGlobalSize = 0;
-		for (Module::const_global_iterator globalArgItr = MF->getFunction()->getParent()->global_begin(); globalArgItr != MF->getFunction()->getParent()->global_end(); globalArgItr++) {
-			maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalArgItr->getType());
-		}
-
-		while (maxGlobalSize > ((maxXInTopology - minXInTopology + 1) * (maxYInTopology - minYInTopology + 1) * dgmSize)) {
-			if (maxXInTopology < maxYInTopology) {
-				maxXInTopology++;
-			} else {
-				maxYInTopology++;
+		if (hyperOp->isEndHyperOp()) {
+			if (added) {
+				staticMetadata.append(",");
 			}
+			staticMetadata.append("E");
+			added = true;
 		}
-
-		string topology(".topology");
-		topology.append("\t").append(itostr(maxXInTopology - minXInTopology)).append("\t").append(itostr(maxYInTopology - minYInTopology)).append("\n");
-		OutStreamer.EmitRawText(StringRef(topology));
-		firstFunctionBeingProcessed = false;
-
-		// Added By Arka
-		string startAddr(".startaddr"); // Start Address of the Code Data Segment
-		startAddr.append("\t").append(itostr(0)).append("\n");
-		OutStreamer.EmitRawText(StringRef(startAddr));
+		if (hyperOp->isBarrierHyperOp()) {
+			if (added) {
+				staticMetadata.append(",");
+			}
+			staticMetadata.append("B");
+			added = true;
+		}
+		if (hyperOp->isPredicatedHyperOp()) {
+			if (added) {
+				staticMetadata.append(",");
+			}
+			staticMetadata.append("P");
+		}
+		staticMetadata.append("\n");
 	}
 
-	// Added By Arka, HyperOp Static Metadeta
-	string hyperOpLabel = ".HyOp#";
-	hyperOpLabel.append(itostr(hyperOp->getHyperOpId())).append(":\n");
-	OutStreamer.EmitRawText(StringRef(hyperOpLabel));
+	staticMetadata.append("\t\t.numphy\t");
+	staticMetadata.append(itostr(ceCount)).append("\n");
 
-	string staticMetadata = ".SMD_BEGIN\t\n";
-	staticMetadata.append(".ann\t").append(hyperOp->isStartHyperOp() ? "S" : "").append("\t");
-	staticMetadata.append(hyperOp->isEndHyperOp() ? "E" : "").append("\t");
-	staticMetadata.append(hyperOp->isBarrierHyperOp() ? "B" : "").append("\t");
-	staticMetadata.append(hyperOp->isPredicatedHyperOp() ? "P" : "").append("\n");
-	OutStreamer.EmitRawText(StringRef(staticMetadata));
+	AttributeSet attributes = MF->getFunction()->getAttributes();
+	unsigned i = 1;
+	unsigned argCount = 0;
 
-	string numphy = ".numphy\t";
-	numphy.append(itostr(ceCount)).append("\n");
-	OutStreamer.EmitRawText(StringRef(numphy));
+	for (Function::const_arg_iterator argItr = MF->getFunction()->arg_begin(); argItr != MF->getFunction()->arg_end(); argItr++, i++) {
+		if (attributes.hasAttribute(i, Attribute::InReg) && !argItr->getType()->isPointerTy()) {
+			argCount++;
+		}
+	}
+	//Add context frame addresses and ordering edges also
+	for (map<HyperOpEdge*, HyperOp*>::iterator parentMapItr = hyperOp->ParentMap.begin(); parentMapItr != hyperOp->ParentMap.end(); parentMapItr++) {
+		if (parentMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) {
+			argCount++;
+		}
+	}
+	if (hyperOp->isBarrierHyperOp()) {
+		argCount++;
+	}
+	staticMetadata.append("\t\t.numOperand\t").append(itostr(argCount)).append("\n");
 
 	//Adding distribution count of operands
-	string distCount = ".opdist\t";
+	string distCount = "\t\t.opdist\t";
+	string phopPC = "\t\t.pHyPC\t";
 	for (unsigned i = 0; i < ceCount; i++) {
-		distCount.append(itostr(hyperOp->getNumInputsPerCE(i))).append("\t");
+		if (i > 0) {
+			distCount.append(",\t");
+			phopPC.append(",\T");
+		}
+		distCount.append(itostr(hyperOp->getNumInputsPerCE(i)));
+		phopPC.append(".PC_").append(hyperOp->getFunction()->getName()).append(itostr(i));
 	}
 	distCount.append("\n");
-	OutStreamer.EmitRawText(StringRef(distCount));
-	OutStreamer.EmitRawText(StringRef(".SMD_END"));
+	phopPC.append("\n");
 
+	staticMetadata.append(distCount);
+	staticMetadata.append(phopPC);
+	staticMetadata.append("\t.SMD_END");
+	OutStreamer.EmitRawText(StringRef(staticMetadata));
 }
 
 void REDEFINEAsmPrinter::printOperand(const MachineInstr *MI, int OpNo, raw_ostream &O) {
@@ -419,40 +478,40 @@ bool REDEFINEAsmPrinter::doInitialization(Module &M) {
 }
 
 void REDEFINEAsmPrinter::EmitEndOfAsmFile(Module &M) {
-	string dataLabel = ".IO_BEGIN\n.data_start\t";
-	long int maxGlobalSize = 0;
-	string inputs = "";
-	unsigned numInputsAndOutputs = 0;
-	for (Module::const_global_iterator globalArgItr = M.global_begin(); globalArgItr != M.global_end(); globalArgItr++) {
-		const GlobalVariable *globalVar = &*globalArgItr;
-		if (globalVar->getName().startswith("redefine_in_")) {
-			//Every global is a pointer type
-			inputs.append("i\t");
-			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
-			numInputsAndOutputs++;
-
-		} else if (globalVar->getName().startswith("redefine_out_")) {
-			inputs.append("o\t");
-			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
-			numInputsAndOutputs++;
-		}	//Mark the global as both input and output
-		else if (globalVar->getName().startswith("redefine_inout_")) {
-			inputs.append("i\t");
-			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
-			inputs.append("o\t");
-			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
-			numInputsAndOutputs++;
-		}
-		maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
-	}
-
-	dataLabel.append(itostr(numInputsAndOutputs)).append("\n");
-	OutStreamer.EmitRawText(StringRef(dataLabel));
-	if (!inputs.empty()) {
-		OutStreamer.EmitRawText(StringRef(inputs));
-	}
-	string ioEndLabel = ".IO_END";
-	OutStreamer.EmitRawText(StringRef(ioEndLabel));
+//	string dataLabel = ".IO_BEGIN\n.data_start\t";
+//	long int maxGlobalSize = 0;
+//	string inputs = "";
+//	unsigned numInputsAndOutputs = 0;
+//	for (Module::const_global_iterator globalArgItr = M.global_begin(); globalArgItr != M.global_end(); globalArgItr++) {
+//		const GlobalVariable *globalVar = &*globalArgItr;
+//		if (globalVar->getName().startswith("redefine_in_")) {
+//			//Every global is a pointer type
+//			inputs.append("i\t");
+//			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+//			numInputsAndOutputs++;
+//
+//		} else if (globalVar->getName().startswith("redefine_out_")) {
+//			inputs.append("o\t");
+//			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+//			numInputsAndOutputs++;
+//		}	//Mark the global as both input and output
+//		else if (globalVar->getName().startswith("redefine_inout_")) {
+//			inputs.append("i\t");
+//			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+//			inputs.append("o\t");
+//			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
+//			numInputsAndOutputs++;
+//		}
+//		maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
+//	}
+//
+//	dataLabel.append(itostr(numInputsAndOutputs)).append("\n");
+//	OutStreamer.EmitRawText(StringRef(dataLabel));
+//	if (!inputs.empty()) {
+//		OutStreamer.EmitRawText(StringRef(inputs));
+//	}
+//	string ioEndLabel = ".IO_END";
+//	OutStreamer.EmitRawText(String?Ref(ioEndLabel));
 	string maxFrameString;
 	maxFrameString.append(";FS = ").append(itostr(maxFrameValue)).append("\n");
 	OutStreamer.EmitRawText(StringRef(maxFrameString));
@@ -491,7 +550,7 @@ void REDEFINEAsmPrinter::EmitFunctionHeader() {
 
 	// Emit the CurrentFnSym.  This is a virtual function to allow targets to
 	// do their wild and crazy things as required.
-	//EmitFunctionEntryLabel();
+	EmitFunctionEntryLabel();
 
 	// If the function had address-taken blocks that got deleted, then we have
 	// references to the dangling symbols.  Emit them at the start of the function

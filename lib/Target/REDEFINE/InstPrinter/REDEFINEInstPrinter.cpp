@@ -62,7 +62,11 @@ static void printExpr(const MCExpr *Expr, raw_ostream &OS) {
 //		break;
 //	}
 
-	OS << SRE->getSymbol();
+	if(SRE->getSymbol().getName().startswith(".HyOp")){
+		OS<< SRE->getSymbol().getName();
+	}else{
+		OS << SRE->getSymbol();
+	}
 
 	if (Offset) {
 		if (Offset > 0)

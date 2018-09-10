@@ -24,7 +24,7 @@ class raw_ostream;
 class LLVM_LIBRARY_VISIBILITY REDEFINEAsmPrinter: public AsmPrinter {
 private:
 	const REDEFINESubtarget *Subtarget;
-	const char* STATIC_HYPEROP_ANNOTATION = ".STATICINST";
+//	const char* STATIC_HYPEROP_ANNOTATION = ".STATICINSTANCE_BEGIN";
 	const char* VALID_ANNOTATION = ".isValid";
 	const char* ACTIVE_ANNOTATION = ".isActive";
 	const char* INTRINSIC_ANNOTATION = ".isIntrinsic";

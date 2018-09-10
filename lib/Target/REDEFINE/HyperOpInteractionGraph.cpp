@@ -78,6 +78,8 @@ HyperOp::HyperOp(Function* function) {
 	this->instanceof = NULL;
 	this->InRange = false;
 	this->numInputsPerCE.reserve(4);
+	this->setIncomingSyncPredicate(0, NULL);
+	this->setIncomingSyncPredicate(1, NULL);
 }
 
 HyperOp::~HyperOp() {
@@ -685,25 +687,25 @@ void HyperOpEdge::setIsEdgeIgnored(bool isIgnoredEdge) {
 	this->isIgnoredEdge = isIgnoredEdge;
 }
 
-SyncValue::SyncValue(HyperOp* rangeHyperOpValue){
+SyncValue::SyncValue(HyperOp* rangeHyperOpValue) {
 	this->syncVal.rangeHyperOpValue = rangeHyperOpValue;
 	this->type = SyncValueType::HYPEROPTYPE;
 }
-SyncValue::SyncValue(int intValue){
+SyncValue::SyncValue(int intValue) {
 	this->syncVal.intValue = intValue;
 	this->type = SyncValueType::INTVAL;
 }
 
-HyperOp* SyncValue::getHyperOp(){
+HyperOp* SyncValue::getHyperOp() {
 	assert(this->type == SyncValueType::HYPEROPTYPE);
 	return this->syncVal.rangeHyperOpValue;
 }
-int SyncValue::getInt(){
+int SyncValue::getInt() {
 	assert(this->type == SyncValueType::INTVAL);
 	return this->syncVal.intValue;
 }
 
-SyncValueType SyncValue::getType(){
+SyncValueType SyncValue::getType() {
 	return this->type;
 }
 HyperOpInteractionGraph::HyperOpInteractionGraph() {
@@ -1179,6 +1181,7 @@ void HyperOpInteractionGraph::addContextFrameblockSizeEdges() {
 			HyperOpEdge* edge = new HyperOpEdge();
 			edge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR);
 			edge->setPositionOfContextSlot(0);
+			edge->setContextFrameAddress(vertexItr);
 			edge->setValue(ConstantInt::get(Type::getInt32Ty(idom->getFunction()->getParent()->getContext()), APInt(32, 1)));
 			this->addEdge(idom, vertexItr, edge);
 		}
@@ -1372,9 +1375,9 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 			}
 
 			list<SyncValue> zeroPred;
-			zeroPred.push_back((SyncValue)1);
+			zeroPred.push_back((SyncValue) 1);
 			list<SyncValue> onePred;
-			onePred.push_back((SyncValue)1);
+			onePred.push_back((SyncValue) 1);
 			forkSink->setIncomingSyncCount(0, zeroPred);
 			forkSink->setIncomingSyncCount(1, onePred);
 
@@ -1515,8 +1518,8 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 //						}
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = vertex->ParentMap.begin(); parentEdgeItr != vertex->ParentMap.end(); parentEdgeItr++) {
 							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
-							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR
-									) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
+							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR)
+									&& previouslyAddedEdge->getPositionOfContextSlot() > max) {
 								max = previouslyAddedEdge->getPositionOfContextSlot();
 							} else if (previouslyAddedEdge->getType() == HyperOpEdge::SYNC) {
 								maxAvailableContextSlots = maxContextFrameSize - 1;
@@ -1524,7 +1527,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						}
 						freeContextSlot = max + 1;
 						errs() << "edge added between " << immediateDominator->asString() << " and " << vertex->asString() << " containing " << dominanceFrontierHyperOp->asString() << "\n";
-						if (freeContextSlot >= maxAvailableContextSlots){
+						if (freeContextSlot >= maxAvailableContextSlots) {
 							//TODO test this
 							//Set the address to be passed as local reference
 							int maxOffset = 0;
@@ -1562,8 +1565,8 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						int max = -1, maxAvailableContextSlots = maxContextFrameSize;
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = prevVertex->ParentMap.begin(); parentEdgeItr != prevVertex->ParentMap.end(); parentEdgeItr++) {
 							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
-							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR
-									) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
+							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR)
+									&& previouslyAddedEdge->getPositionOfContextSlot() > max) {
 								max = previouslyAddedEdge->getPositionOfContextSlot();
 							} else if (previouslyAddedEdge->getType() == HyperOpEdge::SYNC) {
 								maxAvailableContextSlots = maxContextFrameSize - 1;
@@ -1625,7 +1628,8 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						int max = -1, maxAvailableContextSlots = maxContextFrameSize;
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = prevVertex->ParentMap.begin(); parentEdgeItr != prevVertex->ParentMap.end(); parentEdgeItr++) {
 							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
-							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
+							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR)
+									&& previouslyAddedEdge->getPositionOfContextSlot() > max) {
 								max = previouslyAddedEdge->getPositionOfContextSlot();
 							} else if (previouslyAddedEdge->getType() == HyperOpEdge::SYNC) {
 								maxAvailableContextSlots = maxContextFrameSize - 1;
@@ -3547,10 +3551,10 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					producerHyperOp->addChildEdge(syncEdge, consumerHyperOp);
 					consumerHyperOp->addParentEdge(syncEdge, producerHyperOp);
 					consumerHyperOp->setBarrierHyperOp();
-					if(producerHyperOp->getInRange()){
-						consumerHyperOp->addIncomingSyncValue(0, (SyncValue)producerHyperOp);
-					}else{
-						consumerHyperOp->addIncomingSyncValue(0, (SyncValue)1);
+					if (producerHyperOp->getInRange()) {
+						consumerHyperOp->addIncomingSyncValue(0, (SyncValue) producerHyperOp);
+					} else {
+						consumerHyperOp->addIncomingSyncValue(0, (SyncValue) 1);
 					}
 				} else if ((originalAndReplacementFunctionMap.find(consumerHyperOp->getFunction()) == originalAndReplacementFunctionMap.end() && consumerHyperOp->getFunction()->getNumOperands() < this->getMaxMemFrameSize())
 						|| originalAndReplacementFunctionMap[consumerHyperOp->getFunction()]->getNumOperands() < this->getMaxContextFrameSize()) {
@@ -3847,9 +3851,17 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hyperOp = *hopItr;
 		if (hyperOp->isBarrierHyperOp()) {
+			errs() << "\n----\nadding incoming sync count to " << hyperOp->getFunction()->getName() << " that originally has " << hyperOp->getSyncCount(0).size() << " sync values incoming namely:";
+			for (auto sync : hyperOp->getSyncCount(0)) {
+				if (sync.type == HYPEROPTYPE) {
+					errs() << sync.getHyperOp()->getFunction()->getName() << "\n";
+				} else {
+					errs() << sync.getInt() << "\n";
+				}
+			}
+			errs() << "\nnow updating it for predicates\n";
 			//Initialize every incoming path with the same count so that decrements can be performed later
 			hyperOp->setIncomingSyncCount(1, hyperOp->getSyncCount(0));
-
 			list<HyperOp*> syncSourceList;
 			for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
 				if (!parentItr->second->getInRange() && parentItr->first->getType() == HyperOpEdge::SYNC && find(syncSourceList.begin(), syncSourceList.end(), parentItr->second) == syncSourceList.end()) {
@@ -3997,6 +4009,8 @@ void HyperOpInteractionGraph::print(raw_ostream &os) {
 					os << "sync";
 				} else if (edge->Type == HyperOpEdge::RANGE) {
 					os << "range";
+				} else if (edge->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR) {
+					os << "cf address range";
 				}
 				os << "];\n";
 			}

@@ -1093,7 +1093,7 @@ SDValue REDEFINETargetLowering::lowerGlobalAddress(SDValue Op, SelectionDAG &DAG
 //	}
 	if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Op)) {
 		SDValue TGAHi = DAG.getTargetGlobalAddress(G->getGlobal(), Op->getDebugLoc(), getPointerTy());
-		Op = DAG.getNode(REDEFINEISD::Ga, Op->getDebugLoc(), getPointerTy(), TGAHi);				
+		Op = DAG.getNode(REDEFINEISD::Ga, Op->getDebugLoc(), getPointerTy(), TGAHi);
 		Op->dump();
 		return Op;
 	}

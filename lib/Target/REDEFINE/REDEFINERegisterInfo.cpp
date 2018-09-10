@@ -41,8 +41,6 @@ BitVector REDEFINERegisterInfo::getReservedRegs(const MachineFunction &MF) const
 	Reserved.set(REDEFINE::zero);
 	Reserved.set(REDEFINE::t5);
 	Reserved.set(REDEFINE::t4);
-	//TODO a5 is used for expanding large immediates in post ra pseudo addi instructions. I need to fix this
-	Reserved.set(REDEFINE::a5);
 	Reserved.set(REDEFINE::ft0);
 	return Reserved;
 }
