@@ -35,7 +35,7 @@ static inline unsigned getSyncCountInReg(MachineBasicBlock* lastBB, MachineInstr
 	const Module* parentModule = lastBB->getParent()->getFunction()->getParent();
 	for (list<SyncValue>::iterator syncCountIterator = syncCount.begin(); syncCountIterator != syncCount.end(); syncCountIterator++) {
 		MachineInstrBuilder addInstr;
-		if (syncCountIterator->getType() == SyncValueType::INTVAL) {
+		if (syncCountIterator->getType() == SyncValueType::INT_SYNC_TYPE) {
 			syncCountReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 			int currentCount = syncCountIterator->getInt();
 			if (first) {

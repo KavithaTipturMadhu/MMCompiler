@@ -109,8 +109,8 @@ enum StrideFunction {
 class HyperOp;
 
 enum SyncValueType{
-	HYPEROPTYPE,
-	INTVAL
+	HYPEROP_SYNC_TYPE,
+	INT_SYNC_TYPE
 };
 
 struct SyncValue{
