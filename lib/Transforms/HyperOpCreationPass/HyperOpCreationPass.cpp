@@ -2910,6 +2910,8 @@ struct HyperOpCreationPass: public ModulePass {
 				redefineAnnotationsNode->addOperand(hyperOpDescMDNode);
 			}
 
+			errs()<<"created a new function:";
+			newFunction->dump();
 			createdHyperOpAndOriginalBasicBlockAndArgMap[newFunction] = make_pair(accumulatedBasicBlocks, hyperOpArguments);
 			createdHyperOpAndCallSite[newFunction] = callSite;
 			createdHyperOpAndConditionalBranchSources[newFunction] = conditionalBranchSources;
@@ -2983,6 +2985,33 @@ struct HyperOpCreationPass: public ModulePass {
 
 			DEBUG(dbgs() << "\n----------Adding consumed by metadata----------\n");
 			unsigned hyperOpArgumentIndex = 0;
+			bool loopHop = false;
+			for (auto accumulatedBBItr = accumulatedOriginalBasicBlocks.begin();
+					accumulatedBBItr != accumulatedOriginalBasicBlocks.end();
+					accumulatedBBItr++) {
+				list<pair<list<BasicBlock*>, LoopIV*> > tempLoopList;
+				std::copy(originalParallelLoopBB.begin(),
+						originalParallelLoopBB.end(),
+						std::back_inserter(tempLoopList));
+				std::copy(originalSerialLoopBB.begin(),
+						originalSerialLoopBB.end(),
+						std::back_inserter(tempLoopList));
+				for (auto bbItr = tempLoopList.begin();
+						bbItr != tempLoopList.end(); bbItr++) {
+					if (find(bbItr->first.begin(), bbItr->first.end(),
+							*accumulatedBBItr) != bbItr->first.end()) {
+						loopHop = true;
+						break;
+					}
+				}
+				if (loopHop) {
+					break;
+				}
+			}
+			if(loopHop){
+				//An argument is added extra as the first argument containing index of a loop hyperop to enable purging it, increment is hen
+				hyperOpArgumentIndex++;
+			}
 			//Replace arguments of called functions with the right call arguments or return values
 			for (HyperOpArgumentList::iterator hyperOpArgItr = hyperOpArguments.begin(); hyperOpArgItr != hyperOpArguments.end(); hyperOpArgItr++) {
 				map<Instruction*, Value*> replacementArg;
@@ -3274,21 +3303,22 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 
 							//serial or parallel loop, it doesn't matter
+							//TODO i dont remember why this snippet existed before, I need to check now why it does exist and uncomment if necessary
 							bool createdHopPartofLoop = false;
-							for (auto accumulatedBBItr = accumulatedOriginalBasicBlocks.begin(); accumulatedBBItr != accumulatedOriginalBasicBlocks.end(); accumulatedBBItr++) {
-								list<pair<list<BasicBlock*>, LoopIV*> > tempLoopList;
-								std::copy(originalParallelLoopBB.begin(), originalParallelLoopBB.end(), std::back_inserter(tempLoopList));
-								std::copy(originalSerialLoopBB.begin(), originalSerialLoopBB.end(), std::back_inserter(tempLoopList));
-								for (auto bbItr = tempLoopList.begin(); bbItr != tempLoopList.end(); bbItr++) {
-									if (find(bbItr->first.begin(), bbItr->first.end(), *accumulatedBBItr) != bbItr->first.end()) {
-										createdHopPartofLoop = true;
-										break;
-									}
-								}
-								if (createdHopPartofLoop) {
-									break;
-								}
-							}
+//							for (auto accumulatedBBItr = accumulatedOriginalBasicBlocks.begin(); accumulatedBBItr != accumulatedOriginalBasicBlocks.end(); accumulatedBBItr++) {
+//								list<pair<list<BasicBlock*>, LoopIV*> > tempLoopList;
+//								std::copy(originalParallelLoopBB.begin(), originalParallelLoopBB.end(), std::back_inserter(tempLoopList));
+//								std::copy(originalSerialLoopBB.begin(), originalSerialLoopBB.end(), std::back_inserter(tempLoopList));
+//								for (auto bbItr = tempLoopList.begin(); bbItr != tempLoopList.end(); bbItr++) {
+//									if (find(bbItr->first.begin(), bbItr->first.end(), *accumulatedBBItr) != bbItr->first.end()) {
+//										createdHopPartofLoop = true;
+//										break;
+//									}
+//								}
+//								if (createdHopPartofLoop) {
+//									break;
+//								}
+//							}
 
 							//TODO this isn't enough for nested recursion cycles
 							bool staticMD = (isProducerStatic && isStaticHyperOp) || (!isProducerStatic && !isStaticHyperOp && !backedgeOfLoop) || (isProducerStatic && !isStaticHyperOp && createdHopPartofLoop);
