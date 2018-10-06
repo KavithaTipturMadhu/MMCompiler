@@ -142,12 +142,7 @@ def : Pat<(select (i32 (seteq GR32:$lhs, 0)), GR32:$T, GR32:$F),
 /**
 REDEFINE specific instructions
 **/
-//REDEFINE I instructions 
-def CALL: InstIREDEFINE<"call", 0b0000100, 0b000       , add, GR32, GR32, imm32sx12>
-{
- let Itinerary   = REDEFINEORC;
-}
-def CREATEINST: InstIREDEFINE<"pscreateinst", 0b0000100, 0b001       , add, GR32, GR32, imm32sx12>
+def CREATEINST: InstIREDEFINE<"pscreateinst", 0b0000100, 0b001 , add, GR32, GR32>
 {
  let Itinerary   = REDEFINEORC;
 }
@@ -271,7 +266,7 @@ def MOVADDR: InstREDEFINE<4, (outs GR32:$reg), (ins imm32sx12:$src),
   let Inst{6 - 0} = 0b0000000;
 }
 
-def WRITECM : InstSREDEFINE<"writecm" , 0b0100100, 0b000, add , GR32, GR32, imm32sx12>
+def WRITECM : InstSREDEFINEImm<"writecm" , 0b0100100, 0b000, add , GR32, GR32, imm32sx12>
 {
  let Itinerary   = REDEFINEORC;
 }
@@ -287,13 +282,13 @@ def FBIND : InstSREDEFINE<"fbind" , 0b0000100, 0b011, add , GR32, GR32>
 {
  let Itinerary   = REDEFINEORC;
 }
-def FBIND : InstSREDEFINE<"psfbind" , 0b0000100, 0b011, add , GR32, GR32, imm32sx12>
+def PSFBIND : InstSREDEFINEImm<"psfbind" , 0b0000100, 0b011, add , GR32, GR32, imm32sx12>
 {
  let Itinerary   = REDEFINEORC;
 }
 
 def FDELETE: InstREDEFINE<4, (outs), (ins GR32:$id), 
-                "fdelete \t$id", 
+                "fdelete \t$id",
                 [],REDEFINEORC> {
   field bits<32> Inst;
 

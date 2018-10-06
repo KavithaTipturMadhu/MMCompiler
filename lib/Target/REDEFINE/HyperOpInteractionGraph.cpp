@@ -13,8 +13,8 @@
 #include <vector>
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Instructions.h"
-#include "lpsolve/lp_lib.h"
-#include "lpsolve/lp_types.h"
+#include "lp_lib.h"
+#include "lp_types.h"
 #include "llvm/IR/HyperOpInteractionGraph.h"
 using namespace llvm;
 
@@ -3495,7 +3495,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		if (hyperOp->isPredicatedHyperOp()) {
 			HyperOp* immediateDominator = hyperOp->getImmediateDominator();
 			list<pair<HyperOpEdge*, HyperOp*> > parentPredicateChain = lastPredicateInput(controlFlowGraphAndOriginalHopMap.second[hyperOp], controlFlowGraphAndOriginalHopMap.second[hyperOp->getImmediateDominator()]);
-			errs() << "computed predicate length " << parentPredicateChain.size() << "\n";
 			pair<HyperOpEdge*, HyperOp*> parentPredicate;
 			if (parentPredicateChain.empty()) {
 				errs() << "empty predicate\n";
@@ -3611,12 +3610,20 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 						} else {
 							incomingSyncAlongZeroPred.push_back((SyncValue) 1);
 						}
-					} else{
+					} else if(predicateChain.front().first->getPredicateValue()){
 						if ((*syncSourceItr)->getInRange()) {
 							//TODO
 							incomingSyncAlongOnePred.push_back((SyncValue) (*syncSourceItr));
 						} else {
 							incomingSyncAlongOnePred.push_back((SyncValue) 1);
+						}
+					} else {
+						if ((*syncSourceItr)->getInRange()) {
+							//TODO
+							incomingSyncAlongNoPred.push_back(
+									(SyncValue) (*syncSourceItr));
+						} else {
+							incomingSyncAlongNoPred.push_back((SyncValue) 1);
 						}
 					}
 					hyperOp->setIncomingSyncPredicate(predicateChain.front().first->getPredicateValue(), predicateChain.front().first->getValue());
@@ -3639,7 +3646,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			hyperOp->setIncomingSyncCount(0, incomingSyncAlongZeroPred);
 			hyperOp->setIncomingSyncCount(1, incomingSyncAlongOnePred);
 			hyperOp->setIncomingSyncCount(2, incomingSyncAlongNoPred);
-			errs() << "hop "<<hyperOp->getFunction()->getName()<<" incoming preds at zero:"<<hyperOp->getSyncCount(0).size()<<", one:"<<hyperOp->getSyncCount(1).size()<<", two:"<<hyperOp->getSyncCount(2).size()<<"\n";
 		}
 	}
 
