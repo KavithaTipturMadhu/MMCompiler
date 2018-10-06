@@ -202,6 +202,19 @@ class InstI<string mnemonic, bits<7> op, bits<3> funct3,
 
 //I-Type for REDEFINE, created another one since there is no pattern to be matched for this
 class InstIREDEFINE<string mnemonic, bits<7> op, bits<3> funct3,
+            SDPatternOperator operator, RegisterOperand cls1, RegisterOperand cls2>
+  : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src1), 
+                mnemonic#"\t$dst, $src1", 
+                [],REDEFINEALU> {
+  field bits<32> Inst;
+
+  bits<5> RD;
+  bits<5> RS1;
+  bits<12> IMM;
+}
+
+//I-Type for REDEFINE, created another one since there is no pattern to be matched for this
+class InstIREDEFINEImm<string mnemonic, bits<7> op, bits<3> funct3,
             SDPatternOperator operator, RegisterOperand cls1, RegisterOperand cls2,
             Immediate imm>
   : InstREDEFINE<4, (outs cls1:$dst), (ins cls2:$src1, imm:$src2), 
@@ -224,6 +237,18 @@ class InstIREDEFINE<string mnemonic, bits<7> op, bits<3> funct3,
 
 //S-Type, for REDEFINE
 class InstSREDEFINE<string mnemonic, bits<7> op, bits<3> funct3,
+            SDPatternOperator operator, RegisterOperand cls1, RegisterOperand cls2>
+  : InstREDEFINE<4, (outs), (ins cls1:$dst1, cls2:$src1), 
+                mnemonic#"\t$dst1, $src1", 
+                [],REDEFINEALU> {
+  field bits<32> Inst;
+  bits<5> RD;
+  bits<5> RS1;
+  bits<12> IMM;
+}
+
+//S-Type, for REDEFINE
+class InstSREDEFINEImm<string mnemonic, bits<7> op, bits<3> funct3,
             SDPatternOperator operator, RegisterOperand cls1, RegisterOperand cls2,
             Immediate imm>
   : InstREDEFINE<4, (outs), (ins cls1:$dst1, cls2:$src1, imm:$dst2), 

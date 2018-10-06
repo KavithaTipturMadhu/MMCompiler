@@ -182,15 +182,6 @@ static inline MachineBasicBlock* generateRangeConditionalInstructions(MachineBas
 	LIS->InsertMachineInstrInMaps(branchInstr.operator ->());
 	allInstructionsOfRegion->push_back(make_pair(branchInstr.operator->(), make_pair(currentCE, insertPosition++)));
 
-	for (unsigned i = 0; i < 2; i++) {
-		MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastInst, lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
-		nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-		nopInstruction.addReg(REDEFINE::zero);
-		nopInstruction.addImm(0);
-		LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-		allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(currentCE, insertPosition++)));
-	}
-
 	for (unsigned i = 1; i < ceCount; i++) {
 		//Add jump from indvar to loopstart
 		MachineInstrBuilder jumpInstr = BuildMI(*lastBB, lastInst, lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::JAL));
@@ -198,14 +189,6 @@ static inline MachineBasicBlock* generateRangeConditionalInstructions(MachineBas
 		LIS->InsertMachineInstrInMaps(jumpInstr.operator ->());
 		allInstructionsOfRegion->push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 
-		for (unsigned j = 0; j < 2; j++) {
-			MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastInst, lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
-			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-			nopInstruction.addReg(REDEFINE::zero);
-			nopInstruction.addImm(0);
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-			allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-		}
 	}
 
 	MachineInstrBuilder conditionalBodyjumpInstr = BuildMI(*conditionalBasicBlock, conditionalBasicBlock->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::JAL));
@@ -213,30 +196,12 @@ static inline MachineBasicBlock* generateRangeConditionalInstructions(MachineBas
 	LIS->InsertMachineInstrInMaps(conditionalBodyjumpInstr.operator ->());
 	allInstructionsOfRegion->push_back(make_pair(conditionalBodyjumpInstr.operator->(), make_pair(currentCE, insertPosition++)));
 
-	for (unsigned i = 0; i < 2; i++) {
-		MachineInstrBuilder nopInstruction = BuildMI(*conditionalBasicBlock, conditionalBasicBlock->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
-		nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-		nopInstruction.addReg(REDEFINE::zero);
-		nopInstruction.addImm(0);
-		LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-		allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(currentCE, insertPosition++)));
-	}
-
 	for (unsigned i = 1; i < ceCount; i++) {
 		//Add jump from indvar to loopstart
 		MachineInstrBuilder jumpInstr = BuildMI(*lastBB, lastInst, lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::JAL));
 		jumpInstr.addMBB(conditionalExit);
 		LIS->InsertMachineInstrInMaps(jumpInstr.operator ->());
 		allInstructionsOfRegion->push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
-
-		for (unsigned j = 0; j < 2; j++) {
-			MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastInst, lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
-			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-			nopInstruction.addReg(REDEFINE::zero);
-			nopInstruction.addImm(0);
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-			allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-		}
 	}
 
 	*argInsertPosition = insertPosition;
@@ -291,15 +256,6 @@ static inline unsigned generateBlockCreateMachineInstructions(MachineBasicBlock*
 
 		if (originalBB == lastBB && (*firstInstructionOfpHyperOpInRegion)[i] == NULL) {
 			(*firstInstructionOfpHyperOpInRegion)[i] = jumpInstr.operator ->();
-		}
-
-		for (unsigned j = 0; j < 2; j++) {
-			MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastInst, lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
-			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-			nopInstruction.addReg(REDEFINE::zero);
-			nopInstruction.addImm(0);
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-			allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
 		}
 	}
 
@@ -362,15 +318,6 @@ static inline unsigned generateBlockCreateMachineInstructions(MachineBasicBlock*
 		if (originalBB == lastBB && (*firstInstructionOfpHyperOpInRegion)[i] == NULL) {
 			(*firstInstructionOfpHyperOpInRegion)[i] = jumpInstr.operator ->();
 		}
-
-		for (unsigned j = 0; j < 2; j++) {
-			MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastInst, lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
-			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-			nopInstruction.addReg(REDEFINE::zero);
-			nopInstruction.addImm(0);
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-			allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-		}
 	}
 
 	vector<MachineInstr*> loopStartInstruction;
@@ -382,14 +329,6 @@ static inline unsigned generateBlockCreateMachineInstructions(MachineBasicBlock*
 		allInstructionsOfRegion->push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 		loopStartInstruction.push_back(jumpInstr.operator ->());
 
-		for (unsigned i = 0; i < 2; i++) {
-			MachineInstrBuilder nopInstruction = BuildMI(*loopStart, loopStart->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
-			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-			nopInstruction.addReg(REDEFINE::zero);
-			nopInstruction.addImm(0);
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-			allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-		}
 	}
 
 	MachineInstrBuilder branchInstr = BuildMI(*loopStart, loopStart->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::BGE));
@@ -400,15 +339,6 @@ static inline unsigned generateBlockCreateMachineInstructions(MachineBasicBlock*
 	allInstructionsOfRegion->push_back(make_pair(branchInstr.operator->(), make_pair(currentCE, insertPosition++)));
 	loopStartInstruction.push_back(branchInstr.operator ->());
 
-	for (unsigned i = 0; i < 2; i++) {
-		MachineInstrBuilder nopInstruction = BuildMI(*loopStart, loopStart->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
-		nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-		nopInstruction.addReg(REDEFINE::zero);
-		nopInstruction.addImm(0);
-		LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-		allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(currentCE, insertPosition++)));
-	}
-
 	for (int i = currentCE + 1; i < ceCount; i++) {
 		//Add jump from indvar to loopstart
 		MachineInstrBuilder jumpInstr = BuildMI(*loopStart, loopStart->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::JAL));
@@ -417,14 +347,6 @@ static inline unsigned generateBlockCreateMachineInstructions(MachineBasicBlock*
 		allInstructionsOfRegion->push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 		loopStartInstruction.push_back(jumpInstr.operator ->());
 
-		for (unsigned j = 0; j < 2; j++) {
-			MachineInstrBuilder nopInstruction = BuildMI(*loopStart, loopStart->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
-			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-			nopInstruction.addReg(REDEFINE::zero);
-			nopInstruction.addImm(0);
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-			allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-		}
 	}
 
 	(*firstInstructionsOfBB)[loopStart] = loopStartInstruction;
@@ -440,32 +362,30 @@ static inline unsigned generateBlockCreateMachineInstructions(MachineBasicBlock*
 
 		loopBodyStartInstruction.push_back(jumpInstr.operator ->());
 
-		for (unsigned i = 0; i < 2; i++) {
-			MachineInstrBuilder nopInstruction = BuildMI(*loopBody, loopBody->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
-			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-			nopInstruction.addReg(REDEFINE::zero);
-			nopInstruction.addImm(0);
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-			allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-		}
 	}
 
 	MachineInstrBuilder falloc = BuildMI(*loopBody, loopBody->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::FALLOC));
 	allocatedFrame = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 	falloc.addReg(allocatedFrame, RegState::Define);
-	falloc.addImm(1);
+	falloc.addReg(REDEFINE::zero);
 	LIS->getSlotIndexes()->insertMachineInstrInMaps(falloc.operator llvm::MachineInstr *());
 	LIS->addLiveRangeToEndOfBlock(allocatedFrame, falloc.operator ->());
 	allInstructionsOfRegion->push_back(make_pair(addi.operator->(), make_pair(currentCE, insertPosition++)));
 	loopBodyStartInstruction.push_back(falloc.operator ->());
 
-	MachineInstrBuilder fbind = BuildMI(*loopBody, loopBody->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::FBIND));
-	fbind.addReg(allocatedFrame);
-	fbind.addReg(REDEFINE::zero);
+	MachineInstrBuilder movsym = BuildMI(*loopBody, loopBody->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVADDR));
+	unsigned symReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 	string hyperOpIDString = HYPEROP_ID_PREFIX;
 	hyperOpIDString.append(itostr(hyperOpType));
-	MCSymbol* symbol = fbind.operator ->()->getParent()->getParent()->getContext().GetOrCreateSymbol(StringRef(hyperOpIDString));
-	fbind.addSym(symbol);
+	MCSymbol* symbol = movsym.operator ->()->getParent()->getParent()->getContext().GetOrCreateSymbol(StringRef(hyperOpIDString));
+	movsym.addReg(symReg, RegState::Define).addSym(symbol);
+	LIS->getSlotIndexes()->insertMachineInstrInMaps(movsym.operator llvm::MachineInstr *());
+	allInstructionsOfRegion->push_back(make_pair(movsym.operator->(), make_pair(currentCE, insertPosition++)));
+	LIS->addLiveRangeToEndOfBlock(symReg, movsym.operator ->());
+
+
+	MachineInstrBuilder fbind = BuildMI(*loopBody, loopBody->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::FBIND));
+	fbind.addReg(allocatedFrame).addReg(symReg);
 	LIS->getSlotIndexes()->insertMachineInstrInMaps(fbind.operator llvm::MachineInstr *());
 	allInstructionsOfRegion->push_back(make_pair(fbind.operator->(), make_pair(currentCE, insertPosition++)));
 
@@ -482,15 +402,6 @@ static inline unsigned generateBlockCreateMachineInstructions(MachineBasicBlock*
 	LIS->InsertMachineInstrInMaps(loopbodyJump.operator ->());
 	allInstructionsOfRegion->push_back(make_pair(loopbodyJump.operator->(), make_pair(currentCE, insertPosition++)));
 
-	for (unsigned i = 0; i < 2; i++) {
-		MachineInstrBuilder nopInstruction = BuildMI(*loopBody, loopBody->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
-		nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-		nopInstruction.addReg(REDEFINE::zero);
-		nopInstruction.addImm(0);
-		LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-		allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(currentCE, insertPosition++)));
-	}
-
 	for (int i = currentCE + 1; i < ceCount; i++) {
 		//Add jump from indvar to loopstart
 		MachineInstrBuilder jumpInstr = BuildMI(*loopBody, loopBody->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::JAL));
@@ -498,15 +409,6 @@ static inline unsigned generateBlockCreateMachineInstructions(MachineBasicBlock*
 		LIS->InsertMachineInstrInMaps(jumpInstr.operator ->());
 		allInstructionsOfRegion->push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 		loopBodyStartInstruction.push_back(jumpInstr.operator ->());
-
-		for (unsigned j = 0; j < 2; j++) {
-			MachineInstrBuilder nopInstruction = BuildMI(*loopBody, loopBody->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI));
-			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-			nopInstruction.addReg(REDEFINE::zero);
-			nopInstruction.addImm(0);
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-			allInstructionsOfRegion->push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-		}
 	}
 
 	(*firstInstructionsOfBB)[loopBody] = loopBodyStartInstruction;
@@ -1587,17 +1489,6 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(duplicateTerminatorInstr.operator llvm::MachineInstr *());
 	}
 
-//After every region terminator, add 2 nops
-	for (unsigned i = 0; i < ceCount; i++) {
-		for (unsigned j = 0; j < 2; j++) {
-			MachineInstrBuilder nopInstruction = BuildMI(parentBasicBlock, successorOfTerminator, location, TII->get(REDEFINE::ADDI));
-			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-			nopInstruction.addReg(REDEFINE::zero);
-			nopInstruction.addImm(0);
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-			allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
-		}
-	}
 }
 
 //Shuffle instructions in the region
@@ -1903,7 +1794,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						registerContainingConsumerFrameAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 						MachineInstrBuilder falloc = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::FALLOC));
 						falloc.addReg(registerContainingConsumerFrameAddr, RegState::Define);
-						falloc.addImm(0);
+						falloc.addReg(REDEFINE::zero);
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(falloc.operator llvm::MachineInstr *());
 						LIS->addLiveRangeToEndOfBlock(registerContainingConsumerFrameAddr, falloc.operator ->());
 						allInstructionsOfRegion.push_back(make_pair(falloc.operator llvm::MachineInstr *(), make_pair(currentCE, insertPosition++)));
@@ -1950,14 +1841,19 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				unsigned registerContainingConsumerFrameAddr = registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr)->second.first;
 				unsigned ceContainingFalloc = registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr)->second.second;
 				int hyperOpId = (*childHyperOpItr)->getHyperOpId();
-				//Fbind instruction added to the immediate dominator of the HyperOp
-				MachineInstrBuilder fbind = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::FBIND));
-				fbind.addReg(REDEFINE::zero);
-				fbind.addReg(registerContainingConsumerFrameAddr);
 				string hyperOpIDString = HYPEROP_ID_PREFIX;
 				hyperOpIDString.append(itostr(hyperOpId));
-				MCSymbol* symbol = fbind.operator ->()->getParent()->getParent()->getContext().GetOrCreateSymbol(StringRef(hyperOpIDString));
-				fbind.addSym(symbol);
+				//Fbind instruction added to the immediate dominator of the HyperOp
+				unsigned symReg = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+				MachineInstrBuilder movSym = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::MOVADDR));
+				MCSymbol* symbol = movSym.operator ->()->getParent()->getParent()->getContext().GetOrCreateSymbol(StringRef(hyperOpIDString));
+				movSym.addReg(symReg, RegState::Define).addSym(symbol);
+				allInstructionsOfRegion.push_back(make_pair(movSym.operator llvm::MachineInstr *(), make_pair(ceContainingFalloc, insertPosition++)));
+				LIS->getSlotIndexes()->insertMachineInstrInMaps(movSym.operator llvm::MachineInstr *());
+				LIS->addLiveRangeToEndOfBlock(symReg, movSym.operator ->());
+
+				MachineInstrBuilder fbind = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::FBIND));
+				fbind.addReg(registerContainingConsumerFrameAddr).addReg(symReg);
 				allInstructionsOfRegion.push_back(make_pair(fbind.operator llvm::MachineInstr *(), make_pair(ceContainingFalloc, insertPosition++)));
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(fbind.operator llvm::MachineInstr *());
 			}
@@ -2235,15 +2131,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							LIS->InsertMachineInstrInMaps(jumpInstr);
 							allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 
-							for (unsigned i = 0; i < 2; i++) {
-								MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADDI));
-								nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-								nopInstruction.addReg(REDEFINE::zero);
-								nopInstruction.addImm(0);
-								LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-								allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
-							}
-
 							for (int i = 1; i < ceCount; i++) {
 								//Add jump from indvar to loopstart
 								MachineInstrBuilder jumpInstr = BuildMI(*lastBB, lastBB->end(), dl, TII->get(REDEFINE::JAL));
@@ -2252,14 +2139,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 								allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 								startInstr.push_back(jumpInstr.operator ->());
 
-								for (unsigned j = 0; j < 2; j++) {
-									MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastBB->end(), dl, TII->get(REDEFINE::ADDI));
-									nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-									nopInstruction.addReg(REDEFINE::zero);
-									nopInstruction.addImm(0);
-									LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-									allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-								}
 							}
 
 							if (firstInstructionsInLoopBB.find(lastBB) == firstInstructionsInLoopBB.end()) {
@@ -2274,15 +2153,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							allInstructionsOfRegion.push_back(make_pair(branchInstr.operator llvm::MachineInstr *(), make_pair(0, insertPosition++)));
 							loopStartInstructions.push_back(branchInstr.operator ->());
 
-							for (unsigned i = 0; i < 2; i++) {
-								MachineInstrBuilder nopInstruction = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::ADDI));
-								nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-								nopInstruction.addReg(REDEFINE::zero);
-								nopInstruction.addImm(0);
-								LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-								allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
-							}
-
 							for (int i = 1; i < ceCount; i++) {
 								//Add jump from indvar to loopstart
 								MachineInstrBuilder jumpInstr = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::JAL));
@@ -2291,14 +2161,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 								allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 								loopStartInstructions.push_back(jumpInstr.operator ->());
 
-								for (unsigned j = 0; j < 2; j++) {
-									MachineInstrBuilder nopInstruction = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::ADDI));
-									nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-									nopInstruction.addReg(REDEFINE::zero);
-									nopInstruction.addImm(0);
-									LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-									allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-								}
 							}
 							firstInstructionsInLoopBB.insert(make_pair(loopStart, loopStartInstructions));
 
@@ -2310,14 +2172,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 								allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 								loopBodyInstructions[i] = jumpInstr.operator ->();
 
-								for (unsigned j = 0; j < 2; j++) {
-									MachineInstrBuilder nopInstruction = BuildMI(*loopBody, loopBody->end(), dl, TII->get(REDEFINE::ADDI));
-									nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-									nopInstruction.addReg(REDEFINE::zero);
-									nopInstruction.addImm(0);
-									LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-									allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-								}
 							}
 
 							lastBB = loopBody;
@@ -2351,15 +2205,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 							loopbodyJump.addMBB(loopStart);
 							LIS->InsertMachineInstrInMaps(loopbodyJump);
 							insertedInstructions.push_back(loopbodyJump.operator ->());
-
-							for (unsigned i = 0; i < 2; i++) {
-								MachineInstrBuilder nopInstruction = BuildMI(*loopBody, loopBody->end(), dl, TII->get(REDEFINE::ADDI));
-								nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-								nopInstruction.addReg(REDEFINE::zero);
-								nopInstruction.addImm(0);
-								LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-								insertedInstructions.push_back(nopInstruction.operator ->());
-							}
 
 							for (auto insertItr = insertedInstructions.begin(); insertItr != insertedInstructions.end(); insertItr++) {
 								allInstructionsOfRegion.push_back(make_pair(*insertItr, make_pair(0, insertPosition++)));
@@ -2589,14 +2434,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 						startInstr.push_back(jumpInstr.operator ->());
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastBB->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 
 					//load trip count from memory location onto a register
@@ -2689,14 +2526,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					LIS->InsertMachineInstrInMaps(jumpInstr);
 					allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 
-					for (unsigned i = 0; i < 2; i++) {
-						MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADDI));
-						nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-						nopInstruction.addReg(REDEFINE::zero);
-						nopInstruction.addImm(0);
-						LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-						allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
-					}
 
 					for (int i = targetCE + 1; i < ceCount; i++) {
 						//Add jump from indvar to loopstart
@@ -2706,14 +2535,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 						startInstr.push_back(jumpInstr.operator ->());
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastBB->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 
 					if (firstInstructionsInLoopBB.find(lastBB) == firstInstructionsInLoopBB.end()) {
@@ -2727,14 +2548,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						LIS->InsertMachineInstrInMaps(jumpInstr);
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 
 					MachineInstrBuilder branchInstr = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::BGE));
@@ -2745,15 +2558,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					allInstructionsOfRegion.push_back(make_pair(branchInstr.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 					loopStartInstructions.push_back(branchInstr.operator ->());
 
-					for (unsigned i = 0; i < 2; i++) {
-						MachineInstrBuilder nopInstruction = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::ADDI));
-						nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-						nopInstruction.addReg(REDEFINE::zero);
-						nopInstruction.addImm(0);
-						LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-						allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
-					}
-
 					for (int i = targetCE + 1; i < ceCount; i++) {
 						//Add jump from indvar to loopstart
 						MachineInstrBuilder jumpInstr = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::JAL));
@@ -2762,14 +2566,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 						loopStartInstructions.push_back(jumpInstr.operator ->());
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 					firstInstructionsInLoopBB.insert(make_pair(loopStart, loopStartInstructions));
 
@@ -2781,14 +2577,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 						loopBodyInstructions[i] = jumpInstr.operator ->();
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*loopBody, loopBody->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 
 					for (int i = targetCE + 1; i < ceCount; i++) {
@@ -2799,14 +2587,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 						loopBodyInstructions[i] = jumpInstr.operator ->();
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*loopBody, loopBody->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 
 					lastBB = loopBody;
@@ -3159,15 +2939,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					LIS->InsertMachineInstrInMaps(loopbodyJump);
 					insertedInstructions.push_back(loopbodyJump.operator ->());
 
-					for (unsigned i = 0; i < 2; i++) {
-						MachineInstrBuilder nopInstruction = BuildMI(*loopBody, loopBody->end(), dl, TII->get(REDEFINE::ADDI));
-						nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-						nopInstruction.addReg(REDEFINE::zero);
-						nopInstruction.addImm(0);
-						LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-						insertedInstructions.push_back(nopInstruction.operator ->());
-					}
-
 					for (auto insertItr = insertedInstructions.begin(); insertItr != insertedInstructions.end(); insertItr++) {
 						allInstructionsOfRegion.push_back(make_pair(*insertItr, make_pair(targetCE, insertPosition++)));
 					}
@@ -3413,14 +3184,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 						startInstr.push_back(jumpInstr.operator ->());
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastBB->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 
 					//load trip count from memory location onto a register
@@ -3513,15 +3276,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					LIS->InsertMachineInstrInMaps(jumpInstr);
 					allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 
-					for (unsigned i = 0; i < 2; i++) {
-						MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADDI));
-						nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-						nopInstruction.addReg(REDEFINE::zero);
-						nopInstruction.addImm(0);
-						LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-						allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
-					}
-
 					for (int i = targetCE + 1; i < ceCount; i++) {
 						//Add jump from indvar to loopstart
 						MachineInstrBuilder jumpInstr = BuildMI(*lastBB, lastBB->end(), dl, TII->get(REDEFINE::JAL));
@@ -3530,14 +3284,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 						startInstr.push_back(jumpInstr.operator ->());
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastBB->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 
 					if (lastBB != BB && firstInstructionsInLoopBB.find(lastBB) == firstInstructionsInLoopBB.end()) {
@@ -3551,14 +3297,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						LIS->InsertMachineInstrInMaps(jumpInstr);
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 
 					MachineInstrBuilder branchInstr = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::BGE));
@@ -3569,15 +3307,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					allInstructionsOfRegion.push_back(make_pair(branchInstr.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 					loopStartInstructions.push_back(branchInstr.operator ->());
 
-					for (unsigned i = 0; i < 2; i++) {
-						MachineInstrBuilder nopInstruction = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::ADDI));
-						nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-						nopInstruction.addReg(REDEFINE::zero);
-						nopInstruction.addImm(0);
-						LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-						allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
-					}
-
 					for (int i = targetCE + 1; i < ceCount; i++) {
 						//Add jump from indvar to loopstart
 						MachineInstrBuilder jumpInstr = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::JAL));
@@ -3586,14 +3315,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 						loopStartInstructions.push_back(jumpInstr.operator ->());
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 					firstInstructionsInLoopBB.insert(make_pair(loopStart, loopStartInstructions));
 
@@ -3605,14 +3326,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 						loopBodyInstructions[i] = jumpInstr.operator ->();
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*loopBody, loopBody->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 
 					for (int i = targetCE + 1; i < ceCount; i++) {
@@ -3623,14 +3336,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 						loopBodyInstructions[i] = jumpInstr.operator ->();
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*loopBody, loopBody->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 
 					lastBB = loopBody;
@@ -4094,15 +3799,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					LIS->InsertMachineInstrInMaps(loopbodyJump);
 					insertedInstructions.push_back(loopbodyJump.operator ->());
 
-					for (unsigned i = 0; i < 2; i++) {
-						MachineInstrBuilder nopInstruction = BuildMI(*loopBody, loopBody->end(), dl, TII->get(REDEFINE::ADDI));
-						nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-						nopInstruction.addReg(REDEFINE::zero);
-						nopInstruction.addImm(0);
-						LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-						insertedInstructions.push_back(nopInstruction.operator ->());
-					}
-
 					for (auto insertItr = insertedInstructions.begin(); insertItr != insertedInstructions.end(); insertItr++) {
 						allInstructionsOfRegion.push_back(make_pair(*insertItr, make_pair(targetCE, insertPosition++)));
 					}
@@ -4348,14 +4044,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 						startInstr.push_back(jumpInstr.operator ->());
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastBB->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 
 					//load trip count from memory location onto a register
@@ -4448,15 +4136,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					LIS->InsertMachineInstrInMaps(jumpInstr.operator ->());
 					allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 
-					for (unsigned i = 0; i < 2; i++) {
-						MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADDI));
-						nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-						nopInstruction.addReg(REDEFINE::zero);
-						nopInstruction.addImm(0);
-						LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-						allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
-					}
-
 					for (int i = targetCE + 1; i < ceCount; i++) {
 						//Add jump from indvar to loopstart
 						MachineInstrBuilder jumpInstr = BuildMI(*lastBB, lastBB->end(), dl, TII->get(REDEFINE::JAL));
@@ -4465,14 +4144,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 						startInstr.push_back(jumpInstr.operator ->());
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastBB->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 
 					if (firstInstructionsInLoopBB.find(lastBB) == firstInstructionsInLoopBB.end()) {
@@ -4486,14 +4157,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						LIS->InsertMachineInstrInMaps(jumpInstr.operator ->());
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 
 					MachineInstrBuilder branchInstr = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::BGE));
@@ -4504,15 +4167,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					allInstructionsOfRegion.push_back(make_pair(branchInstr.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 					loopStartInstructions.push_back(branchInstr.operator ->());
 
-					for (unsigned i = 0; i < 2; i++) {
-						MachineInstrBuilder nopInstruction = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::ADDI));
-						nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-						nopInstruction.addReg(REDEFINE::zero);
-						nopInstruction.addImm(0);
-						LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-						allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
-					}
-
 					for (int i = targetCE + 1; i < ceCount; i++) {
 						//Add jump from indvar to loopstart
 						MachineInstrBuilder jumpInstr = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::JAL));
@@ -4521,14 +4175,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 						loopStartInstructions.push_back(jumpInstr.operator ->());
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*loopStart, loopStart->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 					firstInstructionsInLoopBB.insert(make_pair(loopStart, loopStartInstructions));
 
@@ -4540,14 +4186,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 						loopBodyInstructions[i] = jumpInstr.operator ->();
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*loopBody, loopBody->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 
 					for (int i = targetCE + 1; i < ceCount; i++) {
@@ -4558,14 +4196,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						allInstructionsOfRegion.push_back(make_pair(jumpInstr.operator->(), make_pair(i, insertPosition++)));
 						loopBodyInstructions[i] = jumpInstr.operator ->();
 
-						for (unsigned j = 0; j < 2; j++) {
-							MachineInstrBuilder nopInstruction = BuildMI(*loopBody, loopBody->end(), dl, TII->get(REDEFINE::ADDI));
-							nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-							nopInstruction.addReg(REDEFINE::zero);
-							nopInstruction.addImm(0);
-							LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(nopInstruction.operator->(), make_pair(i, insertPosition++)));
-						}
 					}
 
 					lastBB = loopBody;
@@ -4637,10 +4267,19 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
 						LIS->addLiveRangeToEndOfBlock(registerContainingData, addi.operator ->());
 					}
+
+					MachineInstrBuilder offsetAddInst = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADDI));
+					unsigned registerContainingAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+					offsetAddInst.addReg(registerContainingAddr, RegState::Define);
+					offsetAddInst.addReg(registerContainingConsumerBase);
+					offsetAddInst.addImm(contextFrameOffset);
+					allInstructionsOfRegion.push_back(make_pair(offsetAddInst.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
+					LIS->getSlotIndexes()->insertMachineInstrInMaps(offsetAddInst.operator llvm::MachineInstr *());
+					LIS->addLiveRangeToEndOfBlock(registerContainingAddr, offsetAddInst.operator ->());
+
 					MachineInstrBuilder writeToContextFrame = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::WRITECMP));
-					writeToContextFrame.addReg(registerContainingConsumerBase);
+					writeToContextFrame.addReg(registerContainingAddr);
 					writeToContextFrame.addReg(registerContainingData);
-					writeToContextFrame.addImm(contextFrameOffset);
 
 					allInstructionsOfRegion.push_back(make_pair(writeToContextFrame.operator llvm::MachineInstr *(), make_pair(targetCE, insertPosition++)));
 					//Add instruction to bundle
@@ -4695,15 +4334,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					loopbodyJump.addMBB(loopStart);
 					LIS->InsertMachineInstrInMaps(loopbodyJump.operator ->());
 					insertedInstructions.push_back(loopbodyJump.operator ->());
-
-					for (unsigned i = 0; i < 2; i++) {
-						MachineInstrBuilder nopInstruction = BuildMI(*loopBody, loopBody->end(), dl, TII->get(REDEFINE::ADDI));
-						nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-						nopInstruction.addReg(REDEFINE::zero);
-						nopInstruction.addImm(0);
-						LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-						insertedInstructions.push_back(nopInstruction.operator ->());
-					}
 
 					for (auto insertItr = insertedInstructions.begin(); insertItr != insertedInstructions.end(); insertItr++) {
 						allInstructionsOfRegion.push_back(make_pair(*insertItr, make_pair(targetCE, insertPosition++)));
@@ -4797,16 +4427,6 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 		endHyperOpInstructionRegion.push_back(endInstruction.operator ->());
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(endInstruction.operator llvm::MachineInstr *());
 		allInstructionsOfBB.push_back(make_pair(endInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
-
-		for (unsigned j = 0; j < 2; j++) {
-			MachineInstrBuilder nopInstruction = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADDI));
-			nopInstruction.addReg(REDEFINE::zero, RegState::Define);
-			nopInstruction.addReg(REDEFINE::zero);
-			nopInstruction.addImm(0);
-			LIS->getSlotIndexes()->insertMachineInstrInMaps(nopInstruction.operator llvm::MachineInstr *());
-			nopInstruction.operator llvm::MachineInstr *()->dump();
-			allInstructionsOfBB.push_back(make_pair(nopInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
-		}
 	}
 }
 
@@ -4998,11 +4618,13 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 	}
 }
 
+printf("with current hyperop %s, num ce inputs:\n", currentHyperOp->getFunction()->getName().data());
 unsigned contextFrameLocation = 0;
 for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
 	if (ceAndLiveInPhysicalRegMap.find(ceIndex) != ceAndLiveInPhysicalRegMap.end()) {
 		list<unsigned> liveInRegs = ceAndLiveInPhysicalRegMap[ceIndex];
 		currentHyperOp->setNumCEInputs(ceIndex, liveInRegs.size());
+		printf("%d:%d\n", ceIndex, liveInRegs.size());
 		if (!liveInRegs.empty()) {
 			for (list<unsigned>::iterator physRegItr = liveInRegs.begin(); physRegItr != liveInRegs.end(); physRegItr++) {
 				unsigned physReg = *physRegItr;

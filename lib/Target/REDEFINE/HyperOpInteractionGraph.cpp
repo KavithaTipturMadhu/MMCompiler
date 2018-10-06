@@ -13,8 +13,8 @@
 #include <vector>
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Instructions.h"
-#include "lpsolve/lp_lib.h"
-#include "lpsolve/lp_types.h"
+#include "lp_lib.h"
+#include "lp_types.h"
 #include "llvm/IR/HyperOpInteractionGraph.h"
 using namespace llvm;
 
@@ -3792,7 +3792,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		if (hyperOp->isPredicatedHyperOp()) {
 			HyperOp* immediateDominator = hyperOp->getImmediateDominator();
 			list<pair<HyperOpEdge*, HyperOp*> > parentPredicateChain = lastPredicateInput(controlFlowGraphAndOriginalHopMap.second[hyperOp], controlFlowGraphAndOriginalHopMap.second[hyperOp->getImmediateDominator()]);
-			errs() << "computed predicate length " << parentPredicateChain.size() << "\n";
 			pair<HyperOpEdge*, HyperOp*> parentPredicate;
 			if (parentPredicateChain.empty()) {
 				errs() << "empty predicate\n";
@@ -3892,6 +3891,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			//Identify the number of sync tokens expected on each path to a sync barrier hyperop
 			list<SyncValue> incomingSyncAlongZeroPred;
 			list<SyncValue> incomingSyncAlongOnePred;
+			list<SyncValue> incomingSyncAlongNoPred;
 			bool syncFromPredicatedSources = false;
 			for (list<HyperOp*>::iterator syncSourceItr = syncSourceList.begin(); syncSourceItr != syncSourceList.end(); syncSourceItr++) {
 				auto predicateChain = lastPredicateInputUptoParent(*syncSourceItr, hyperOp->getImmediateDominator());
@@ -3908,12 +3908,20 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 						} else {
 							incomingSyncAlongZeroPred.push_back((SyncValue) 1);
 						}
-					} else {
+					} else if(predicateChain.front().first->getPredicateValue()){
 						if ((*syncSourceItr)->getInRange()) {
 							//TODO
 							incomingSyncAlongOnePred.push_back((SyncValue) (*syncSourceItr));
 						} else {
 							incomingSyncAlongOnePred.push_back((SyncValue) 1);
+						}
+					} else {
+						if ((*syncSourceItr)->getInRange()) {
+							//TODO
+							incomingSyncAlongNoPred.push_back(
+									(SyncValue) (*syncSourceItr));
+						} else {
+							incomingSyncAlongNoPred.push_back((SyncValue) 1);
 						}
 					}
 					hyperOp->setIncomingSyncPredicate(predicateChain.front().first->getPredicateValue(), predicateChain.front().first->getValue());
@@ -3934,7 +3942,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					errs() << zeroPred.getInt() << ",";
 				}
 			}
-			errs() << "\none pred:";
+			errs() << "\nincoming preds at one:";
 			for (auto onePred : incomingSyncAlongOnePred) {
 				if (onePred.type == HYPEROP_SYNC_TYPE) {
 					errs() << onePred.getHyperOp()->getFunction()->getName() << ",";
@@ -3945,6 +3953,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			errs()<<"\n";
 			hyperOp->setIncomingSyncCount(0, incomingSyncAlongZeroPred);
 			hyperOp->setIncomingSyncCount(1, incomingSyncAlongOnePred);
+			hyperOp->setIncomingSyncCount(2, incomingSyncAlongNoPred);
 		}
 	}
 
