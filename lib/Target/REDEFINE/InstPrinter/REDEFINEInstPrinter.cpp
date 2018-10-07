@@ -90,6 +90,8 @@ void REDEFINEInstPrinter::printOperand(const MCOperand &MC, raw_ostream &O) {
 }
 
 void REDEFINEInstPrinter::printInst(const MCInst *MI, raw_ostream &O, StringRef Annot) {
+	errs()<<"Printing ";
+	MI->dump();
 	printInstruction(MI, O);
 	printAnnotation(O, Annot);
 }

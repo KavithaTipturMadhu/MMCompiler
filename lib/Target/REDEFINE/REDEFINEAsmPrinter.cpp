@@ -183,7 +183,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		instanceId.append("\t.INSTOF ").append(hyperOp->getFunction()->getName()).append(
 				"\n");
 		instanceId.append("\t.INSTADDR ").append(
-				itostr(REDEFINEUtils::getHyperOpId(hyperOp))).append("\n");
+				itostr(hyperOp->getTargetResource())).append(",").append(itostr(hyperOp->getContextFrame())).append("\n");
 		OutStreamer.EmitRawText(StringRef(instanceId));
 
 		string instAnn("\t.ANNO I ");
@@ -421,7 +421,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 	distCount.append("\n");
 	phopPC.append("\n");
 
-	staticMetadata.append(distCount);
+//	staticMetadata.append(distCount);
 	staticMetadata.append(phopPC);
 	staticMetadata.append("\t.SMD_END");
 	OutStreamer.EmitRawText(StringRef(staticMetadata));
