@@ -71,9 +71,11 @@ HyperOp::HyperOp(Function* function) {
 	this->gcRequired = false;
 	this->staticHyperOp = true;
 	list<SyncValue> zeroPredList;
-	this->numIncomingSyncEdges[0] = zeroPredList;
+	this->setIncomingSyncCount(0, zeroPredList);
 	list<SyncValue> onePredList;
-	this->numIncomingSyncEdges[1] = onePredList;
+	this->setIncomingSyncCount(1, onePredList);
+	list<SyncValue> twoPredList;
+	this->setIncomingSyncCount(2, twoPredList);
 	this->unrolledInstance = false;
 	this->instanceof = NULL;
 	this->InRange = false;
@@ -1192,7 +1194,6 @@ void HyperOpInteractionGraph::addContextFrameblockSizeEdges() {
 void HyperOpInteractionGraph::computeDominatorInfo() {
 	computeImmediateDominatorInfo();
 	computePostImmediateDominatorInfo();
-	addContextFrameblockSizeEdges();
 
 //	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 //		HyperOp* vertex = *vertexIterator;
@@ -3844,7 +3845,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		}
 	}
 
-//	cfg->print(dbgs());
 	DEBUG(dbgs() << "Decrementing sync count for nodes with sync edges coming from mutually exclusive paths\n");
 //Update the sync count of nodes with sync edges incoming from mutually exclusive paths
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
@@ -3861,9 +3861,10 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			errs() << "\nnow updating it for predicates\n";
 			//Initialize every incoming path with the same count so that decrements can be performed later
 			hyperOp->setIncomingSyncCount(1, hyperOp->getSyncCount(0));
+			hyperOp->setIncomingSyncCount(2, hyperOp->getSyncCount(0));
 			list<HyperOp*> syncSourceList;
 			for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
-				if (!parentItr->second->getInRange() && parentItr->first->getType() == HyperOpEdge::SYNC && find(syncSourceList.begin(), syncSourceList.end(), parentItr->second) == syncSourceList.end()) {
+				if (parentItr->first->getType() == HyperOpEdge::SYNC && find(syncSourceList.begin(), syncSourceList.end(), parentItr->second) == syncSourceList.end()) {
 					syncSourceList.push_back(parentItr->second);
 				}
 			}
@@ -3894,13 +3895,15 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			list<SyncValue> incomingSyncAlongNoPred;
 			bool syncFromPredicatedSources = false;
 			for (list<HyperOp*>::iterator syncSourceItr = syncSourceList.begin(); syncSourceItr != syncSourceList.end(); syncSourceItr++) {
+				errs()<<"considering sync source:"<<(*syncSourceItr)->getFunction()->getName()<<" and idom "<<hyperOp->getImmediateDominator()->getFunction()->getName()<<"\n";
 				auto predicateChain = lastPredicateInputUptoParent(*syncSourceItr, hyperOp->getImmediateDominator());
-
+				errs()<<"wth pred chain "<<predicateChain.size()<<"\n";
 				while (!predicateChain.empty() && predicateChain.front().first->getType() != HyperOpEdge::PREDICATE) {
 					predicateChain.pop_front();
 				}
 				if (!predicateChain.empty()) {
 					assert(predicateChain.front().first->getType() == HyperOpEdge::PREDICATE && "Non predicate edge in predicate chain");
+					errs()<<"predicate chain cant be empty\n";
 					if (!predicateChain.front().first->getPredicateValue()) {
 						if ((*syncSourceItr)->getInRange()) {
 							//TODO
@@ -3934,23 +3937,8 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 				hyperOp->setHasMutexSyncSources(false);
 			}
 
-			errs() << "incoming preds at zero:\n";
-			for (auto zeroPred : incomingSyncAlongZeroPred) {
-				if (zeroPred.type == HYPEROP_SYNC_TYPE) {
-					errs() << zeroPred.getHyperOp()->getFunction()->getName() << ",";
-				} else {
-					errs() << zeroPred.getInt() << ",";
-				}
-			}
-			errs() << "\nincoming preds at one:";
-			for (auto onePred : incomingSyncAlongOnePred) {
-				if (onePred.type == HYPEROP_SYNC_TYPE) {
-					errs() << onePred.getHyperOp()->getFunction()->getName() << ",";
-				} else {
-					errs() << onePred.getInt() << ",";
-				}
-			}
-			errs()<<"\n";
+			errs() << "incoming preds at zero:"<<incomingSyncAlongZeroPred.size()<<", one:"<<incomingSyncAlongOnePred.size()<<", two:"<<incomingSyncAlongNoPred.size()<<"\n";
+
 			hyperOp->setIncomingSyncCount(0, incomingSyncAlongZeroPred);
 			hyperOp->setIncomingSyncCount(1, incomingSyncAlongOnePred);
 			hyperOp->setIncomingSyncCount(2, incomingSyncAlongNoPred);

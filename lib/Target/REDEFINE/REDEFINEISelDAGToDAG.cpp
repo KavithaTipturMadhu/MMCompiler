@@ -234,8 +234,9 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 		((REDEFINETargetMachine&) TM).HIG->setNumContextFrames((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getCfCount());
 		((REDEFINETargetMachine&) TM).HIG->setMaxContextFrameSize((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getCfSize());
 		((REDEFINETargetMachine&) TM).HIG->computeDominatorInfo();
-//		((REDEFINETargetMachine&) TM).HIG->makeGraphStructured();
-		((REDEFINETargetMachine&) TM).HIG->print(dbgs());
+		((REDEFINETargetMachine&) TM).HIG->makeGraphStructured();
+		((REDEFINETargetMachine&) TM).HIG->computeDominatorInfo();
+		((REDEFINETargetMachine&) TM).HIG->addContextFrameblockSizeEdges();
 		((REDEFINETargetMachine&) TM).HIG->addContextFrameAddressForwardingEdges();
 		((REDEFINETargetMachine&) TM).HIG->minimizeControlEdges();
 		((REDEFINETargetMachine&) TM).HIG->clusterNodes();

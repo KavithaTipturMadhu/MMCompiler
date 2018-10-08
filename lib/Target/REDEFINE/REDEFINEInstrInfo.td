@@ -69,7 +69,7 @@ def AND : InstR<"and" , 0b0110011, 0b0000000111, and   , GR32, GR32>;
 
 //Unconditional Jumps
 let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
-  def JAL  : InstJ<0b1100111, (outs), (ins jumptarget:$target), "jal \t$target", 
+  def JAL  : InstJ<0b1100111, (outs), (ins jumptarget:$target), "jal x0,\t$target", 
           [(br bb:$target)]>;
 }
 
@@ -182,7 +182,7 @@ def DREADPM: InstIREDEFINEImm<"dreadpm", 0b0000001, 0b010       , add, GR32, GR3
 //REDEFINE S instructions
 
 def END: InstREDEFINE<4, (outs), (ins imm32sx12:$src), 
-                "end \t$src", 
+                "end x0", 
                 [],REDEFINEALU> {
   field bits<32> Inst;
 
