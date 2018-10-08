@@ -180,16 +180,20 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		OutStreamer.EmitRawText(StringRef("\t.STATICINSTANCE_BEGIN\n"));
 		string instanceId = ("\t.INSTID ");
 		instanceId.append(hyperOp->getFunction()->getName()).append("\n");
-		instanceId.append("\t.INSTOF ").append(hyperOp->getFunction()->getName()).append(
+		instanceId.append("\t.INSTOF ").append("HyOp#").append(itostr(hyperOp->getHyperOpId())).append(
 				"\n");
 		instanceId.append("\t.INSTADDR ").append(
-				itostr(hyperOp->getTargetResource())).append(",").append(itostr(hyperOp->getContextFrame())).append("\n");
+				itostr(hyperOp->getTargetResource())).append(",").append(itostr(hyperOp->getContextFrame()*64)).append("\n");
 		OutStreamer.EmitRawText(StringRef(instanceId));
 
-		string instAnn("\t.ANNO I ");
-		instAnn.append(hyperOp->isStartHyperOp() ? "A" : "").append("\n");
+		string instAnn("\t.ANNO I");
+		instAnn.append(hyperOp->isStartHyperOp() ? ",A" : "").append("\n");
 		OutStreamer.EmitRawText(StringRef(instAnn));
 
+		if(hyperOp->isStartHyperOp()){
+			string startOperand("\t.OPERAND 15, 1\n");
+			OutStreamer.EmitRawText(StringRef(startOperand));
+		}
 //		string instanceId(HYPEROP_INSTANCE_PREFIX);
 //		instanceId.append(itostr(REDEFINEUtils::getHyperOpId(hyperOp))).append("\t");
 //		OutStreamer.EmitRawText(StringRef(instanceId));

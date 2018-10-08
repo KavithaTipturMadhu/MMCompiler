@@ -1198,7 +1198,6 @@ void HyperOpInteractionGraph::addContextFrameblockSizeEdges() {
 void HyperOpInteractionGraph::computeDominatorInfo() {
 	computeImmediateDominatorInfo();
 	computePostImmediateDominatorInfo();
-	addContextFrameblockSizeEdges();
 
 //	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 //		HyperOp* vertex = *vertexIterator;
@@ -3603,6 +3602,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 				}
 				if (!predicateChain.empty()) {
 					assert(predicateChain.front().first->getType() == HyperOpEdge::PREDICATE && "Non predicate edge in predicate chain");
+					errs()<<"predicate chain cant be empty\n";
 					if (!predicateChain.front().first->getPredicateValue()) {
 						if ((*syncSourceItr)->getInRange()) {
 							//TODO
@@ -3642,6 +3642,8 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			} else {
 				hyperOp->setHasMutexSyncSources(false);
 			}
+
+			errs() << "incoming preds at zero:"<<incomingSyncAlongZeroPred.size()<<", one:"<<incomingSyncAlongOnePred.size()<<", two:"<<incomingSyncAlongNoPred.size()<<"\n";
 
 			hyperOp->setIncomingSyncCount(0, incomingSyncAlongZeroPred);
 			hyperOp->setIncomingSyncCount(1, incomingSyncAlongOnePred);
