@@ -180,14 +180,14 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		OutStreamer.EmitRawText(StringRef("\t.STATICINSTANCE_BEGIN\n"));
 		string instanceId = ("\t.INSTID ");
 		instanceId.append(hyperOp->getFunction()->getName()).append("\n");
-		instanceId.append("\t.INSTOF ").append("HyOp#").append(itostr(hyperOp->getHyperOpId())).append(
+		instanceId.append("\t.INSTOF ").append(".HyOp#").append(itostr(hyperOp->getHyperOpId())).append(
 				"\n");
 		instanceId.append("\t.INSTADDR ").append(
 				itostr(hyperOp->getTargetResource())).append(",").append(itostr(hyperOp->getContextFrame()*64)).append("\n");
 		OutStreamer.EmitRawText(StringRef(instanceId));
 
-		string instAnn("\t.ANNO I");
-		instAnn.append(hyperOp->isStartHyperOp() ? ",A" : "").append("\n");
+		string instAnn("\t.ANNO I, A\n");
+//		instAnn.append(hyperOp->isStartHyperOp()|(!hyperOp->isStaticHyperOp()) ? ",A" : "").append("\n");
 		OutStreamer.EmitRawText(StringRef(instAnn));
 
 		if(hyperOp->isStartHyperOp()){

@@ -384,7 +384,7 @@ static inline unsigned generateBlockCreateMachineInstructions(MachineBasicBlock*
 	LIS->addLiveRangeToEndOfBlock(symReg, movsym.operator ->());
 
 	MachineInstrBuilder fbind = BuildMI(*loopBody, loopBody->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::FBIND));
-	fbind.addReg(allocatedFrame).addReg(symReg);
+	fbind.addReg(symReg).addReg(allocatedFrame);
 	LIS->getSlotIndexes()->insertMachineInstrInMaps(fbind.operator llvm::MachineInstr *());
 	allInstructionsOfRegion->push_back(make_pair(fbind.operator->(), make_pair(currentCE, insertPosition++)));
 
@@ -1764,7 +1764,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	}
 
 //fbind is in case of context frames being reused statically and hence, is added optionally; returns are assumed to be merged during HyperOp creation
-	DEBUG(dbgs() << "Adding all fallocs first to avoid stalls due to sequential fallocs and fbinds\n");
+	DEBUG(dbgs() << "Adding all fallocs first to avoid stalls due to sequential fallocs and fbinds, unless the child hyperop is range hop\n");
 	map<HyperOp*, pair<unsigned, unsigned> > registerContainingHyperOpFrameAddressAndCEWithFalloc;
 	unsigned currentCE = 0;
 	for (list<HyperOp*>::iterator childHyperOpItr = graph->Vertices.begin(); childHyperOpItr != graph->Vertices.end(); childHyperOpItr++) {
@@ -1836,7 +1836,7 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 	for (list<HyperOp*>::iterator childHyperOpItr = graph->Vertices.begin(); childHyperOpItr != graph->Vertices.end(); childHyperOpItr++) {
 //Among the HyperOps immediately dominated by the hyperOp, add fbind for those HyperOps that require it
 		if ((*childHyperOpItr)->getImmediateDominator() == hyperOp) {
-			if (!(*childHyperOpItr)->isStaticHyperOp()) {
+			if (!(*childHyperOpItr)->isStaticHyperOp() && !(*childHyperOpItr)->getInRange()) {
 				unsigned registerContainingConsumerFrameAddr = registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr)->second.first;
 				unsigned ceContainingFalloc = registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr)->second.second;
 				int hyperOpId = (*childHyperOpItr)->getHyperOpId();
@@ -1852,31 +1852,22 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 				LIS->addLiveRangeToEndOfBlock(symReg, movSym.operator ->());
 
 				MachineInstrBuilder fbind = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::FBIND));
-				fbind.addReg(registerContainingConsumerFrameAddr).addReg(symReg);
+				fbind.addReg(symReg).addReg(registerContainingConsumerFrameAddr);
 				allInstructionsOfRegion.push_back(make_pair(fbind.operator llvm::MachineInstr *(), make_pair(ceContainingFalloc, insertPosition++)));
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(fbind.operator llvm::MachineInstr *());
 			}
 			if ((*childHyperOpItr)->isBarrierHyperOp()) {
 				unsigned registerContainingConsumerFrameAddr = registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr)->second.first;
 				unsigned ceContainingConsumerFrameAddr = registerContainingHyperOpFrameAddressAndCEWithFalloc.find(*childHyperOpItr)->second.second;
-				unsigned registerWithSyncCount = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+				unsigned registerWithSyncCount;
+				unsigned predicatedRegWithSyncCount;
+				bool predicatedRegAdded = false;
 				//Mutually exclusive sync sources, add instructions to multiply the predicate values that reaches the sync producer with the
 				MachineInstrBuilder addi;
 				unsigned addSync;
-				if ((*childHyperOpItr)->getSyncCount(0).size() != (*childHyperOpItr)->getSyncCount(1).size()) {
-					errs() << "When adding sync count from " << hyperOp->getFunction()->getName() << " to " << (*childHyperOpItr)->getFunction()->getName() << "\n";
-//					if ((*childHyperOpItr)->getSyncCount(0).front().getType() == SyncValueType::HYPEROPTYPE) {
-//						errs() << hyperOp->getSyncCount(0).front().getHyperOp()->getFunction()->getName() << "\n";
-//					} else {
-//						errs() << hyperOp->getSyncCount(0).front().getInt() << "\n";
-//					}
-//					errs() << "and 1's synccount set to :";
-//					if ((*childHyperOpItr)->getSyncCount(1).front().getType() == SyncValueType::HYPEROPTYPE) {
-//						errs() << hyperOp->getSyncCount(1).front().getHyperOp()->getFunction()->getName() << "\n";
-//					} else {
-//						errs() << hyperOp->getSyncCount(1).front().getInt() << "\n";
-//					}
-
+				if ((*childHyperOpItr)->getSyncCount(0).size() != (*childHyperOpItr)->getSyncCount(1).size() && !(*childHyperOpItr)->getSyncCount(1).empty() && !(*childHyperOpItr)->getSyncCount(0).empty()) {
+					predicatedRegAdded = true;
+					predicatedRegWithSyncCount = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 					unsigned firstPredSyncCount = getSyncCountInReg(lastBB, lastInstruction, TM, TII, (*childHyperOpItr)->getSyncCount(0), &allInstructionsOfRegion, LIS, currentCE, &insertPosition);
 					unsigned secondPredSyncCount = getSyncCountInReg(lastBB, lastInstruction, TM, TII, (*childHyperOpItr)->getSyncCount(1), &allInstructionsOfRegion, LIS, currentCE, &insertPosition);
 
@@ -1941,25 +1932,45 @@ if (BB->getName().compare(MF.back().getName()) == 0) {
 					LIS->addLiveRangeToEndOfBlock(secondPredMul, secondSyncMul.operator ->());
 
 					addi = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADD));
-					addi.addReg(registerWithSyncCount, RegState::Define).addReg(firstPredMul).addReg(secondPredMul);
+					addi.addReg(predicatedRegWithSyncCount, RegState::Define).addReg(firstPredMul).addReg(secondPredMul);
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
 					allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(ceContainingConsumerFrameAddr, insertPosition++)));
-					LIS->addLiveRangeToEndOfBlock(registerWithSyncCount, addi.operator ->());
+					LIS->addLiveRangeToEndOfBlock(predicatedRegWithSyncCount, addi.operator ->());
 
 					if (firstInstructionOfpHyperOpInRegion[ceContainingConsumerFrameAddr] == 0) {
 						firstInstructionOfpHyperOpInRegion[ceContainingConsumerFrameAddr] = addi.operator llvm::MachineInstr *();
 					}
-				} else {
-					registerWithSyncCount = getSyncCountInReg(lastBB, lastInstruction, TM, TII, (*childHyperOpItr)->getSyncCount(0), &allInstructionsOfRegion, LIS, currentCE, &insertPosition);
+				} else if(!(*childHyperOpItr)->getSyncCount(0).empty()){
+					predicatedRegAdded = true;
+					predicatedRegWithSyncCount = getSyncCountInReg(lastBB, lastInstruction, TM, TII, (*childHyperOpItr)->getSyncCount(0), &allInstructionsOfRegion, LIS, currentCE, &insertPosition);
+				}else if(!(*childHyperOpItr)->getSyncCount(1).empty()){
+					predicatedRegAdded = true;
+					predicatedRegWithSyncCount = getSyncCountInReg(lastBB, lastInstruction, TM, TII, (*childHyperOpItr)->getSyncCount(1), &allInstructionsOfRegion, LIS, currentCE, &insertPosition);
+				}
+
+				if (!(*childHyperOpItr)->getSyncCount(2).empty()) {
+					//Add unpredicated sync count to the overall sync count
+					unsigned unpredicatedSyncCount = getSyncCountInReg(lastBB, lastInstruction, TM, TII, (*childHyperOpItr)->getSyncCount(2), &allInstructionsOfRegion, LIS, currentCE, &insertPosition);
+					if (predicatedRegAdded) {
+						registerWithSyncCount = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+						MachineInstrBuilder addi = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::ADD));
+						addi.addReg(registerWithSyncCount, RegState::Define).addReg(predicatedRegWithSyncCount).addReg(unpredicatedSyncCount);
+						allInstructionsOfRegion.push_back(make_pair(addi.operator llvm::MachineInstr *(), make_pair(ceContainingConsumerFrameAddr, insertPosition++)));
+						LIS->getSlotIndexes()->insertMachineInstrInMaps(addi.operator llvm::MachineInstr *());
+						LIS->addLiveRangeToEndOfBlock(registerWithSyncCount, addi.operator ->());
+					} else {
+						registerWithSyncCount = unpredicatedSyncCount;
+					}
+				}else{
+					registerWithSyncCount = predicatedRegWithSyncCount;
 				}
 
 				MachineInstrBuilder writecm = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::WRITECM));
 				writecm.addReg(registerContainingConsumerFrameAddr);
 				writecm.addReg(registerWithSyncCount);
 				writecm.addImm(SYNC_SLOT_OFFSET);
-
-				//Add the writecm instructions to the function map so that they can be patched for the right context frame location later
-				Function* consumerFunction = (*childHyperOpItr)->getFunction();
+				errs()<<"writecm for child hop "<<(*childHyperOpItr)->getFunction()->getName()<<":";
+				writecm.operator ->()->dump();
 
 				allInstructionsOfRegion.push_back(make_pair(writecm.operator llvm::MachineInstr *(), make_pair(ceContainingConsumerFrameAddr, insertPosition++)));
 				LIS->getSlotIndexes()->insertMachineInstrInMaps(writecm.operator llvm::MachineInstr *());
@@ -4612,13 +4623,11 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 	}
 }
 
-printf("with current hyperop %s, num ce inputs:\n", currentHyperOp->getFunction()->getName().data());
 unsigned contextFrameLocation = 0;
 for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
 	if (ceAndLiveInPhysicalRegMap.find(ceIndex) != ceAndLiveInPhysicalRegMap.end()) {
 		list<unsigned> liveInRegs = ceAndLiveInPhysicalRegMap[ceIndex];
 		currentHyperOp->setNumCEInputs(ceIndex, liveInRegs.size());
-		printf("%d:%d\n", ceIndex, liveInRegs.size());
 		if (!liveInRegs.empty()) {
 			for (list<unsigned>::iterator physRegItr = liveInRegs.begin(); physRegItr != liveInRegs.end(); physRegItr++) {
 				unsigned physReg = *physRegItr;

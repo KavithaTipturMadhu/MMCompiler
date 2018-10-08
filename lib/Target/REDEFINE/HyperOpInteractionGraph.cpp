@@ -186,6 +186,7 @@ void HyperOp::addIncomingSyncValue(unsigned predicateValue, SyncValue value) {
 }
 
 void HyperOp::setIncomingSyncCount(unsigned predicateValue, list<SyncValue> syncCountList) {
+	this->numIncomingSyncEdges[predicateValue].clear();
 	for (auto syncCount : syncCountList) {
 		this->numIncomingSyncEdges[predicateValue].push_back(syncCount);
 	}
@@ -3860,8 +3861,6 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			}
 			errs() << "\nnow updating it for predicates\n";
 			//Initialize every incoming path with the same count so that decrements can be performed later
-			hyperOp->setIncomingSyncCount(1, hyperOp->getSyncCount(0));
-			hyperOp->setIncomingSyncCount(2, hyperOp->getSyncCount(0));
 			list<HyperOp*> syncSourceList;
 			for (map<HyperOpEdge*, HyperOp*>::iterator parentItr = hyperOp->ParentMap.begin(); parentItr != hyperOp->ParentMap.end(); parentItr++) {
 				if (parentItr->first->getType() == HyperOpEdge::SYNC && find(syncSourceList.begin(), syncSourceList.end(), parentItr->second) == syncSourceList.end()) {
@@ -3911,24 +3910,23 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 						} else {
 							incomingSyncAlongZeroPred.push_back((SyncValue) 1);
 						}
-					} else if(predicateChain.front().first->getPredicateValue()){
+					} else{
 						if ((*syncSourceItr)->getInRange()) {
 							//TODO
 							incomingSyncAlongOnePred.push_back((SyncValue) (*syncSourceItr));
 						} else {
 							incomingSyncAlongOnePred.push_back((SyncValue) 1);
 						}
-					} else {
-						if ((*syncSourceItr)->getInRange()) {
-							//TODO
-							incomingSyncAlongNoPred.push_back(
-									(SyncValue) (*syncSourceItr));
-						} else {
-							incomingSyncAlongNoPred.push_back((SyncValue) 1);
-						}
 					}
 					hyperOp->setIncomingSyncPredicate(predicateChain.front().first->getPredicateValue(), predicateChain.front().first->getValue());
 					syncFromPredicatedSources = true;
+				} else {
+					if ((*syncSourceItr)->getInRange()) {
+						//TODO
+						incomingSyncAlongNoPred.push_back((SyncValue) (*syncSourceItr));
+					} else {
+						incomingSyncAlongNoPred.push_back((SyncValue) 1);
+					}
 				}
 			}
 			if (syncFromPredicatedSources && hyperOp->getParentList().size() > syncSourceList.size()) {
@@ -3937,16 +3935,22 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 				hyperOp->setHasMutexSyncSources(false);
 			}
 
-			errs() << "incoming preds at zero:"<<incomingSyncAlongZeroPred.size()<<", one:"<<incomingSyncAlongOnePred.size()<<", two:"<<incomingSyncAlongNoPred.size()<<"\n";
+			errs() << "hop "<<hyperOp->getFunction()->getName()<<" incoming preds at zero:"<<incomingSyncAlongZeroPred.size()<<", one:"<<incomingSyncAlongOnePred.size()<<", two:"<<incomingSyncAlongNoPred.size()<<"\n";
 
 			hyperOp->setIncomingSyncCount(0, incomingSyncAlongZeroPred);
 			hyperOp->setIncomingSyncCount(1, incomingSyncAlongOnePred);
 			hyperOp->setIncomingSyncCount(2, incomingSyncAlongNoPred);
+			errs() << "hop "<<hyperOp->getFunction()->getName()<<" incoming preds at zero:"<<hyperOp->getSyncCount(0).size()<<", one:"<<hyperOp->getSyncCount(1).size()<<", two:"<<hyperOp->getSyncCount(2).size()<<"\n";
 		}
 	}
 
 	DEBUG(dbgs() << "after minimizing cluster and converting scalar edges to local refs, graph:");
 	this->print(dbgs());
+	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
+		HyperOp* hyperOp = *hopItr;
+		errs() << "incoming preds at zero:"<<hyperOp->getSyncCount(0).size()<<", one:"<<hyperOp->getSyncCount(1).size()<<", two:"<<hyperOp->getSyncCount(2).size()<<"\n";
+	}
+
 }
 
 HyperOp * HyperOpInteractionGraph::getHyperOp(Function * F) {
