@@ -21,7 +21,28 @@
 #include "llvm/CodeGen/PseudoSourceValue.h"
 
 namespace llvm {
-//TODO add context frame stuff here
+
+/// Add a BDX memory reference for frame object FI to MIB.
+static inline const MachineInstrBuilder &
+addFrameReference(const MachineInstrBuilder &MIB, int FI) {
+  MachineInstr *MI = MIB;
+  MachineFunction &MF = *MI->getParent()->getParent();
+  MachineFrameInfo *MFFrame = MF.getFrameInfo();
+  const MCInstrDesc &MCID = MI->getDesc();
+  unsigned Flags = 0;
+  if (MCID.mayLoad())
+    Flags |= MachineMemOperand::MOLoad;
+  if (MCID.mayStore())
+    Flags |= MachineMemOperand::MOStore;
+  int64_t Offset = 0;
+  MachineMemOperand *MMO =
+    MF.getMachineMemOperand(MachinePointerInfo(
+                              PseudoSourceValue::getFixedStack(FI), Offset),
+                            Flags, MFFrame->getObjectSize(FI),
+                            MFFrame->getObjectAlignment(FI));
+  return MIB.addFrameIndex(FI).addImm(Offset).addMemOperand(MMO);
+}
+
 } // End llvm namespace
 
 #endif
