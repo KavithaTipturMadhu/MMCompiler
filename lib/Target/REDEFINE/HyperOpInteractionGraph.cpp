@@ -1217,7 +1217,6 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 	bool change = true;
 	int i = 0;
 	while (change) {
-		errs() << "change " << i << "\n";
 		i++;
 		change = false;
 		map<HyperOp*, HyperOp*> hyperOpForFixWithMerges;
@@ -1466,7 +1465,6 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 		HyperOp* vertex = *vertexIterator;
 		list<HyperOp*> vertexDomFrontier;
 		list<HyperOp*> originalDomFrontier = vertex->getDominanceFrontier();
-		errs() << "\n------\nforwarding address to " << vertex->asString() << ":";
 		for (list<HyperOp*>::iterator originalDomfItr = originalDomFrontier.begin(); originalDomfItr != originalDomFrontier.end(); originalDomfItr++) {
 			vertexDomFrontier.push_back(*originalDomfItr);
 		}
@@ -1492,7 +1490,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 		for (list<HyperOp*>::iterator dominanceFrontierIterator = vertexDomFrontier.begin(); dominanceFrontierIterator != vertexDomFrontier.end(); dominanceFrontierIterator++) {
 			HyperOp* dominanceFrontierHyperOp = *dominanceFrontierIterator;
 			bool isRangeHop = dominanceFrontierHyperOp->getInRange();
-			if (dominanceFrontierHyperOp != vertex) {
+			if (dominanceFrontierHyperOp != vertex && !dominanceFrontierHyperOp->isStaticHyperOp()) {
 				HyperOp* immediateDominator = vertex->getImmediateDominator();
 				HyperOpEdge* contextFrameEdge = new HyperOpEdge();
 				contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR);
