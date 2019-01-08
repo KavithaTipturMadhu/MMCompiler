@@ -1274,7 +1274,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 		for (list<HyperOp*>::iterator dominanceFrontierIterator = vertexDomFrontier.begin(); dominanceFrontierIterator != vertexDomFrontier.end(); dominanceFrontierIterator++) {
 			HyperOp* dominanceFrontierHyperOp = *dominanceFrontierIterator;
 			bool isRangeHop = dominanceFrontierHyperOp->getInRange();
-			if (dominanceFrontierHyperOp != vertex) {
+			if (dominanceFrontierHyperOp != vertex && !dominanceFrontierHyperOp->isStaticHyperOp()) {
 				HyperOp* immediateDominator = vertex->getImmediateDominator();
 				HyperOpEdge* contextFrameEdge = new HyperOpEdge();
 				contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR);
