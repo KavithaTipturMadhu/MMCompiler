@@ -66,7 +66,7 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	vector<unsigned> registersUsedInBB;
 
 	//Contains t4 and t5 registers, a copy of t5 and their allocated virtual registers in each pHyperOp
-	pair<unsigned, unsigned> virtualRegistersForInstAddr[4];
+//	pair<unsigned, unsigned> virtualRegistersForInstAddr[4];
 
 	//Position tracking a new insertion
 	unsigned insertPosition = 0;
@@ -91,6 +91,8 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	map<Function*, list<MachineInstr*> > writeInstrToContextFrame;
 
 	PHyperOpInteractionGraph pHopInteractionGraph;
+
+//	map<const Function*, MachineBasicBlock::iterator> firstRegionInFunction;
 
 	unsigned copyOfInstanceId;
 	unsigned REDEFINEphysRegs[16] = { REDEFINE::ra, REDEFINE::sp, REDEFINE::gp, REDEFINE::tp, REDEFINE::t0, REDEFINE::t1, REDEFINE::t2, REDEFINE::t3, REDEFINE::fp, REDEFINE::s0, REDEFINE::s1, REDEFINE::a0, REDEFINE::a1, REDEFINE::a2, REDEFINE::a3, REDEFINE::a4 };
