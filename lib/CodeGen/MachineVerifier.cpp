@@ -618,9 +618,9 @@ MachineVerifier::visitMachineBasicBlockBefore(const MachineBasicBlock *MBB) {
       if (MBB->empty()) {
         report("MBB exits via conditional branch/fall-through but doesn't "
                "contain any instructions!", MBB);
-      } else if (getBundleStart(&MBB->back())->isBarrier()) {
-        report("MBB exits via conditional branch/fall-through but ends with a "
-               "barrier instruction!", MBB);
+//      } else if (getBundleStart(&MBB->back())->isBarrier()) {
+//        report("MBB exits via conditional branch/fall-through but ends with a "
+//               "barrier instruction!", MBB);
       } else if (!getBundleStart(&MBB->back())->isTerminator()) {
         report("MBB exits via conditional branch/fall-through but the branch "
                "isn't a terminator instruction!", MBB);
