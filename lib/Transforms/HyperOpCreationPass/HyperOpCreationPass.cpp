@@ -2722,6 +2722,7 @@ struct HyperOpCreationPass: public ModulePass {
 					parentCallSite.pop_back();
 				}
 
+				errs()<<("whats going on here?\n");
 				list<Function*> parentFunctionList = getFunctionAtCallSite(parentCallSite, createdHyperOpAndCallSite);
 				//The called function doesn't match the callsite of the current hyperop which means that the current HyperOp is not the first in the recursion cycle
 				//todo uncomment
@@ -2754,6 +2755,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 				tag.append(">");
+				errs()<<"here with tag "<<tag<<"\n";
 				values.push_back(MDString::get(ctxt, tag));
 				//Check if the accumulated bbs are supposed to be a range of HyperOps
 				LoopIV* loopIV = NULL;
@@ -2798,6 +2800,7 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 
 				if (!mismatch) {
+					errs()<<"why "<<loopIV->getLowerBoundType()<<"\n";
 					if (loopIV->getLowerBoundType() == LoopIV::CONSTANT) {
 						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantLowerBound())));
 					} else {
@@ -2816,6 +2819,7 @@ struct HyperOpCreationPass: public ModulePass {
 						assert(isa<LoadInst>(upperBound) && "Non global bounds not supported currently");
 						values.push_back(((Instruction*) upperBound)->getOperand(0));
 					}
+					errs()<<"why 2\n";
 
 					values.push_back(MDString::get(ctxt, StringRef(loopIV->getIncOperation())));
 					values.push_back(loopIV->getStride());
@@ -2836,7 +2840,7 @@ struct HyperOpCreationPass: public ModulePass {
 			redefineAnnotationsNode->addOperand(funcAnnotation);
 			bool isKernelEntry = false;
 			bool isKernelExit = false;
-
+			errs()<<"and then here\n";
 			if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &mainFunction->getEntryBlock()) != accumulatedBasicBlocks.end()) {
 				isKernelEntry = true;
 			}
@@ -4702,23 +4706,23 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 		}
 
-//		DEBUG(dbgs() << "\n-----------Deleting unused functions-----------\n");
-//		//Workaround for deleting unused functions, deletion doesn't work unless in topological order but what about recursion?
-//		list<Function*> functionsForDeletion;
-//		for (Module::iterator functionItr = M.begin(); functionItr != M.end(); functionItr++) {
-//			//Remove old functions from module
-//			if (createdHyperOpAndOriginalBasicBlockAndArgMap.find(functionItr) == createdHyperOpAndOriginalBasicBlockAndArgMap.end() && !functionItr->isIntrinsic()) {
-//				errs() << "deleting contents of function:" << functionItr->getName() << "\n";
-//				functionItr->deleteBody();
-//				functionsForDeletion.push_back(functionItr);
-//			}
-//		}
-//
-//		while (!functionsForDeletion.empty()) {
-//			Function* function = functionsForDeletion.front();
-//			functionsForDeletion.pop_front();
-//			function->eraseFromParent();
-//		}
+		DEBUG(dbgs() << "\n-----------Deleting unused functions-----------\n");
+		//Workaround for deleting unused functions, deletion doesn't work unless in topological order but what about recursion?
+		list<Function*> functionsForDeletion;
+		for (Module::iterator functionItr = M.begin(); functionItr != M.end(); functionItr++) {
+			//Remove old functions from module
+			if (createdHyperOpAndOriginalBasicBlockAndArgMap.find(functionItr) == createdHyperOpAndOriginalBasicBlockAndArgMap.end() && !functionItr->isIntrinsic()) {
+				errs() << "deleting contents of function:" << functionItr->getName() << "\n";
+				functionItr->deleteBody();
+				functionsForDeletion.push_back(functionItr);
+			}
+		}
+
+		while (!functionsForDeletion.empty()) {
+			Function* function = functionsForDeletion.front();
+			functionsForDeletion.pop_front();
+			function->eraseFromParent();
+		}
 
 //		DEBUG(dbgs() << "Updating branch instructions to fold if branch targets are the same\n");
 //		for (auto newFunction = M.begin(); newFunction!=M.end();newFunction++) {
