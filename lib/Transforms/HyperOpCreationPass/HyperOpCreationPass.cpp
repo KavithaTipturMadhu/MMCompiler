@@ -2145,7 +2145,7 @@ struct HyperOpCreationPass: public ModulePass {
 			list<BasicBlock*> accumulatedBasicBlocks = functionToBeCreated.first;
 			Function* function = accumulatedBasicBlocks.front()->getParent();
 			HyperOpArgumentList hyperOpArguments = functionToBeCreated.second;
-			bool isStaticHyperOp = true;
+			bool isStaticHyperOp = false;
 			//Create a function using the accumulated basic blocks
 			if (isa<CallInst>(accumulatedBasicBlocks.front()->front()) && !((CallInst*) &accumulatedBasicBlocks.front()->front())->getCalledFunction()->isIntrinsic()) {
 				//Check if the hyperop instance being created is not in the call cycle
@@ -2179,22 +2179,22 @@ struct HyperOpCreationPass: public ModulePass {
 			DEBUG(dbgs() << "\n-----------Creating a new HyperOp for function:" << function->getName() << "-----------\n");
 			CallInst* instanceCallSite = callSite.back();
 			Function* accumulatedFunc = accumulatedBasicBlocks.front()->getParent();
-			if ((!callSite.empty() && isa<CallInst>(instanceCallSite) && ((isHyperOpInstanceInCycle(instanceCallSite, cyclesInCallGraph)) || find(parallelLoopFunctionList.begin(), parallelLoopFunctionList.end(), instanceCallSite->getCalledFunction()) != parallelLoopFunctionList.end()))) {
-				isStaticHyperOp = false;
-			} else {
-				for (auto nestedLoopItr = originalSerialLoopBB.begin(); nestedLoopItr != originalSerialLoopBB.end(); nestedLoopItr++) {
-					list<BasicBlock*> loopBB = nestedLoopItr->first;
-					for (auto accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
-						if (find(loopBB.begin(), loopBB.end(), *accumulatedBBItr) != loopBB.end()) {
-							isStaticHyperOp = false;
-							break;
-						}
-					}
-					if (!isStaticHyperOp) {
-						break;
-					}
-				}
-			}
+//			if ((!callSite.empty() && isa<CallInst>(instanceCallSite) && ((isHyperOpInstanceInCycle(instanceCallSite, cyclesInCallGraph)) || find(parallelLoopFunctionList.begin(), parallelLoopFunctionList.end(), instanceCallSite->getCalledFunction()) != parallelLoopFunctionList.end()))) {
+//				isStaticHyperOp = false;
+//			} else {
+//				for (auto nestedLoopItr = originalSerialLoopBB.begin(); nestedLoopItr != originalSerialLoopBB.end(); nestedLoopItr++) {
+//					list<BasicBlock*> loopBB = nestedLoopItr->first;
+//					for (auto accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
+//						if (find(loopBB.begin(), loopBB.end(), *accumulatedBBItr) != loopBB.end()) {
+//							isStaticHyperOp = false;
+//							break;
+//						}
+//					}
+//					if (!isStaticHyperOp) {
+//						break;
+//					}
+//				}
+//			}
 			bool parallelLatchBB = false;
 			for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 				LoopIV* parallelLoopIV;
@@ -2703,144 +2703,8 @@ struct HyperOpCreationPass: public ModulePass {
 				numCallInstrAdded--;
 			}
 
-			MDNode *funcAnnotation;
-			//Keep the following branch structure
-			if (!isStaticHyperOp) {
-				vector<Value*> values;
-				values.push_back(MDString::get(ctxt, HYPEROP));
-				values.push_back(newFunction);
-				values.push_back(MDString::get(ctxt, DYNAMIC_HYPEROP));
-				list<CallInst*> parentCallSite;
-				std::copy(callSite.begin(), callSite.end(), back_inserter(parentCallSite));
-				//pop from call site till you end up with a function thats marked static
-				while (!parentCallSite.empty()) {
-					//This is a list because the parent function maybe broken down to multiple functions
-					list<Function*> parentFunctionList = getFunctionAtCallSite(parentCallSite, createdHyperOpAndCallSite);
-					if (createdHyperOpAndType[parentFunctionList.front()] == STATIC) {
-						break;
-					}
-					parentCallSite.pop_back();
-				}
-
-				errs()<<("whats going on here?\n");
-				list<Function*> parentFunctionList = getFunctionAtCallSite(parentCallSite, createdHyperOpAndCallSite);
-				//The called function doesn't match the callsite of the current hyperop which means that the current HyperOp is not the first in the recursion cycle
-				//todo uncomment
-				if (parentCallSite.empty() || callSite.empty() || parentCallSite.back()->getCalledFunction() != callSite.back()->getCalledFunction()) {
-					values.push_back(newFunction);
-				} else {
-					//Find the original function from which the parent function was created
-					for (list<Function*>::iterator parentFuncItr = parentFunctionList.begin(); parentFuncItr != parentFunctionList.end(); parentFuncItr++) {
-						bool matchFound = true;
-						list<BasicBlock*> parentFuncBBList = createdHyperOpAndOriginalBasicBlockAndArgMap[*parentFuncItr].first;
-						for (list<BasicBlock*>::iterator bbItr = parentFuncBBList.begin(); bbItr != parentFuncBBList.end(); bbItr++) {
-							if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), *bbItr) == accumulatedBasicBlocks.end()) {
-								matchFound = false;
-								break;
-							}
-						}
-						if (matchFound) {
-							values.push_back(*parentFuncItr);
-							break;
-						}
-					}
-				}
-				//Convert the id to a tag string
-				list<unsigned> uniqueIdInCallTree = getHyperOpInstanceTag(callSite, newFunction, createdHyperOpAndCallSite, createdHyperOpAndUniqueId, accumulatedBasicBlocks, createdHyperOpAndOriginalBasicBlockAndArgMap);
-				string tag = "<";
-				for (list<unsigned>::iterator tagItr = uniqueIdInCallTree.begin(); tagItr != uniqueIdInCallTree.end(); tagItr++) {
-					tag.append(itostr(*tagItr));
-					if (*tagItr != uniqueIdInCallTree.back()) {
-						tag.append(",");
-					}
-				}
-				tag.append(">");
-				errs()<<"here with tag "<<tag<<"\n";
-				values.push_back(MDString::get(ctxt, tag));
-				//Check if the accumulated bbs are supposed to be a range of HyperOps
-				LoopIV* loopIV = NULL;
-				bool mismatch = false;
-
-				for (auto accumulatedbbItr = accumulatedBasicBlocks.begin(); accumulatedbbItr != accumulatedBasicBlocks.end(); accumulatedbbItr++) {
-					//Only loop header needs range
-					bool accumulatedBBInParallelLoop = false;
-					loopIV = NULL;
-					for (auto parallelLoopItr = parallelLoopFunctionList.begin(); parallelLoopItr != parallelLoopFunctionList.end(); parallelLoopItr++) {
-						bool bbInList = false;
-						for (auto bbItr = (*parallelLoopItr)->begin(); bbItr != (*parallelLoopItr)->end(); bbItr++) {
-							BasicBlock* bb = bbItr;
-							if (bb == *accumulatedbbItr) {
-								bbInList = true;
-								break;
-							}
-						}
-
-						if (bbInList) {
-							BasicBlock* clonedBB = &((*parallelLoopItr)->front());
-							StringRef originalParallelLoopItrName = (*parallelLoopItr)->getName();
-							for (auto originalParallelLoopItr : originalParallelLoopBB) {
-								list<BasicBlock*> loopBBList = originalParallelLoopItr.first;
-								for (auto bbItr : loopBBList) {
-									if (isa<CallInst>(bbItr->front()) && ((CallInst*) (&bbItr->front()))->getCalledFunction()->getName().compare(originalParallelLoopItrName) == 0) {
-										loopIV = originalParallelLoopItr.second;
-										break;
-									}
-								}
-								if (loopIV) {
-									break;
-								}
-							}
-							break;
-						}
-					}
-					if (loopIV == NULL && find(originalHeaderBB.begin(), originalHeaderBB.end(), *accumulatedbbItr) == originalHeaderBB.end()) {
-						mismatch = true;
-						break;
-					}
-				}
-
-				if (!mismatch) {
-					errs()<<"why "<<loopIV->getLowerBoundType()<<"\n";
-					if (loopIV->getLowerBoundType() == LoopIV::CONSTANT) {
-						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantLowerBound())));
-					} else {
-						Value* lowerBound = loopIV->getVariableLowerBound();
-						//Now the bounds to be a global because I need to think of how to support variable bounds
-						//Global value, use as is
-						assert(isa<LoadInst>(lowerBound) && "Non global bounds not supported currently");
-						values.push_back(((Instruction*) lowerBound)->getOperand(0));
-					}
-
-					if (loopIV->getUpperBoundType() == LoopIV::CONSTANT) {
-						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantUpperBound())));
-					} else {
-						Value* upperBound = loopIV->getVariableUpperBound();
-						upperBound->dump();
-						assert(isa<LoadInst>(upperBound) && "Non global bounds not supported currently");
-						values.push_back(((Instruction*) upperBound)->getOperand(0));
-					}
-					errs()<<"why 2\n";
-
-					values.push_back(MDString::get(ctxt, StringRef(loopIV->getIncOperation())));
-					values.push_back(loopIV->getStride());
-				}
-				ArrayRef<Value*> valueArray(values);
-				funcAnnotation = MDNode::get(ctxt, valueArray);
-				createdHyperOpAndUniqueId[newFunction] = uniqueIdInCallTree;
-			} else {
-				Value * values[3];
-				values[0] = MDString::get(ctxt, HYPEROP);
-				values[1] = newFunction;
-				values[2] = MDString::get(ctxt, STATIC_HYPEROP);
-				funcAnnotation = MDNode::get(ctxt, values);
-			}
-
-			hyperOpAndAnnotationMap.insert(make_pair(newFunction, funcAnnotation));
-			annotationAndHyperOpMap.insert(make_pair(funcAnnotation, newFunction));
-			redefineAnnotationsNode->addOperand(funcAnnotation);
 			bool isKernelEntry = false;
 			bool isKernelExit = false;
-			errs()<<"and then here\n";
 			if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &mainFunction->getEntryBlock()) != accumulatedBasicBlocks.end()) {
 				isKernelEntry = true;
 			}
@@ -2887,6 +2751,142 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 			}
+
+			if(isKernelEntry){
+				isStaticHyperOp = true;
+			}
+
+			MDNode *funcAnnotation;
+			//Keep the following branch structure
+			if (!isStaticHyperOp) {
+				vector<Value*> values;
+				values.push_back(MDString::get(ctxt, HYPEROP));
+				values.push_back(newFunction);
+				values.push_back(MDString::get(ctxt, DYNAMIC_HYPEROP));
+				list<CallInst*> parentCallSite;
+				std::copy(callSite.begin(), callSite.end(), back_inserter(parentCallSite));
+				//pop from call site till you end up with a function thats marked static
+				while (!parentCallSite.empty()) {
+					//This is a list because the parent function maybe broken down to multiple functions
+					list<Function*> parentFunctionList = getFunctionAtCallSite(parentCallSite, createdHyperOpAndCallSite);
+					if (createdHyperOpAndType[parentFunctionList.front()] == STATIC) {
+						break;
+					}
+					parentCallSite.pop_back();
+				}
+
+				list<Function*> parentFunctionList = getFunctionAtCallSite(parentCallSite, createdHyperOpAndCallSite);
+				//The called function doesn't match the callsite of the current hyperop which means that the current HyperOp is not the first in the recursion cycle
+				//todo uncomment
+				if (parentCallSite.empty() || callSite.empty() || parentCallSite.back()->getCalledFunction() != callSite.back()->getCalledFunction()) {
+					values.push_back(newFunction);
+				} else {
+					//Find the original function from which the parent function was created
+					for (list<Function*>::iterator parentFuncItr = parentFunctionList.begin(); parentFuncItr != parentFunctionList.end(); parentFuncItr++) {
+						bool matchFound = true;
+						list<BasicBlock*> parentFuncBBList = createdHyperOpAndOriginalBasicBlockAndArgMap[*parentFuncItr].first;
+						for (list<BasicBlock*>::iterator bbItr = parentFuncBBList.begin(); bbItr != parentFuncBBList.end(); bbItr++) {
+							if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), *bbItr) == accumulatedBasicBlocks.end()) {
+								matchFound = false;
+								break;
+							}
+						}
+						if (matchFound) {
+							values.push_back(*parentFuncItr);
+							break;
+						}
+					}
+				}
+				//Convert the id to a tag string
+				list<unsigned> uniqueIdInCallTree = getHyperOpInstanceTag(callSite, newFunction, createdHyperOpAndCallSite, createdHyperOpAndUniqueId, accumulatedBasicBlocks, createdHyperOpAndOriginalBasicBlockAndArgMap);
+				string tag = "<";
+				for (list<unsigned>::iterator tagItr = uniqueIdInCallTree.begin(); tagItr != uniqueIdInCallTree.end(); tagItr++) {
+					tag.append(itostr(*tagItr));
+					if (*tagItr != uniqueIdInCallTree.back()) {
+						tag.append(",");
+					}
+				}
+				tag.append(">");
+				values.push_back(MDString::get(ctxt, tag));
+				//Check if the accumulated bbs are supposed to be a range of HyperOps
+				LoopIV* loopIV = NULL;
+				bool mismatch = false;
+
+				for (auto accumulatedbbItr = accumulatedBasicBlocks.begin(); accumulatedbbItr != accumulatedBasicBlocks.end(); accumulatedbbItr++) {
+					//Only loop header needs range
+					bool accumulatedBBInParallelLoop = false;
+					loopIV = NULL;
+					for (auto parallelLoopItr = parallelLoopFunctionList.begin(); parallelLoopItr != parallelLoopFunctionList.end(); parallelLoopItr++) {
+						bool bbInList = false;
+						for (auto bbItr = (*parallelLoopItr)->begin(); bbItr != (*parallelLoopItr)->end(); bbItr++) {
+							BasicBlock* bb = bbItr;
+							if (bb == *accumulatedbbItr) {
+								bbInList = true;
+								break;
+							}
+						}
+
+						if (bbInList) {
+							BasicBlock* clonedBB = &((*parallelLoopItr)->front());
+							StringRef originalParallelLoopItrName = (*parallelLoopItr)->getName();
+							for (auto originalParallelLoopItr : originalParallelLoopBB) {
+								list<BasicBlock*> loopBBList = originalParallelLoopItr.first;
+								for (auto bbItr : loopBBList) {
+									if (isa<CallInst>(bbItr->front()) && ((CallInst*) (&bbItr->front()))->getCalledFunction()->getName().compare(originalParallelLoopItrName) == 0) {
+										loopIV = originalParallelLoopItr.second;
+										break;
+									}
+								}
+								if (loopIV) {
+									break;
+								}
+							}
+							break;
+						}
+					}
+					if (loopIV == NULL && find(originalHeaderBB.begin(), originalHeaderBB.end(), *accumulatedbbItr) == originalHeaderBB.end()) {
+						mismatch = true;
+						break;
+					}
+				}
+
+				if (loopIV != NULL && !mismatch) {
+					if (loopIV->getLowerBoundType() == LoopIV::CONSTANT) {
+						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantLowerBound())));
+					} else {
+						Value* lowerBound = loopIV->getVariableLowerBound();
+						//Now the bounds to be a global because I need to think of how to support variable bounds
+						//Global value, use as is
+						assert(isa<LoadInst>(lowerBound) && "Non global bounds not supported currently");
+						values.push_back(((Instruction*) lowerBound)->getOperand(0));
+					}
+
+					if (loopIV->getUpperBoundType() == LoopIV::CONSTANT) {
+						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantUpperBound())));
+					} else {
+						Value* upperBound = loopIV->getVariableUpperBound();
+						upperBound->dump();
+						assert(isa<LoadInst>(upperBound) && "Non global bounds not supported currently");
+						values.push_back(((Instruction*) upperBound)->getOperand(0));
+					}
+
+					values.push_back(MDString::get(ctxt, StringRef(loopIV->getIncOperation())));
+					values.push_back(loopIV->getStride());
+				}
+				ArrayRef<Value*> valueArray(values);
+				funcAnnotation = MDNode::get(ctxt, valueArray);
+				createdHyperOpAndUniqueId[newFunction] = uniqueIdInCallTree;
+			} else {
+				Value * values[3];
+				values[0] = MDString::get(ctxt, HYPEROP);
+				values[1] = newFunction;
+				values[2] = MDString::get(ctxt, STATIC_HYPEROP);
+				funcAnnotation = MDNode::get(ctxt, values);
+			}
+
+			hyperOpAndAnnotationMap.insert(make_pair(newFunction, funcAnnotation));
+			annotationAndHyperOpMap.insert(make_pair(funcAnnotation, newFunction));
+			redefineAnnotationsNode->addOperand(funcAnnotation);
 
 			//Is the function an entry node/exit node/intermediate ?
 			if (isKernelEntry) {
@@ -2935,10 +2935,12 @@ struct HyperOpCreationPass: public ModulePass {
 			BasicBlock* retBB = BasicBlock::Create(ctxt, newFunction->getName().str().append(".return"), newFunction);
 			Instruction* retInst = ReturnInst::Create(ctxt);
 			retBB->getInstList().insert(retBB->getFirstInsertionPt(), retInst);
-			Value * values[3];
+			string tag = "<0>";
+			Value * values[4];
 			values[0] = MDString::get(ctxt, HYPEROP);
 			values[1] = newFunction;
-			values[2] = MDString::get(ctxt, STATIC_HYPEROP);
+			values[2] = MDString::get(ctxt, DYNAMIC_HYPEROP);
+			values[3] = MDString::get(ctxt, tag);
 			MDNode *funcAnnotation = MDNode::get(ctxt, values);
 			redefineAnnotationsNode->addOperand(funcAnnotation);
 			hyperOpAndAnnotationMap[newFunction] = funcAnnotation;
