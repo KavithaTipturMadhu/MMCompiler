@@ -2936,11 +2936,12 @@ struct HyperOpCreationPass: public ModulePass {
 			Instruction* retInst = ReturnInst::Create(ctxt);
 			retBB->getInstList().insert(retBB->getFirstInsertionPt(), retInst);
 			string tag = "<0>";
-			Value * values[4];
+			Value * values[5];
 			values[0] = MDString::get(ctxt, HYPEROP);
 			values[1] = newFunction;
 			values[2] = MDString::get(ctxt, DYNAMIC_HYPEROP);
-			values[3] = MDString::get(ctxt, tag);
+			values[3] = newFunction;
+			values[4] = MDString::get(ctxt, tag);
 			MDNode *funcAnnotation = MDNode::get(ctxt, values);
 			redefineAnnotationsNode->addOperand(funcAnnotation);
 			hyperOpAndAnnotationMap[newFunction] = funcAnnotation;
