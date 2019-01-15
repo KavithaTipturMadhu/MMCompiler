@@ -2689,7 +2689,6 @@ struct HyperOpCreationPass: public ModulePass {
 									}
 								}
 								if (unconditionalBranchSources.find(pred->getTerminator()) == unconditionalBranchSources.end()) {
-									pred->getTerminator()->dump();
 									unconditionalBranchSources[pred->getTerminator()] = successorBBList;
 								}
 							}
@@ -3886,7 +3885,6 @@ struct HyperOpCreationPass: public ModulePass {
 						if (conditionalBranchSourceItr->second[branchOperandIndex].second != -1) {
 							//Update the cloned conditional branch instruction with the right target
 							int conditionalSlot = conditionalBranchSourceItr->second[branchOperandIndex].second;
-							((BranchInst*) conditionalBranchInst)->dump();
 							BasicBlock* targetBB = ((BranchInst*) conditionalBranchInst)->getSuccessor(conditionalSlot);
 							if ((!isa<CallInst>(&targetBB->front()) && find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), targetBB) == accumulatedOriginalBasicBlocks.end())
 									|| (isa<CallInst>(&targetBB->front()) && find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), (&((CallInst*) &targetBB->front())->getCalledFunction()->getEntryBlock())) == accumulatedOriginalBasicBlocks.end())) {
@@ -3904,19 +3902,13 @@ struct HyperOpCreationPass: public ModulePass {
 								branchTargets.push_back(((BranchInst*) clonedInstr)->getSuccessor(successorIndex));
 							}
 						}
-
-						if (staticMD && find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), metadataHost->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
-							addedParentsToCurrentHyperOp.push_back(metadataHost->getParent()->getParent());
-							if (isProducerStatic) {
-								if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), metadataHost->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
-									addedParentsToCurrentHyperOp.push_back(metadataHost->getParent()->getParent());
-								}
-							}
-							if (staticMD && find(predicateProducers.begin(), predicateProducers.end(), metadataHost->getParent()->getParent()) == predicateProducers.end()) {
-								predicateProducers.push_back(metadataHost->getParent()->getParent());
-								predicateProducerValueMap[metadataHost->getParent()->getParent()] = (Value*) expectedPredicate;
-							}
-						}
+					}
+					if (staticMD && find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), metadataHost->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
+						addedParentsToCurrentHyperOp.push_back(metadataHost->getParent()->getParent());
+					}
+					if (staticMD && find(predicateProducers.begin(), predicateProducers.end(), metadataHost->getParent()->getParent()) == predicateProducers.end()) {
+						predicateProducers.push_back(metadataHost->getParent()->getParent());
+						predicateProducerValueMap[metadataHost->getParent()->getParent()] = (Value*) expectedPredicate;
 					}
 				}
 			}
@@ -3925,6 +3917,8 @@ struct HyperOpCreationPass: public ModulePass {
 			for (auto unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
 				Value* unconditionalBranchInstr = unconditionalBranchSourceItr->first;
 				Value* originalUnconditionalBranchInstr = unconditionalBranchInstr;
+				errs()<<"unconditional branch input:";
+				unconditionalBranchInstr->dump();
 				//There can only be one basic block that happens to be the target
 				BasicBlock* targetBB;
 				if (unconditionalBranchSourceItr->second.empty()) {
@@ -4753,9 +4747,9 @@ struct HyperOpCreationPass: public ModulePass {
 //		}
 		DEBUG(dbgs() << "Final module contents:");
 		M.dump();
-//		DEBUG(dbgs() << "Completed generating HyperOps\n");
-//		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
-//		graph->print(errs());
+		DEBUG(dbgs() << "Completed generating HyperOps\n");
+		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
+		graph->print(errs());
 		return true;
 	}
 
