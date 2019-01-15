@@ -491,43 +491,14 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 				}
 			}
 		}
-//		if (maxFrameSizeOfHyperOp < frameSizeOfHyperOp) {
-//			errs() << "frame size for hop " << sourceHyperOp->asString() << ":" << frameSizeOfHyperOp << "\n";
-//			maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
-//		}
+		if (maxFrameSizeOfHyperOp < frameSizeOfHyperOp) {
+			errs() << "frame size for hop " << sourceHyperOp->asString() << ":" << frameSizeOfHyperOp << "\n";
+			maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
+		}
 	}
 //	errs() << "before deleting nodes:";
 //	graph->print(errs());
 
-//This had to be written as follows because removal of one node may cause other nodes to go hanging
-	while (true) {
-		bool updatedGraph = false;
-		list<HyperOp*> vertices = graph->Vertices;
-		for (list<HyperOp*>::iterator vertexItr = vertices.begin(); vertexItr != vertices.end(); vertexItr++) {
-			if (!(*vertexItr)->isEndHyperOp() && (*vertexItr)->ChildMap.empty()) {
-				if (!(*vertexItr)->isUnrolledInstance()) {
-					(*vertexItr)->getFunction()->eraseFromParent();
-				}
-				graph->removeHyperOp(*vertexItr);
-				updatedGraph = true;
-				break;
-			}
-
-			else if (!(*vertexItr)->isStartHyperOp() && (*vertexItr)->ParentMap.empty()) {
-				if (!(*vertexItr)->isUnrolledInstance()) {
-					(*vertexItr)->getFunction()->eraseFromParent();
-				}
-				graph->removeHyperOp(*vertexItr);
-				updatedGraph = true;
-				break;
-			}
-		}
-		if (!updatedGraph) {
-			break;
-		}
-	}
-
-	graph->updateLocalRefEdgeMemOffset();
 	graph->setMaxMemFrameSize(maxFrameSizeOfHyperOp);
 	graph->print(errs());
 	return graph;

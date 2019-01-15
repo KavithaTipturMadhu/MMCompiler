@@ -809,6 +809,38 @@ void HyperOpInteractionGraph::updateLocalRefEdgeMemOffset() {
 	}
 }
 
+void HyperOpInteractionGraph::removeUnreachableHops(){
+	//This had to be written as follows because removal of one node may cause other nodes to go hanging
+		while (true) {
+			bool updatedGraph = false;
+			list<HyperOp*> vertices = this->Vertices;
+			for (list<HyperOp*>::iterator vertexItr = vertices.begin(); vertexItr != vertices.end(); vertexItr++) {
+				if (!(*vertexItr)->isEndHyperOp() && (*vertexItr)->ChildMap.empty()) {
+					if (!(*vertexItr)->isUnrolledInstance()) {
+						(*vertexItr)->getFunction()->eraseFromParent();
+					}
+					this->removeHyperOp(*vertexItr);
+					updatedGraph = true;
+					break;
+				}
+
+				else if (!(*vertexItr)->isStartHyperOp() && (*vertexItr)->ParentMap.empty()) {
+					if (!(*vertexItr)->isUnrolledInstance()) {
+						(*vertexItr)->getFunction()->eraseFromParent();
+					}
+					this->removeHyperOp(*vertexItr);
+					updatedGraph = true;
+					break;
+				}
+			}
+			if (!updatedGraph) {
+				break;
+			}
+		}
+
+		this->updateLocalRefEdgeMemOffset();
+}
+
 void HyperOpInteractionGraph::addHyperOp(HyperOp *Vertex) {
 	this->Vertices.push_back(Vertex);
 }

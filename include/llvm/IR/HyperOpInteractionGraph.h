@@ -1,4 +1,4 @@
-/**
+ /**
  * HyperOpInteractionGraph.h
  *
  * Header for describing an application as a HyperOp Interaction Graph and its components.
@@ -324,6 +324,8 @@ public:
 
 	//Update all the localref edges with memory offsets wrt base 0, needs updating when the functions are lowered to machine functions
 	void updateLocalRefEdgeMemOffset();
+
+	void removeUnreachableHops();
 
 };
 #endif /* LIB_TARGET_RISCV_HYPEROPINTERACTIONGRAPH_H_ */
