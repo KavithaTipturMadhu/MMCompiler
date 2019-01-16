@@ -308,7 +308,7 @@ public:
 	/**
 	 * Prints in dot format
 	 */
-	void print(raw_ostream &);
+	void print(raw_ostream &, int debug = 0);
 
 	HyperOp * getHyperOp(Function* F);
 
@@ -352,5 +352,6 @@ public:
 	//Add context frame address block base address forwarding edges, since we need to execute some instructions conditionally in range hyperOps
 	void addContextFrameblockSizeEdges();
 
+	void removeUnreachableHops();
 };
 #endif /* LIB_TARGET_RISCV_HYPEROPINTERACTIONGRAPH_H_ */

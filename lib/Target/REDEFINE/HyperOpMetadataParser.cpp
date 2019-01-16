@@ -475,10 +475,11 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 				}
 			}
 		}
-//		if (maxFrameSizeOfHyperOp < frameSizeOfHyperOp) {
-//			errs() << "frame size for hop " << sourceHyperOp->asString() << ":" << frameSizeOfHyperOp << "\n";
-//			maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
-//		}
+		/* Uncommented this part because register spills may change frame size later bt till then, we need some way of finding out what the number of inputs to each frame is */
+		if (maxFrameSizeOfHyperOp < frameSizeOfHyperOp) {
+			errs() << "frame size for hop " << sourceHyperOp->asString() << ":" << frameSizeOfHyperOp << "\n";
+			maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
+		}
 	}
 //	errs() << "before deleting nodes:";
 //	graph->print(errs());
