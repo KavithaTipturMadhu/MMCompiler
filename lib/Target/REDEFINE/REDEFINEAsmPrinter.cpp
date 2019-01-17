@@ -548,41 +548,70 @@ bool REDEFINEAsmPrinter::doInitialization(Module &M) {
 	return false;
 }
 
+void addGlobalSymTab(const GlobalVariable* global, const Constant * initializer, uint64_t *currentOffset, string *assemblyString) {
+		//TODO Constant cannot be vector or blockaddress
+		Type *type = initializer->getType();
+		if (!type->isAggregateType()) {
+			type->dump();
+			if (isa<ConstantInt>(initializer) || isa<ConstantFP>(initializer) || isa<ConstantExpr>(initializer) || initializer->isZeroValue()) {
+				string newglobalstring("");
+				newglobalstring.append("\"ga#").append(itostr(*currentOffset)).append("\"\t").append(itostr(initializer->getUniqueInteger().getSExtValue())).append("\n");
+				(*assemblyString).append(newglobalstring);
+				*currentOffset = *currentOffset + REDEFINEUtils::getSizeOfType(initializer->getType());
+			}
+		} else if (type->isArrayTy()) {
+			for (unsigned i = 0; i < type->getArrayNumElements(); i++) {
+				const Constant* subTypeInitializer;
+				//Find the subtype's initializer
+				if (const ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(initializer)) {
+					subTypeInitializer = CDS->getElementAsConstant(i);
+				} else if (initializer->getNumOperands() > i) {
+					subTypeInitializer = cast<Constant>(initializer->getOperand(i));
+				} else if (const ConstantAggregateZero *CDS = dyn_cast<ConstantAggregateZero>(initializer)) {
+					subTypeInitializer = CDS->getElementValue(i);
+				} else {
+					subTypeInitializer = initializer;
+				}
+				addGlobalSymTab(global, subTypeInitializer, currentOffset, assemblyString);
+			}
+		} else {
+			for (unsigned subTypeIndex = 0; subTypeIndex < type->getNumContainedTypes(); subTypeIndex++) {
+				Type* subType = type->getContainedType(subTypeIndex);
+				const Constant* subTypeInitializer;
+				//Find the subtype's initializer
+				if (const ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(initializer)) {
+					subTypeInitializer = CDS->getElementAsConstant(subTypeIndex);
+				} else if (initializer->getNumOperands() > subTypeIndex) {
+					subTypeInitializer = cast<Constant>(initializer->getOperand(subTypeIndex));
+				} else if (const ConstantAggregateZero *CDS = dyn_cast<ConstantAggregateZero>(initializer)) {
+					subTypeInitializer = CDS->getElementValue(subTypeIndex);
+				} else {
+					subTypeInitializer = initializer;
+				}
+				addGlobalSymTab(global, subTypeInitializer, currentOffset, assemblyString);
+			}
+		}
+	}
+
 void REDEFINEAsmPrinter::EmitEndOfAsmFile(Module &M) {
-//	string dataLabel = ".IO_BEGIN\n.data_start\t";
-//	long int maxGlobalSize = 0;
-//	string inputs = "";
-//	unsigned numInputsAndOutputs = 0;
-//	for (Module::const_global_iterator globalArgItr = M.global_begin(); globalArgItr != M.global_end(); globalArgItr++) {
-//		const GlobalVariable *globalVar = &*globalArgItr;
-//		if (globalVar->getName().startswith("redefine_in_")) {
-//			//Every global is a pointer type
-//			inputs.append("i\t");
-//			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
-//			numInputsAndOutputs++;
-//
-//		} else if (globalVar->getName().startswith("redefine_out_")) {
-//			inputs.append("o\t");
-//			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
-//			numInputsAndOutputs++;
-//		}	//Mark the global as both input and output
-//		else if (globalVar->getName().startswith("redefine_inout_")) {
-//			inputs.append("i\t");
-//			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
-//			inputs.append("o\t");
-//			inputs.append("\"ga#").append(itostr(maxGlobalSize)).append("\"").append("\n");
-//			numInputsAndOutputs++;
-//		}
-//		maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
-//	}
-//
-//	dataLabel.append(itostr(numInputsAndOutputs)).append("\n");
-//	OutStreamer.EmitRawText(StringRef(dataLabel));
-//	if (!inputs.empty()) {
-//		OutStreamer.EmitRawText(StringRef(inputs));
-//	}
-//	string ioEndLabel = ".IO_END";
-//	OutStreamer.EmitRawText(String?Ref(ioEndLabel));
+	uint64_t maxGlobalSize = 0;
+	string inputs = ".IO_BEGIN\n";
+	unsigned numInputsAndOutputs = 0;
+	for (Module::const_global_iterator globalArgItr = M.global_begin(); globalArgItr != M.global_end(); globalArgItr++, numInputsAndOutputs++) {
+		const GlobalVariable *globalVar = &*globalArgItr;
+		if(globalVar->hasInitializer()){
+			//Every global is a pointer type
+			globalVar->getInitializer()->dump();
+			addGlobalSymTab(globalVar, globalVar->getInitializer(), &maxGlobalSize, &inputs);
+		}
+		else{
+			maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
+		}
+	}
+
+	OutStreamer.EmitRawText(StringRef(inputs));
+	string ioEndLabel = ".IO_END";
+	OutStreamer.EmitRawText(StringRef(ioEndLabel));
 	string maxFrameString;
 	maxFrameString.append(";FS = ").append(itostr(maxFrameValue)).append("\n");
 	OutStreamer.EmitRawText(StringRef(maxFrameString));
