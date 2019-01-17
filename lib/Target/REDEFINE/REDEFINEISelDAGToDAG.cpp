@@ -233,6 +233,7 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 	if (firstFunction == 0) {
 		//Parse the HIG metadata the first time, subsequent HyperOps can use the graph
 		((REDEFINETargetMachine&) TM).HIG = HyperOpMetadataParser::parseMetadata(const_cast<Module*>(Fn->getParent()));
+		((REDEFINETargetMachine&) TM).HIG->removeUnreachableHops();
 		((REDEFINETargetMachine&) TM).HIG->setDimensions((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getM(), (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getN());
 		((REDEFINETargetMachine&) TM).HIG->setNumContextFrames((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getCfCount());
 		((REDEFINETargetMachine&) TM).HIG->setMaxContextFrameSize((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getCfSize());
