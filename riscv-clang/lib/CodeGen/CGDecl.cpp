@@ -1030,12 +1030,19 @@ void CodeGenFunction::EmitAutoVarInit(const AutoVarEmission &emission) {
 	llvm::Type *BP = Int8PtrTy;
 	if (Loc->getType() != BP)
 		Loc = Builder.CreateBitCast(Loc, BP);
-	Builder.CreateMemSet(Loc, llvm::ConstantInt::get(Int8Ty, 0), SizeVal, alignment.getQuantity(), isVolatile);
+
+	// TODO This hack is sorta dirty because it generates too many gep instructions, but it is what it is, try to avoid using it is all I can say for now.
+	uint64_t size = (constant->getType()->getArrayNumElements()) * (constant->getType()->getArrayElementType()->getScalarSizeInBits() / 8);
+	for (unsigned i = 0; i < size; i++) {
+		llvm::Constant *Elt = llvm::ConstantInt::get(Int8Ty, 0, false);
+		Builder.CreateStore(Elt, Builder.CreateConstGEP1_8(Loc, i), isVolatile);
+	}
 	// Zero and undef don't require a stores.
 	if (!constant->isNullValue() && !isa<llvm::UndefValue>(constant)) {
 		Loc = Builder.CreateBitCast(Loc, constant->getType()->getPointerTo());
 		emitStoresForInitAfterMemset(constant, Loc, isVolatile, Builder);
 	}
+
 //	}
 	//TODO REDEFINE doesn't support inexpensive memcpy and does not have stack frame size limit. We are better off initializing arrays on stack rather than using memcpy
 	//Hence using memset all the way
