@@ -360,16 +360,16 @@ static inline pair<unsigned, pair<MachineBasicBlock*, MachineInstr*> > generateB
 	}
 	MachineInstrBuilder falloc;
 	if(consumer->getTargetResource()!=currentHyperOp->getTargetResource()){
-		falloc = BuildMI(*loopBody, loopBody->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::FALLOC));
-		allocatedFrame = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		falloc.addReg(allocatedFrame, RegState::Define);
-		falloc.addReg(REDEFINE::zero);
-	}else{
 		falloc = BuildMI(*loopBody, loopBody->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::RFALLOC));
 		allocatedFrame = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 		falloc.addReg(allocatedFrame, RegState::Define);
 		falloc.addReg(REDEFINE::zero);
 		falloc.addImm(consumer->getTargetResource());
+	} else {
+		falloc = BuildMI(*loopBody, loopBody->end(), lastBB->begin()->getDebugLoc(), TII->get(REDEFINE::FALLOC));
+		allocatedFrame = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+		falloc.addReg(allocatedFrame, RegState::Define);
+		falloc.addReg(REDEFINE::zero);
 	}
 	LIS->getSlotIndexes()->insertMachineInstrInMaps(falloc.operator llvm::MachineInstr *());
 	allInstructionsOfRegion->push_back(make_pair(falloc.operator->(), make_pair(currentCE, insertPosition++)));
