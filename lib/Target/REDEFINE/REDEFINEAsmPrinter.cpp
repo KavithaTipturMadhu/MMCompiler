@@ -26,7 +26,7 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/REDEFINEUtils.h"
-#include <string.h>
+#include <sstream>
 using namespace std;
 using namespace llvm;
 
@@ -548,16 +548,23 @@ bool REDEFINEAsmPrinter::doInitialization(Module &M) {
 	return false;
 }
 
-void addGlobalSymTab(const GlobalVariable* global, const Constant * initializer, uint64_t *currentOffset, string *assemblyString) {
+void addGlobalSymTab(const GlobalVariable* global, const Constant * initializer, string *assemblyString) {
 		//TODO Constant cannot be vector or blockaddress
 		Type *type = initializer->getType();
 		if (!type->isAggregateType()) {
-			type->dump();
-			if (isa<ConstantInt>(initializer) || isa<ConstantFP>(initializer) || isa<ConstantExpr>(initializer) || initializer->isZeroValue()) {
+			assert(!isa<ConstantExpr>(initializer) && "Global expressions not supported");
+			if (isa<ConstantInt>(initializer) || isa<ConstantFP>(initializer) || initializer->isZeroValue()|| isa<UndefValue>(initializer)) {
 				string newglobalstring("");
-				newglobalstring.append("\"ga#").append(itostr(*currentOffset)).append("\"\t").append(itostr(initializer->getUniqueInteger().getSExtValue())).append("\n");
+				if(isa<ConstantInt>(initializer))
+					newglobalstring.append("\t.word32\t").append(itostr(initializer->getUniqueInteger().getSExtValue())).append("\n");
+				else if(isa<ConstantFP>(initializer)){
+					ostringstream floatStr("");
+					floatStr<<((ConstantFP*)initializer)->getValueAPF().convertToFloat();
+					newglobalstring.append("\t.float32\t").append(floatStr.str()).append("\n");
+				}
+				else if(initializer->isZeroValue()|| isa<UndefValue>(initializer))
+					newglobalstring.append("\t.word32\t").append(itostr(0)).append("\n");
 				(*assemblyString).append(newglobalstring);
-				*currentOffset = *currentOffset + REDEFINEUtils::getSizeOfType(initializer->getType());
 			}
 		} else if (type->isArrayTy()) {
 			for (unsigned i = 0; i < type->getArrayNumElements(); i++) {
@@ -572,7 +579,7 @@ void addGlobalSymTab(const GlobalVariable* global, const Constant * initializer,
 				} else {
 					subTypeInitializer = initializer;
 				}
-				addGlobalSymTab(global, subTypeInitializer, currentOffset, assemblyString);
+				addGlobalSymTab(global, subTypeInitializer, assemblyString);
 			}
 		} else {
 			for (unsigned subTypeIndex = 0; subTypeIndex < type->getNumContainedTypes(); subTypeIndex++) {
@@ -588,29 +595,24 @@ void addGlobalSymTab(const GlobalVariable* global, const Constant * initializer,
 				} else {
 					subTypeInitializer = initializer;
 				}
-				addGlobalSymTab(global, subTypeInitializer, currentOffset, assemblyString);
+				addGlobalSymTab(global, subTypeInitializer, assemblyString);
 			}
 		}
 	}
 
 void REDEFINEAsmPrinter::EmitEndOfAsmFile(Module &M) {
-	uint64_t maxGlobalSize = 0;
-	string inputs = ".IO_BEGIN\n";
+	string inputs = ".DATA\n";
 	unsigned numInputsAndOutputs = 0;
 	for (Module::const_global_iterator globalArgItr = M.global_begin(); globalArgItr != M.global_end(); globalArgItr++, numInputsAndOutputs++) {
 		const GlobalVariable *globalVar = &*globalArgItr;
-		if(globalVar->hasInitializer()){
-			//Every global is a pointer type
-			globalVar->getInitializer()->dump();
-			addGlobalSymTab(globalVar, globalVar->getInitializer(), &maxGlobalSize, &inputs);
-		}
-		else{
-			maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
-		}
+		assert(globalVar->hasInitializer() && "Global without initializer does not work");
+		//Every global is a pointer type
+		globalVar->getInitializer()->dump();
+		addGlobalSymTab(globalVar, globalVar->getInitializer(), &inputs);
 	}
 
 	OutStreamer.EmitRawText(StringRef(inputs));
-	string ioEndLabel = ".IO_END";
+	string ioEndLabel = ".END\n";
 	OutStreamer.EmitRawText(StringRef(ioEndLabel));
 	string maxFrameString;
 	maxFrameString.append(";FS = ").append(itostr(maxFrameValue)).append("\n");
