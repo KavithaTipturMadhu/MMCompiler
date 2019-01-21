@@ -677,54 +677,6 @@ struct HyperOpCreationPass: public ModulePass {
 		return 0;
 	}
 
-	void addInitializationInstructions(GlobalVariable* global, Constant* initializer, vector<Value*> idList, Instruction* insertBefore, Type* type) {
-		//TODO Constant cannot be vector or blockaddress
-		LLVMContext & ctx = insertBefore->getParent()->getContext();
-		if (!type->isAggregateType()) {
-			if (isa<ConstantInt>(initializer) || isa<ConstantFP>(initializer) || isa<ConstantExpr>(initializer) || initializer->isZeroValue()) {
-				GetElementPtrInst* typeAddrInst = GetElementPtrInst::CreateInBounds(global, idList, "", insertBefore);
-//					Value* zero = ConstantInt::get(ctx, APInt(32, 0));
-				StoreInst* storeInst = new StoreInst(initializer, typeAddrInst, insertBefore);
-				storeInst->setAlignment(4);
-			}
-		} else if (type->isArrayTy()) {
-			for (unsigned i = 0; i < type->getArrayNumElements(); i++) {
-				Constant* subTypeInitializer;
-				idList.push_back(ConstantInt::get(ctx, APInt(32, i)));
-				//Find the subtype's initializer
-				if (ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(initializer)) {
-					subTypeInitializer = CDS->getElementAsConstant(i);
-				} else if (initializer->getNumOperands() > i) {
-					subTypeInitializer = cast<Constant>(initializer->getOperand(i));
-				} else if (ConstantAggregateZero *CDS = dyn_cast<ConstantAggregateZero>(initializer)) {
-					subTypeInitializer = CDS->getElementValue(i);
-				} else {
-					subTypeInitializer = initializer;
-				}
-				addInitializationInstructions(global, subTypeInitializer, idList, insertBefore, type->getArrayElementType());
-				idList.pop_back();
-			}
-		} else {
-			for (unsigned subTypeIndex = 0; subTypeIndex < type->getNumContainedTypes(); subTypeIndex++) {
-				Type* subType = type->getContainedType(subTypeIndex);
-				Constant* subTypeInitializer;
-				idList.push_back(ConstantInt::get(ctx, APInt(32, subTypeIndex)));
-				//Find the subtype's initializer
-				if (ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(initializer)) {
-					subTypeInitializer = CDS->getElementAsConstant(subTypeIndex);
-				} else if (initializer->getNumOperands() > subTypeIndex) {
-					subTypeInitializer = cast<Constant>(initializer->getOperand(subTypeIndex));
-				} else if (ConstantAggregateZero *CDS = dyn_cast<ConstantAggregateZero>(initializer)) {
-					subTypeInitializer = CDS->getElementValue(subTypeIndex);
-				} else {
-					subTypeInitializer = initializer;
-				}
-				addInitializationInstructions(global, subTypeInitializer, idList, insertBefore, subType);
-				idList.pop_back();
-			}
-		}
-	}
-
 //Jump chain is the chain of instructions leading to the target function, with the instruction in front of the list chaining to the next one and so on till the last function is reached
 	list<pair<Function*, list<Instruction*> > > getTopmostParentAndJumpChain(Function* function, map<Function*, list<pair<Function*, Instruction*> > > functionAndJumpSources) {
 		list<pair<Function*, list<Instruction*> > > topmostParents;
@@ -1571,19 +1523,6 @@ struct HyperOpCreationPass: public ModulePass {
 			functionList.pop_front();
 			StringRef name = function->getName();
 			errs() << "\n-----------\nPartitioning function:" << name << "\n";
-			if (function == mainFunction) {
-				Instruction* startOfBB = function->begin()->begin();
-				//Add initializers to globals that are not redefine inputs or outputs
-				for (Module::global_iterator globalVarItr = M.global_begin(); globalVarItr != M.global_end(); globalVarItr++) {
-					if (!globalVarItr->getName().startswith(REDEFINE_INPUT_PREFIX) && !globalVarItr->getName().startswith(REDEFINE_OUTPUT_PREFIX) && !globalVarItr->getName().startswith(REDEFINE_INOUT_PREFIX)) {
-						//Externs are not allowed as of now and hence, there is no need to check if the global var has an initializer at all or otherwise
-						Constant * initializer = globalVarItr->getInitializer();
-						vector<Value*> idList;
-						idList.push_back(ConstantInt::get(ctxt, APInt(32, 0)));
-						addInitializationInstructions(globalVarItr, initializer, idList, startOfBB, initializer->getType());
-					}
-				}
-			}
 
 			list<pair<list<BasicBlock*>, HyperOpArgumentList> > hyperOpBBAndArgs;
 			list<BasicBlock*> accumulatedBasicBlocks;
