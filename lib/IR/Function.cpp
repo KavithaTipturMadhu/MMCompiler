@@ -389,17 +389,19 @@ std::string Intrinsic::getName(ID id, ArrayRef<Type*> Tys) {
 #include "llvm/IR/Intrinsics.gen"
 #undef GET_INTRINSIC_NAME_TABLE
   };
+
   if (Tys.empty())
     return Table[id];
   std::string Result(Table[id]);
-  for (unsigned i = 0; i < Tys.size(); ++i) {
-    if (PointerType* PTyp = dyn_cast<PointerType>(Tys[i])) {
-      Result += ".p" + llvm::utostr(PTyp->getAddressSpace()) +
-                EVT::getEVT(PTyp->getElementType()).getEVTString();
-    }
-    else if (Tys[i])
-      Result += "." + EVT::getEVT(Tys[i]).getEVTString();
-  }
+	for (unsigned i = 0; i < Tys.size(); ++i) {
+		if (Tys[i]) {
+			if (PointerType* PTyp = dyn_cast<PointerType>(Tys[i])) {
+				Result += ".p" + llvm::utostr(PTyp->getAddressSpace()) + EVT::getEVT(PTyp->getElementType()).getEVTString();
+			} else {
+				Result += "." + EVT::getEVT(Tys[i]).getEVTString();
+			}
+		}
+	}
   return Result;
 }
 
