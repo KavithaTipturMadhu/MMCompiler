@@ -37,6 +37,8 @@ enum {
 	// There is an optional glue operand at the end.
 	CALL,
 
+	Ga,
+
 	// Wraps a TargetGlobalAddress that should be loaded using PC-relative
 	// accesses (AUIPC).  Operand 0 is the address.
 	PCREL_WRAPPER,

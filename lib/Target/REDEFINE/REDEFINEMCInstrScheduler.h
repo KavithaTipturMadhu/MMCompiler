@@ -31,7 +31,13 @@ using namespace llvm;
 namespace llvm {
 
 class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
-	static const unsigned SPLOCATIONS = 256;
+
+	//Locations for storing dynamic instance addresses
+	unsigned DYNAMIC_INSTANCES;
+	//Locations for writepm
+	unsigned SPLOCATIONS;
+	static const unsigned MAX_SPLOCATIONS = 256;
+
 	//Number of bytes in an addressable location
 	static const unsigned datawidth = 4;
 	unsigned ceCount;
@@ -60,7 +66,7 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	vector<unsigned> registersUsedInBB;
 
 	//Contains t4 and t5 registers, a copy of t5 and their allocated virtual registers in each pHyperOp
-	pair<unsigned, unsigned> virtualRegistersForInstAddr[4];
+//	pair<unsigned, unsigned> virtualRegistersForInstAddr[4];
 
 	//Position tracking a new insertion
 	unsigned insertPosition = 0;
@@ -75,15 +81,18 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	//First index corresponds to the CE and the value corresponds to the register containing the base address of the scratch pad location of the consumer CE to which the producer CE is writing to
 	int registerContainingBaseAddress[4][4];
 
-	//Register containing code segment+global data segment address
+	//Register containing code segment+global data segment address in each CE
 	int memoryFrameBaseAddress[4];
 
+	//Register containing activation frame size in each CE
 	int memoryFrameMaxSizeReg[4];
 
 	//Tracks the writecm instructions that have already been added in a different machine function; this is required to patch the writecm instructions once the registers corresponding to HyperOp inputs are shuffled
 	map<Function*, list<MachineInstr*> > writeInstrToContextFrame;
 
 	PHyperOpInteractionGraph pHopInteractionGraph;
+
+//	map<const Function*, MachineBasicBlock::iterator> firstRegionInFunction;
 
 	unsigned copyOfInstanceId;
 	unsigned REDEFINEphysRegs[16] = { REDEFINE::ra, REDEFINE::sp, REDEFINE::gp, REDEFINE::tp, REDEFINE::t0, REDEFINE::t1, REDEFINE::t2, REDEFINE::t3, REDEFINE::fp, REDEFINE::s0, REDEFINE::s1, REDEFINE::a0, REDEFINE::a1, REDEFINE::a2, REDEFINE::a3, REDEFINE::a4 };

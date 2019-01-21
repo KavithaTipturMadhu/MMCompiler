@@ -65,6 +65,9 @@ public:
 		PREDICATE,
 		CONTEXT_FRAME_ADDRESS_SCALAR,
 		CONTEXT_FRAME_ADDRESS_LOCALREF,
+//		CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF,
+//		CONTEXT_FRAME_ADDRESS_RANGE_BASE_SCALAR,
+		CONTEXT_FRAME_ADDRESS_RANGE_SCALAR,
 		//Edge used for ordering HyperOps to maintain partial order
 		ORDERING,
 		//Edge to ensure completion of the hyperOp by inserting equivalent delay instruction in the end HyperOp
@@ -103,6 +106,28 @@ enum StrideFunction {
 	ADD, MUL, SUB, DIV, MOD
 };
 
+class HyperOp;
+
+enum SyncValueType{
+	HYPEROP_SYNC_TYPE,
+	INT_SYNC_TYPE
+};
+
+struct SyncValue{
+	union{
+		HyperOp* rangeHyperOpValue;
+		int intValue;
+	} syncVal;
+
+	SyncValueType type;
+
+	SyncValue(HyperOp*);
+	SyncValue(int);
+	HyperOp* getHyperOp();
+	int getInt();
+	SyncValueType getType();
+};
+
 class HyperOp {
 	/**
 	 * Bundle instruction corresponding to the HyperOp
@@ -137,7 +162,7 @@ class HyperOp {
 	unsigned hyperOpId;
 	vector<unsigned> numInputsPerCE;
 	//map of predicate value to sync count
-	unsigned numIncomingSyncEdges[2];
+	list<SyncValue> numIncomingSyncEdges[3];
 	bool hasMutexSyncSources;
 	Value* predicateForSyncSource[2];
 	//Map of source instruction in a CE and the first consumer instruction in a different CE
@@ -207,10 +232,9 @@ public:
 	void setFbindRequired(bool fbindRequired);
 	bool isStaticHyperOp() const;
 	void setStaticHyperOp(bool staticHyperOp);
-	void setIncomingSyncCount(unsigned predicateValue, unsigned syncCount);
-	void incrementIncomingSyncCount(unsigned predicateValue);
-	void decrementIncomingSyncCount(unsigned predicateValue);
-	unsigned getSyncCount(unsigned predicateValue);
+	void setIncomingSyncCount(unsigned predicateValue, list<SyncValue> syncCountList);
+	void addIncomingSyncValue(unsigned predicateValue, SyncValue value);
+	list<SyncValue> getSyncCount(unsigned predicateValue);
 	list<unsigned> getInstanceId();
 	void setInstanceId(list<unsigned> instanceId);
 	Function* getInstanceof();
@@ -284,7 +308,7 @@ public:
 	/**
 	 * Prints in dot format
 	 */
-	void print(raw_ostream &);
+	void print(raw_ostream &, int debug = 0);
 
 	HyperOp * getHyperOp(Function* F);
 
@@ -325,7 +349,9 @@ public:
 	//Update all the localref edges with memory offsets wrt base 0, needs updating when the functions are lowered to machine functions
 	void updateLocalRefEdgeMemOffset();
 
-	void removeUnreachableHops();
+	//Add context frame address block base address forwarding edges, since we need to execute some instructions conditionally in range hyperOps
+	void addContextFrameblockSizeEdges();
 
+	void removeUnreachableHops();
 };
 #endif /* LIB_TARGET_RISCV_HYPEROPINTERACTIONGRAPH_H_ */

@@ -64,7 +64,6 @@ list<StringRef> parseInstanceIdString(StringRef instanceTag, char seperator = ',
 		StringRef idPart = tokens.first;
 		instanceId.push_back(idPart);
 		tempString = tokens.second;
-		errs() << "what added:" << idPart << "\n";
 	}
 	return instanceId;
 }
@@ -109,7 +108,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 			if (type.compare(HYPEROP) == 0) {
 				Function* function = (Function *) hyperOpMDNode->getOperand(1);
 				HyperOp *hyperOp = new HyperOp(function);
-				errs() << "new hop:" << hyperOp->getFunction()->getName() << "\n";
+				errs() << "new hop:"<<(hyperOp->getFunction()!=NULL)<<":function "<<function->getName() ;
+				errs()<< hyperOp->getFunction()->getName() << "\n";
 				hyperOp->setHyperOpId(hyperOpId++);
 				StringRef hyperOpType = ((MDString*) hyperOpMDNode->getOperand(2))->getName();
 				if (hyperOpType.equals("Static")) {
@@ -187,7 +187,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 	while (!hyperOpTraversalList.empty()) {
 		//Traverse through instructions of the module
 		HyperOp* sourceHyperOp = hyperOpTraversalList.front();
-		errs() << "source hop:" << sourceHyperOp->asString() << "\n";
 		hyperOpTraversalList.pop_front();
 		traversedList.push_back(sourceHyperOp);
 		Function* sourceFunction;
@@ -303,8 +302,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 						for (unsigned predicatedMDNodeIndex = 0; predicatedMDNodeIndex != controlledByMDNode->getNumOperands(); predicatedMDNodeIndex++) {
 							HyperOp* consumerHyperOp = 0;
 							MDNode* predicatedMDNode = (MDNode*) controlledByMDNode->getOperand(predicatedMDNodeIndex);
-							errs() << "predicated md node:";
-							predicatedMDNode->dump();
 							//Create an edge between two HyperOps labeled by the instruction
 							if (predicatedMDNode->getNumOperands() > 2) {
 								//An instance is consuming the data
@@ -366,20 +363,12 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								HyperOpEdge* edge = new HyperOpEdge();
 								edge->Type = HyperOpEdge::PREDICATE;
 								edge->setValue((Value*) instr);
-								errs() << "predicate value set to ";
-								instr->dump();
-								errs() << "number of operands in predicate md node:" << predicatedMDNode->getNumOperands() << "\n";
 								StringRef predicateValue = ((MDString*) predicatedMDNode->getOperand(1))->getName();
-								errs() << "predicate value:" << predicateValue << "\n";
 								if (predicateValue.compare("0") == 0) {
 									edge->setPredicateValue(0);
 								} else {
 									edge->setPredicateValue(1);
 								}
-								errs() << "md node on instruction:";
-								instr->dump();
-								errs() << "Added control edge between " << sourceHyperOp->asString() << " and " << consumerHyperOp->asString() << "\n";
-								errs() << "predicate :" << predicateValue << "\n";
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)) {
@@ -396,8 +385,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 						for (unsigned syncMDNodeIndex = 0; syncMDNodeIndex != syncMDNode->getNumOperands(); syncMDNodeIndex++) {
 							HyperOp* consumerHyperOp = 0;
 							MDNode* syncedMDNode = (MDNode*) syncMDNode->getOperand(syncMDNodeIndex);
-							errs() << "synced md node:";
-							syncedMDNode->dump();
 							//Create an edge between two HyperOps labeled by the instruction
 							if (syncedMDNode->getNumOperands() > 1) {
 								//An instance is consuming the data
@@ -416,10 +403,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 												consumerHyperOpId.clear();
 											}
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
-											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
 										} else {
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
-											errs() << "consumer:" << consumerHyperOp->asString() << "\n";
 										}
 									} else if (consumerInstanceId.front().compare("prefixId") == 0) {
 										unsigned prefixCount = 1;
@@ -441,10 +426,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 												consumerHyperOpId.clear();
 											}
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(1), consumerHyperOpId);
-											errs() << "static consumer:" << consumerHyperOp->asString() << "\n";
 										} else {
 											consumerHyperOp = graph->getOrCreateHyperOpInstance((Function*) hyperOp->getOperand(1), (Function*) hyperOp->getOperand(3), consumerHyperOpId);
-											errs() << "dynamic consumer:" << consumerHyperOp->asString() << "\n";
 										}
 									}
 								}
@@ -458,14 +441,16 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								//Create an edge between two HyperOps labeled by the instruction
 								HyperOpEdge* edge = new HyperOpEdge();
 								edge->Type = HyperOpEdge::SYNC;
-								errs() << "Added sync edge between " << sourceHyperOp->asString() << " and " << consumerHyperOp->asString() << "\n";
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 								consumerHyperOp->setBarrierHyperOp();
-								consumerHyperOp->incrementIncomingSyncCount(0);
+								if (sourceHyperOp->getInRange()) {
+									consumerHyperOp->addIncomingSyncValue(0, (SyncValue)sourceHyperOp);
+								} else {
+									consumerHyperOp->addIncomingSyncValue(0, (SyncValue)1);
+								}
 								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)) {
 									//						&& !sourceHyperOp->isUnrolledInstance()) {
-									errs() << "added instance:" << consumerHyperOp->asString() << " and is it an instance:" << consumerHyperOp->isUnrolledInstance() << "\n";
 									hyperOpTraversalList.push_back(consumerHyperOp);
 								}
 							}
@@ -473,7 +458,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					}
 					MDNode* rangeMDNode = instr->getMetadata(HYPEROP_RANGE);
 					if (rangeMDNode != 0) {
-						errs() << "range node\n";
 						for (unsigned rangeMDNodeIndex = 0; rangeMDNodeIndex != rangeMDNode->getNumOperands(); rangeMDNodeIndex++) {
 							MDNode* indirectionNode = (MDNode*) rangeMDNode->getOperand(rangeMDNodeIndex);
 							if (indirectionNode != 0) {
@@ -491,6 +475,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 				}
 			}
 		}
+		/* Uncommented this part because register spills may change frame size later bt till then, we need some way of finding out what the number of inputs to each frame is */
 		if (maxFrameSizeOfHyperOp < frameSizeOfHyperOp) {
 			errs() << "frame size for hop " << sourceHyperOp->asString() << ":" << frameSizeOfHyperOp << "\n";
 			maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
