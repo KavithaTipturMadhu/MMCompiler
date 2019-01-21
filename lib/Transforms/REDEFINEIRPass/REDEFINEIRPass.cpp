@@ -104,13 +104,15 @@ struct REDEFINEIRPass: public ModulePass {
 						insertInBB = loopBody;
 					}
 
-					Value *Args[] = { ConstantInt::get(M.getContext(), APInt(32, 0)) };
-					Value *F = Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::falloc, 0);
+					Value *fallocArgs[] = { ConstantInt::get(M.getContext(), APInt(32, 0)) };
+					Value *fallocIntrinsic = Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::falloc, 0);
+					CallInst* fallocCallInst;
 					if(insertInBB->empty()){
-						CallInst* fallocCallInst = CallInst::Create(F, Args, "falloc_reg", insertInBB);
+						fallocCallInst = CallInst::Create(fallocIntrinsic, fallocArgs, "falloc_reg", insertInBB);
 					}else{
-						CallInst* fallocCallInst = CallInst::Create(F, Args, "falloc_reg", &insertInBB->back());
+						fallocCallInst = CallInst::Create(fallocIntrinsic, fallocArgs, "falloc_reg", &insertInBB->back());
 					}
+
 					/* Add falloc and fbind instructions */
 					if (child->getInRange()) {
 						BinaryOperator* incItr = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 1)), "", loopBody);
