@@ -27,8 +27,8 @@ using namespace std;
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
-#include "llvm/IR/HyperopMetadataParser.h"
-#include "llvm/IR/HyperopInteractionGraph.h"
+#include "llvm/IR/HyperOpMetadataParser.h"
+#include "llvm/IR/HyperOpInteractionGraph.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "REDEFINEIRPass"
