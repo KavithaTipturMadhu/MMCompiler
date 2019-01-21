@@ -41,7 +41,7 @@ struct REDEFINEIRPass: public ModulePass {
 	static char* NEW_NAME;
 
 	REDEFINEIRPass() :
-		ModulePass(ID) {
+			ModulePass(ID) {
 	}
 
 	virtual void getAnalysisUsage(AnalysisUsage &AU) const {
@@ -57,54 +57,67 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->makeGraphStructured();
 		graph->computeDominatorInfo();
 		graph->addContextFrameAddressForwardingEdges();
-		graph->minimizeControlEdges();
+//		graph->minimizeControlEdges();
 		graph->clusterNodes();
 		graph->associateStaticContextFrames();
 		graph->verify();
 		graph->print(dbgs());
+		DEBUG(dbgs() << "Adding falloc instructions to module\n");
 		/* Add falloc instructions */
-		for(auto vertexItr:graph->Vertices){
+		for (auto vertexItr : graph->Vertices) {
 			HyperOp* vertex = vertexItr;
 			Function* vertexFunction = vertex->getFunction();
-			for(auto childItr : vertex->getChildList()){
+			BasicBlock* insertInBB = &vertexFunction->back();
+			for (auto childItr : vertex->getChildList()) {
 				HyperOp* child = childItr;
 				if (child->getImmediateDominator() == vertex && !child->isStaticHyperOp()) {
-					BasicBlock* insertInBB = vertexFunction->end();
 					BasicBlock * loopBegin, *loopBody, *loopEnd;
 					LoadInst* loadInst;
 					if (child->getInRange()) {
 						/* Add loop constructs */
-						string loopBeginNameSR=child->getFunction()->getName().str();
+						string loopBeginNameSR = child->getFunction()->getName().str();
 						loopBeginNameSR.append("_create_begin");
 						Twine loopBeginName(loopBeginNameSR);
 						loopBegin = BasicBlock::Create(M.getContext(), loopBeginName, vertexFunction);
-						loopBody = BasicBlock::Create(M.getContext(), loopBeginName, vertexFunction);
-						loopEnd = BasicBlock::Create(M.getContext(), loopBeginName, vertexFunction);
+
+						string loopBodyNameSR = child->getFunction()->getName().str();
+						loopBodyNameSR.append("_create_body");
+						Twine loopBodyName(loopBodyNameSR);
+						loopBody = BasicBlock::Create(M.getContext(), loopBodyName, vertexFunction);
+
+						string loopEndNameSR = child->getFunction()->getName().str();
+						loopEndNameSR.append("_create_end");
+						Twine loopEndName(loopEndNameSR);
+						loopEnd = BasicBlock::Create(M.getContext(), loopEndName, vertexFunction);
 
 						AllocaInst* allocItrInst = new AllocaInst(Type::getInt32Ty(M.getContext()));
 						allocItrInst->setAlignment(4);
 						allocItrInst->insertBefore(insertInBB->getFirstInsertionPt());
 						Value* zero = ConstantInt::get(M.getContext(), APInt(32, 0));
-
-						StoreInst* storeItrInst = new StoreInst(zero, allocItrInst, insertInBB->end());
+						StoreInst* storeItrInst = new StoreInst(zero, allocItrInst, insertInBB->getTerminator());
 						storeItrInst->setAlignment(4);
 
-						BranchInst* loopBodyJump = BranchInst::Create(loopBegin,insertInBB->end());
-						loadInst = new LoadInst(allocItrInst,"falloc_itr", loopBegin->end());
-						CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, loadInst, child->getRangeUpperBound(),"cmpinst", loopBegin->end());
-						BranchInst* bgeItrInst = BranchInst::Create(loopEnd, loopBody,
-								cmpInst, loopBegin->end());
+						BranchInst* loopBodyJump = BranchInst::Create(loopBegin, insertInBB->getTerminator());
+						insertInBB->getTerminator()->removeFromParent();
+						loadInst = new LoadInst(allocItrInst, "falloc_itr", loopBegin);
+						CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, loadInst, child->getRangeUpperBound(), "cmpinst", loopBegin);
+						BranchInst* bgeItrInst = BranchInst::Create(loopEnd, loopBody, cmpInst, loopBegin);
 						insertInBB = loopBody;
 					}
 
-					Value *Args[] = {ConstantInt::get(M.getContext(), APInt(32, 0))};
-					Value *F = Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID)Intrinsic::falloc, 0);
-					CallInst* fallocCallInst = CallInst::Create(F, Args);
+					Value *Args[] = { ConstantInt::get(M.getContext(), APInt(32, 0)) };
+					Value *F = Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::falloc, 0);
+					if(insertInBB->empty()){
+						CallInst* fallocCallInst = CallInst::Create(F, Args, "falloc_reg", insertInBB);
+					}else{
+						CallInst* fallocCallInst = CallInst::Create(F, Args, "falloc_reg", &insertInBB->back());
+					}
 					/* Add falloc and fbind instructions */
 					if (child->getInRange()) {
-						BranchInst* loopBodyJump = BranchInst::Create(loopEnd,insertInBB->end());
-						BinaryOperator* incItr = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 1)), "", loopEnd->end());
-						BranchInst* loopEndJump = BranchInst::Create(loopBegin,loopEnd->end());
+						BinaryOperator* incItr = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 1)), "", loopBody);
+						BranchInst* loopEndJump = BranchInst::Create(loopBegin, loopBody);
+						ReturnInst* ret = ReturnInst::Create(M.getContext(), loopEnd);
+						insertInBB = loopEnd;
 					}
 				}
 			}
