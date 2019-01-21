@@ -208,6 +208,31 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD, unsigned Builtin
       Value *Args[] = { EmitScalarExpr(E->getArg(0)) };
       return RValue::get(Builder.CreateCall(F, Args));
     }
+
+    case Builtin::BI__builtin_writecm: {
+      Value *F = CGM.getIntrinsic(Intrinsic::writecm);
+      Value *Args[] = { EmitScalarExpr(E->getArg(0)), EmitScalarExpr(
+          E->getArg(1)) };
+      return RValue::get(Builder.CreateCall(F, Args));
+    }
+    case Builtin::BI__builtin_writecmp: {
+      Value *F = CGM.getIntrinsic(Intrinsic::writecmp);
+      Value *Args[] = { EmitScalarExpr(E->getArg(0)), EmitScalarExpr(
+          E->getArg(1)) };
+      return RValue::get(Builder.CreateCall(F, Args));
+    }
+    case Builtin::BI__builtin_sync: {
+      Value *F = CGM.getIntrinsic(Intrinsic::sync);
+      Value *Args[] = { EmitScalarExpr(E->getArg(0)), EmitScalarExpr(
+          E->getArg(1)) };
+      return RValue::get(Builder.CreateCall(F, Args));
+    }
+    case Builtin::BI__builtin_rfalloc: {
+      Value *F = CGM.getIntrinsic(Intrinsic::rfalloc);
+      Value *Args[] = { EmitScalarExpr(E->getArg(0)), EmitScalarExpr(
+          E->getArg(1)) };
+      return RValue::get(Builder.CreateCall(F, Args));
+    }
 	// Handle intrinsics and libm functions below.
 	case Builtin::BI__builtin___CFStringMakeConstantString:
 	case Builtin::BI__builtin___NSStringMakeConstantString:

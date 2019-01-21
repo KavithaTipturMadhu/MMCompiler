@@ -939,5 +939,9 @@ BUILTIN(__builtin_falloc ,"UiUi"  , "Fnc")
 BUILTIN(__builtin_fdelete ,"vUi"  , "Fnc")
 BUILTIN(__builtin_fbind,"vUiUi"  , "Fnc")
 BUILTIN(__builtin_end,"vUi"  , "Fnc")
+BUILTIN(__builtin_rfalloc,"UiUiUi"  , "Fnc")
+BUILTIN(__builtin_sync ,"vUii"  , "Fnc")
+BUILTIN(__builtin_writecm ,"vUiUi"  , "Fnc")
+BUILTIN(__builtin_writecmp ,"vUii"  , "Fnc")
 #undef BUILTIN
 #undef LIBBUILTIN
