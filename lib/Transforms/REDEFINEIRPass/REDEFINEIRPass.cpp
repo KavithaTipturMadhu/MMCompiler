@@ -96,10 +96,9 @@ struct REDEFINEIRPass: public ModulePass {
 						Value* zero = ConstantInt::get(M.getContext(), APInt(32, 0));
 						StoreInst* storeItrInst = new StoreInst(zero, allocItrInst, insertInBB->getTerminator());
 						storeItrInst->setAlignment(4);
-
+						loadInst = new LoadInst(allocItrInst, "falloc_itr", insertInBB->getTerminator());
 						BranchInst* loopBodyJump = BranchInst::Create(loopBegin, insertInBB->getTerminator());
 						insertInBB->getTerminator()->removeFromParent();
-						loadInst = new LoadInst(allocItrInst, "falloc_itr", loopBegin);
 						CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, loadInst, child->getRangeUpperBound(), "cmpinst", loopBegin);
 						BranchInst* bgeItrInst = BranchInst::Create(loopEnd, loopBody, cmpInst, loopBegin);
 						insertInBB = loopBody;
