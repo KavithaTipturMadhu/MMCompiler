@@ -473,6 +473,10 @@ def int_convertuu  : Intrinsic<[llvm_anyint_ty],
                                [llvm_anyint_ty, llvm_i32_ty, llvm_i32_ty]>;
                                
 def int_falloc : Intrinsic <[llvm_i32_ty], [llvm_i32_ty], []>;
+def int_fdelete : Intrinsic <[], [llvm_i32_ty], []>;
+def int_fbind: Intrinsic <[], [llvm_i32_ty,llvm_i32_ty], []>;
+def int_end: Intrinsic <[], [llvm_i32_ty], []>;
+
 //===----------------------------------------------------------------------===//
 // Target-specific intrinsics
 //===----------------------------------------------------------------------===//
