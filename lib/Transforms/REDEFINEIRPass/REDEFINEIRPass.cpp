@@ -61,6 +61,53 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->associateStaticContextFrames();
 		graph->verify();
 		graph->print(dbgs());
+		/* Add falloc instructions */
+		for(auto vertexItr:graph->Vertices){
+			HyperOp* vertex = *vertexItr;
+			Function* vertexFunction = vertex->getFunction();
+			for(auto childItr : vertex->getChildList()){
+				HyperOp* child = *childItr;
+				if (child->getImmediateDominator() == vertex && !child->isStaticHyperOp()) {
+					BasicBlock* insertInBB = vertexFunction->end();
+					BasicBlock * loopBegin, *loopBody, *loopEnd;
+					LoadInst* loadInst;
+					if (child->getInRange()) {
+						/* Add loop constructs */
+						string loopBeginNameSR=child->getFunction()->getName().str();
+						loopBeginNameSR.append("_create_begin");
+						Twine loopBeginName(loopBeginNameSR);
+						loopBegin = BasicBlock::Create(M.getContext(), loopBeginName, vertexFunction);
+						loopBody = BasicBlock::Create(M.getContext(), loopBeginName, vertexFunction);
+						loopEnd = BasicBlock::Create(M.getContext(), loopBeginName, vertexFunction);
+
+						AllocaInst* allocItrInst = new AllocaInst(Type::getInt32Ty(M.getContext()));
+						allocItrInst->setAlignment(4);
+						allocItrInst->insertBefore(insertInBB->getFirstInsertionPt());
+						Value* zero = ConstantInt::get(M.getContext(), APInt(32, 0));
+
+						StoreInst* storeItrInst = new StoreInst(zero, allocItrInst, insertInBB->end());
+						storeItrInst->setAlignment(4);
+
+						BranchInst* loopBodyJump = BranchInst::Create(loopBegin,insertInBB->end());
+						loadInst = new LoadInst(allocItrInst,"falloc_itr", loopBegin->end());
+						CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, ICMP_UGE, loadInst, child->getRangeUpperBound(),"cmpinst", loopBegin->end());
+						BranchInst* bgeItrInst = BranchInst::Create(loopEnd, loopBody,
+								cmpInst, loopBegin->end());
+						insertInBB = loopBody;
+					}
+
+					Value *Args[] = {ConstantInt::get(M.getContext(), APInt(32, 0))};
+					Value *F = llvm::Intrinsic::getDeclaration(M, (llvm::Intrinsic::ID)Intrinsic::falloc, 0);
+					CallInst* fallocCallInst = CallInst::Create(F, Args);
+					/* Add falloc and fbind instructions */
+					if (child->getInRange()) {
+						BranchInst* loopBodyJump = BranchInst::Create(loopEnd,insertInBB->end());
+						BinaryOperator* incItr = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 1)), "", loopEnd->end());
+						BranchInst* loopBodyJump = BranchInst::Create(loopBegin,loopEnd->end());
+					}
+				}
+			}
+		}
 		return true;
 	}
 };
