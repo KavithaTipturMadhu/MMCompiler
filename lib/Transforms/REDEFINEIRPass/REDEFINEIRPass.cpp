@@ -6,6 +6,7 @@
 #include <sstream>
 using namespace std;
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/User.h"
 #include "llvm/Pass.h"
@@ -63,10 +64,10 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->print(dbgs());
 		/* Add falloc instructions */
 		for(auto vertexItr:graph->Vertices){
-			HyperOp* vertex = *vertexItr;
+			HyperOp* vertex = vertexItr;
 			Function* vertexFunction = vertex->getFunction();
 			for(auto childItr : vertex->getChildList()){
-				HyperOp* child = *childItr;
+				HyperOp* child = childItr;
 				if (child->getImmediateDominator() == vertex && !child->isStaticHyperOp()) {
 					BasicBlock* insertInBB = vertexFunction->end();
 					BasicBlock * loopBegin, *loopBody, *loopEnd;
@@ -90,20 +91,20 @@ struct REDEFINEIRPass: public ModulePass {
 
 						BranchInst* loopBodyJump = BranchInst::Create(loopBegin,insertInBB->end());
 						loadInst = new LoadInst(allocItrInst,"falloc_itr", loopBegin->end());
-						CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, ICMP_UGE, loadInst, child->getRangeUpperBound(),"cmpinst", loopBegin->end());
+						CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, loadInst, child->getRangeUpperBound(),"cmpinst", loopBegin->end());
 						BranchInst* bgeItrInst = BranchInst::Create(loopEnd, loopBody,
 								cmpInst, loopBegin->end());
 						insertInBB = loopBody;
 					}
 
 					Value *Args[] = {ConstantInt::get(M.getContext(), APInt(32, 0))};
-					Value *F = llvm::Intrinsic::getDeclaration(M, (llvm::Intrinsic::ID)Intrinsic::falloc, 0);
+					Value *F = Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID)Intrinsic::falloc, 0);
 					CallInst* fallocCallInst = CallInst::Create(F, Args);
 					/* Add falloc and fbind instructions */
 					if (child->getInRange()) {
 						BranchInst* loopBodyJump = BranchInst::Create(loopEnd,insertInBB->end());
 						BinaryOperator* incItr = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 1)), "", loopEnd->end());
-						BranchInst* loopBodyJump = BranchInst::Create(loopBegin,loopEnd->end());
+						BranchInst* loopEndJump = BranchInst::Create(loopBegin,loopEnd->end());
 					}
 				}
 			}
