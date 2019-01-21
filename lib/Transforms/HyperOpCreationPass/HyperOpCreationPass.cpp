@@ -30,8 +30,8 @@ using namespace std;
 #include "LoopInterchange.h"
 #include "llvm/Transforms/Utils/CodeExtractor.h"
 #include "llvm/IR/Instruction.def"
-#include "llvm/IR/HyperopMetadataParser.h"
-#include "llvm/IR/HyperopInteractionGraph.h"
+#include "llvm/IR/HyperOpMetadataParser.h"
+#include "llvm/IR/HyperOpInteractionGraph.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "HyperOpCreationPass"

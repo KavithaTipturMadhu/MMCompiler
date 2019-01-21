@@ -935,5 +935,6 @@ BUILTIN(__builtin_subc, "UiUiCUiCUiCUi*", "n")
 BUILTIN(__builtin_subcl, "ULiULiCULiCULiCULi*", "n")
 BUILTIN(__builtin_subcll, "ULLiULLiCULLiCULLiCULLi*", "n")
 
+BUILTIN(__builtin_falloc ,"UiUi"  , "Fnc")
 #undef BUILTIN
 #undef LIBBUILTIN

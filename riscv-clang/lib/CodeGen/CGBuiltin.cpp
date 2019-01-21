@@ -186,7 +186,13 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD, unsigned Builtin
 
 	switch (BuiltinID) {
 	default:
-		break;  // Handle intrinsics and libm functions below.
+		break;
+	case Builtin::BI__builtin_falloc: {
+	  Value *F = CGM.getIntrinsic(Intrinsic::falloc);
+	  Value *Args[] = { EmitScalarExpr(E->getArg(0)) };
+	  return RValue::get(Builder.CreateCall(F, Args));
+	}
+	// Handle intrinsics and libm functions below.
 	case Builtin::BI__builtin___CFStringMakeConstantString:
 	case Builtin::BI__builtin___NSStringMakeConstantString:
 		return RValue::get(CGM.EmitConstantExpr(E, E->getType(), 0));
