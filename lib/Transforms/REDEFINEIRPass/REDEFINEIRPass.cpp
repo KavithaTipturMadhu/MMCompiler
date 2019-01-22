@@ -62,12 +62,12 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->associateStaticContextFrames();
 		graph->verify();
 		graph->print(dbgs());
-		DEBUG(dbgs() << "Adding falloc instructions to module\n");
-		/* Add falloc instructions */
 		for (auto vertexItr : graph->Vertices) {
 			HyperOp* vertex = vertexItr;
 			Function* vertexFunction = vertex->getFunction();
 			BasicBlock* insertInBB = &vertexFunction->back();
+
+			DEBUG(dbgs() << "Adding falloc, fbind instructions to module\n");
 			for (auto childItr : vertex->getChildList()) {
 				HyperOp* child = childItr;
 				if (child->getImmediateDominator() == vertex && !child->isStaticHyperOp()) {
@@ -93,31 +93,32 @@ struct REDEFINEIRPass: public ModulePass {
 						AllocaInst* allocItrInst = new AllocaInst(Type::getInt32Ty(M.getContext()));
 						allocItrInst->setAlignment(4);
 						allocItrInst->insertBefore(insertInBB->getFirstInsertionPt());
+
 						Value* zero = ConstantInt::get(M.getContext(), APInt(32, 0));
 						StoreInst* storeItrInst = new StoreInst(zero, allocItrInst, insertInBB->getTerminator());
 						storeItrInst->setAlignment(4);
+
 						loadInst = new LoadInst(allocItrInst, "falloc_itr", insertInBB->getTerminator());
 						BranchInst* loopBodyJump = BranchInst::Create(loopBegin, insertInBB->getTerminator());
 						insertInBB->getTerminator()->removeFromParent();
+
 						CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, loadInst, child->getRangeUpperBound(), "cmpinst", loopBegin);
 						BranchInst* bgeItrInst = BranchInst::Create(loopEnd, loopBody, cmpInst, loopBegin);
-						insertInBB = loopBody;
-					}
-
-					Value *fallocArgs[] = { ConstantInt::get(M.getContext(), APInt(32, 0)) };
-					Value *fallocIntrinsic = Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::falloc, 0);
-					CallInst* fallocCallInst;
-					if(insertInBB->empty()){
-						fallocCallInst = CallInst::Create(fallocIntrinsic, fallocArgs, "falloc_reg", insertInBB);
-					}else{
-						fallocCallInst = CallInst::Create(fallocIntrinsic, fallocArgs, "falloc_reg", &insertInBB->back());
-					}
-
-					/* Add falloc and fbind instructions */
-					if (child->getInRange()) {
 						BinaryOperator* incItr = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 1)), "", loopBody);
 						BranchInst* loopEndJump = BranchInst::Create(loopBegin, loopBody);
 						ReturnInst* ret = ReturnInst::Create(M.getContext(), loopEnd);
+						insertInBB = loopBody;
+					}
+
+					CallInst* fallocCallInst, *fbindInst;
+					Value *fallocArgs[] = { ConstantInt::get(M.getContext(), APInt(32, 0)) };
+					fallocCallInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::falloc, 0), fallocArgs, "falloc_reg", &insertInBB->back());
+
+//					Value *fbindArgs[] = { ConstantInt::get(M.getContext(), APInt(32, 0)), ConstantInt::get(M.getContext(), APInt(32, 0)) };
+//					fbindInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fbind, 0), fbindArgs, "fbind_reg", &insertInBB->back());
+
+					/* Add falloc and fbind instructions */
+					if (child->getInRange()) {
 						insertInBB = loopEnd;
 					}
 				}
