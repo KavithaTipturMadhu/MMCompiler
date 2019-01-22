@@ -151,3 +151,18 @@ CallInst *IRBuilderBase::CreateLifetimeEnd(Value *Ptr, ConstantInt *Size) {
   Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::lifetime_end);
   return createCallHelper(TheFn, Ops, this);
 }
+CallInst *IRBuilderBase::
+CreateFbind(Value *arg0, Value *arg1, unsigned Align,
+             bool isVolatile, MDNode *TBAATag, MDNode *TBAAStructTag) {
+  arg0 = getCastedInt8PtrValue(arg0);
+
+  Value *Ops[] = { arg0, arg1};
+  Type *Tys[] = { arg0->getType()};
+  Module *M = BB->getParent()->getParent();
+  Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::fbind, Tys);
+
+  CallInst *CI = createCallHelper(TheFn, Ops, this);
+
+
+  return CI;
+}

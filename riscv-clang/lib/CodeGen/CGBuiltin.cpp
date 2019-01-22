@@ -198,10 +198,10 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD, unsigned Builtin
       return RValue::get(Builder.CreateCall(F, Args));
     }
     case Builtin::BI__builtin_fbind: {
-      Value *F = CGM.getIntrinsic(Intrinsic::fbind);
-	  Value *Args[] = { EmitScalarExpr(E->getArg(0)), EmitScalarExpr(
-		E->getArg(1)) };
-	  return RValue::get(Builder.CreateCall(F, Args));
+
+      std::pair<llvm::Value*, unsigned> arg0 = EmitPointerWithAlignment(E->getArg(0));
+	  Value *arg1 = EmitScalarExpr(E->getArg(1));
+	  return RValue::get(Builder.CreateFbind(arg0.first, arg1, arg0.second));
     }
     case Builtin::BI__builtin_end: {
       Value *F = CGM.getIntrinsic(Intrinsic::end);
