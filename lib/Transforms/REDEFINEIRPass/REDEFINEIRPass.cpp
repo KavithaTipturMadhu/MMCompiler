@@ -104,7 +104,6 @@ struct REDEFINEIRPass: public ModulePass {
 
 						CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, loadInst, child->getRangeUpperBound(), "cmpinst", loopBegin);
 						BranchInst* bgeItrInst = BranchInst::Create(loopEnd, loopBody, cmpInst, loopBegin);
-						BinaryOperator* incItr = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 1)), "", loopBody);
 						BranchInst* loopEndJump = BranchInst::Create(loopBegin, loopBody);
 						ReturnInst* ret = ReturnInst::Create(M.getContext(), loopEnd);
 						insertInBB = loopBody;
@@ -119,10 +118,12 @@ struct REDEFINEIRPass: public ModulePass {
 
 					/* Add falloc and fbind instructions */
 					if (child->getInRange()) {
+						BinaryOperator* incItr = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 1)), "", &loopBody->back());
 						insertInBB = loopEnd;
 					}
 				}
 			}
+			M.dump();
 		}
 		return true;
 	}
