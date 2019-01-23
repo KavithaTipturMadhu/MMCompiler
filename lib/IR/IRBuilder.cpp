@@ -157,7 +157,7 @@ CreateFbind(Value *arg0, Value *arg1, unsigned Align,
   arg0 = getCastedInt8PtrValue(arg0);
 
   Value *Ops[] = { arg0, arg1};
-  Type *Tys[] = { arg0->getType()};
+  Type *Tys[] = { arg0->getType(), arg1->getType() };
   Module *M = BB->getParent()->getParent();
   Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::fbind, Tys);
 

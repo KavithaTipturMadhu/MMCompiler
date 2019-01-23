@@ -323,13 +323,6 @@ public:
                         TBAAStructTag);
   }
 
-  CallInst *CreateFbind(Value *arg0, uint64_t arg1, unsigned Align,
-                         bool isVolatile = false, MDNode *TBAATag = 0,
-                         MDNode *TBAAStructTag = 0) {
-    return CreateFbind(arg0, getInt64(arg1), Align, isVolatile, TBAATag,
-                        TBAAStructTag);
-  }
-
   CallInst *CreateFbind(Value *arg0, Value *arg1, unsigned Align,
                           bool isVolatile = false, MDNode *TBAATag = 0,
                           MDNode *TBAAStructTag = 0);

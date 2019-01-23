@@ -85,6 +85,7 @@
 //  u -> arguments are not evaluated for their side-effects
 //  FIXME: gcc has nonnull
 
+
 #if defined(BUILTIN) && !defined(LIBBUILTIN)
 #  define LIBBUILTIN(ID, TYPE, ATTRS, HEADER, BUILTIN_LANG) BUILTIN(ID, TYPE, ATTRS)
 #endif
@@ -935,9 +936,9 @@ BUILTIN(__builtin_subc, "UiUiCUiCUiCUi*", "n")
 BUILTIN(__builtin_subcl, "ULiULiCULiCULiCULi*", "n")
 BUILTIN(__builtin_subcll, "ULLiULLiCULLiCULLiCULLi*", "n")
 
-BUILTIN(__builtin_falloc ,"UiUi"  , "Fnc")
-BUILTIN(__builtin_fdelete ,"vUi"  , "Fnc")
-BUILTIN(__builtin_fbind,"vvC*Ui"  , "Fnc")
+BUILTIN(__builtin_falloc ,"c*Ui"  , "Fnc")
+BUILTIN(__builtin_fdelete ,"vc*"  , "Fnc")
+BUILTIN(__builtin_fbind,"vc*Ui"  , "Fnc")
 BUILTIN(__builtin_end,"vUi"  , "Fnc")
 BUILTIN(__builtin_rfalloc,"UiUiUi"  , "Fnc")
 BUILTIN(__builtin_sync ,"vUii"  , "Fnc")
