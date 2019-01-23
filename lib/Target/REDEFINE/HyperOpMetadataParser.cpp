@@ -107,7 +107,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 			StringRef type = ((MDString*) hyperOpMDNode->getOperand(0))->getName();
 			if (type.compare(HYPEROP) == 0) {
 				Function* function = (Function *) hyperOpMDNode->getOperand(1);
-				HyperOp *hyperOp = new HyperOp(function);
+				HyperOp *hyperOp = new HyperOp(function, graph);
 				errs() << "new hop:"<<(hyperOp->getFunction()!=NULL)<<":function "<<function->getName() ;
 				errs()<< hyperOp->getFunction()->getName() << "\n";
 				hyperOp->setHyperOpId(hyperOpId++);

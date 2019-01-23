@@ -56,7 +56,8 @@ unsigned duplicateGetSizeOfType(Type * type) {
 	return (32 / 8);
 }
 
-HyperOp::HyperOp(Function* function) {
+HyperOp::HyperOp(Function* function, HyperOpInteractionGraph* hig) {
+	this->hig = hig;
 	this->function = function;
 	this->ImmediateDominator = 0;
 	this->ImmediatePostDominator = 0;
@@ -198,6 +199,10 @@ void HyperOp::setIncomingSyncPredicate(unsigned predicateValue, Value* predicate
 
 Value* HyperOp::getIncomingSyncPredicate(unsigned predicateValue) {
 	return this->predicateForSyncSource[predicateValue];
+}
+
+HyperOpInteractionGraph* HyperOp::getParentGraph(){
+	return hig;
 }
 
 //void HyperOp::decrementIncomingSyncCount(unsigned predicateValue) {
@@ -770,7 +775,7 @@ HyperOp* HyperOpInteractionGraph::getOrCreateHyperOpInstance(Function* function,
 			}
 		}
 	}
-	HyperOp* newHyperOp = new HyperOp(function);
+	HyperOp* newHyperOp = new HyperOp(function, this);
 	newHyperOp->setHyperOpId(this->getHyperOp(function)->getHyperOpId());
 	newHyperOp->setInstanceof(instanceOf);
 	newHyperOp->setInstanceId(instanceId);
@@ -882,7 +887,7 @@ pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > getCFG(HyperOpInteracti
 	map<HyperOp*, HyperOp*> originalToClonedNodesMap;
 	for (list<HyperOp*>::iterator vertexItr = dfg->Vertices.begin(); vertexItr != dfg->Vertices.end(); vertexItr++) {
 		//Create a new Vertex for each original
-		HyperOp* newVertex = new HyperOp((*vertexItr)->getFunction());
+		HyperOp* newVertex = new HyperOp((*vertexItr)->getFunction(), dfg);
 		newVertex->setStaticHyperOp((*vertexItr)->isStaticHyperOp());
 		newVertex->setInstanceof((*vertexItr)->getInstanceof());
 		newVertex->setHyperOpId((*vertexItr)->getHyperOpId());
@@ -1331,7 +1336,7 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 				joinFunction->addAttribute(i, Attribute::InReg);
 			}
 
-			HyperOp* joinHyperOp = new HyperOp(joinFunction);
+			HyperOp* joinHyperOp = new HyperOp(joinFunction, this);
 			this->addHyperOp(joinHyperOp);
 			joinHyperOp->setIncomingSyncCount(0, forkSink->getSyncCount(0));
 			joinHyperOp->setIncomingSyncCount(1, forkSink->getSyncCount(1));

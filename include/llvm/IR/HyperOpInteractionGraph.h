@@ -40,6 +40,7 @@ static string SCALAR = "Scalar";
 static string LOCAL_REFERENCE = "LocalReference";
 
 class HyperOp;
+class HyperOpInteractionGraph;
 
 //(X,Y) coordinates of Tile
 typedef pair<unsigned, unsigned> TileCoordinates;
@@ -106,8 +107,6 @@ enum StrideFunction {
 	ADD, MUL, SUB, DIV, MOD
 };
 
-class HyperOp;
-
 enum SyncValueType{
 	HYPEROP_SYNC_TYPE,
 	INT_SYNC_TYPE
@@ -167,6 +166,7 @@ class HyperOp {
 	Value* predicateForSyncSource[2];
 	//Map of source instruction in a CE and the first consumer instruction in a different CE
 	PHyperOpInteractionGraph pHopDependenceMap;
+	HyperOpInteractionGraph* hig;
 
 public:
 //	//Map to cache local reference object sizes that have  an alloc instruction in a different HyperOp
@@ -176,7 +176,7 @@ public:
 	map<HyperOpEdge*, HyperOp*> ParentMap;
 	map<HyperOpEdge*, HyperOp*> ChildMap;
 	map<unsigned, unsigned> syncCountOnPredicates;
-	HyperOp(Function* function);
+	HyperOp(Function* function, HyperOpInteractionGraph* hig);
 	void addParentEdge(HyperOpEdge*, HyperOp *);
 	void addChildEdge(HyperOpEdge*, HyperOp*);
 	virtual ~HyperOp();
@@ -257,6 +257,7 @@ public:
 	void setHasMutexSyncSources(bool hasMutexSyncSources);
 	void setIncomingSyncPredicate(unsigned predicateValue, Value* predicate);
 	Value* getIncomingSyncPredicate(unsigned predicateValue);
+	HyperOpInteractionGraph* getParentGraph();
 };
 
 class HyperOpInteractionGraph {
