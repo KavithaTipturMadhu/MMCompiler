@@ -467,7 +467,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								HyperOpEdge* edge = new HyperOpEdge();
 								edge->setType(HyperOpEdge::RANGE);
 								sourceHyperOp->addChildEdge(edge, consumerDynamicHyperOp);
-								consumerDynamicHyperOp->addChildEdge(edge, sourceHyperOp);
+								consumerDynamicHyperOp->addParentEdge(edge, sourceHyperOp);
 							}
 						}
 
