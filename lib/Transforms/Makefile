@@ -8,7 +8,7 @@
 ##===----------------------------------------------------------------------===##
 
 LEVEL = ../..
-PARALLEL_DIRS = Utils Instrumentation Scalar InstCombine IPO Vectorize Hello ObjCARC HyperOpCreationPass REDEFINEIRPass
+PARALLEL_DIRS = Utils Instrumentation Scalar InstCombine IPO Vectorize Hello ObjCARC HyperOpCreationPass REDEFINEIRPass HyperOpOptimizationPass
 
 include $(LEVEL)/Makefile.config
 
