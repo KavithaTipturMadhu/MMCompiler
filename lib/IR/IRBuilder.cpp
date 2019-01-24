@@ -151,18 +151,55 @@ CallInst *IRBuilderBase::CreateLifetimeEnd(Value *Ptr, ConstantInt *Size) {
   Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::lifetime_end);
   return createCallHelper(TheFn, Ops, this);
 }
-CallInst *IRBuilderBase::
-CreateFbind(Value *arg0, Value *arg1, unsigned Align,
-             bool isVolatile, MDNode *TBAATag, MDNode *TBAAStructTag) {
-  arg0 = getCastedInt8PtrValue(arg0);
 
-  Value *Ops[] = { arg0, arg1};
-  Type *Tys[] = { arg0->getType(), arg1->getType() };
-  Module *M = BB->getParent()->getParent();
-  Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::fbind, Tys);
+CallInst *IRBuilderBase::CreateFbind(Value *arg0, Value *arg1, unsigned Align,
+		bool isVolatile, MDNode *TBAATag, MDNode *TBAAStructTag) {
+	arg0 = getCastedInt8PtrValue(arg0);
+	Value *Ops[] = { arg0, arg1 };
+	Module *M = BB->getParent()->getParent();
+	Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::fbind);
+	CallInst *CI = createCallHelper(TheFn, Ops, this);
+	return CI;
+}
 
-  CallInst *CI = createCallHelper(TheFn, Ops, this);
+CallInst *IRBuilderBase::CreateFdelete(Value *arg0, unsigned Align,
+		bool isVolatile, MDNode *TBAATag, MDNode *TBAAStructTag) {
+	arg0 = getCastedInt8PtrValue(arg0);
+	Value *Ops[] = { arg0};
+	Module *M = BB->getParent()->getParent();
+	Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::fdelete);
+	CallInst *CI = createCallHelper(TheFn, Ops, this);
+	return CI;
+}
 
+CallInst *IRBuilderBase::CreateWritecm(Value *arg0, Value *arg1, unsigned Align,
+		bool isVolatile, MDNode *TBAATag, MDNode *TBAAStructTag) {
+	arg0 = getCastedInt8PtrValue(arg0);
+	Value *Ops[] = { arg0, arg1 };
+	Module *M = BB->getParent()->getParent();
+	Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::writecm);
+	CallInst *CI = createCallHelper(TheFn, Ops, this);
+	return CI;
+}
 
-  return CI;
+CallInst *IRBuilderBase::CreateWritecmp(Value *arg0, Value *arg1,
+		unsigned Align, bool isVolatile, MDNode *TBAATag,
+		MDNode *TBAAStructTag) {
+	arg0 = getCastedInt8PtrValue(arg0);
+	Value *Ops[] = { arg0, arg1 };
+	Module *M = BB->getParent()->getParent();
+	Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::writecmp);
+	CallInst *CI = createCallHelper(TheFn, Ops, this);
+	return CI;
+}
+
+CallInst *IRBuilderBase::CreateWritecmSync(Value *arg0, Value *arg1,
+		unsigned Align, bool isVolatile, MDNode *TBAATag,
+		MDNode *TBAAStructTag) {
+	arg0 = getCastedInt8PtrValue(arg0);
+	Value *Ops[] = { arg0, arg1 };
+	Module *M = BB->getParent()->getParent();
+	Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::writecm_sync);
+	CallInst *CI = createCallHelper(TheFn, Ops, this);
+	return CI;
 }

@@ -192,34 +192,34 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD, unsigned Builtin
 	  Value *Args[] = { EmitScalarExpr(E->getArg(0)) };
 	  return RValue::get(Builder.CreateCall(F, Args));
 	}
-    case Builtin::BI__builtin_fdelete: {
-      Value *F = CGM.getIntrinsic(Intrinsic::fdelete);
-      Value *Args[] = { EmitScalarExpr(E->getArg(0)) };
-      return RValue::get(Builder.CreateCall(F, Args));
-    }
+	case Builtin::BI__builtin_fdelete: {
+	  std::pair<llvm::Value*, unsigned> arg0 = EmitPointerWithAlignment(E->getArg(0));
+	  return RValue::get(Builder.CreateFdelete(arg0.first, arg0.second));
+	}
     case Builtin::BI__builtin_fbind: {
-
       std::pair<llvm::Value*, unsigned> arg0 = EmitPointerWithAlignment(E->getArg(0));
-	  Value *arg1 = EmitScalarExpr(E->getArg(1));
-	  return RValue::get(Builder.CreateFbind(arg0.first, arg1, arg0.second));
+  	  Value *arg1 = EmitScalarExpr(E->getArg(1));
+  	  return RValue::get(Builder.CreateFbind(arg0.first, arg1, arg0.second));
     }
     case Builtin::BI__builtin_end: {
       Value *F = CGM.getIntrinsic(Intrinsic::end);
       Value *Args[] = { EmitScalarExpr(E->getArg(0)) };
       return RValue::get(Builder.CreateCall(F, Args));
     }
-
     case Builtin::BI__builtin_writecm: {
-      Value *F = CGM.getIntrinsic(Intrinsic::writecm);
-      Value *Args[] = { EmitScalarExpr(E->getArg(0)), EmitScalarExpr(
-          E->getArg(1)) };
-      return RValue::get(Builder.CreateCall(F, Args));
+      std::pair<llvm::Value*, unsigned> arg0 = EmitPointerWithAlignment(E->getArg(0));
+  	  Value *arg1 = EmitScalarExpr(E->getArg(1));
+  	  return RValue::get(Builder.CreateWritecm(arg0.first, arg1, arg0.second));
     }
     case Builtin::BI__builtin_writecmp: {
-      Value *F = CGM.getIntrinsic(Intrinsic::writecmp);
-      Value *Args[] = { EmitScalarExpr(E->getArg(0)), EmitScalarExpr(
-          E->getArg(1)) };
-      return RValue::get(Builder.CreateCall(F, Args));
+        std::pair<llvm::Value*, unsigned> arg0 = EmitPointerWithAlignment(E->getArg(0));
+    	  Value *arg1 = EmitScalarExpr(E->getArg(1));
+    	  return RValue::get(Builder.CreateWritecmp(arg0.first, arg1, arg0.second));
+    }
+    case Builtin::BI__builtin_writecm_sync: {
+         std::pair<llvm::Value*, unsigned> arg0 = EmitPointerWithAlignment(E->getArg(0));
+     	  Value *arg1 = EmitScalarExpr(E->getArg(1));
+     	  return RValue::get(Builder.CreateWritecmSync(arg0.first, arg1, arg0.second));
     }
     case Builtin::BI__builtin_sync: {
       Value *F = CGM.getIntrinsic(Intrinsic::sync);

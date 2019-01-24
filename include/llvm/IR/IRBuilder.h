@@ -58,7 +58,6 @@ protected:
   LLVMContext &Context;
 public:
 
-  //CallInst *CreateFBind(Value *arg0, unsigned arg1Align,Value *arg1);
   IRBuilderBase(LLVMContext &context)
     : Context(context) {
     ClearInsertionPoint();
@@ -326,6 +325,19 @@ public:
   CallInst *CreateFbind(Value *arg0, Value *arg1, unsigned Align,
                           bool isVolatile = false, MDNode *TBAATag = 0,
                           MDNode *TBAAStructTag = 0);
+  CallInst *CreateFdelete(Value *arg0, unsigned Align,
+                            bool isVolatile = false, MDNode *TBAATag = 0,
+                            MDNode *TBAAStructTag = 0);
+  CallInst *CreateWritecm(Value *arg0, Value *arg1, unsigned Align,
+                          bool isVolatile = false, MDNode *TBAATag = 0,
+                          MDNode *TBAAStructTag = 0);
+  CallInst *CreateWritecmp(Value *arg0, Value *arg1, unsigned Align,
+                          bool isVolatile = false, MDNode *TBAATag = 0,
+                          MDNode *TBAAStructTag = 0);
+  CallInst *CreateWritecmSync(Value *arg0, Value *arg1, unsigned Align,
+                          bool isVolatile = false, MDNode *TBAATag = 0,
+                          MDNode *TBAAStructTag = 0);
+
 
   CallInst *CreateMemCpy(Value *Dst, Value *Src, Value *Size, unsigned Align,
                          bool isVolatile = false, MDNode *TBAATag = 0,
