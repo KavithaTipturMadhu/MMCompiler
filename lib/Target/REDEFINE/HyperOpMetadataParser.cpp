@@ -213,11 +213,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 							HyperOp* consumerHyperOp = 0;
 							//Create an edge between two HyperOps labeled by the instruction
 							MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(consumerMDNodeIndex);
-							StringRef dataType = ((MDString*) consumerMDNode->getOperand(1))->getName();
-							unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue();
-							if (consumerMDNode->getNumOperands() > 3) {
+							unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(1))->getZExtValue();
+							if (consumerMDNode->getNumOperands() > 2) {
 								//An instance is consuming the data
-								StringRef parseString = ((MDString*) consumerMDNode->getOperand(3))->getName();
+								StringRef parseString = ((MDString*) consumerMDNode->getOperand(2))->getName();
 								list<StringRef> consumerInstanceId = parseInstanceIdString(parseString);
 								MDNode* hyperOp = (MDNode*) consumerMDNode->getOperand(0);
 								//TODO
@@ -271,19 +270,19 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 							}
 							if (consumerHyperOp != 0) {
 								HyperOpEdge* edge = new HyperOpEdge();
-								if (dataType.compare(SCALAR) == 0) {
-									edge->Type = HyperOpEdge::SCALAR;
-									//Find out if the data is being passed to an instance
-								} else if (dataType.compare(LOCAL_REFERENCE) == 0) {
-									edge->Type = HyperOpEdge::LOCAL_REFERENCE;
-									list<unsigned> volumeOfCommunication;
-									Function* consumerFunction = consumerHyperOp->getFunction();
-									AllocaInst* allocInst = getAllocInstrForLocalReferenceData(*M, instr, functionMetadataMap);
-									edge->setValue(allocInst);
-									unsigned volume = REDEFINEUtils::getSizeOfType(allocInst->getType()) / 4;
-									volumeOfCommunication.push_back(volume);
-									edge->setVolume(volumeOfCommunication);
-								}
+//								if (dataType.compare(SCALAR) == 0) {
+								edge->Type = HyperOpEdge::SCALAR;
+								//Find out if the data is being passed to an instance
+//								} else if (dataType.compare(LOCAL_REFERENCE) == 0) {
+//									edge->Type = HyperOpEdge::LOCAL_REFERENCE;
+								list<unsigned> volumeOfCommunication;
+//									Function* consumerFunction = consumerHyperOp->getFunction();
+//									AllocaInst* allocInst = getAllocInstrForLocalReferenceData(*M, instr, functionMetadataMap);
+//									edge->setValue(allocInst);
+								unsigned volume = REDEFINEUtils::getSizeOfType(instr->getType()) / 4;
+								volumeOfCommunication.push_back(volume);
+								edge->setVolume(volumeOfCommunication);
+//								}
 								edge->setPositionOfContextSlot(positionOfContextSlot);
 								edge->setValue((Value*) instr);
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
