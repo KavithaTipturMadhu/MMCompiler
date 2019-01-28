@@ -2801,6 +2801,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
  * 1. Hops cant be both predicated and sync barriers
  * 2. Data arguments from the same producer hyperop dont share the same location
  * 3. There are no cycles in an HIG
+ * 4. For each input coming into a context slot, there is at least one parent hyperop producing the data
  *
  */
 void HyperOpInteractionGraph::verify() {
@@ -2872,6 +2873,24 @@ void HyperOpInteractionGraph::verify() {
 	for (unsigned i = 0; i < numVertices; i++) {
 		for (unsigned j = 0; j < numVertices; j++) {
 			assert((!(transitiveClosure[i][j] && transitiveClosure[j][i])) && "Cycle in HIG\n");
+		}
+	}
+
+
+	//Ensure that every input to a function has at least one input edge starting at a parent HyperOp
+	for (auto hopItr : this->Vertices) {
+		HyperOp* hop = hopItr;
+		Function* hopFunction = hop->getFunction();
+		int funcArgIndex = 0;
+		for(auto argItr = hopFunction->arg_begin(); argItr!=hopFunction->end(); argItr++, funcArgIndex++){
+			bool funcInputHasValidInput = false;
+			for(auto edgeItr:hop->ParentMap){
+				if(edgeItr.first->getPositionOfContextSlot() == funcArgIndex && std::find(this->Vertices.begin(), this->Vertices.end(),edgeItr.second)!=this->Vertices.end()){
+					funcInputHasValidInput = true;
+					break;
+				}
+			}
+			assert(funcInputHasValidInput && "Invalid input to a function");
 		}
 	}
 }
