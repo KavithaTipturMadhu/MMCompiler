@@ -4340,6 +4340,9 @@ struct HIGOptimizationPass: public ModulePass {
 	virtual bool runOnModule(Module &M) {
 		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
 		graph->removeUnreachableHops();
+		graph->computeDominatorInfo();
+		graph->makeGraphStructured();
+		graph->computeDominatorInfo();
 		graph->verify();
 		return false;
 	}
