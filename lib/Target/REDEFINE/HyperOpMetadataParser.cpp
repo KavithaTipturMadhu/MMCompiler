@@ -191,21 +191,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 		traversedList.push_back(sourceHyperOp);
 		Function* sourceFunction;
 		sourceFunction = sourceHyperOp->getFunction();
-		unsigned frameSizeOfHyperOp = 0;
-		unsigned argIndex = 1;
-		//Traverse through instructions of the module
-		for (Function::arg_iterator funcArgItr = sourceFunction->arg_begin(); funcArgItr != sourceFunction->arg_end(); funcArgItr++, argIndex++) {
-			Argument* argument = &*funcArgItr;
-			if (!sourceHyperOp->getFunction()->getAttributes().hasAttribute(argIndex, Attribute::InReg)) {
-				frameSizeOfHyperOp += REDEFINEUtils::getSizeOfType(funcArgItr->getType());
-			}
-		}
+
 		for (Function::iterator funcItr = sourceFunction->begin(); funcItr != sourceFunction->end(); funcItr++) {
 			for (BasicBlock::iterator bbItr = (*funcItr).begin(); bbItr != (*funcItr).end(); bbItr++) {
 				Instruction* instr = bbItr;
-				if (isa<AllocaInst>(instr)) {
-					frameSizeOfHyperOp += REDEFINEUtils::getSizeOfType(((AllocaInst*) instr)->getType());
-				}
 				if (instr->hasMetadata()) {
 					MDNode* consumedByMDNode = instr->getMetadata(HYPEROP_CONSUMED_BY);
 					if (consumedByMDNode != 0) {
@@ -474,16 +463,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 				}
 			}
 		}
-		/* Uncommented this part because register spills may change frame size later bt till then, we need some way of finding out what the number of inputs to each frame is */
-		if (maxFrameSizeOfHyperOp < frameSizeOfHyperOp) {
-			errs() << "frame size for hop " << sourceHyperOp->asString() << ":" << frameSizeOfHyperOp << "\n";
-			maxFrameSizeOfHyperOp = frameSizeOfHyperOp;
-		}
 	}
-//	errs() << "before deleting nodes:";
-//	graph->print(errs());
 
-	graph->setMaxMemFrameSize(maxFrameSizeOfHyperOp);
 	graph->print(errs());
 	return graph;
 }

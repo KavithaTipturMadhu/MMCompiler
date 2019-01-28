@@ -122,19 +122,23 @@ struct REDEFINEIRPass: public ModulePass {
 					LoadInst* loadInst;
 					CallInst* fallocCallInst, *fbindInst;
 					Value *fallocArgs[1];
+					Value* baseAddress;
 					if (child->getInRange()) {
 						addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, &loadInst);
 						fallocArgs[0] = child->getRangeUpperBound();
 					} else {
 						fallocArgs[0] = ConstantInt::get(M.getContext(), APInt(32, 0));
+						baseAddress = fallocCallInst;
 					}
 
 					fallocCallInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::falloc, 0), fallocArgs, "falloc_reg", &insertInBB->back());
 
 					if (child->getInRange()) {
 						insertInBB = loopBody;
+						baseAddress = BinaryOperator::CreateNSWAdd(fallocCallInst, ConstantInt::get(M.getContext(), APInt(32, 64)), "base_addr", &loopBody->back());
 					}
-					Value *fbindArgs[] = { fallocCallInst, ConstantInt::get(M.getContext(), APInt(32, functionAndIndexMap[child->getFunction()])) };
+
+					Value *fbindArgs[] = { baseAddress, ConstantInt::get(M.getContext(), APInt(32, functionAndIndexMap[child->getFunction()])) };
 					fbindInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fbind, 0), fbindArgs, "", &insertInBB->back());
 
 					/* Add falloc and fbind instructions */
@@ -145,45 +149,45 @@ struct REDEFINEIRPass: public ModulePass {
 				}
 			}
 
-//			DEBUG(dbgs() << "Adding fdelete instructions to module\n");
-//			for (auto hyperOpItr : vertex->getParentGraph()->Vertices) {
-//				HyperOp* child = hyperOpItr;
-//				if (child != vertex && !child->isPredicatedHyperOp() && child->getImmediateDominator() != NULL && child->getImmediateDominator()->getImmediatePostDominator() == vertex) {
-//					HyperOpEdge* contextFrameAddressEdge = NULL;
-//					for(auto incomingEdgeItr:child->ParentMap){
-//						HyperOpEdge* edge = incomingEdgeItr.first;
-//						if(edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR && edge->getContextFrameAddress() == child){
-//							contextFrameAddressEdge = edge;
-//							break;
-//						}
-//					}
-//					assert((contextFrameAddressEdge!=NULL)&&"");
-//					unsigned argSlot = contextFrameAddressEdge->getPositionOfContextSlot();
-//					Value* argContainingAddress = 0;
-//					unsigned index = 0;
-//					for (auto argItr = vertexFunction->getArgumentList().begin(); argItr != vertexFunction->getArgumentList().end(); argItr++, index++) {
-//						if (argSlot == index) {
-//							argContainingAddress = argItr;
-//							break;
-//						}
-//					}
-//					BasicBlock * loopBegin, *loopBody, *loopEnd;
-//					LoadInst* loadInst;
-//					if (child->getInRange()) {
-//						addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, &loadInst);
-//						insertInBB = loopBody;
-//					}
-//
-//					CallInst* fdeleteInst;
-//					Value *fdeleteArgs[] = { argContainingAddress };
-//					fdeleteInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fdelete, 0), fdeleteArgs, "", &insertInBB->back());
-//					/* Add falloc and fbind instructions */
-//					if (child->getInRange()) {
-//						BinaryOperator* incItr = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 1)), "", &loopBody->back());
-//						insertInBB = loopEnd;
-//					}
-//				}
-//			}
+			DEBUG(dbgs() << "Adding fdelete instructions to module\n");
+			for (auto hyperOpItr : vertex->getParentGraph()->Vertices) {
+				HyperOp* child = hyperOpItr;
+				if (child != vertex && !child->isPredicatedHyperOp() && child->getImmediateDominator() != NULL && child->getImmediateDominator()->getImmediatePostDominator() == vertex) {
+					HyperOpEdge* contextFrameAddressEdge = NULL;
+					for(auto incomingEdgeItr:child->ParentMap){
+						HyperOpEdge* edge = incomingEdgeItr.first;
+						if(edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR && edge->getContextFrameAddress() == child){
+							contextFrameAddressEdge = edge;
+							break;
+						}
+					}
+					assert((contextFrameAddressEdge!=NULL)&&"");
+					unsigned argSlot = contextFrameAddressEdge->getPositionOfContextSlot();
+					Value* argContainingAddress = 0;
+					unsigned index = 0;
+					for (auto argItr = vertexFunction->getArgumentList().begin(); argItr != vertexFunction->getArgumentList().end(); argItr++, index++) {
+						if (argSlot == index) {
+							argContainingAddress = argItr;
+							break;
+						}
+					}
+					BasicBlock * loopBegin, *loopBody, *loopEnd;
+					LoadInst* loadInst;
+					if (child->getInRange()) {
+						addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, &loadInst);
+						insertInBB = loopBody;
+					}
+
+					CallInst* fdeleteInst;
+					Value *fdeleteArgs[] = { argContainingAddress };
+					fdeleteInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fdelete, 0), fdeleteArgs, "", &insertInBB->back());
+					/* Add falloc and fbind instructions */
+					if (child->getInRange()) {
+						BinaryOperator* incItr = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 1)), "", &loopBody->back());
+						insertInBB = loopEnd;
+					}
+				}
+			}
 //
 //			DEBUG(dbgs() << "Adding fdelete self instruction\n");
 //			if(!vertex->isPredicatedHyperOp()){
