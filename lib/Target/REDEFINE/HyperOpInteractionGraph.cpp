@@ -2796,15 +2796,28 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 	}
 }
 
+/* Verification passes in that order:
+ * 0. Multiple start and end hyperops not allowed
+ * 1. Hops cant be both predicated and sync barriers
+ * 2. Data arguments from the same producer hyperop dont share the same location
+ * 3. There are no cycles in an HIG
+ *
+ */
 void HyperOpInteractionGraph::verify() {
 //Check that sync hyperops are not predicated
 	HyperOp* startHyperOp = NULL;
+	HyperOp* endHyperOp = NULL;
 	for (auto vertexItr : Vertices) {
 		errs()<<"Examining vertex "<<vertexItr->getFunction()->getName()<<"\n";
 		assert((!(vertexItr->isBarrierHyperOp() && vertexItr->isPredicatedHyperOp())) && "A HyperOp can't be both predicated and sync barrier");
 		if (vertexItr->isStartHyperOp()) {
 			assert(startHyperOp==NULL && "Multiple Start HyperOps not allowed\n");
 			startHyperOp = vertexItr;
+		}
+
+		if(vertexItr->isEndHyperOp()){
+			assert(endHyperOp==NULL && "Multiple End HyperOps not allowed\n");
+			endHyperOp = vertexItr;
 		}
 		map<int, list<HyperOp*> > contextSlotAndParentList;
 		//check to ensure the the incoming edges to a hyperOp don't share the same context slot, and if they do, they come from different hyperops
