@@ -32,6 +32,8 @@ using namespace std;
 #include "llvm/IR/Instruction.def"
 #include "llvm/IR/HyperOpMetadataParser.h"
 #include "llvm/IR/HyperOpInteractionGraph.h"
+#include "llvm/Support/CommandLine.h"
+#include "../tools/opt/opt.cpp"
 using namespace llvm;
 
 #define DEBUG_TYPE "HyperOpCreationPass"
@@ -641,6 +643,8 @@ struct HyperOpCreationPass: public ModulePass {
 	}
 
 	virtual bool runOnModule(Module &M) {
+
+
 		LLVMContext & ctxt = M.getContext();
 		//Top level annotation corresponding to all annotations REDEFINE
 		NamedMDNode * redefineAnnotationsNode = M.getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
@@ -764,8 +768,9 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 			}
 		}
-
-		if (INLINE_FUNCTION_CALLS) {
+		const char* isHyperOpInline = std::getenv("HYPEROP_INLINE");
+		/*if (INLINE_FUNCTION_CALLS) {*/
+		if(isHyperOpInline!= NULL && strcmp(isHyperOpInline,"true") == 0){
 			for (CallInst* callInst : callsToInline) {
 				DEBUG(dbgs()<< "inling function call:"<<callInst);
 				InlineFunctionInfo info;

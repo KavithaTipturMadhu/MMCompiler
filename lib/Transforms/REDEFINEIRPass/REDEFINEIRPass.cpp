@@ -29,6 +29,7 @@ using namespace std;
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/IR/HyperOpMetadataParser.h"
 #include "llvm/IR/HyperOpInteractionGraph.h"
+#include "../lib/Transforms/HyperOpCreationPass/HyperOpCreationPass.cpp"
 using namespace llvm;
 
 #define DEBUG_TYPE "REDEFINEIRPass"
@@ -48,6 +49,7 @@ struct REDEFINEIRPass: public ModulePass {
 		//Mandatory merge return to be invoked on each function
 		AU.addRequired<UnifyFunctionExitNodes>();
 		AU.addRequired<DependenceAnalysis>();
+		AU.addRequired<HyperOpCreationPass>();
 	}
 
 	void addRangeLoopConstructs(HyperOp* child, Function* vertexFunction, const Module &M, BasicBlock** loopBegin, BasicBlock** loopBody, BasicBlock** loopEnd, BasicBlock** insertInBB, LoadInst** loadInst) {
@@ -198,4 +200,4 @@ struct REDEFINEIRPass: public ModulePass {
 char REDEFINEIRPass::ID = 3;
 
 char* REDEFINEIRPass::NEW_NAME = "newName";
-static RegisterPass<REDEFINEIRPass> X("REDEFINEIRPass", "Pass to create REDEFINE specific IR from Kavitha's metadata based IR");
+static RegisterPass<REDEFINEIRPass> Y("REDEFINEIRPass", "Pass to create REDEFINE specific IR from Kavitha's metadata based IR");

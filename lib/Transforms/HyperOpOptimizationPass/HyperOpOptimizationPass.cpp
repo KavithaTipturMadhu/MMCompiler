@@ -29,6 +29,8 @@ using namespace std;
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/IR/HyperOpMetadataParser.h"
 #include "llvm/IR/HyperOpInteractionGraph.h"
+#include "../lib/Transforms/REDEFINEIRPass/REDEFINEIRPass.cpp"
+
 using namespace llvm;
 
 #define DEBUG_TYPE "HyperOpOptimizationPass"
@@ -45,6 +47,7 @@ struct HyperOpOptimizationPass: public ModulePass {
 		//Mandatory merge return to be invoked on each function
 		AU.addRequired<UnifyFunctionExitNodes>();
 		AU.addRequired<DependenceAnalysis>();
+		AU.addRequired<REDEFINEIRPass>();
 	}
 
 	virtual bool runOnModule(Module &M) {
@@ -54,22 +57,25 @@ struct HyperOpOptimizationPass: public ModulePass {
 				functionItr++) {
 			Function* func = functionItr;
 			unsigned index = 1;
+			unsigned numOfArgs = 0;
 			for (Function::arg_iterator arg_itr =
 					func->getArgumentList().begin();
 					arg_itr != func->getArgumentList().end() && index <= 17;
 					arg_itr++, index++) {
 				if (arg_itr->getType()->isIntegerTy()) {
 					func->addAttribute(index, Attribute::InReg);
+					numOfArgs++;
 				} else {
 					break;
 				}
 			}
+			//assert(numOfArgs >= 2 && "Less than two arguments for HyperOp i.e., Atleast two arguments should be there for HyperOp, aborting\n");
 		}
 		return true;
 	}
 };
-char HyperOpOptimizationPass::ID = 3;
+char HyperOpOptimizationPass::ID = 4;
 
 char* HyperOpOptimizationPass::NEW_NAME = "newName";
-static RegisterPass<HyperOpOptimizationPass> X("HyperOpOptimizationPass",
+static RegisterPass<HyperOpOptimizationPass> HyperOpOptimizationPass("HyperOpOptimizationPass",
 		"Pass to optimize HyperOps");
