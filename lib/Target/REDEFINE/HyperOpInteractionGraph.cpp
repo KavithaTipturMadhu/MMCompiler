@@ -2882,7 +2882,7 @@ void HyperOpInteractionGraph::verify() {
 		HyperOp* hop = hopItr;
 		Function* hopFunction = hop->getFunction();
 		int funcArgIndex = 0;
-		for(auto argItr = hopFunction->arg_begin(); argItr!=hopFunction->end(); argItr++, funcArgIndex++){
+		for(auto argItr = hopFunction->arg_begin(); argItr!=hopFunction->arg_end(); argItr++, funcArgIndex++){
 			bool funcInputHasValidInput = false;
 			for(auto edgeItr:hop->ParentMap){
 				if(edgeItr.first->getPositionOfContextSlot() == funcArgIndex && std::find(this->Vertices.begin(), this->Vertices.end(),edgeItr.second)!=this->Vertices.end()){
