@@ -4037,34 +4037,93 @@ void HyperOpInteractionGraph::print(raw_ostream &os, int debug) {
 	os << "}\n";
 }
 
-void HyperOpInteractionGraph::removeUnreachableHops(){
-	//This had to be written as follows because removal of one node may cause other nodes to go hanging
-		while (true) {
-			bool updatedGraph = false;
-			list<HyperOp*> vertices = this->Vertices;
-			for (list<HyperOp*>::iterator vertexItr = vertices.begin(); vertexItr != vertices.end(); vertexItr++) {
-				if (!(*vertexItr)->isEndHyperOp() && (*vertexItr)->ChildMap.empty()) {
-					if (!(*vertexItr)->isUnrolledInstance()) {
-						(*vertexItr)->getFunction()->eraseFromParent();
-					}
-					this->removeHyperOp(*vertexItr);
-					updatedGraph = true;
-					break;
-				}
+void setUpdatedMetadata(HyperOp* nodeForRemoval, Instruction** instr, StringRef mdkind) {
+	vector<Value*> updatedConsumerList;
+	MDNode* consumedByMDNode = (*instr)->getMetadata(mdkind);
+	for (unsigned consumerMDNodeIndex = 0; consumerMDNodeIndex != consumedByMDNode->getNumOperands(); consumerMDNodeIndex++) {
+		MDNode* consumedByNode = (MDNode*) consumedByMDNode->getOperand(consumerMDNodeIndex);
+		if (!(consumedByNode != NULL && !((MDNode*) consumedByNode->getOperand(0))->getOperand(0)->getName().compare(nodeForRemoval->getFunction()->getName()))) {
+			updatedConsumerList.push_back(consumedByMDNode);
+		}
 
-				else if (!(*vertexItr)->isStartHyperOp() && (*vertexItr)->ParentMap.empty()) {
-					if (!(*vertexItr)->isUnrolledInstance()) {
-						(*vertexItr)->getFunction()->eraseFromParent();
-					}
-					this->removeHyperOp(*vertexItr);
-					updatedGraph = true;
-					break;
-				}
-			}
-			if (!updatedGraph) {
+	}
+	if(!updatedConsumerList.empty()){
+		(*instr)->setMetadata(mdkind, MDNode::get(nodeForRemoval->getFunction()->getParent()->getContext(), updatedConsumerList));
+	}else{
+		(*instr)->setMetadata(mdkind, NULL);
+	}
+}
+
+/* Ideally, this shouldn't happen, but the previous pass may generate hops incorrectly, this is more a sanity check than anything else */
+void HyperOpInteractionGraph::removeUnreachableHops() {
+	//This had to be written as follows because removal of one node may cause other nodes to go hanging
+	Module* M = this->Vertices.front()->getFunction()->getParent();
+	LLVMContext & ctxt = M->getContext();
+	while (true) {
+		bool updatedGraph = false;
+		HyperOp* nodeForRemoval = NULL;
+		list<HyperOp*> vertices = this->Vertices;
+		for (list<HyperOp*>::iterator vertexItr = vertices.begin(); vertexItr != vertices.end(); vertexItr++) {
+			if (!(*vertexItr)->isEndHyperOp() && (*vertexItr)->ChildMap.empty()) {
+				nodeForRemoval = *vertexItr;
+				break;
+			} else if (!(*vertexItr)->isStartHyperOp() && (*vertexItr)->ParentMap.empty()) {
+				nodeForRemoval = *vertexItr;
 				break;
 			}
 		}
 
-		this->updateLocalRefEdgeMemOffset();
+		if (nodeForRemoval != NULL) {
+			/* Update the code of the module by removing the function and all the incoming/outgoing metadata */
+			if (!nodeForRemoval->isUnrolledInstance()) {
+				if (!nodeForRemoval->ChildMap.empty()) {
+					for (auto funcItr = nodeForRemoval->getFunction()->begin(); funcItr != nodeForRemoval->getFunction()->end(); funcItr++) {
+						for (BasicBlock::iterator bbItr = (*funcItr).begin(); bbItr != (*funcItr).end(); bbItr++) {
+							Instruction* instr = bbItr;
+							if (instr->hasMetadata()) {
+								instr->setMetadata(HYPEROP_CONSUMED_BY, NULL);
+								instr->setMetadata(HYPEROP_CONTROLS, NULL);
+								instr->setMetadata(HYPEROP_SYNC, NULL);
+								//TODO do we also need to remove arguments to a child HyperOp, because there could be other functions producing the data
+							}
+						}
+					}
+				} else if (!nodeForRemoval->getParentList().empty()) {
+					for (auto parentItr : nodeForRemoval->getParentList()) {
+						Function* parentHyperOp = parentItr->getFunction();
+						for (auto funcItr = parentHyperOp->begin(); funcItr != parentHyperOp->end(); funcItr++) {
+							for (BasicBlock::iterator bbItr = (*funcItr).begin(); bbItr != (*funcItr).end(); bbItr++) {
+								Instruction* instr = bbItr;
+								if (instr->hasMetadata()) {
+									setUpdatedMetadata(nodeForRemoval, &instr, HYPEROP_CONSUMED_BY);
+									setUpdatedMetadata(nodeForRemoval, &instr, HYPEROP_CONTROLS);
+									setUpdatedMetadata(nodeForRemoval, &instr, HYPEROP_SYNC);
+								}
+							}
+						}
+					}
+				}
+				NamedMDNode *RedefineAnnotations = M->getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
+				RedefineAnnotations->eraseFromParent();
+				NamedMDNode *updatedAnnotations = M->getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
+				for (int i = 0; i < RedefineAnnotations->getNumOperands(); i++) {
+					MDNode* hyperOpMDNode = RedefineAnnotations->getOperand(i);
+					StringRef type = ((MDString*) hyperOpMDNode->getOperand(0))->getName();
+					if (!(type.compare(HYPEROP) == 0 && !(Function *) hyperOpMDNode->getOperand(1)->getName().compare(nodeForRemoval->getFunction()->getName()))) {
+						updatedAnnotations->addOperand(hyperOpMDNode);
+					}
+				}
+
+				nodeForRemoval->getFunction()->eraseFromParent();
+			}
+
+			/* Remove the node from the graph, whether unrolled or otherwise, just so the loop can keep continuing */
+			this->removeHyperOp(nodeForRemoval);
+			updatedGraph = true;
+		}
+		if (!updatedGraph) {
+			break;
+		}
+	}
+
 }
