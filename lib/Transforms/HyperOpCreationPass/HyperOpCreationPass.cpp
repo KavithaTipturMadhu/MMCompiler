@@ -4330,3 +4330,20 @@ char HyperOpCreationPass::ID = 2;
 //
 char* HyperOpCreationPass::NEW_NAME = "newName";
 static RegisterPass<HyperOpCreationPass> X("HyperOpCreationPass", "Pass to create HyperOps");
+
+
+struct HIGOptimizationPass: public ModulePass {
+	static char ID;
+	HIGOptimizationPass() :
+			ModulePass(ID) {
+	}
+	virtual bool runOnModule(Module &M) {
+		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
+		graph->removeUnreachableHops();
+		return false;
+	}
+};
+
+char HIGOptimizationPass::ID = 2;
+static RegisterPass<HIGOptimizationPass> X2("HIGOptimization", "Pass to optimize HIG: delete unreachable nodes and make graph structured");
+
