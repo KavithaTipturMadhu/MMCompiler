@@ -3484,10 +3484,11 @@ bool mutuallyExclusiveHyperOps(HyperOp* firstHyperOp, HyperOp* secondHyperOp) {
 }
 
 /*
- * This method does 3 things:
- * 1. Remove ordering edges when there are other edges between two HyperOps
- * 2. Add predicate delivery edges to HyperOps that are on non taken paths but may have data coming from a HyperOp that precedes the HyperOp producing the predicate
- * 3. Decrement sync count of a barrier HyperOp that has incoming sync edges from mutually exclusive paths
+ * This method does the following:
+ * 1. Add synchronization edges between hyperops that communicate only through memory
+ * 2. If the producer and consumer are mapped to different CRs, treat them as localrefs only instead of scalars to avoid reconciles\n
+ * 3. Delivering reaching predicate with decrement count in case operands to be delivered are on the non taken path
+ * 4. Compute sync count on each path of control for barrier hyperops
  */
 void HyperOpInteractionGraph::minimizeControlEdges() {
 	DEBUG(dbgs() << "Computing whether there is a control/scalar path between a pair of HyperOps communicating via memory and adding sync edges if there is no control path\n");
