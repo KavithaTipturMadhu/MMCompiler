@@ -33,7 +33,6 @@ using namespace std;
 #include "llvm/IR/HyperOpMetadataParser.h"
 #include "llvm/IR/HyperOpInteractionGraph.h"
 #include "llvm/Support/CommandLine.h"
-#include "../tools/opt/opt.cpp"
 using namespace llvm;
 
 #define DEBUG_TYPE "HyperOpCreationPass"
@@ -4356,4 +4355,3 @@ struct HIGOptimizationPass: public ModulePass {
 
 char HIGOptimizationPass::ID = 2;
 static RegisterPass<HIGOptimizationPass> X2("HIGOptimization", "Pass to optimize HIG: delete unreachable nodes and make graph structured");
-
