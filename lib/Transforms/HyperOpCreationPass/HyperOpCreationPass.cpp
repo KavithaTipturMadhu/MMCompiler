@@ -4521,8 +4521,6 @@ struct REDEFINEIRPass: public ModulePass {
 	}
 };
 
-
-
 char REDEFINEIRPass::ID = 3;
 char* REDEFINEIRPass::NEW_NAME = "newName";
 static RegisterPass<REDEFINEIRPass> X3("REDEFINEIRPass", "Pass to create REDEFINE specific IR from Kavitha's metadata based IR");
