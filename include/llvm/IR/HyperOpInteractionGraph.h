@@ -154,10 +154,7 @@ class HyperOp {
 // The function is an instanceof another function,
 //	it is replicated into a newer function because it lets us associate different metadata with the static and dynamic instances
 	Function* instanceof;
-	bool fbindRequired;
 	bool staticHyperOp;
-	//Frame to be garbage collected?
-	bool gcRequired;
 	unsigned hyperOpId;
 	vector<unsigned> numInputsPerCE;
 	//map of predicate value to sync count
@@ -222,8 +219,6 @@ public:
 	void setNumCEs(unsigned numPHyperOps);
 	unsigned getNumInputsPerCE(unsigned pHyperOpId);
 	unsigned computeDepthInGraph();
-	bool frameNeedsGC() const;
-	void setFrameNeedsGC(bool intrinsicFrame);
 	unsigned int getTargetResource() const;
 	void setTargetResource(unsigned int targetResource);
 	void setContextFrame(unsigned int contextFrame);

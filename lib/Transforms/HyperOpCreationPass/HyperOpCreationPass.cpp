@@ -4391,7 +4391,6 @@ struct REDEFINEIRPass: public ModulePass {
 		allocItrInst->setAlignment(4);
 		allocItrInst->insertBefore((*insertInBB)->getFirstInsertionPt());
 
-//		Value* zero = ConstantInt::get(M.getContext(), APInt(32, 0));
 		StoreInst* storeItrInst = new StoreInst(child->getRangeLowerBound(), allocItrInst, (*insertInBB)->getTerminator());
 		storeItrInst->setAlignment(4);
 

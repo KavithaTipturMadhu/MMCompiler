@@ -18,22 +18,11 @@
 #include "llvm/IR/HyperOpInteractionGraph.h"
 using namespace llvm;
 
-namespace {
-
-const int NUM_FRAMES_PER_CR = 800;
-
-}
-
 using namespace std;
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Support/Debug.h"
 using namespace llvm;
-
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/graphviz.hpp>
-#include <boost/graph/sequential_vertex_coloring.hpp>
-using namespace boost;
 
 //Returns size of the type in bytes
 //Duplicate cos utils can't be added as header
@@ -68,8 +57,6 @@ HyperOp::HyperOp(Function* function, HyperOpInteractionGraph* hig) {
 	this->TargetResource = 0;
 	this->contextFrame = 0;
 	this->executionTimeEstimate.push_back(1);
-	this->fbindRequired = false;
-	this->gcRequired = false;
 	this->staticHyperOp = true;
 	list<SyncValue> zeroPredList;
 	this->setIncomingSyncCount(0, zeroPredList);
@@ -154,14 +141,6 @@ unsigned int HyperOp::getContextFrame() const {
 	return contextFrame;
 }
 
-bool HyperOp::isFbindRequired() const {
-	return fbindRequired;
-}
-
-void HyperOp::setFbindRequired(bool fbindRequired) {
-	this->fbindRequired = fbindRequired;
-}
-
 bool HyperOp::isStaticHyperOp() const {
 	return staticHyperOp;
 }
@@ -204,9 +183,6 @@ HyperOpInteractionGraph* HyperOp::getParentGraph(){
 	return hig;
 }
 
-//void HyperOp::decrementIncomingSyncCount(unsigned predicateValue) {
-//	this->numIncomingSyncEdges[predicateValue]--;
-//}
 list<SyncValue> HyperOp::getSyncCount(unsigned predicateValue) {
 	return this->numIncomingSyncEdges[predicateValue];
 }
@@ -236,16 +212,8 @@ string HyperOp::asString(bool ignorePeriod) {
 		retVal << function->getName().data();
 	} else if (instanceof != NULL) {
 		retVal << function->getName().data() << instanceof->getName().data();
-//				<<"<";
-		unsigned index = 0;
-		for (list<unsigned>::iterator idItr = instanceId.begin(); idItr != instanceId.end(); idItr++, index++) {
+		for (list<unsigned>::iterator idItr = instanceId.begin(); idItr != instanceId.end(); idItr++) {
 			retVal << (*idItr);
-//			if(index<instanceId.size()-1) {
-//				retVal<<",";
-//			}
-//			else {
-//				retVal<<">)";
-//			}
 		}
 	}
 	if (ignorePeriod) {
@@ -356,7 +324,6 @@ HyperOp* HyperOp::getImmediatePostDominator() {
 
 void HyperOp::setStartHyperOp() {
 	this->IsStart = true;
-//	this->incrementIncomingSyncCount(0);
 	this->setBarrierHyperOp();
 	this->setNumCEInputs(0, 1);
 }
@@ -614,14 +581,6 @@ unsigned HyperOp::computeDepthInGraph() {
 	return executionTime;
 }
 
-bool HyperOp::frameNeedsGC() const {
-	return gcRequired;
-}
-
-void HyperOp::setFrameNeedsGC(bool gcRequired) {
-	this->gcRequired = gcRequired;
-}
-
 list<unsigned int> HyperOp::getTopLevel() {
 	return this->topLevel;
 }
@@ -742,7 +701,6 @@ unsigned int HyperOpInteractionGraph::getMaxMemFrameSize() const {
 }
 
 void HyperOpInteractionGraph::setMaxMemFrameSize(unsigned int maxFrameSize) {
-	errs() << "max mem frame size:" << maxFrameSize << "\n";
 	this->maxMemFrameSize = maxFrameSize;
 }
 
