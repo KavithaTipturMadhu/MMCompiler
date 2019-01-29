@@ -296,10 +296,10 @@ public:
 	 */
 	void associateStaticContextFrames();
 
-	/**
-	 *Minimize the edges introduced due to clustering since we don't need (nor can we support) so many control edges flowing around
+	/*
+	 * Adds 2 register arguments to each function in the beginning of the argument list, indicating that the function gets its own address and the base address of range hop
 	 */
-	void minimizeControlEdges();
+	void addSelfFrameAddressRegisters();
 
 	/**
 	 * Prints in dot format
@@ -349,5 +349,13 @@ public:
 	void addContextFrameblockSizeEdges();
 
 	void removeUnreachableHops();
+
+	void addNecessarySyncEdges();
+
+	void convertRemoteScalarsToStores();
+
+	void addArgDecrementCountOnControlPaths();
+
+	void addSyncCountDecrementOnControlPaths();
 };
 #endif /* LIB_TARGET_RISCV_HYPEROPINTERACTIONGRAPH_H_ */

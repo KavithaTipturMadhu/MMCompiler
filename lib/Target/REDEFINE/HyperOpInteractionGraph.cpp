@@ -179,7 +179,7 @@ Value* HyperOp::getIncomingSyncPredicate(unsigned predicateValue) {
 	return this->predicateForSyncSource[predicateValue];
 }
 
-HyperOpInteractionGraph* HyperOp::getParentGraph(){
+HyperOpInteractionGraph* HyperOp::getParentGraph() {
 	return hig;
 }
 
@@ -1173,7 +1173,7 @@ void HyperOpInteractionGraph::computeDominatorInfo() {
 void HyperOpInteractionGraph::makeGraphStructured() {
 	bool change = true;
 	int i = 0;
-	DEBUG(dbgs()<<"before making graph structured:");
+	DEBUG(dbgs() << "before making graph structured:");
 	this->print(dbgs(), 1);
 	while (change) {
 		i++;
@@ -1183,11 +1183,11 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 			HyperOp* vertex = *vertexItr;
 			if (vertex->getChildList().size() > 1 && vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() == vertex->getImmediatePostDominator()) {
 				HyperOp* mergeNode = vertex->getImmediateDominator()->getImmediatePostDominator();
-				if(find(mergeNode->getParentList().begin(), mergeNode->getParentList().end(), vertex->getImmediateDominator()) != mergeNode->getParentList().end()){
+				if (find(mergeNode->getParentList().begin(), mergeNode->getParentList().end(), vertex->getImmediateDominator()) != mergeNode->getParentList().end()) {
 					HyperOp* joinNodeStart = vertex->getImmediateDominator();
 					HyperOp* joinNodeEnd = mergeNode;
 					//Create a new node between the join start and merge node and redirect all the direct edges between start and merge through the new join node
-				}else{
+				} else {
 
 				}
 			}
@@ -2557,14 +2557,14 @@ void HyperOpInteractionGraph::verify() {
 	HyperOp* startHyperOp = NULL;
 	HyperOp* endHyperOp = NULL;
 	for (auto vertexItr : Vertices) {
-		errs()<<"Examining vertex "<<vertexItr->getFunction()->getName()<<"\n";
+		errs() << "Examining vertex " << vertexItr->getFunction()->getName() << "\n";
 		assert((!(vertexItr->isBarrierHyperOp() && vertexItr->isPredicatedHyperOp())) && "A HyperOp can't be both predicated and sync barrier");
 		if (vertexItr->isStartHyperOp()) {
 			assert(startHyperOp==NULL && "Multiple Start HyperOps not allowed\n");
 			startHyperOp = vertexItr;
 		}
 
-		if(vertexItr->isEndHyperOp()){
+		if (vertexItr->isEndHyperOp()) {
 			assert(endHyperOp==NULL && "Multiple End HyperOps not allowed\n");
 			endHyperOp = vertexItr;
 		}
@@ -2632,8 +2632,8 @@ void HyperOpInteractionGraph::verify() {
 			continue;
 		}
 		assert((hop->isStartHyperOp()|| (!hop->isStartHyperOp() && hop->getImmediateDominator()!=NULL)) &&"Only start HyperOp does not have an immediate dominator");
-		if(!hop->isStartHyperOp()){
-			assert((hop->getImmediateDominator()->getImmediateDominator() == hop->getImmediatePostDominator() || hop->getChildList().size()>1) && "HIG is not structured");
+		if (!hop->isStartHyperOp()) {
+			assert((hop->getImmediateDominator()->getImmediateDominator() == hop->getImmediatePostDominator() || hop->getChildList().size() > 1) && "HIG is not structured");
 		}
 		Function* hopFunction = hop->getFunction();
 		int funcArgIndex = 0;
@@ -2794,8 +2794,8 @@ void HyperOpInteractionGraph::verify() {
 //}
 
 void HyperOpInteractionGraph::associateStaticContextFrames() {
-	for(auto vertexItr:this->Vertices){
-		if(vertexItr->isStartHyperOp()){
+	for (auto vertexItr : this->Vertices) {
+		if (vertexItr->isStartHyperOp()) {
 			vertexItr->setContextFrame(0);
 			return;
 		}
@@ -3149,13 +3149,36 @@ bool mutuallyExclusiveHyperOps(HyperOp* firstHyperOp, HyperOp* secondHyperOp) {
 }
 
 /*
- * This method does the following:
- * 1. Add synchronization edges between hyperops that communicate only through memory
- * 2. If the producer and consumer are mapped to different CRs, treat them as localrefs only instead of scalars to avoid reconciles\n
- * 3. Delivering reaching predicate with decrement count in case operands to be delivered are on the non taken path
- * 4. Compute sync count on each path of control for barrier hyperops
+ * This method adds 2 register arguments to each function in the beginning of the argument list, indicating that the function gets its own address and the base address of range hop
  */
-void HyperOpInteractionGraph::minimizeControlEdges() {
+void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
+	Module *M = this->Vertices.front()->getFunction()->getParent();
+	for (auto funcItr = M->begin(); funcItr != M->end(); funcItr++) {
+		Function* func = funcItr;
+		Argument* addressbaseArg = new Argument(Type::getInt32Ty(M->getContext()));
+		func->getArgumentList().push_front(addressbaseArg);
+		func->addAttribute(1, Attribute::InReg);
+
+		Argument* addressArg = new Argument(Type::getInt32Ty(M->getContext()));
+		func->getArgumentList().push_front(addressArg);
+		func->addAttribute(1, Attribute::InReg);
+
+		/* Update context frame slots to start from 2 for all args */
+		for (auto vertexItr : this->Vertices) {
+			HyperOp* vertex = vertexItr;
+			for (auto childEdgeItr : vertex->ChildMap) {
+				if (childEdgeItr.second->getFunction() == func) {
+					childEdgeItr.first->setPositionOfContextSlot(childEdgeItr.first->getPositionOfContextSlot() + 2);
+				}
+			}
+		}
+	}
+}
+
+/*
+ *  Add synchronization edges between hyperops that communicate only through memory
+ */
+void HyperOpInteractionGraph::addNecessarySyncEdges() {
 	DEBUG(dbgs() << "Computing whether there is a control/scalar path between a pair of HyperOps communicating via memory and adding sync edges if there is no control path\n");
 	unsigned numVertices = this->Vertices.size();
 	bool transitiveClosure[numVertices][numVertices];
@@ -3167,7 +3190,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			transitiveClosure[indexMap][i] = 0;
 		}
 	}
-//Populate adjacency matrix
+	//Populate adjacency matrix
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		list<HyperOp*> children = (*hopItr)->getChildList();
 		unsigned producerIndex = hyperOpAndIndexMap[*hopItr];
@@ -3180,7 +3203,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		}
 	}
 
-//Compute transitive closure
+	//Compute transitive closure
 	for (unsigned k = 0; k < numVertices; k++) {
 		for (unsigned i = 0; i < numVertices; i++) {
 			for (unsigned j = 0; j < numVertices; j++) {
@@ -3339,9 +3362,9 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 						originalAndReplacementFunctionMap.erase(consumerHyperOp->getFunction());
 					}
 					originalAndReplacementFunctionMap[consumerHyperOp->getFunction()] = replacementFunction;
-//				} else {
-//					//TODO Not enough slots in context frame
-//					DEBUG(dbgs() << "adding a hyperop that can sync  via context frame from " << producerHyperOp->asString() << " to " << consumerHyperOp->asString() << "\n");
+					//				} else {
+					//					//TODO Not enough slots in context frame
+					//					DEBUG(dbgs() << "adding a hyperop that can sync  via context frame from " << producerHyperOp->asString() << " to " << consumerHyperOp->asString() << "\n");
 
 				}
 
@@ -3358,54 +3381,54 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		}
 	}
 
-//Update the HyperOps with newly created functions and delete the old ones
+	//Update the HyperOps with newly created functions and delete the old ones
 	for (map<Function*, Function*>::iterator replacementFunctionItr = originalAndReplacementFunctionMap.begin(); replacementFunctionItr != originalAndReplacementFunctionMap.end(); replacementFunctionItr++) {
-//		HyperOp* hyperOpForUpdate = this->getHyperOp(replacementFunctionItr->first);
-//		errs() << "updating hyperop:" << hyperOpForUpdate->asString() << ", whats in alloca?" << hyperOpForUpdate->loadInstrAndAllocaMap.size() << "\n";
-////Replace the load and alloc map
-//		if (!hyperOpForUpdate->loadInstrAndAllocaMap.empty()) {
-//			errs() << "some entries in allocamap\n";
-//			map<Instruction*, Instruction*> newLoadInstrAndAllocaMap;
-//			//Find the equivalent of each load instruction in the original map and place it in the new one
-//			for (map<Instruction*, Instruction*>::iterator loadItr = hyperOpForUpdate->loadInstrAndAllocaMap.begin(); loadItr != hyperOpForUpdate->loadInstrAndAllocaMap.end(); loadItr++) {
-//				if (originalInstAndCloneMap.find(loadItr->second) != originalInstAndCloneMap.end()) {
-//					newLoadInstrAndAllocaMap[originalInstAndCloneMap[loadItr->first]] = originalInstAndCloneMap[loadItr->second];
-//				} else {
-//					newLoadInstrAndAllocaMap[originalInstAndCloneMap[loadItr->first]] = loadItr->second;
-//				}
-//			}
-//
-//			hyperOpForUpdate->loadInstrAndAllocaMap.clear();
-//			for (map<Instruction*, Instruction*>::iterator updatedMapItr = newLoadInstrAndAllocaMap.begin(); updatedMapItr != newLoadInstrAndAllocaMap.end(); updatedMapItr++) {
-//				hyperOpForUpdate->loadInstrAndAllocaMap.insert(make_pair(updatedMapItr->first, updatedMapItr->second));
-//			}
-//		}
-//
-////replace alloc instructions in other hyperops that possibly use the alloc instruction belonging to the updated the hyperop
-//		for (auto vertexItr : this->Vertices) {
-//			if (vertexItr != hyperOpForUpdate) {
-//				map<Instruction*, Instruction*> tempMap;
-//				for (auto loadInstItr : vertexItr->loadInstrAndAllocaMap) {
-//					if (loadInstItr.second->getParent()->getParent() == hyperOpForUpdate->getFunction()) {
-//						tempMap.insert(make_pair(loadInstItr.first, originalInstAndCloneMap[loadInstItr.second]));
-//					} else {
-//						tempMap.insert(make_pair(loadInstItr.first, loadInstItr.second));
-//					}
-//				}
-//				vertexItr->loadInstrAndAllocaMap = tempMap;
-//			}
-//		}
-//
-//		hyperOpForUpdate->setFunction(replacementFunctionItr->second);
-//
-////Update the edges of outgoing edges of consumer hyperOp
-//		for (map<HyperOpEdge*, HyperOp*>::iterator edgeItr = hyperOpForUpdate->ChildMap.begin(); edgeItr != hyperOpForUpdate->ChildMap.end(); edgeItr++) {
-//			if (edgeItr->first->getValue() != NULL) {
-////				errs() << "edge whose type is " << edgeItr->first->getType() << ", updated edge to contain value from " << ((Instruction*) edgeItr->first->getValue())->getParent()->getParent()->getName() << "\n";
-//				edgeItr->first->setValue(originalInstAndCloneMap[(Instruction*) edgeItr->first->getValue()]);
-////				errs() << "to instead contain value from " << ((Instruction*) edgeItr->first->getValue())->getParent()->getParent()->getName() << "\n";
-//			}
-//		}
+		//		HyperOp* hyperOpForUpdate = this->getHyperOp(replacementFunctionItr->first);
+		//		errs() << "updating hyperop:" << hyperOpForUpdate->asString() << ", whats in alloca?" << hyperOpForUpdate->loadInstrAndAllocaMap.size() << "\n";
+		////Replace the load and alloc map
+		//		if (!hyperOpForUpdate->loadInstrAndAllocaMap.empty()) {
+		//			errs() << "some entries in allocamap\n";
+		//			map<Instruction*, Instruction*> newLoadInstrAndAllocaMap;
+		//			//Find the equivalent of each load instruction in the original map and place it in the new one
+		//			for (map<Instruction*, Instruction*>::iterator loadItr = hyperOpForUpdate->loadInstrAndAllocaMap.begin(); loadItr != hyperOpForUpdate->loadInstrAndAllocaMap.end(); loadItr++) {
+		//				if (originalInstAndCloneMap.find(loadItr->second) != originalInstAndCloneMap.end()) {
+		//					newLoadInstrAndAllocaMap[originalInstAndCloneMap[loadItr->first]] = originalInstAndCloneMap[loadItr->second];
+		//				} else {
+		//					newLoadInstrAndAllocaMap[originalInstAndCloneMap[loadItr->first]] = loadItr->second;
+		//				}
+		//			}
+		//
+		//			hyperOpForUpdate->loadInstrAndAllocaMap.clear();
+		//			for (map<Instruction*, Instruction*>::iterator updatedMapItr = newLoadInstrAndAllocaMap.begin(); updatedMapItr != newLoadInstrAndAllocaMap.end(); updatedMapItr++) {
+		//				hyperOpForUpdate->loadInstrAndAllocaMap.insert(make_pair(updatedMapItr->first, updatedMapItr->second));
+		//			}
+		//		}
+		//
+		////replace alloc instructions in other hyperops that possibly use the alloc instruction belonging to the updated the hyperop
+		//		for (auto vertexItr : this->Vertices) {
+		//			if (vertexItr != hyperOpForUpdate) {
+		//				map<Instruction*, Instruction*> tempMap;
+		//				for (auto loadInstItr : vertexItr->loadInstrAndAllocaMap) {
+		//					if (loadInstItr.second->getParent()->getParent() == hyperOpForUpdate->getFunction()) {
+		//						tempMap.insert(make_pair(loadInstItr.first, originalInstAndCloneMap[loadInstItr.second]));
+		//					} else {
+		//						tempMap.insert(make_pair(loadInstItr.first, loadInstItr.second));
+		//					}
+		//				}
+		//				vertexItr->loadInstrAndAllocaMap = tempMap;
+		//			}
+		//		}
+		//
+		//		hyperOpForUpdate->setFunction(replacementFunctionItr->second);
+		//
+		////Update the edges of outgoing edges of consumer hyperOp
+		//		for (map<HyperOpEdge*, HyperOp*>::iterator edgeItr = hyperOpForUpdate->ChildMap.begin(); edgeItr != hyperOpForUpdate->ChildMap.end(); edgeItr++) {
+		//			if (edgeItr->first->getValue() != NULL) {
+		////				errs() << "edge whose type is " << edgeItr->first->getType() << ", updated edge to contain value from " << ((Instruction*) edgeItr->first->getValue())->getParent()->getParent()->getName() << "\n";
+		//				edgeItr->first->setValue(originalInstAndCloneMap[(Instruction*) edgeItr->first->getValue()]);
+		////				errs() << "to instead contain value from " << ((Instruction*) edgeItr->first->getValue())->getParent()->getParent()->getName() << "\n";
+		//			}
+		//		}
 
 		functionsForDeletion.push_back(replacementFunctionItr->first);
 	}
@@ -3414,7 +3437,12 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 		errs() << "deleting function:" << (*deleteItr)->getName() << "\n";
 		(*deleteItr)->eraseFromParent();
 	}
+}
 
+/*
+ * If the producer and consumer are mapped to different CRs, treat them as localrefs only instead of scalars to avoid reconciles
+ */
+void HyperOpInteractionGraph::convertRemoteScalarsToStores() {
 	DEBUG(dbgs() << "If the producer and consumer are mapped to different CRs, treat them as localrefs only instead of scalars to avoid reconciles\n");
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hyperOp = *hopItr;
@@ -3441,13 +3469,50 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			}
 		}
 	}
+}
 
+/*
+ * Computes the reaching predicate with decrement count in case operands to be delivered are on the non taken path
+ */
+void HyperOpInteractionGraph::addArgDecrementCountOnControlPaths() {
 	pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > controlFlowGraphAndOriginalHopMap = getCFG(this);
 	HyperOpInteractionGraph* cfg = controlFlowGraphAndOriginalHopMap.first;
 	cfg->computeDominatorInfo();
 
+	unsigned numVertices = this->Vertices.size();
+	bool transitiveClosure[numVertices][numVertices];
+	map<HyperOp*, unsigned> hyperOpAndIndexMap;
+	unsigned indexMap = 0;
+	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++, indexMap++) {
+		hyperOpAndIndexMap[*hopItr] = indexMap;
+		for (unsigned i = 0; i < this->Vertices.size(); i++) {
+			transitiveClosure[indexMap][i] = 0;
+		}
+	}
+	//Populate adjacency matrix
+	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
+		list<HyperOp*> children = (*hopItr)->getChildList();
+		unsigned producerIndex = hyperOpAndIndexMap[*hopItr];
+		for (map<HyperOpEdge*, HyperOp*>::iterator childEdgeItr = (*hopItr)->ChildMap.begin(); childEdgeItr != (*hopItr)->ChildMap.end(); childEdgeItr++) {
+			HyperOpEdge::EdgeType edgeType = childEdgeItr->first->getType();
+			unsigned consumerIndex = hyperOpAndIndexMap[childEdgeItr->second];
+			if (transitiveClosure[producerIndex][consumerIndex] == 0 && (edgeType == HyperOpEdge::SCALAR || edgeType == HyperOpEdge::PREDICATE || edgeType == HyperOpEdge::ORDERING || edgeType == HyperOpEdge::SYNC)) {
+				transitiveClosure[producerIndex][consumerIndex] = 1;
+			}
+		}
+	}
+
+	//Compute transitive closure
+	for (unsigned k = 0; k < numVertices; k++) {
+		for (unsigned i = 0; i < numVertices; i++) {
+			for (unsigned j = 0; j < numVertices; j++) {
+				transitiveClosure[i][j] = transitiveClosure[i][j] || (transitiveClosure[i][k] && transitiveClosure[k][j]);
+			}
+		}
+	}
+
 	DEBUG(dbgs() << "Delivering reaching predicate with decrement count in case operands to be delivered are on the non taken path\n");
-//	Add predicate delivery edges to HyperOps that are on non taken paths but may have data coming from a HyperOp that precedes the HyperOp producing the predicate
+	//	Add predicate delivery edges to HyperOps that are on non taken paths but may have data coming from a HyperOp that precedes the HyperOp producing the predicate
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hyperOp = *hopItr;
 		if (hyperOp->isPredicatedHyperOp()) {
@@ -3464,7 +3529,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			}
 
 			list<HyperOp*> parentList = hyperOp->getParentList();
-//				if (immediateDominator == parentPredicate.second || pathExistsInHIG(immediateDominator, parentPredicate.second)) {
+			//				if (immediateDominator == parentPredicate.second || pathExistsInHIG(immediateDominator, parentPredicate.second)) {
 			//Add a predicate edge from the predicate parent to the current HyperOp
 			HyperOp* parentProducingPredicate;
 			for (auto mapItr = controlFlowGraphAndOriginalHopMap.second.begin(); mapItr != controlFlowGraphAndOriginalHopMap.second.end(); mapItr++) {
@@ -3504,6 +3569,12 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			}
 		}
 	}
+}
+
+/*
+ * This method computes sync count on each path of control for barrier hyperops
+ */
+void HyperOpInteractionGraph::addSyncCountDecrementOnControlPaths() {
 
 	DEBUG(dbgs() << "Decrementing sync count for nodes with sync edges coming from mutually exclusive paths\n");
 //Update the sync count of nodes with sync edges incoming from mutually exclusive paths
@@ -3553,15 +3624,15 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 			list<SyncValue> incomingSyncAlongNoPred;
 			bool syncFromPredicatedSources = false;
 			for (list<HyperOp*>::iterator syncSourceItr = syncSourceList.begin(); syncSourceItr != syncSourceList.end(); syncSourceItr++) {
-				errs()<<"considering sync source:"<<(*syncSourceItr)->getFunction()->getName()<<" and idom "<<hyperOp->getImmediateDominator()->getFunction()->getName()<<"\n";
+				errs() << "considering sync source:" << (*syncSourceItr)->getFunction()->getName() << " and idom " << hyperOp->getImmediateDominator()->getFunction()->getName() << "\n";
 				auto predicateChain = lastPredicateInputUptoParent(*syncSourceItr, hyperOp->getImmediateDominator());
-				errs()<<"wth pred chain "<<predicateChain.size()<<"\n";
+				errs() << "wth pred chain " << predicateChain.size() << "\n";
 				while (!predicateChain.empty() && predicateChain.front().first->getType() != HyperOpEdge::PREDICATE) {
 					predicateChain.pop_front();
 				}
 				if (!predicateChain.empty()) {
 					assert(predicateChain.front().first->getType() == HyperOpEdge::PREDICATE && "Non predicate edge in predicate chain");
-					errs()<<"predicate chain cant be empty\n";
+					errs() << "predicate chain cant be empty\n";
 					if (!predicateChain.front().first->getPredicateValue()) {
 						if ((*syncSourceItr)->getInRange()) {
 							//TODO
@@ -3569,7 +3640,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 						} else {
 							incomingSyncAlongZeroPred.push_back((SyncValue) 1);
 						}
-					} else if(predicateChain.front().first->getPredicateValue()){
+					} else if (predicateChain.front().first->getPredicateValue()) {
 						if ((*syncSourceItr)->getInRange()) {
 							//TODO
 							incomingSyncAlongOnePred.push_back((SyncValue) (*syncSourceItr));
@@ -3579,8 +3650,7 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 					} else {
 						if ((*syncSourceItr)->getInRange()) {
 							//TODO
-							incomingSyncAlongNoPred.push_back(
-									(SyncValue) (*syncSourceItr));
+							incomingSyncAlongNoPred.push_back((SyncValue) (*syncSourceItr));
 						} else {
 							incomingSyncAlongNoPred.push_back((SyncValue) 1);
 						}
@@ -3602,21 +3672,11 @@ void HyperOpInteractionGraph::minimizeControlEdges() {
 				hyperOp->setHasMutexSyncSources(false);
 			}
 
-			errs() << "incoming preds at zero:"<<incomingSyncAlongZeroPred.size()<<", one:"<<incomingSyncAlongOnePred.size()<<", two:"<<incomingSyncAlongNoPred.size()<<"\n";
-
 			hyperOp->setIncomingSyncCount(0, incomingSyncAlongZeroPred);
 			hyperOp->setIncomingSyncCount(1, incomingSyncAlongOnePred);
 			hyperOp->setIncomingSyncCount(2, incomingSyncAlongNoPred);
 		}
 	}
-
-	DEBUG(dbgs() << "after minimizing cluster and converting scalar edges to local refs, graph:");
-	this->print(dbgs());
-	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
-		HyperOp* hyperOp = *hopItr;
-		errs() << "incoming preds at zero:"<<hyperOp->getSyncCount(0).size()<<", one:"<<hyperOp->getSyncCount(1).size()<<", two:"<<hyperOp->getSyncCount(2).size()<<"\n";
-	}
-
 }
 
 HyperOp * HyperOpInteractionGraph::getHyperOp(Function * F) {
@@ -3719,9 +3779,9 @@ void setUpdatedMetadata(HyperOp* nodeForRemoval, Instruction** instr, StringRef 
 		}
 
 	}
-	if(!updatedConsumerList.empty()){
+	if (!updatedConsumerList.empty()) {
 		(*instr)->setMetadata(mdkind, MDNode::get(nodeForRemoval->getFunction()->getParent()->getContext(), updatedConsumerList));
-	}else{
+	} else {
 		(*instr)->setMetadata(mdkind, NULL);
 	}
 }

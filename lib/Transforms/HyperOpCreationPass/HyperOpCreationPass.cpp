@@ -4408,7 +4408,12 @@ struct REDEFINEIRPass: public ModulePass {
 		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
 		graph->computeDominatorInfo();
 		graph->addContextFrameAddressForwardingEdges();
+		graph->addSelfFrameAddressRegisters();
+		graph->addNecessarySyncEdges();
+		graph->convertRemoteScalarsToStores();
 		graph->clusterNodes();
+		graph->addArgDecrementCountOnControlPaths();
+		graph->addSyncCountDecrementOnControlPaths();
 		graph->associateStaticContextFrames();
 		graph->verify();
 		map<Function*, unsigned> functionAndIndexMap;
