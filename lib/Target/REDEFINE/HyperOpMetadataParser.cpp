@@ -118,7 +118,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 				} else if (hyperOpType.equals("Dynamic")) {
 					hyperOp->setStaticHyperOp(false);
 					hyperOp->setInstanceof((Function *) hyperOpMDNode->getOperand(3));
-					hyperOp->setFbindRequired(true);
 					StringRef instanceTag = ((MDString*) hyperOpMDNode->getOperand(4))->getName();
 					list<unsigned> parsedId = parseInstanceId(instanceTag);
 					hyperOp->setInstanceId(parsedId);
