@@ -232,40 +232,6 @@ def MOVADDR: InstREDEFINE<4, (outs GR32:$reg), (ins imm32sx12:$src),
   let Inst{6 - 0} = 0b0000000;
 }
 
-def MOVIMM: InstREDEFINE<4, (outs GR32:$reg), (ins imm32sx12:$src), 
-                "movimm \t$reg, \t$src", 
-                [],REDEFINEALU> {
-  field bits<32> Inst;
-
-  bits<5> RS1;
-  bits<5> RS2;
-  bits<12> IMM;
-
-  let Inst{31-25} = IMM{11-5};
-  let Inst{20-24} = 0b00000;
-  let Inst{15-19} = 0b00000;
-  let Inst{12-14} = 0b000;
-  let Inst{7 - 11} = IMM{4-0};
-  let Inst{6 - 0} = 0b0000000;
-}
-
-def MOVADDR: InstREDEFINE<4, (outs GR32:$reg), (ins imm32sx12:$src), 
-                "movaddr \t$reg, \t$src", 
-                [],REDEFINEALU> {
-  field bits<32> Inst;
-
-  bits<5> RS1;
-  bits<5> RS2;
-  bits<12> IMM;
-
-  let Inst{31-25} = IMM{11-5};
-  let Inst{20-24} = 0b00000;
-  let Inst{15-19} = 0b00000;
-  let Inst{12-14} = 0b000;
-  let Inst{7 - 11} = IMM{4-0};
-  let Inst{6 - 0} = 0b0000000;
-}
-
 def WRITECM : InstSREDEFINEImm<"writecm" , 0b0100100, 0b000, add , GR32, GR32, imm32sx12>
 {
  let Itinerary   = REDEFINEORC;
@@ -288,7 +254,7 @@ def PSFBIND : InstSREDEFINEImm<"psfbind" , 0b0000100, 0b011, add , GR32, GR32, i
 }
 
 def FDELETE: InstREDEFINE<4, (outs), (ins GR32:$id), 
-                "fdelete \t$id",
+                "fdelete \t$id", 
                 [],REDEFINEORC> {
   field bits<32> Inst;
 

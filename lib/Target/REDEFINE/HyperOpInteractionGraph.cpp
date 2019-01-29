@@ -2690,6 +2690,7 @@ void HyperOpInteractionGraph::verify() {
 			assert(funcInputHasValidInput && "Invalid input to a function");
 		}
 	}
+
 }
 
 //void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrames) {
@@ -3750,7 +3751,6 @@ void HyperOpInteractionGraph::print(raw_ostream &os, int debug) {
 	os << "}\n";
 }
 
-<<<<<<< HEAD
 void setUpdatedMetadata(HyperOp* nodeForRemoval, Instruction** instr, StringRef mdkind) {
 	vector<Value*> updatedConsumerList;
 	MDNode* consumedByMDNode = (*instr)->getMetadata(mdkind);
@@ -3839,37 +3839,4 @@ void HyperOpInteractionGraph::removeUnreachableHops() {
 			break;
 		}
 	}
-
-=======
-void HyperOpInteractionGraph::removeUnreachableHops(){
-	//This had to be written as follows because removal of one node may cause other nodes to go hanging
-		while (true) {
-			bool updatedGraph = false;
-			list<HyperOp*> vertices = this->Vertices;
-			for (list<HyperOp*>::iterator vertexItr = vertices.begin(); vertexItr != vertices.end(); vertexItr++) {
-				if (!(*vertexItr)->isEndHyperOp() && (*vertexItr)->ChildMap.empty()) {
-					if (!(*vertexItr)->isUnrolledInstance()) {
-						(*vertexItr)->getFunction()->eraseFromParent();
-					}
-					this->removeHyperOp(*vertexItr);
-					updatedGraph = true;
-					break;
-				}
-
-				else if (!(*vertexItr)->isStartHyperOp() && (*vertexItr)->ParentMap.empty()) {
-					if (!(*vertexItr)->isUnrolledInstance()) {
-						(*vertexItr)->getFunction()->eraseFromParent();
-					}
-					this->removeHyperOp(*vertexItr);
-					updatedGraph = true;
-					break;
-				}
-			}
-			if (!updatedGraph) {
-				break;
-			}
-		}
-
-		this->updateLocalRefEdgeMemOffset();
->>>>>>> fixes: rfalloc, all dynamic hops, cleanup
 }
