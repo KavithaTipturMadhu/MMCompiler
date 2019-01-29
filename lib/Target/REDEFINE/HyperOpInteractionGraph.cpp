@@ -2802,7 +2802,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
  * 2. Data arguments from the same producer hyperop dont share the same location
  * 3. There are no cycles in an HIG
  * 4. For each input coming into a context slot, there is at least one parent hyperop producing the data
- *
+ * 5. Ensure that only start hyperop does not have an immediate dominator and the graph is structured
  */
 void HyperOpInteractionGraph::verify() {
 //Check that sync hyperops are not predicated
@@ -2876,16 +2876,23 @@ void HyperOpInteractionGraph::verify() {
 		}
 	}
 
-
 	//Ensure that every input to a function has at least one input edge starting at a parent HyperOp
 	for (auto hopItr : this->Vertices) {
 		HyperOp* hop = hopItr;
+		// Unrolled instances needn't be checked
+		if (hop->isUnrolledInstance()) {
+			continue;
+		}
+		assert((hop->isStartHyperOp()|| (!hop->isStartHyperOp() && hop->getImmediateDominator()!=NULL)) &&"Only start HyperOp does not have an immediate dominator");
+		if(!hop->isStartHyperOp()){
+			assert((hop->getImmediateDominator()->getImmediateDominator() == hop->getImmediatePostDominator() || hop->getChildList().size()>1) && "HIG is not structured");
+		}
 		Function* hopFunction = hop->getFunction();
 		int funcArgIndex = 0;
-		for(auto argItr = hopFunction->arg_begin(); argItr!=hopFunction->arg_end(); argItr++, funcArgIndex++){
+		for (auto argItr = hopFunction->arg_begin(); argItr != hopFunction->arg_end(); argItr++, funcArgIndex++) {
 			bool funcInputHasValidInput = false;
-			for(auto edgeItr:hop->ParentMap){
-				if(edgeItr.first->getPositionOfContextSlot() == funcArgIndex && std::find(this->Vertices.begin(), this->Vertices.end(),edgeItr.second)!=this->Vertices.end()){
+			for (auto edgeItr : hop->ParentMap) {
+				if (edgeItr.first->getPositionOfContextSlot() == funcArgIndex && std::find(this->Vertices.begin(), this->Vertices.end(), edgeItr.second) != this->Vertices.end()) {
 					funcInputHasValidInput = true;
 					break;
 				}
@@ -2893,6 +2900,7 @@ void HyperOpInteractionGraph::verify() {
 			assert(funcInputHasValidInput && "Invalid input to a function");
 		}
 	}
+
 }
 
 //void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrames) {
