@@ -90,9 +90,6 @@ struct REDEFINEIRPass: public ModulePass {
 	virtual bool runOnModule(Module &M) {
 		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
 		graph->print(dbgs());
-		graph->removeUnreachableHops();
-		graph->computeDominatorInfo();
-		graph->makeGraphStructured();
 		graph->computeDominatorInfo();
 		graph->addContextFrameAddressForwardingEdges();
 //		graph->minimizeControlEdges();
