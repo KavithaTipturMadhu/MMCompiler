@@ -16,7 +16,7 @@
 ;===------------------------------------------------------------------------===;
 
 [common]
-subdirectories = IPO InstCombine Instrumentation Scalar Utils Vectorize ObjCARC HyperOpCreationPass REDEFINEIRPass HyperOpOptimizationPass
+subdirectories = IPO InstCombine Instrumentation Scalar Utils Vectorize ObjCARC HyperOpCreationPass HyperOpOptimizationPass
 
 [component_0]
 type = Group

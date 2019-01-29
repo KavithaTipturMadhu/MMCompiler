@@ -29,7 +29,6 @@ using namespace std;
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/IR/HyperOpMetadataParser.h"
 #include "llvm/IR/HyperOpInteractionGraph.h"
-#include "../lib/Transforms/REDEFINEIRPass/REDEFINEIRPass.cpp"
 
 using namespace llvm;
 
@@ -47,7 +46,6 @@ struct HyperOpOptimizationPass: public ModulePass {
 		//Mandatory merge return to be invoked on each function
 		AU.addRequired<UnifyFunctionExitNodes>();
 		AU.addRequired<DependenceAnalysis>();
-		AU.addRequired<REDEFINEIRPass>();
 	}
 
 	virtual bool runOnModule(Module &M) {
