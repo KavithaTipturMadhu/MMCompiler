@@ -623,8 +623,6 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 //					loadFromMemory.addReg(virtualRegistersForInstAddr[ceContainingInstruction].second);
 					loadFromMemory.addReg(REDEFINE::t5);
 					loadFromMemory.addFrameIndex(frameLocationToReadFrom);
-					errs() << "was this the addi instruction inserted?";
-					loadFromMemory.operator ->()->dump();
 					LIS->getSlotIndexes()->insertMachineInstrInMaps(loadFromMemory.operator llvm::MachineInstr *());
 					allInstructionsOfRegion.push_back(make_pair(loadFromMemory.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
 				}
@@ -902,8 +900,6 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 //						loadFromMemory.addReg(virtualRegistersForInstAddr[ceContainingInstruction].second);
 						loadFromMemory.addReg(REDEFINE::t5);
 						loadFromMemory.addFrameIndex(frameLocationToReadFrom);
-						errs() << "was this the addi instruction inserted?";
-						loadFromMemory.operator ->()->dump();
 						LIS->getSlotIndexes()->insertMachineInstrInMaps(loadFromMemory.operator llvm::MachineInstr *());
 						allInstructionsOfRegion.push_back(make_pair(loadFromMemory.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
 					}
@@ -1327,7 +1323,6 @@ if (BB->getNumber() == MF.back().getNumber()) {
 	}
 
 	DEBUG(dbgs() << "Adding endHyperOp instructions to each pHyperOp\n");
-	errs() << "end hop gets added in bb " << lastBB->getName() << "\n";
 	lastBB = &BB->getParent()->back();
 	lastInstruction = lastBB->end();
 //End HyperOp and the two NOPs that follow are kinda like a new region that gets shuffled next
@@ -1397,8 +1392,6 @@ for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != B
 	}
 }
 
-errs() << "repairing current BB region " << BB->getName() << "\n";
-fflush (stdout);
 LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), registersUsedInBB);
 
 //Create instruction bundles corresponding to pHyperOps, thus is necessary because instructions of a basic block maybe shuffled while the inserted instructions are in order and need not be shuffled */
@@ -1519,4 +1512,3 @@ LIS->computeLiveInRegUnits();
 PHyperOpInteractionGraph pHopDependenceMap;
 currentHyperOp->setpHyperOpDependenceMap(pHopDependenceMap);
 }
-
