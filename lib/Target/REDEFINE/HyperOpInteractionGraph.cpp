@@ -1199,261 +1199,31 @@ void HyperOpInteractionGraph::addContextFrameblockSizeEdges() {
 void HyperOpInteractionGraph::computeDominatorInfo() {
 	computeImmediateDominatorInfo();
 	computePostImmediateDominatorInfo();
-
-//	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
-//		HyperOp* vertex = *vertexIterator;
-//		list<HyperOp*> immediatelyDominatedHyperOps;
-//		for (list<HyperOp*>::iterator dominatedItr = Vertices.begin(); dominatedItr != Vertices.end(); dominatedItr++) {
-//			if ((*dominatedItr)->getImmediateDominator() == vertex) {
-//				immediatelyDominatedHyperOps.push_back(*dominatedItr);
-//			}
-//		}
-//		vertex->setCreateFrameList(immediatelyDominatedHyperOps);
-//	}
 }
 
 //Add nodes to make the HIG structured if necessary
 void HyperOpInteractionGraph::makeGraphStructured() {
-	pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > cfgMap = getCFG(this);
-	HyperOpInteractionGraph* cfg = cfgMap.first;
-	cfg->computeDominatorInfo();
-	map<HyperOp*, HyperOp*> vertexMap = cfgMap.second;
 	bool change = true;
 	int i = 0;
-	errs()<<"before making graph structured:";
-	cfg->print(errs());
+	DEBUG(dbgs()<<"before making graph structured:");
+	this->print(dbgs(), 1);
 	while (change) {
 		i++;
 		change = false;
-		map<HyperOp*, HyperOp*> hyperOpForFixWithMerges;
 		//First HyperOp containing the HyperOp that ought to take in all edges instead of the original source
-		map<HyperOp*, HyperOp*> dummyMap;
-		HyperOp* dummyptr = NULL;
-		pair<HyperOp*, map<HyperOp*, HyperOp*> > edgeForFix = make_pair(dummyptr, dummyMap);
 		for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
 			HyperOp* vertex = *vertexItr;
-//			errs() << "\n-----\nexamining vertex:" << vertex->asString() << ":";
-//			list<HyperOp*> domf = vertex->getDominanceFrontier();
-//			errs() << "is this why?" << (vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() == vertex->getImmediatePostDominator() && find(domf.begin(), domf.end(), vertex->getImmediatePostDominator()) == domf.end()) << "\n";
-//			if (vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() == vertex->getImmediatePostDominator()) {
-//				errs() << "domf:\n";
-//				for (auto itr : domf) {
-//					errs() << itr->asString() << ",";
-//				}
-//
-//			}
-//
-//			if ((vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() == vertex->getImmediatePostDominator())
-//					&& find(domf.begin(), domf.end(), vertex->getImmediatePostDominator()) == domf.end()) {
-//				//Unstructured graph due to the current node, need to add a node that duplicates the immediate postdom
-//				HyperOp* immediatePostDom = vertex->getImmediatePostDominator();
-//				if (hyperOpForFix.find(immediatePostDom) != hyperOpForFix.end()) {
-//					HyperOp* forkSource = hyperOpForFix[immediatePostDom];
-//					if (forkSource->getImmediateDominator() == vertex) {
-//						hyperOpForFix[immediatePostDom] = vertex;
-//					}
-//				} else {
-//					hyperOpForFix[immediatePostDom] = vertex
-//				}
-//			}
-
 			if (vertex->getChildList().size() > 1 && vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() == vertex->getImmediatePostDominator()) {
-				if (vertexMap[vertex->getImmediateDominator()->getImmediatePostDominator()] == vertexMap[vertex->getImmediateDominator()]->getImmediatePostDominator()) {
-					//Find out if the immediate post dom is one of the children of the current HyperOp
-					hyperOpForFixWithMerges[vertex->getImmediatePostDominator()] = vertex;
-					break;
-				} else {
-					HyperOp* fixSource = vertexMap[vertex];
-					map<HyperOp*, HyperOp*> edgeFixMap;
-					for (auto mappedVertex : vertexMap) {
-						HyperOp* cfgVertex = mappedVertex.second;
-						if (cfgVertex->getImmediateDominator() == fixSource && vertexMap[mappedVertex.first->getImmediateDominator()] == fixSource->getImmediateDominator() && vertex->getImmediateDominator() == mappedVertex.first->getImmediateDominator()) {
-							HyperOp* edgeDestToModify = mappedVertex.first;
-							edgeFixMap.insert(make_pair(vertex->getImmediateDominator(), edgeDestToModify));
-						}
-					}
-					edgeForFix = make_pair(vertex, edgeFixMap);
-					break;
+				HyperOp* mergeNode = vertex->getImmediateDominator()->getImmediatePostDominator();
+				if(find(mergeNode->getParentList().begin(), mergeNode->getParentList().end(), vertex->getImmediateDominator()) != mergeNode->getParentList().end()){
+					HyperOp* joinNodeStart = vertex->getImmediateDominator();
+					HyperOp* joinNodeEnd = mergeNode;
+					//Create a new node between the join start and merge node and redirect all the direct edges between start and merge through the new join node
+				}else{
+
 				}
 			}
 		}
-
-		if (hyperOpForFixWithMerges.empty() && edgeForFix.first == NULL) {
-			//No more hyperops for fixing
-			break;
-		}
-		for (auto mapItr : hyperOpForFixWithMerges) {
-			HyperOp* forkSink = mapItr.first;
-			HyperOp* forkSource = mapItr.second;
-			list<HyperOp*> parentsWithPath;
-			for (auto parent : forkSink->getParentList()) {
-				//If parent has a path from the forkSource
-				HyperOp* sourceHop = parent;
-				bool pathFromSourceExists = false;
-				while (sourceHop != NULL && sourceHop != forkSink->getImmediateDominator() && !sourceHop->isStartHyperOp()) {
-					if (sourceHop == forkSource || sourceHop->getImmediateDominator() == forkSource) {
-						pathFromSourceExists = true;
-						break;
-					}
-					sourceHop = sourceHop->getImmediateDominator();
-				}
-
-				if (pathFromSourceExists) {
-					//Consider the edge
-					parentsWithPath.push_back(parent);
-				}
-			}
-
-			map<HyperOpEdge*, HyperOp*> parentVertexList;
-
-			//clone the sink to take in all the edges that come from the forksource and the nodes it reaches
-			for (auto parent : forkSink->ParentMap) {
-				if (find(parentsWithPath.begin(), parentsWithPath.end(), parent.second) != parentsWithPath.end()) {
-					//Copy the function to a new HyperOp
-					parentVertexList.insert(make_pair(parent.first, parent.second));
-				}
-			}
-
-			//Create a new empty function that takes all args of the original function and passes the args as is to the next hyperOp
-			vector<Type*> argList;
-			LLVMContext& ctxt = parentVertexList.begin()->second->getFunction()->getParent()->getContext();
-			unsigned scalarArgs = 0;
-			map<HyperOpEdge*, HyperOp*> joinNodeParentMap;
-			for (auto incomingEdgeItr = parentVertexList.begin(); incomingEdgeItr != parentVertexList.end(); incomingEdgeItr++) {
-				HyperOpEdge* originalEdge = incomingEdgeItr->first;
-				HyperOp* originalParent = incomingEdgeItr->second;
-				if (originalEdge->getType() == HyperOpEdge::SCALAR || originalEdge->getType() == HyperOpEdge::LOCAL_REFERENCE) {
-					argList.push_back(Type::getInt32PtrTy(ctxt));
-					if (originalEdge->getType() == HyperOpEdge::SCALAR) {
-						scalarArgs++;
-					}
-				}
-			}
-			//TODO
-			FunctionType *FT = FunctionType::get(Type::getVoidTy(ctxt), argList, false);
-			Function *joinFunction = Function::Create(FT, Function::ExternalLinkage, "joinFunction", forkSink->getFunction()->getParent());
-			for (unsigned i = 1; i <= scalarArgs; i++) {
-				joinFunction->addAttribute(i, Attribute::InReg);
-			}
-
-			HyperOp* joinHyperOp = new HyperOp(joinFunction, this);
-			this->addHyperOp(joinHyperOp);
-			joinHyperOp->setIncomingSyncCount(0, forkSink->getSyncCount(0));
-			joinHyperOp->setIncomingSyncCount(1, forkSink->getSyncCount(1));
-			joinHyperOp->setIncomingSyncPredicate(0, forkSink->getIncomingSyncPredicate(0));
-			joinHyperOp->setIncomingSyncPredicate(1, forkSink->getIncomingSyncPredicate(1));
-			joinHyperOp->setHasMutexSyncSources(forkSink->isHasMutexSyncSources());
-
-			int syncCountAdded = 0;
-			//Duplicate the edges from parent nodes to the sink hyperOp and add them between the new join function and the forksink
-			for (auto incomingEdgeItr = parentVertexList.begin(); incomingEdgeItr != parentVertexList.end(); incomingEdgeItr++) {
-				HyperOpEdge* originalEdge = incomingEdgeItr->first;
-				HyperOp* originalParent = incomingEdgeItr->second;
-				HyperOpEdge* hopEdge = new HyperOpEdge();
-				hopEdge->setType(originalEdge->getType());
-				if (originalEdge->getType() == HyperOpEdge::LOCAL_REFERENCE || originalEdge->getType() == HyperOpEdge::SCALAR) {
-					//Find the equivalent argument in the newer function
-					unsigned position = originalEdge->getPositionOfContextSlot();
-					int argCount = 0;
-					Value* newArg;
-					for (auto argItr = joinFunction->arg_begin(); argItr != joinFunction->arg_end(); argItr++, argCount++) {
-						if (argCount == position) {
-							newArg = argItr;
-							break;
-						}
-					}
-					hopEdge->setValue(newArg);
-				}
-				hopEdge->setPositionOfContextSlot(originalEdge->getPositionOfContextSlot());
-				hopEdge->setEdgeSource(originalEdge->getEdgeSource());
-				hopEdge->setVolume(originalEdge->getVolume());
-
-				//Replace the entry in sync node's parent map
-				forkSink->ParentMap.erase(originalEdge);
-				if (syncCountAdded) {
-					continue;
-				}
-				if (originalEdge->getType() == HyperOpEdge::SYNC) {
-					syncCountAdded++;
-				}
-				joinHyperOp->ChildMap[originalEdge] = forkSink;
-				forkSink->ParentMap[hopEdge] = joinHyperOp;
-			}
-
-			list<SyncValue> zeroPred;
-			zeroPred.push_back((SyncValue) 1);
-			list<SyncValue> onePred;
-			onePred.push_back((SyncValue) 1);
-			forkSink->setIncomingSyncCount(0, zeroPred);
-			forkSink->setIncomingSyncCount(1, onePred);
-
-			//Update the edges from parent that existed previously
-			for (auto incomingEdgeItr = parentVertexList.begin(); incomingEdgeItr != parentVertexList.end(); incomingEdgeItr++) {
-				HyperOp* parentHop = incomingEdgeItr->second;
-				map<HyperOpEdge*, HyperOp*> replacementChildMap;
-				for (auto childItr : parentHop->ChildMap) {
-					if (childItr.second == forkSink) {
-						replacementChildMap.insert(make_pair(childItr.first, joinHyperOp));
-						joinHyperOp->ParentMap.insert(make_pair(childItr.first, parentHop));
-					} else {
-						replacementChildMap.insert(make_pair(childItr.first, childItr.second));
-					}
-				}
-				parentHop->ChildMap = replacementChildMap;
-			}
-			change = true;
-			break;
-		}
-
-		if (edgeForFix.first != dummyptr) {
-			//HyperOp that is actually supposed to be the dominator but isn't
-			HyperOp* supposedDomHop = edgeForFix.first;
-			for (map<HyperOp*, HyperOp*>::iterator edgeItr = edgeForFix.second.begin(); edgeItr != edgeForFix.second.end(); edgeItr++) {
-				HyperOp* edgeSource = edgeItr->first;
-				HyperOp* edgeDestination = edgeItr->second;
-				map<HyperOpEdge*, HyperOp*> updatedChildMap;
-				for (auto childEdge : edgeSource->ChildMap) {
-					if (childEdge.second == edgeDestination && (childEdge.first->getType() == HyperOpEdge::LOCAL_REFERENCE || childEdge.first->getType() == HyperOpEdge::SCALAR)) {
-						//Replicate the edge
-						HyperOpEdge* replicatedEdge = new HyperOpEdge();
-						replicatedEdge->setType(childEdge.first->getType());
-						replicatedEdge->setMemoryOffsetInTargetFrame(childEdge.first->getMemoryOffsetInTargetFrame());
-						replicatedEdge->setValue(childEdge.first->getValue());
-						//Recompute the context slot
-						int slot = -1;
-						for (auto edgeItr : supposedDomHop->ParentMap) {
-							if (slot < edgeItr.first->getPositionOfContextSlot()) {
-								slot = edgeItr.first->getPositionOfContextSlot();
-							}
-						}
-						slot++;
-						int replicatedEdgeSlot = 0;
-						for (auto argItr = supposedDomHop->getFunction()->arg_begin(); argItr != supposedDomHop->getFunction()->arg_end(); argItr++) {
-							replicatedEdgeSlot++;
-						}
-						replicatedEdge->setPositionOfContextSlot(replicatedEdgeSlot);
-						childEdge.first->setPositionOfContextSlot(slot);
-						replicatedEdge->setValue(childEdge.first->getValue());
-						this->addEdge(supposedDomHop, edgeDestination, replicatedEdge);
-						edgeSource->ChildMap[childEdge.first] = supposedDomHop;
-						map<HyperOpEdge*, HyperOp*> updatedParentMap;
-						for (auto parentMapItr : supposedDomHop->ParentMap) {
-							if (parentMapItr.first == childEdge.first) {
-								updatedParentMap.insert(make_pair(parentMapItr.first, supposedDomHop));
-							} else {
-								errs() << "added edge " << parentMapItr.first->getType() << " and value :";
-								parentMapItr.first->getValue()->dump();
-								updatedParentMap.insert(make_pair(parentMapItr.first, parentMapItr.second));
-							}
-						}
-						supposedDomHop->ParentMap = updatedParentMap;
-						//Update the parentmap
-						edgeDestination->ParentMap.erase(childEdge.first);
-					}
-				}
-			}
-		}
-//		updateLocalRefEdgeMemOffset();
 		computeDominatorInfo();
 	}
 
