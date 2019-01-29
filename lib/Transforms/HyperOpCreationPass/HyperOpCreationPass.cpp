@@ -33,7 +33,6 @@ using namespace std;
 #include "llvm/IR/HyperOpMetadataParser.h"
 #include "llvm/IR/HyperOpInteractionGraph.h"
 #include "llvm/Support/CommandLine.h"
-#include "../tools/opt/opt.cpp"
 using namespace llvm;
 
 #define DEBUG_TYPE "HyperOpCreationPass"
