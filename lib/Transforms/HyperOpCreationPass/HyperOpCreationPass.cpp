@@ -4328,17 +4328,18 @@ private:
 	const char* DYNAMIC_HYPEROP = "Dynamic";
 };
 char HyperOpCreationPass::ID = 2;
-//INITIALIZE_PASS_BEGIN(HyperOpCreationPass, "HyperOpCreationPass", "Pass to create HyperOps", false, false)
-//INITIALIZE_PASS_DEPENDENCY(LoopInfo)
-//INITIALIZE_PASS_DEPENDENCY(DominatorTree)
-//INITIALIZE_PASS_END(HyperOpCreationPass, "HyperOpCreationPass", "Pass to create HyperOps", false, false)
-//
 char* HyperOpCreationPass::NEW_NAME = "newName";
 static RegisterPass<HyperOpCreationPass> X("HyperOpCreationPass", "Pass to create HyperOps");
 
 
 struct HIGOptimizationPass: public ModulePass {
 	static char ID;
+
+	virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+		//Mandatory merge return to be invoked on each function
+		AU.addRequired<HyperOpCreationPass>();
+	}
+
 	HIGOptimizationPass() :
 			ModulePass(ID) {
 	}
@@ -4366,8 +4367,6 @@ struct REDEFINEIRPass: public ModulePass {
 
 	virtual void getAnalysisUsage(AnalysisUsage &AU) const {
 		//Mandatory merge return to be invoked on each function
-		AU.addRequired<UnifyFunctionExitNodes>();
-		AU.addRequired<DependenceAnalysis>();
 		AU.addRequired<HyperOpCreationPass>();
 	}
 
@@ -4408,17 +4407,11 @@ struct REDEFINEIRPass: public ModulePass {
 
 	virtual bool runOnModule(Module &M) {
 		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
-		graph->print(dbgs());
-		graph->removeUnreachableHops();
-		graph->computeDominatorInfo();
-		graph->makeGraphStructured();
 		graph->computeDominatorInfo();
 		graph->addContextFrameAddressForwardingEdges();
-//		graph->minimizeControlEdges();
 		graph->clusterNodes();
 		graph->associateStaticContextFrames();
 		graph->verify();
-		graph->print(dbgs());
 		map<Function*, unsigned> functionAndIndexMap;
 
 		unsigned index = 0;
@@ -4430,6 +4423,10 @@ struct REDEFINEIRPass: public ModulePass {
 
 		for (auto vertexItr : graph->Vertices) {
 			HyperOp* vertex = vertexItr;
+			//Do nothing in unrolled instance functions
+			if(vertex->isUnrolledInstance()){
+				continue;
+			}
 			Function* vertexFunction = vertex->getFunction();
 			BasicBlock* insertInBB = &vertexFunction->back();
 
