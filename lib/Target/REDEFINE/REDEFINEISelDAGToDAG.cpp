@@ -227,24 +227,9 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 	static unsigned firstFunction = 0;
 	//Add instructions to write to context frames if the function is the first one being dealt with
 	if (firstFunction == 0) {
-		//Parse the HIG metadata the first time, subsequent HyperOps can use the graph
+		//Parse the HIG metadata the first time in backend, subsequent HyperOps can use the graph
 		HyperOpMetadataParser parser;
 		((REDEFINETargetMachine&) TM).HIG = parser.parseMetadata(const_cast<Module*>(Fn->getParent()));
-		((REDEFINETargetMachine&) TM).HIG->removeUnreachableHops();
-		((REDEFINETargetMachine&) TM).HIG->setDimensions((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getM(), (((REDEFINETargetMachine&) TM).getSubtargetImpl())->getN());
-		((REDEFINETargetMachine&) TM).HIG->setNumContextFrames((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getCfCount());
-		((REDEFINETargetMachine&) TM).HIG->setMaxContextFrameSize((((REDEFINETargetMachine&) TM).getSubtargetImpl())->getCfSize());
-		((REDEFINETargetMachine&) TM).HIG->computeDominatorInfo();
-		((REDEFINETargetMachine&) TM).HIG->makeGraphStructured();
-		((REDEFINETargetMachine&) TM).HIG->computeDominatorInfo();
-		((REDEFINETargetMachine&) TM).HIG->addContextFrameblockSizeEdges();
-		((REDEFINETargetMachine&) TM).HIG->addContextFrameAddressForwardingEdges();
-		((REDEFINETargetMachine&) TM).HIG->minimizeControlEdges();
-		((REDEFINETargetMachine&) TM).HIG->clusterNodes();
-		((REDEFINETargetMachine&) TM).HIG->associateStaticContextFrames();
-		((REDEFINETargetMachine&) TM).HIG->mapClustersToComputeResources();
-		((REDEFINETargetMachine&) TM).HIG->updateLocalRefEdgeMemOffset();
-		((REDEFINETargetMachine&) TM).HIG->verify();
 		firstFunction = 1;
 	}
 	return SelectionDAGISel::runOnMachineFunction(mf);

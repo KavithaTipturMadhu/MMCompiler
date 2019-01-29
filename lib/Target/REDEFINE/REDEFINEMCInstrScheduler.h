@@ -32,11 +32,7 @@ namespace llvm {
 
 class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 
-	//Locations for storing dynamic instance addresses
-	unsigned DYNAMIC_INSTANCES;
-	//Locations for writepm
-	unsigned SPLOCATIONS;
-	static const unsigned MAX_SPLOCATIONS = 256;
+	static const unsigned SPLOCATIONS = 256;
 
 	//Number of bytes in an addressable location
 	static const unsigned datawidth = 4;
