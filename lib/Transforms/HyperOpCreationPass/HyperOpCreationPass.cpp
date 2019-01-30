@@ -4415,7 +4415,7 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->addArgDecrementCountOnControlPaths();
 		graph->addSyncCountDecrementOnControlPaths();
 		graph->associateStaticContextFrames();
-		graph->verify();
+		graph->verify(1);
 		map<Function*, unsigned> functionAndIndexMap;
 
 		unsigned index = 0;
