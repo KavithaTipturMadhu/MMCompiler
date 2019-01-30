@@ -3492,7 +3492,7 @@ void HyperOpInteractionGraph::convertSpillScalarsToStores() {
 				continue;
 			}
 
-			if ((REDEFINEUtils::getSizeOfType(argItr->getType()) / 4) < this->getMaxContextFrameSize() && argIndex < 17) {
+			if ((REDEFINEUtils::getSizeOfType(argItr->getType()) / 4) < this->getMaxContextFrameSize() && argIndex < (this->getMaxContextFrameSize() + 2)) {
 				//Mark context frame args as inreg
 				hyperOpFunction->addAttribute(argIndex + 1, Attribute::InReg);
 			} else {

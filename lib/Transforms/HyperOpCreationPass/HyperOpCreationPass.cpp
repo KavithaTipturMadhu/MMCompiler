@@ -4361,7 +4361,7 @@ struct REDEFINEIRPass: public ModulePass {
 	static char ID;
 	static char* NEW_NAME;
 	/* Maximum context frame size in words, not bytes */
-	static unsigned MAX_CONTEXT_FRAME_SIZE = 16;
+	static const unsigned MAX_CONTEXT_FRAME_SIZE = 15;
 
 	REDEFINEIRPass() :
 			ModulePass(ID) {
