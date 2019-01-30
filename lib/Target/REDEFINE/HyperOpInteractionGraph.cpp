@@ -3187,7 +3187,7 @@ void cloneFunction(Function* hopFunction, Function ** replacementFunction) {
 	for (auto oldArgItr = hopFunction->arg_begin(); oldArgItr != hopFunction->arg_end(); oldArgItr++){
 		funcArgsList.push_back(oldArgItr->getType());
 	}
-	FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()), funcArgsList, false);
+	FunctionType *FT = FunctionType::get(hopFunction->getReturnType(), funcArgsList, false);
 	Function *newFunction = Function::Create(FT, Function::ExternalLinkage, hopFunction->getName(), hopFunction->getParent());
 	auto newArgItr = newFunction->arg_begin();
 	//Advance the pointer twice since two new args are added
