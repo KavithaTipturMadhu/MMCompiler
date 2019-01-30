@@ -357,5 +357,7 @@ public:
 	void addArgDecrementCountOnControlPaths();
 
 	void addSyncCountDecrementOnControlPaths();
+
+	void convertSpillScalarsToStores();
 };
 #endif /* LIB_TARGET_RISCV_HYPEROPINTERACTIONGRAPH_H_ */

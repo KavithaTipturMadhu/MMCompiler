@@ -4360,6 +4360,8 @@ static RegisterPass<HIGOptimizationPass> X2("HIGOptimization", "Pass to optimize
 struct REDEFINEIRPass: public ModulePass {
 	static char ID;
 	static char* NEW_NAME;
+	/* Maximum context frame size in words, not bytes */
+	static unsigned MAX_CONTEXT_FRAME_SIZE = 16;
 
 	REDEFINEIRPass() :
 			ModulePass(ID) {
@@ -4409,9 +4411,11 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->computeDominatorInfo();
 		graph->addContextFrameAddressForwardingEdges();
 		graph->addSelfFrameAddressRegisters();
-		graph->addNecessarySyncEdges();
 		graph->clusterNodes();
 		graph->convertRemoteScalarsToStores();
+		graph->setMaxContextFrameSize(MAX_CONTEXT_FRAME_SIZE);
+		graph->convertSpillScalarsToStores();
+		graph->addNecessarySyncEdges();
 		graph->addArgDecrementCountOnControlPaths();
 		graph->addSyncCountDecrementOnControlPaths();
 		graph->associateStaticContextFrames();

@@ -3479,6 +3479,40 @@ void HyperOpInteractionGraph::convertRemoteScalarsToStores() {
 }
 
 /*
+ * Once the context frame is full, or a floating point or pointer argument is encountered, arguments must be spilled to memory by converting the edge type
+ */
+void HyperOpInteractionGraph::convertSpillScalarsToStores() {
+	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
+		HyperOp* hyperOp = *hopItr;
+		Function* hyperOpFunction = hyperOp->getFunction();
+		int argIndex = 0;
+		for (auto argItr = hyperOpFunction->begin(); argItr != hyperOpFunction->end(); argItr++, argIndex++) {
+			/* This function must be invoked after the same frame memory args are added to functions, and we must ignore the first two args */
+			if (argIndex < 2) {
+				continue;
+			}
+
+			if ((REDEFINEUtils.getSizeOfType(argItr->getType()) / 4) < this->getMaxContextFrameSize() && argIndex < 17) {
+				//Mark context frame args as inreg
+				hyperOpFunction->addAttribute(argIndex + 1, Attribute::InReg);
+			} else {
+				//Change the type of incoming edge to memory based instead of context frame scalar
+				for (auto parentItr : hyperOp->ParentMap) {
+					switch (parentItr.first->getType()) {
+					case HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR:
+						parentItr.first->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF);
+						break;
+					case HyperOpEdge::SCALAR:
+						parentItr.first->setType(HyperOpEdge::LOCAL_REFERENCE);
+						break;
+					}
+				}
+			}
+
+		}
+	}
+}
+/*
  * Computes the reaching predicate with decrement count in case operands to be delivered are on the non taken path
  */
 void HyperOpInteractionGraph::addArgDecrementCountOnControlPaths() {
