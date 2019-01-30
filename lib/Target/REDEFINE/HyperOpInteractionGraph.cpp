@@ -3512,6 +3512,14 @@ void HyperOpInteractionGraph::convertSpillScalarsToStores() {
 		}
 	}
 }
+
+/*
+ * Shuffle arguments of a HyperOp for better mapping to context frames
+ */
+void HyperOpInteractionGraph::shuffleHyperOpArguments(){
+
+}
+
 /*
  * Computes the reaching predicate with decrement count in case operands to be delivered are on the non taken path
  */

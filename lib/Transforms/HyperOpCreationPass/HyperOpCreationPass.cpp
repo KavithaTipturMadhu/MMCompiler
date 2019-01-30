@@ -4413,6 +4413,7 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->addSelfFrameAddressRegisters();
 		graph->clusterNodes();
 		graph->convertRemoteScalarsToStores();
+		graph->shuffleHyperOpArguments();
 		graph->setMaxContextFrameSize(MAX_CONTEXT_FRAME_SIZE);
 		graph->convertSpillScalarsToStores();
 		graph->addNecessarySyncEdges();
