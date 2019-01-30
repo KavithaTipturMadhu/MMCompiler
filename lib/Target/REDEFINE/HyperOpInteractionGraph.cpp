@@ -2549,7 +2549,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
  * 1. Hops cant be both predicated and sync barriers
  * 2. Data arguments from the same producer hyperop dont share the same location
  * 3. There are no cycles in an HIG
- * 4. For each input coming into a context slot, there is at least one parent hyperop producing the data
+ * 4. For each input coming into a context slot, there is at least one parent hyperop producing the data and after self frame argument is added, there are at least 2 arguments in the function
  * 5. Ensure that only start hyperop does not have an immediate dominator and the graph is structured
  */
 void HyperOpInteractionGraph::verify(int frameArgsAdded) {
@@ -2599,7 +2599,6 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		list<HyperOp*> children = (*hopItr)->getChildList();
 		unsigned producerIndex = hyperOpAndIndexMap[*hopItr];
-		errs() << "hig index " << producerIndex << " for " << (*hopItr)->asString() << "\n";
 		for (map<HyperOpEdge*, HyperOp*>::iterator childEdgeItr = (*hopItr)->ChildMap.begin(); childEdgeItr != (*hopItr)->ChildMap.end(); childEdgeItr++) {
 			HyperOpEdge::EdgeType edgeType = childEdgeItr->first->getType();
 			unsigned consumerIndex = hyperOpAndIndexMap[childEdgeItr->second];
