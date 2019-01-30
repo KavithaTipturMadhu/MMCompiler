@@ -3179,7 +3179,7 @@ bool mutuallyExclusiveHyperOps(HyperOp* firstHyperOp, HyperOp* secondHyperOp) {
 /*
  * Create a clone of a function with 2 new inreg arguments
  */
-Function** cloneFunction(Function* hopFunction) {
+void cloneFunction(Function* hopFunction, Function ** replacementFunction) {
 	vector<Type*> funcArgsList;
 	LLVMContext &ctxt = hopFunction->getParent()->getContext();
 	funcArgsList.push_back(Type::getInt32Ty(ctxt));
@@ -3224,7 +3224,7 @@ Function** cloneFunction(Function* hopFunction) {
 			newBB->getInstList().insert(newBB->end(), newInst);
 		}
 	}
-	return &newFunction;
+	*replacementFunction = newFunction;
 }
 
 /*
@@ -3234,8 +3234,11 @@ void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
 	for (auto hopItr = this->Vertices.begin(); hopItr !=  this->Vertices.end(); hopItr++) {
 		HyperOp* hop = *hopItr;
 		Function* func = hop->getFunction();
-		Function** replacementFunction = cloneFunction(func);
-		hop->setFunction(*replacementFunction);
+		Function* replacementFunction;
+		cloneFunction(func, &replacementFunction);
+		replacementFunction->addAttribute(1, Attribute::InReg);
+		replacementFunction->addAttribute(2, Attribute::InReg);
+		hop->setFunction(replacementFunction);
 		func->removeFromParent();
 		/* Update context frame slots to start from 2 for all args */
 		for (auto vertexItr : this->Vertices) {
