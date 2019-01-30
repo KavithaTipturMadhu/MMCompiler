@@ -3177,20 +3177,66 @@ bool mutuallyExclusiveHyperOps(HyperOp* firstHyperOp, HyperOp* secondHyperOp) {
 }
 
 /*
+ * Create a clone of a function with 2 new inreg arguments
+ */
+Function** cloneFunction(Function* hopFunction) {
+	vector<Type*> funcArgsList;
+	LLVMContext &ctxt = hopFunction->getParent()->getContext();
+	funcArgsList.push_back(Type::getInt32Ty(ctxt));
+	funcArgsList.push_back(Type::getInt32Ty(ctxt));
+	for (auto oldArgItr = hopFunction->arg_begin(); oldArgItr != hopFunction->arg_end(); oldArgItr++){
+		funcArgsList.push_back(oldArgItr->getType());
+	}
+	FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()), funcArgsList, false);
+	Function *newFunction = Function::Create(FT, Function::ExternalLinkage, hopFunction->getName(), hopFunction->getParent());
+	auto newArgItr = newFunction->arg_begin();
+	//Advance the pointer twice since two new args are added
+	newArgItr = newArgItr->getNextNode();
+	newArgItr = newArgItr->getNextNode();
+	int newArgIndex = 3;
+	map<Value*, Value*> oldToNewValueMap;
+	for (auto oldArgItr = hopFunction->arg_begin(); oldArgItr != hopFunction->arg_end(); oldArgItr++, newArgItr++, newArgIndex++) {
+		Argument* oldArg = oldArgItr;
+		Argument* newArg = newArgItr;
+		oldToNewValueMap.insert(make_pair(oldArgItr, newArgItr));
+		auto oldAttrSet = hopFunction->getAttributes().getParamAttributes(newArgIndex - 2);
+		newFunction->addAttributes(newArgIndex, oldAttrSet);
+	}
+
+	for (auto funcItr = hopFunction->begin(); funcItr != hopFunction->end(); funcItr++) {
+		BasicBlock* oldBB = funcItr;
+		BasicBlock* newBB = BasicBlock::Create(ctxt, oldBB->getName(), newFunction);
+		oldToNewValueMap.insert(make_pair(oldBB, newBB));
+	}
+	for (auto bbItr = hopFunction->begin(); bbItr != hopFunction->end(); bbItr++) {
+		BasicBlock* oldBB = bbItr;
+		assert(oldToNewValueMap.find(oldBB)!=oldToNewValueMap.end() && "Basicblock not cloned before");
+		BasicBlock* newBB = (BasicBlock*)oldToNewValueMap[oldBB];
+		for(auto instItr = oldBB->begin();instItr!=oldBB->end();instItr++){
+			Instruction* oldInst = instItr;
+			Instruction* newInst = oldInst->clone();
+			oldToNewValueMap.insert(make_pair(oldInst, newInst));
+			for(int operandIndex = 0; operandIndex< oldInst->getNumOperands();operandIndex++){
+				Value* oldOperand = oldInst->getOperand(operandIndex);
+				assert(oldToNewValueMap.find(oldOperand)!=oldToNewValueMap.end() && "Argument not cloned before");
+				newInst->setOperand(operandIndex, oldToNewValueMap[oldOperand]);
+			}
+			newBB->getInstList().insert(newBB->end(), newInst);
+		}
+	}
+	return &newFunction;
+}
+
+/*
  * This method adds 2 register arguments to each function in the beginning of the argument list, indicating that the function gets its own address and the base address of range hop
  */
 void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
-	Module *M = this->Vertices.front()->getFunction()->getParent();
-	for (auto funcItr = M->begin(); funcItr != M->end(); funcItr++) {
-		Function* func = funcItr;
-		Argument* addressbaseArg = new Argument(Type::getInt32Ty(M->getContext()));
-		func->getArgumentList().push_front(addressbaseArg);
-		func->addAttribute(1, Attribute::InReg);
-
-		Argument* addressArg = new Argument(Type::getInt32Ty(M->getContext()));
-		func->getArgumentList().push_front(addressArg);
-		func->addAttribute(1, Attribute::InReg);
-
+	for (auto hopItr = this->Vertices.begin(); hopItr !=  this->Vertices.end(); hopItr++) {
+		HyperOp* hop = *hopItr;
+		Function* func = hop->getFunction();
+		Function** replacementFunction = cloneFunction(func);
+		hop->setFunction(*replacementFunction);
+		func->removeFromParent();
 		/* Update context frame slots to start from 2 for all args */
 		for (auto vertexItr : this->Vertices) {
 			HyperOp* vertex = vertexItr;
