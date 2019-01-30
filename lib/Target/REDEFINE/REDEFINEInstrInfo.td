@@ -149,7 +149,7 @@ def CREATEINST: InstIREDEFINE<"pscreateinst", 0b0000100, 0b001 , add, GR32, GR32
 
 def FALLOC: InstREDEFINE<4, (outs GR32:$dst), (ins GR32:$src), 
                 "falloc\t$dst, $src", 
-                [], REDEFINEORC> {
+                [(set i32:$dst, (int_falloc i32:$src))], REDEFINEORC> {
   field bits<32> Inst;
 
   bits<5> RD;
@@ -163,7 +163,7 @@ def FALLOC: InstREDEFINE<4, (outs GR32:$dst), (ins GR32:$src),
 
 def RFALLOC: InstREDEFINE<4, (outs GR32:$dst), (ins GR32:$src1, GR32:$src2), 
                 "rfalloc\t$dst, $src1, $src2", 
-                [], REDEFINEORC> {
+                [(set i32:$dst, (int_rfalloc i32:$src1,i32:$src2))], REDEFINEORC> {
   field bits<32> Inst;
   bits<5> RD;
   bits<5> RS1;
@@ -183,7 +183,7 @@ def DREADPM: InstIREDEFINEImm<"dreadpm", 0b0000001, 0b010       , add, GR32, GR3
 
 def END: InstREDEFINE<4, (outs), (ins imm32sx12:$src), 
                 "end x0", 
-                [],REDEFINEALU> {
+                [(int_end i32:$src)],REDEFINEALU> {
   field bits<32> Inst;
 
   bits<5> RS1;
@@ -247,6 +247,7 @@ def SYNC : InstSREDEFINEImm<"sync" , 0b0100100, 0b011, add , GR32, GR32, imm32sx
 def FBIND : InstSREDEFINE<"fbind" , 0b0000100, 0b011, add , GR32, GR32>
 {
  let Itinerary   = REDEFINEORC;
+ let Pattern = [(int_fbind i32:$dst1,i32:$src1)];
 }
 def PSFBIND : InstSREDEFINEImm<"psfbind" , 0b0000100, 0b011, add , GR32, GR32, imm32sx12>
 {
@@ -255,7 +256,7 @@ def PSFBIND : InstSREDEFINEImm<"psfbind" , 0b0000100, 0b011, add , GR32, GR32, i
 
 def FDELETE: InstREDEFINE<4, (outs), (ins GR32:$id), 
                 "fdelete \t$id", 
-                [],REDEFINEORC> {
+                [(int_fdelete i32:$id)],REDEFINEORC> {
   field bits<32> Inst;
 
   bits<5> RS1;
