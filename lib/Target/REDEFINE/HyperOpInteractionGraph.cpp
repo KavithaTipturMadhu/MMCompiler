@@ -2637,6 +2637,7 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 		}
 		Function* hopFunction = hop->getFunction();
 		int funcArgIndex = 0;
+		assert((!frameArgsAdded||hop->getFunction()->getArgumentList().size()>=2) && "After adding frame and reg args, every hop must have at least 2 arguments");
 		for (auto argItr = hopFunction->arg_begin(); argItr != hopFunction->arg_end(); argItr++, funcArgIndex++) {
 			if (frameArgsAdded && funcArgIndex < 2) {
 				assert(hopFunction->getAttributes().hasAttribute(funcArgIndex + 1, Attribute::InReg) && "First two args must be marked as in register");
