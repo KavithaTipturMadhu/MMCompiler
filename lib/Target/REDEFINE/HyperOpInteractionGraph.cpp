@@ -2551,6 +2551,10 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
  * 3. There are no cycles in an HIG
  * 4. For each input coming into a context slot, there is at least one parent hyperop producing the data and after self frame argument is added, there are at least 2 arguments in the function
  * 5. Ensure that only start hyperop does not have an immediate dominator and the graph is structured
+ * 6. Ensure that there is at least a sync/writecm edge between each producer and consumer
+ * 7. There should be no stray functions other than intrinsics or functions attached to hyperops
+ * 8. Ensure that the number of inreg arguments per function is less than context frame size
+ * 9. Arguments can't be delivered to the first two function arg slots
  */
 void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 //Check that sync hyperops are not predicated
@@ -2569,6 +2573,7 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 			endHyperOp = vertexItr;
 		}
 		map<int, list<HyperOp*> > contextSlotAndParentList;
+		list<HyperOp*> coveredParents;
 		//check to ensure the the incoming edges to a hyperOp don't share the same context slot, and if they do, they come from different hyperops
 		for (auto parentEdgeItr : vertexItr->ParentMap) {
 			if (parentEdgeItr.first->getType() == HyperOpEdge::SCALAR || parentEdgeItr.first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) {
@@ -2582,7 +2587,11 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 				srcList.push_back(parentEdgeItr.second);
 				contextSlotAndParentList.insert(make_pair(parentEdgeItr.first->getPositionOfContextSlot(), srcList));
 			}
+			if (find(coveredParents.begin(), coveredParents.end(), parentEdgeItr.second) == coveredParents.end() &&(parentEdgeItr.first->getType() == HyperOpEdge::SCALAR || parentEdgeItr.first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || parentEdgeItr.first->getType() == HyperOpEdge::SYNC|| parentEdgeItr.first->getType() == HyperOpEdge::PREDICATE)) {
+				coveredParents.push_back(parentEdgeItr.second);
+			}
 		}
+		assert(coveredParents.size() == vertexItr->getParentList().size() && "HyperOps must have at least one REDEFINE runtime based communication between every producer and consumer");
 	}
 
 	unsigned numVertices = this->Vertices.size();
@@ -2636,13 +2645,18 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 		}
 		Function* hopFunction = hop->getFunction();
 		int funcArgIndex = 0;
+		int numInRegArgs = 0;
 		assert((!frameArgsAdded||hop->getFunction()->getArgumentList().size()>=2) && "After adding frame and reg args, every hop must have at least 2 arguments");
 		for (auto argItr = hopFunction->arg_begin(); argItr != hopFunction->arg_end(); argItr++, funcArgIndex++) {
+			if(hopFunction->getAttributes().hasAttribute(funcArgIndex + 1, Attribute::InReg)){
+				numInRegArgs++;
+			}
 			if (frameArgsAdded && funcArgIndex < 2) {
 				assert(hopFunction->getAttributes().hasAttribute(funcArgIndex + 1, Attribute::InReg) && "First two args must be marked as in register");
 			}
 			bool funcInputHasValidInput = false;
 			for (auto edgeItr : hop->ParentMap) {
+				assert(edgeItr.first->getPositionOfContextSlot()<2 && "Arguments can't be delivered to the first two function arg slots");
 				if (edgeItr.first->getPositionOfContextSlot() == funcArgIndex && std::find(this->Vertices.begin(), this->Vertices.end(), edgeItr.second) != this->Vertices.end()) {
 					funcInputHasValidInput = true;
 					break;
@@ -2654,6 +2668,13 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 				assert(funcInputHasValidInput && "Invalid input to a function");
 			}
 		}
+		assert(numInRegArgs<=(this->getMaxContextFrameSize()+(frameArgsAdded?2:0))&&"Number of inreg args cannot exceed the number of context frame slots");
+	}
+
+	Module *M = this->Vertices.front()->getFunction()->getParent();
+	for (auto funcItr = M->begin(); funcItr != M->end(); funcItr++) {
+		Function* func = funcItr;
+		assert((func->isIntrinsic()|| this->getHyperOp(func)!=NULL) && "Stray functions are not allowed");
 	}
 
 }
