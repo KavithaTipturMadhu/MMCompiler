@@ -41,6 +41,7 @@ static string LOCAL_REFERENCE = "LocalReference";
 
 class HyperOp;
 class HyperOpInteractionGraph;
+#include "llvm/IR/REDEFINEUtils.h"
 
 //(X,Y) coordinates of Tile
 typedef pair<unsigned, unsigned> TileCoordinates;
