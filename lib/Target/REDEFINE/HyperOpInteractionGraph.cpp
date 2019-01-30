@@ -2552,7 +2552,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
  * 4. For each input coming into a context slot, there is at least one parent hyperop producing the data
  * 5. Ensure that only start hyperop does not have an immediate dominator and the graph is structured
  */
-void HyperOpInteractionGraph::verify() {
+void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 //Check that sync hyperops are not predicated
 	HyperOp* startHyperOp = NULL;
 	HyperOp* endHyperOp = NULL;
@@ -2638,6 +2638,9 @@ void HyperOpInteractionGraph::verify() {
 		Function* hopFunction = hop->getFunction();
 		int funcArgIndex = 0;
 		for (auto argItr = hopFunction->arg_begin(); argItr != hopFunction->arg_end(); argItr++, funcArgIndex++) {
+			if (frameArgsAdded && funcArgIndex < 2) {
+				assert(hopFunction->getAttributes().hasAttribute(funcArgIndex + 1, Attribute::InReg) && "First two args must be marked as in register");
+			}
 			bool funcInputHasValidInput = false;
 			for (auto edgeItr : hop->ParentMap) {
 				if (edgeItr.first->getPositionOfContextSlot() == funcArgIndex && std::find(this->Vertices.begin(), this->Vertices.end(), edgeItr.second) != this->Vertices.end()) {
@@ -2645,7 +2648,11 @@ void HyperOpInteractionGraph::verify() {
 					break;
 				}
 			}
-			assert(funcInputHasValidInput && "Invalid input to a function");
+			if(frameArgsAdded){
+				assert((((funcArgIndex < 2) &&!funcInputHasValidInput)||funcInputHasValidInput) && "Invalid input to a function");
+			}else{
+				assert(funcInputHasValidInput && "Invalid input to a function");
+			}
 		}
 	}
 

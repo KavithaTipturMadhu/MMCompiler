@@ -321,7 +321,7 @@ public:
 	/*
 	 * Add all correctness checks on HIG here
 	 */
-	void verify();
+	void verify(int frameArgsAdded = 0);
 
 	virtual ~HyperOpInteractionGraph();
 
