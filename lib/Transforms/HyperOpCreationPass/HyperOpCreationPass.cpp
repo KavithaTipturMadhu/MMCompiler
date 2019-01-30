@@ -4410,8 +4410,8 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->addContextFrameAddressForwardingEdges();
 		graph->addSelfFrameAddressRegisters();
 		graph->addNecessarySyncEdges();
-		graph->convertRemoteScalarsToStores();
 		graph->clusterNodes();
+		graph->convertRemoteScalarsToStores();
 		graph->addArgDecrementCountOnControlPaths();
 		graph->addSyncCountDecrementOnControlPaths();
 		graph->associateStaticContextFrames();
