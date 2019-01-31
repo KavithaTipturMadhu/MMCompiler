@@ -3657,8 +3657,92 @@ void HyperOpInteractionGraph::convertSpillScalarsToStores() {
 /*
  * Shuffle arguments of a HyperOp for better mapping to context frames
  */
-void HyperOpInteractionGraph::shuffleHyperOpArguments(){
+void HyperOpInteractionGraph::shuffleHyperOpArguments() {
+	Module *M = this->Vertices.front()->getFunction()->getParent();
+	LLVMContext &ctxt = M->getContext();
+	list<Function*> coveredFunctions;
 
+	for (auto vertexItr = Vertices.begin(); vertexItr!=Vertices.end(); vertexItr++) {
+		if(find(coveredFunctions.begin(), coveredFunctions.end(), vertexItr) == coveredFunctions.end()){
+			continue;
+		}
+		HyperOp* hop = vertexItr;
+		coveredFunctions.push_back(hop->getFunction());
+		Function* hopFunction = hop->getFunction();
+		map<Argument*, int> oldArgNewIndexMap;
+		list<Type*> newArgsList;
+		for (auto oldArgItr = hopFunction->arg_begin(); oldArgItr != hopFunction->arg_end(); oldArgItr++) {
+			//	funcArgsList.push_back(oldArgItr->getType());
+			int newInsertIndex = 0;
+			if (oldArgItr->getType()->isIntegerTy()) {
+				newArgsList.push_front(oldArgItr->getType());
+				newInsertIndex = 0;
+				// Update all previously inserted args
+				for (auto insertArgItr : oldArgNewIndexMap) {
+					oldArgNewIndexMap[insertArgItr.first] = insertArgItr.second + 1;
+				}
+			} else {
+				newArgsList.push_back(oldArgItr->getType());
+				newInsertIndex = newArgsList.size() - 1;
+			}
+			oldArgNewIndexMap.insert(make_pair(oldArgItr, newInsertIndex));
+		}
+		std::vector<Type*> newAgrsVector { std::begin(newArgsList), std::end(newArgsList) };
+		FunctionType *FT = FunctionType::get(hopFunction->getReturnType(), newAgrsVector, false);
+		Function *newFunction = Function::Create(FT, Function::ExternalLinkage, hopFunction->getName(), hopFunction->getParent());
+		auto newArgItr = newFunction->arg_begin();
+		//Advance the pointer twice since two new args are added
+		int newArgIndex = 1;
+		map<Value*, Value*> oldToNewValueMap;
+		for (auto oldArgItr = hopFunction->arg_begin(); oldArgItr != hopFunction->arg_end(); oldArgItr++, newArgItr++, newArgIndex++) {
+			//Argument* oldArg = oldArgItr;
+			//Argument* newArg = newArgItr;
+			//printf("oldArgItr : %s -- newArgItr: %s \n",oldArgItr->getName(),newArgItr->getName());
+			oldToNewValueMap.insert(make_pair(oldArgItr, newArgItr));
+			auto oldAttrSet = hopFunction->getAttributes().getParamAttributes(newArgIndex);
+			newFunction->addAttributes(newArgIndex, oldAttrSet);
+		}
+		vector<Argument*> newArgVector;
+		for (auto newArgItr = newFunction->arg_begin(); newArgItr != newFunction->arg_end(); newArgItr++) {
+			newArgVector.push_back(newArgItr);
+		}
+		for (auto argItr = hopFunction->arg_begin(); argItr != hopFunction->arg_end(); argItr++) {
+			oldToNewValueMap.insert(make_pair(argItr, newArgVector[oldArgNewIndexMap[argItr]]));
+		}
+		for (auto funcItr = hopFunction->begin(); funcItr != hopFunction->end(); funcItr++) {
+			BasicBlock* oldBB = funcItr;
+			BasicBlock* newBB = BasicBlock::Create(ctxt, oldBB->getName(), newFunction);
+			oldToNewValueMap.insert(make_pair(oldBB, newBB));
+		}
+		for (auto bbItr = hopFunction->begin(); bbItr != hopFunction->end(); bbItr++) {
+			BasicBlock* oldBB = bbItr;
+			//assert(oldToNewValueMap.find(oldBB) != oldToNewValueMap.end() && "Basicblock not cloned before");
+			BasicBlock* newBB = (BasicBlock*) oldToNewValueMap[oldBB];
+			for (auto instItr = oldBB->begin(); instItr != oldBB->end(); instItr++) {
+				Instruction* oldInst = instItr;
+				Instruction* newInst = oldInst->clone();
+				oldToNewValueMap.insert(make_pair(oldInst, newInst));
+				for (int operandIndex = 0; operandIndex < oldInst->getNumOperands(); operandIndex++) {
+					auto* oldOperand = oldInst->getOperand(operandIndex);
+					//newInst->setOperand(operandIndex,oldInst.get
+					if (oldToNewValueMap.find(oldOperand) != oldToNewValueMap.end()) {
+						newInst->setOperand(operandIndex, oldToNewValueMap[oldOperand]);
+					}
+				}
+				newBB->getInstList().insert(newBB->end(), newInst);
+			}
+		}
+		hop->setFunction(newFunction);
+
+		/* Shuffle all context slots for the updated function */
+		for(auto parentEdgeItr = hop->ParentMap.begin(); parentEdgeItr!=hop->ParentMap.end(); parentEdgeItr++){
+			auto oldArgItr = hopFunction->arg_begin();
+			oldArgItr +=parentEdgeItr->first->getPositionOfContextSlot();
+			Argument* oldArg = oldArgItr;
+			parentEdgeItr->first->setPositionOfContextSlot(oldArgNewIndexMap[oldArg]);
+		}
+		hopFunction->eraseFromParent();
+	}
 }
 
 /*
