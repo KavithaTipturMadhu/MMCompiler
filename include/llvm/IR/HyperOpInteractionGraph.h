@@ -38,6 +38,8 @@ static string HYPEROP_EXIT = "Exit";
 static string HYPEROP_INTERMEDIATE = "Intermediate";
 static string SCALAR = "Scalar";
 static string LOCAL_REFERENCE = "LocalReference";
+static string STATIC_HYPEROP = "Static";
+static string DYNAMIC_HYPEROP = "Dynamic";
 
 class HyperOp;
 class HyperOpInteractionGraph;
@@ -101,6 +103,7 @@ public:
 	MachineInstr* getEdgeSource();
 	int getMemoryOffsetInTargetFrame() const;
 	void setMemoryOffsetInTargetFrame(int memoryOffset);
+	void clone(HyperOpEdge** clone);
 };
 typedef list<pair<MachineInstr*, MachineInstr*> > PHyperOpInteractionGraph;
 

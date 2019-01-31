@@ -4324,38 +4324,37 @@ private:
 	const char* REDEFINE_INPUT_PREFIX = "redefine_in";
 	const char* REDEFINE_OUTPUT_PREFIX = "redefine_out";
 	const char* REDEFINE_INOUT_PREFIX = "redefine_inout";
-	const char* STATIC_HYPEROP = "Static";
-	const char* DYNAMIC_HYPEROP = "Dynamic";
 };
 char HyperOpCreationPass::ID = 2;
 char* HyperOpCreationPass::NEW_NAME = "newName";
 static RegisterPass<HyperOpCreationPass> X("HyperOpCreationPass", "Pass to create HyperOps");
 
+//struct HIGOptimizationPass: public ModulePass {
+//	static char ID;
+//
+//	virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+//		//Mandatory merge return to be invoked on each function
+//		AU.addRequired<HyperOpCreationPass>();
+//	}
+//
+//	HIGOptimizationPass() :
+//			ModulePass(ID) {
+//	}
+//	virtual bool runOnModule(Module &M) {
+//		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
+//		graph->removeUnreachableHops();
+//		graph->computeDominatorInfo();
+//		graph->makeGraphStructured();
+//		graph->computeDominatorInfo();
+//		graph->verify();
+//		return false;
+//	}
+//};
+//
+//char HIGOptimizationPass::ID = 2;
+//static RegisterPass<HIGOptimizationPass> X2("HIGOptimization", "Pass to optimize HIG: delete unreachable nodes and make graph structured");
 
-struct HIGOptimizationPass: public ModulePass {
-	static char ID;
-
-	virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-		//Mandatory merge return to be invoked on each function
-		AU.addRequired<HyperOpCreationPass>();
-	}
-
-	HIGOptimizationPass() :
-			ModulePass(ID) {
-	}
-	virtual bool runOnModule(Module &M) {
-		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
-		graph->removeUnreachableHops();
-		graph->computeDominatorInfo();
-		graph->makeGraphStructured();
-		graph->computeDominatorInfo();
-		graph->verify();
-		return false;
-	}
-};
-
-char HIGOptimizationPass::ID = 2;
-static RegisterPass<HIGOptimizationPass> X2("HIGOptimization", "Pass to optimize HIG: delete unreachable nodes and make graph structured");
+#define MAKE_GRAPH_STRUCTURED 1
 
 struct REDEFINEIRPass: public ModulePass {
 	static char ID;
@@ -4409,6 +4408,13 @@ struct REDEFINEIRPass: public ModulePass {
 	virtual bool runOnModule(Module &M) {
 		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
 		graph->computeDominatorInfo();
+
+		if(MAKE_GRAPH_STRUCTURED){
+			graph->removeUnreachableHops();
+			graph->makeGraphStructured();
+			graph->computeDominatorInfo();
+		}
+
 		graph->addContextFrameAddressForwardingEdges();
 		graph->addSelfFrameAddressRegisters();
 		graph->clusterNodes();
@@ -4420,6 +4426,7 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->addArgDecrementCountOnControlPaths();
 		graph->addSyncCountDecrementOnControlPaths();
 		graph->associateStaticContextFrames();
+		graph->updateLocalRefEdgeMemOffset();
 		graph->verify(1);
 		map<Function*, unsigned> functionAndIndexMap;
 
