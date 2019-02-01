@@ -4400,6 +4400,29 @@ struct REDEFINEIRPass: public ModulePass {
 		ReturnInst* ret = ReturnInst::Create(M.getContext(), *loopEnd);
 	}
 
+	static inline unsigned getSyncCount(BasicBlock* bb, list<SyncValue> syncCount, Module *M, Value** syncCountValue) {
+		Value* localSymCount = NULL;
+		bool first = true;
+		for (list<SyncValue>::iterator syncCountIterator = syncCount.begin(); syncCountIterator != syncCount.end(); syncCountIterator++) {
+			Value* currentSyncCount;
+			if (syncCountIterator->getType() == SyncValueType::INT_SYNC_TYPE) {
+				currentSyncCount = ConstantInt::get(Type::getInt32Ty(M->getContext()), syncCountIterator->getInt());
+			} else if (syncCountIterator->getType() == SyncValueType::HYPEROP_SYNC_TYPE){
+				Value* min = syncCountIterator->getHyperOp()->getRangeLowerBound();
+				Value* max = syncCountIterator->getHyperOp()->getRangeUpperBound();
+				Value * stride = syncCountIterator->getHyperOp()->getStride();
+				Value* difference = BinaryOperator::Create(Instruction::BinaryOps::Sub, max, min, "diff", bb);
+				currentSyncCount = BinaryOperator::Create(Instruction::BinaryOps::SDiv, difference, stride, "", bb);
+			}
+			if(localSymCount == NULL){
+				localSymCount = currentSyncCount;
+			}else{
+				localSymCount = BinaryOperator::Create(Instruction::BinaryOps::Add, currentSyncCount, localSymCount, "syncCount", bb);;
+			}
+		}
+		*syncCountValue = localSymCount;
+	}
+
 	virtual bool runOnModule(Module &M) {
 		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
 		graph->computeDominatorInfo();
@@ -4469,6 +4492,31 @@ struct REDEFINEIRPass: public ModulePass {
 					fbindInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fbind, 0), fbindArgs, "", &insertInBB->back());
 
 					DEBUG(dbgs() << "Adding expected sync count to the hyperop instance created\n");
+					if(child->isBarrierHyperOp()){
+						Value* syncCount;
+						if(child->getSyncCount(0).size()!=child->getSyncCount(1).size()){
+							list<SyncValue> zeroSyncEdgesOnHop = child->getSyncCount(0);
+							Value* zeroSync;
+							getSyncCount(insertInBB, zeroSyncEdgesOnHop, child->getFunction()->getParent(), &zeroSync);
+							Value* firstPredicate = child->getIncomingSyncPredicate(0);
+							Value* mulForZeroSync = BinaryOperator::Create(Instruction::BinaryOps::Mul, firstPredicate, zeroSync, "mulzerosync", insertInBB);
+
+							list<SyncValue> oneSyncEdgesOnHop = child->getSyncCount(0);
+							Value* secondPredicate = child->getIncomingSyncPredicate(1);
+							if(secondPredicate == NULL){
+								secondPredicate = firstPredicate;
+							}
+							Value* oneSync;
+							getSyncCount(insertInBB, oneSyncEdgesOnHop, child->getFunction()->getParent(), &oneSync);
+							Value * invertOneSync = CmpInst::Create(Instruction::OtherOps::ICmp, llvm::CmpInst::ICMP_SLT, oneSync, ConstantInt::get(M.getContext(), APInt(32, 1)), "onepredsync", insertInBB);
+							Value* mulForOneSync = BinaryOperator::Create(Instruction::BinaryOps::Mul, firstPredicate, invertOneSync, "mulonesync", insertInBB);
+							syncCount = BinaryOperator::Create(Instruction::BinaryOps::Add, mulForZeroSync, mulForOneSync, "synccount", insertInBB);
+						}else{
+							list<SyncValue> syncEdgesOnHop = child->getSyncCount(0);
+							getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), &syncCount);
+						}
+
+					}
 
 					DEBUG(dbgs() << "Adding lw and sw instructions to the hyperop instance created\n");
 					for (auto childEdgeItr = vertex->ChildMap.begin(); childEdgeItr != vertex->ChildMap.end(); childEdgeItr++) {
