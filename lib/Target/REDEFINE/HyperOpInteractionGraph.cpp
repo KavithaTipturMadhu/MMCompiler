@@ -3637,16 +3637,18 @@ void HyperOpInteractionGraph::convertSpillScalarsToStores() {
 		HyperOp* hyperOp = *hopItr;
 		Function* hyperOpFunction = hyperOp->getFunction();
 		int argIndex = 0;
+		bool firstNonInregEncountered = false;
 		for (auto argItr = hyperOpFunction->begin(); argItr != hyperOpFunction->end(); argItr++, argIndex++) {
 			/* This function must be invoked after the same frame memory args are added to functions, and we must ignore the first two args */
 			if (argIndex < 2) {
 				continue;
 			}
 
-			if ((REDEFINEUtils::getSizeOfType(argItr->getType()) / 4) < this->getMaxContextFrameSize() && argIndex < (this->getMaxContextFrameSize() + 2)) {
+			if (!firstNonInregEncountered && (argItr->getType()->isSingleValueType() && !argItr->getType()->isPointerTy()) && (REDEFINEUtils::getSizeOfType(argItr->getType()) / 4) < this->getMaxContextFrameSize() && argIndex < (this->getMaxContextFrameSize() + 2)) {
 				//Mark context frame args as inreg
 				hyperOpFunction->addAttribute(argIndex + 1, Attribute::InReg);
 			} else {
+				firstNonInregEncountered = true;
 				//Change the type of incoming edge to memory based instead of context frame scalar
 				for (auto parentItr : hyperOp->ParentMap) {
 					switch (parentItr.first->getType()) {
