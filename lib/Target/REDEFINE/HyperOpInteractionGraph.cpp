@@ -3300,15 +3300,19 @@ void cloneFunction(Function* hopFunction, Function ** replacementFunction) {
  * This method adds 2 register arguments to each function in the beginning of the argument list, indicating that the function gets its own address and the base address of range hop
  */
 void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
+	list<Function*> coveredFunctions;
 	for (auto hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hop = *hopItr;
 		Function* func = hop->getFunction();
+		if(find(coveredFunctions.begin(), coveredFunctions.end(), func) != coveredFunctions.end()){
+			continue;
+		}
+		coveredFunctions.push_back(func);
 		Function* replacementFunction;
 		cloneFunction(func, &replacementFunction);
 		replacementFunction->addAttribute(1, Attribute::InReg);
 		replacementFunction->addAttribute(2, Attribute::InReg);
-		hop->setFunction(replacementFunction);
-		func->removeFromParent();
+
 		/* Update context frame slots to start from 2 for all args */
 		for (auto vertexItr : this->Vertices) {
 			HyperOp* vertex = vertexItr;
@@ -3318,6 +3322,14 @@ void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
 				}
 			}
 		}
+
+		for (auto allHopItr = this->Vertices.begin(); allHopItr != this->Vertices.end(); allHopItr++) {
+			HyperOp* commonFuncHop = *allHopItr;
+			if (commonFuncHop->getFunction() == func) {
+				commonFuncHop->setFunction(replacementFunction);
+			}
+		}
+		func->removeFromParent();
 	}
 }
 
