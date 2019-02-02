@@ -328,7 +328,7 @@ public:
   CallInst *CreateFdelete(Value *arg0, unsigned Align,
                             bool isVolatile = false, MDNode *TBAATag = 0,
                             MDNode *TBAAStructTag = 0);
-  CallInst *CreateWritecm(Value *arg0, Value *arg1, unsigned Align,
+  CallInst *CreateWritecm(Value *arg0, Value *arg1, Value* arg2, unsigned Align,
                           bool isVolatile = false, MDNode *TBAATag = 0,
                           MDNode *TBAAStructTag = 0);
   CallInst *CreateWritecmp(Value *arg0, Value *arg1, unsigned Align,
