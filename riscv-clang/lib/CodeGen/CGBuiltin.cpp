@@ -234,6 +234,11 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD, unsigned Builtin
           E->getArg(1)) };
       return RValue::get(Builder.CreateCall(F, Args));
     }
+    case Builtin::BI__builtin_getmemframe: {
+    	  Value *F = CGM.getIntrinsic(Intrinsic::getmemframe);
+    	  Value *Args[] = { EmitScalarExpr(E->getArg(0)) };
+    	  return RValue::get(Builder.CreateCall(F, Args));
+    	}
 	// Handle intrinsics and libm functions below.
 	case Builtin::BI__builtin___CFStringMakeConstantString:
 	case Builtin::BI__builtin___NSStringMakeConstantString:
