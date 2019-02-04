@@ -16,6 +16,7 @@
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/IR/Instructions.h"
 using namespace llvm;
 
 #include <list>
@@ -38,9 +39,12 @@ static string HYPEROP_EXIT = "Exit";
 static string HYPEROP_INTERMEDIATE = "Intermediate";
 static string SCALAR = "Scalar";
 static string LOCAL_REFERENCE = "LocalReference";
+static string STATIC_HYPEROP = "Static";
+static string DYNAMIC_HYPEROP = "Dynamic";
 
 class HyperOp;
 class HyperOpInteractionGraph;
+#include "llvm/IR/REDEFINEUtils.h"
 
 //(X,Y) coordinates of Tile
 typedef pair<unsigned, unsigned> TileCoordinates;
@@ -100,6 +104,7 @@ public:
 	MachineInstr* getEdgeSource();
 	int getMemoryOffsetInTargetFrame() const;
 	void setMemoryOffsetInTargetFrame(int memoryOffset);
+	void clone(HyperOpEdge** clone);
 };
 typedef list<pair<MachineInstr*, MachineInstr*> > PHyperOpInteractionGraph;
 
@@ -321,7 +326,7 @@ public:
 	/*
 	 * Add all correctness checks on HIG here
 	 */
-	void verify();
+	void verify(int frameArgsAdded = 0);
 
 	virtual ~HyperOpInteractionGraph();
 
@@ -357,5 +362,11 @@ public:
 	void addArgDecrementCountOnControlPaths();
 
 	void addSyncCountDecrementOnControlPaths();
+
+	void convertSpillScalarsToStores();
+
+	void shuffleHyperOpArguments();
+
+	AllocaInst* getAllocInstrForLocalReferenceData(Value* sourceInstr, HyperOp* hyperOp);
 };
 #endif /* LIB_TARGET_RISCV_HYPEROPINTERACTIONGRAPH_H_ */

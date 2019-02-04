@@ -481,6 +481,7 @@ def int_writecmp: Intrinsic <[], [llvm_ptr_ty, llvm_i32_ty], []>;
 def int_writecm_sync: Intrinsic <[], [llvm_ptr_ty, llvm_i32_ty], []>;
 def int_sync: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty], []>;
 def int_rfalloc: Intrinsic <[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], []>;
+def int_getmemframe: Intrinsic <[llvm_ptr_ty], [llvm_ptr_ty], []>;
 
 //===----------------------------------------------------------------------===//
 // Target-specific intrinsics

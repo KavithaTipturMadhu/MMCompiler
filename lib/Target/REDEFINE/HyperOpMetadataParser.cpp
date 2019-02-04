@@ -16,43 +16,6 @@ HyperOpMetadataParser::~HyperOpMetadataParser() {
 	// TODO Auto-generated destructor stub
 }
 
-AllocaInst* getAllocInstrForLocalReferenceData(Module &M, Instruction* sourceInstr, map<Function*, MDNode*> functionMetadataMap) {
-	if (isa<AllocaInst>(sourceInstr)) {
-		return (AllocaInst*) sourceInstr;
-	}
-	if (isa<LoadInst>(sourceInstr)) {
-		MDNode* sourceMDNode = functionMetadataMap[sourceInstr->getParent()->getParent()];
-		unsigned argIndex = 0;
-		Function* parentFunction = sourceInstr->getParent()->getParent();
-		for (Function::arg_iterator argItr = parentFunction->arg_begin(); argItr != parentFunction->arg_end(); argItr++, argIndex++) {
-			if (argItr == sourceInstr->getOperand(0)) {
-				//Find the function that contains the consumed by annotation
-				for (Module::iterator funcItr = M.begin(); funcItr != M.end(); funcItr++) {
-					if (&*funcItr != parentFunction) {
-						for (Function::iterator bbItr = funcItr->begin(); bbItr != funcItr->end(); bbItr++) {
-							for (BasicBlock::iterator instrItr = bbItr->begin(); instrItr != bbItr->end(); instrItr++) {
-								if (instrItr->hasMetadata()) {
-									MDNode* consumedByMDNode = instrItr->getMetadata(HYPEROP_CONSUMED_BY);
-									if (consumedByMDNode != 0) {
-										for (unsigned i = 0; i < consumedByMDNode->getNumOperands(); i++) {
-											MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(i);
-											((MDNode*) consumerMDNode->getOperand(0))->dump();
-											if (((MDNode*) consumerMDNode->getOperand(0)) == sourceMDNode && ((ConstantInt*) consumerMDNode->getOperand(2))->getZExtValue() == argIndex) {
-												return getAllocInstrForLocalReferenceData(M, instrItr, functionMetadataMap);
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return NULL;
-}
-
 list<StringRef> parseInstanceIdString(StringRef instanceTag, char seperator = ',') {
 	list<StringRef> instanceId;
 //Parse string to get a list of identifiers

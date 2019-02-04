@@ -172,10 +172,10 @@ CallInst *IRBuilderBase::CreateFdelete(Value *arg0, unsigned Align,
 	return CI;
 }
 
-CallInst *IRBuilderBase::CreateWritecm(Value *arg0, Value *arg1, unsigned Align,
+CallInst *IRBuilderBase::CreateWritecm(Value *arg0, Value *arg1, Value* arg2, unsigned Align,
 		bool isVolatile, MDNode *TBAATag, MDNode *TBAAStructTag) {
 	arg0 = getCastedInt8PtrValue(arg0);
-	Value *Ops[] = { arg0, arg1 };
+	Value *Ops[] = { arg0, arg1, arg2 };
 	Module *M = BB->getParent()->getParent();
 	Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::writecm);
 	CallInst *CI = createCallHelper(TheFn, Ops, this);

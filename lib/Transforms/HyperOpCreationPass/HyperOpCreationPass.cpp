@@ -643,7 +643,6 @@ struct HyperOpCreationPass: public ModulePass {
 
 	virtual bool runOnModule(Module &M) {
 
-
 		LLVMContext & ctxt = M.getContext();
 		//Top level annotation corresponding to all annotations REDEFINE
 		NamedMDNode * redefineAnnotationsNode = M.getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
@@ -724,9 +723,9 @@ struct HyperOpCreationPass: public ModulePass {
 		}
 
 		//Sanity checks on input file
-		assert(mainFunction != 0 &&"REDEFINE kernel's entry point i.e., redefine_start function missing, aborting\n");
+		assert(mainFunction != 0 && "REDEFINE kernel's entry point i.e., redefine_start function missing, aborting\n");
 		assert(mainFunction->getArgumentList().empty() && "REDEFINE kernel's entry point i.e., redefine_start function takes arguments, aborting\n");
-		assert((mainFunction->getReturnType()->getTypeID() == Type::VoidTyID) &&"REDEFINE kernel's entry point i.e., redefine_start function returning a non-void value, aborting\n");
+		assert((mainFunction->getReturnType()->getTypeID() == Type::VoidTyID) && "REDEFINE kernel's entry point i.e., redefine_start function returning a non-void value, aborting\n");
 
 		//TODO replace the following with callgraph analysis
 		list<pair<Function*, CallInst*> > traversedFunctions;
@@ -770,9 +769,9 @@ struct HyperOpCreationPass: public ModulePass {
 
 		const char* isHyperOpInline = std::getenv("HYPEROP_INLINE");
 		/*if (INLINE_FUNCTION_CALLS) {*/
-		if(isHyperOpInline!= NULL && strcmp(isHyperOpInline,"true") == 0){
+		if (isHyperOpInline != NULL && strcmp(isHyperOpInline, "true") == 0) {
 			for (CallInst* callInst : callsToInline) {
-				DEBUG(dbgs()<< "inling function call:"<<callInst);
+				DEBUG(dbgs() << "inling function call:" << callInst);
 				InlineFunctionInfo info;
 				InlineFunction(callInst, info);
 			}
@@ -1661,9 +1660,6 @@ struct HyperOpCreationPass: public ModulePass {
 									}
 								} else {
 									//Phi instruction's arguments correspond to only one argument to a HyperOp
-									errs()<<"whats added here?";
-									instItr->dump();
-									newHyperOpArguments.front()->dump();
 									hyperOpArguments.push_back(make_pair(newHyperOpArguments, supportedArgType(newHyperOpArguments.front(), M, instItr)));
 								}
 							}
@@ -1887,7 +1883,7 @@ struct HyperOpCreationPass: public ModulePass {
 			map<unsigned, Value*> localRefReplacementArgMap;
 			unsigned argIndex = 0;
 
-			errs()<<"patching instructions 1\n";
+			errs() << "patching instructions 1\n";
 
 			for (HyperOpArgumentList::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
 				//Set type of each argument of the HyperOp
@@ -1951,7 +1947,7 @@ struct HyperOpCreationPass: public ModulePass {
 			retInstMap.insert(make_pair(newFunction, retInst));
 			retBB->getInstList().insert(retBB->getFirstInsertionPt(), retInst);
 
-			errs()<<"patching instructions 0\n";
+			errs() << "patching instructions 0\n";
 
 			list<Instruction*> ignoredInstructions;
 			for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
@@ -2012,7 +2008,7 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 			}
 
-			errs()<<"patching instructions\n";
+			errs() << "patching instructions\n";
 			//Instructions have to be patched for operands after all are cloned to ensure that phi nodes are handled correctly
 			for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 				for (BasicBlock::iterator instItr = (*accumulatedBBItr)->begin(); instItr != (*accumulatedBBItr)->end(); instItr++) {
@@ -2365,7 +2361,7 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 			}
 
-			if(isKernelEntry){
+			if (isKernelEntry) {
 				isStaticHyperOp = true;
 			}
 
@@ -2526,7 +2522,7 @@ struct HyperOpCreationPass: public ModulePass {
 				redefineAnnotationsNode->addOperand(hyperOpDescMDNode);
 			}
 
-			errs()<<"created a new function:";
+			errs() << "created a new function:";
 			newFunction->dump();
 			createdHyperOpAndOriginalBasicBlockAndArgMap[newFunction] = make_pair(accumulatedBasicBlocks, hyperOpArguments);
 			createdHyperOpAndCallSite[newFunction] = callSite;
@@ -3480,7 +3476,7 @@ struct HyperOpCreationPass: public ModulePass {
 			for (auto unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
 				Value* unconditionalBranchInstr = unconditionalBranchSourceItr->first;
 				Value* originalUnconditionalBranchInstr = unconditionalBranchInstr;
-				errs()<<"unconditional branch input:";
+				errs() << "unconditional branch input:";
 				unconditionalBranchInstr->dump();
 				//There can only be one basic block that happens to be the target
 				BasicBlock* targetBB;
@@ -4272,7 +4268,6 @@ struct HyperOpCreationPass: public ModulePass {
 		for (Module::iterator functionItr = M.begin(); functionItr != M.end(); functionItr++) {
 			//Remove old functions from module
 			if (createdHyperOpAndOriginalBasicBlockAndArgMap.find(functionItr) == createdHyperOpAndOriginalBasicBlockAndArgMap.end() && !functionItr->isIntrinsic()) {
-				errs() << "deleting contents of function:" << functionItr->getName() << "\n";
 				functionItr->deleteBody();
 				functionsForDeletion.push_back(functionItr);
 			}
@@ -4324,42 +4319,43 @@ private:
 	const char* REDEFINE_INPUT_PREFIX = "redefine_in";
 	const char* REDEFINE_OUTPUT_PREFIX = "redefine_out";
 	const char* REDEFINE_INOUT_PREFIX = "redefine_inout";
-	const char* STATIC_HYPEROP = "Static";
-	const char* DYNAMIC_HYPEROP = "Dynamic";
 };
 char HyperOpCreationPass::ID = 2;
 char* HyperOpCreationPass::NEW_NAME = "newName";
 static RegisterPass<HyperOpCreationPass> X("HyperOpCreationPass", "Pass to create HyperOps");
 
+//struct HIGOptimizationPass: public ModulePass {
+//	static char ID;
+//
+//	virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+//		//Mandatory merge return to be invoked on each function
+//		AU.addRequired<HyperOpCreationPass>();
+//	}
+//
+//	HIGOptimizationPass() :
+//			ModulePass(ID) {
+//	}
+//	virtual bool runOnModule(Module &M) {
+//		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
+//		graph->removeUnreachableHops();
+//		graph->computeDominatorInfo();
+//		graph->makeGraphStructured();
+//		graph->computeDominatorInfo();
+//		graph->verify();
+//		return false;
+//	}
+//};
+//
+//char HIGOptimizationPass::ID = 2;
+//static RegisterPass<HIGOptimizationPass> X2("HIGOptimization", "Pass to optimize HIG: delete unreachable nodes and make graph structured");
 
-struct HIGOptimizationPass: public ModulePass {
-	static char ID;
-
-	virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-		//Mandatory merge return to be invoked on each function
-		AU.addRequired<HyperOpCreationPass>();
-	}
-
-	HIGOptimizationPass() :
-			ModulePass(ID) {
-	}
-	virtual bool runOnModule(Module &M) {
-		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
-		graph->removeUnreachableHops();
-		graph->computeDominatorInfo();
-		graph->makeGraphStructured();
-		graph->computeDominatorInfo();
-		graph->verify();
-		return false;
-	}
-};
-
-char HIGOptimizationPass::ID = 2;
-static RegisterPass<HIGOptimizationPass> X2("HIGOptimization", "Pass to optimize HIG: delete unreachable nodes and make graph structured");
+#define MAKE_GRAPH_STRUCTURED 1
 
 struct REDEFINEIRPass: public ModulePass {
 	static char ID;
 	static char* NEW_NAME;
+	/* Maximum context frame size in words, not bytes */
+	static const unsigned MAX_CONTEXT_FRAME_SIZE = 15;
 
 	REDEFINEIRPass() :
 			ModulePass(ID) {
@@ -4370,7 +4366,7 @@ struct REDEFINEIRPass: public ModulePass {
 		AU.addRequired<HyperOpCreationPass>();
 	}
 
-	void addRangeLoopConstructs(HyperOp* child, Function* vertexFunction, const Module &M, BasicBlock** loopBegin, BasicBlock** loopBody, BasicBlock** loopEnd, BasicBlock** insertInBB, LoadInst** loadInst) {
+	void addRangeLoopConstructs(HyperOp* child, Function* vertexFunction, const Module &M, BasicBlock** loopBegin, BasicBlock** loopBody, BasicBlock** loopEnd, BasicBlock** insertInBB, LoadInst** loadInst, Value* lowerbound, Value* upperbound) {
 		/* Add loop constructs */
 		string loopBeginNameSR = child->getFunction()->getName().str();
 		loopBeginNameSR.append("_create_begin");
@@ -4391,31 +4387,148 @@ struct REDEFINEIRPass: public ModulePass {
 		allocItrInst->setAlignment(4);
 		allocItrInst->insertBefore((*insertInBB)->getFirstInsertionPt());
 
-		StoreInst* storeItrInst = new StoreInst(child->getRangeLowerBound(), allocItrInst, (*insertInBB)->getTerminator());
+		StoreInst* storeItrInst = new StoreInst(lowerbound, allocItrInst, (*insertInBB)->getTerminator());
 		storeItrInst->setAlignment(4);
 
 		*loadInst = new LoadInst(allocItrInst, "falloc_itr", (*insertInBB)->getTerminator());
 		BranchInst* loopBodyJump = BranchInst::Create(*loopBegin, (*insertInBB)->getTerminator());
 		(*insertInBB)->getTerminator()->removeFromParent();
 
-		CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, *loadInst, child->getRangeUpperBound(), "cmpinst", *loopBegin);
+		CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, *loadInst, upperbound, "cmpinst", *loopBegin);
 		BranchInst* bgeItrInst = BranchInst::Create(*loopEnd, *loopBody, cmpInst, *loopBegin);
 		BranchInst* loopEndJump = BranchInst::Create(*loopBegin, *loopBody);
 		ReturnInst* ret = ReturnInst::Create(M.getContext(), *loopEnd);
 	}
 
+	static inline void getSyncCount(BasicBlock* bb, list<SyncValue> syncCount, Module *M, Value** syncCountValue) {
+		Value* localSymCount = NULL;
+		bool first = true;
+		for (list<SyncValue>::iterator syncCountIterator = syncCount.begin(); syncCountIterator != syncCount.end(); syncCountIterator++) {
+			Value* currentSyncCount;
+			if (syncCountIterator->getType() == SyncValueType::INT_SYNC_TYPE) {
+				currentSyncCount = ConstantInt::get(Type::getInt32Ty(M->getContext()), syncCountIterator->getInt());
+			} else if (syncCountIterator->getType() == SyncValueType::HYPEROP_SYNC_TYPE) {
+				Value* min = syncCountIterator->getHyperOp()->getRangeLowerBound();
+				Value* max = syncCountIterator->getHyperOp()->getRangeUpperBound();
+				Value * stride = syncCountIterator->getHyperOp()->getStride();
+				Value* difference = BinaryOperator::Create(Instruction::BinaryOps::Sub, max, min, "diff", bb);
+				currentSyncCount = BinaryOperator::Create(Instruction::BinaryOps::SDiv, difference, stride, "", bb);
+			}
+			if (localSymCount == NULL) {
+				localSymCount = currentSyncCount;
+			} else {
+				localSymCount = BinaryOperator::Create(Instruction::BinaryOps::Add, currentSyncCount, localSymCount, "syncCount", bb);
+				;
+			}
+		}
+		*syncCountValue = localSymCount;
+	}
+
+	static void getSourceData(HyperOpEdge* childEdge, HyperOp* vertex, Value** originalSourceData) {
+		Value* edgeValue = childEdge->getValue();
+		HyperOpInteractionGraph * graph = vertex->getParentGraph();
+		if (edgeValue->getType()->isPointerTy() || edgeValue->getType()->isAggregateType()) {
+			/* Find the parent that passed this argument*/
+			*originalSourceData = graph->getAllocInstrForLocalReferenceData(edgeValue, vertex);
+		} else {
+			*originalSourceData = edgeValue;
+		}
+	}
+
+	static void loadAndStoreData(Value* sourceData, Value* originalData, HyperOpEdge* parentEdge, Value* targetMemFrameBaseAddress, LLVMContext & ctxt, BasicBlock** insertInBB) {
+		unsigned targetOffsetInBytes = parentEdge->getPositionOfContextSlot();
+		Value* targetMemBaseInst = BinaryOperator::CreateNSWAdd(targetMemFrameBaseAddress, ConstantInt::get(ctxt, APInt(32, targetOffsetInBytes)));
+
+		Type* dataType = originalData->getType();
+		//Map of primitive data types and their memory locations
+		list<pair<Type*, unsigned> > primitiveTypesMap;
+		list<pair<Type*, int> > containedTypesForTraversal;
+		if (originalData->getType()->isArrayTy()) {
+			containedTypesForTraversal.push_front(make_pair(dataType, dataType->getArrayNumElements()));
+		} else {
+			containedTypesForTraversal.push_front(make_pair(dataType, 1));
+		}
+		unsigned memoryOfType = 0;
+		//Find the primitive types of allocated data type
+		while (!containedTypesForTraversal.empty()) {
+			Type* traversingType = containedTypesForTraversal.front().first;
+			int typeCount = containedTypesForTraversal.front().second;
+			containedTypesForTraversal.pop_front();
+			if (!traversingType->isAggregateType()) {
+				for (int i = 0; i < typeCount; i++) {
+					primitiveTypesMap.push_back(make_pair(traversingType, memoryOfType));
+					memoryOfType += (32 / 8);
+				}
+			} else {
+				if (traversingType->isArrayTy()) {
+					containedTypesForTraversal.push_back(make_pair(traversingType->getArrayElementType(), traversingType->getArrayNumElements()));
+				} else {
+					for (unsigned i = 0; i < traversingType->getNumContainedTypes(); i++) {
+						containedTypesForTraversal.push_back(make_pair(traversingType->getContainedType(i), 1));
+					}
+				}
+			}
+		}
+
+		assert(isa<AllocaInst>(originalData) && "Original data is not alloc type\n");
+		unsigned arraySize = ((ConstantInt*) ((AllocaInst*) originalData)->getArraySize())->getZExtValue();
+		//TODO replace with a loop
+		for (unsigned allocatedDataIndex = 0; allocatedDataIndex != arraySize; allocatedDataIndex++) {
+			//Add a load instruction from memory and store to the memory frame of the consumer HyperOp
+			for (list<pair<Type*, unsigned> >::iterator containedPrimitiveItr = primitiveTypesMap.begin(); containedPrimitiveItr != primitiveTypesMap.end(); containedPrimitiveItr++) {
+				Type* containedType = containedPrimitiveItr->first;
+				unsigned sourceOffset = allocatedDataIndex * memoryOfType + containedPrimitiveItr->second;
+				Value* loadOffset = BinaryOperator::CreateNSWAdd(sourceData, ConstantInt::get(ctxt, APInt(32, sourceOffset)));
+				LoadInst* lw = new LoadInst(loadOffset, "", &((*insertInBB)->back()));
+
+				Value* storeOffset = BinaryOperator::CreateNSWAdd(targetMemFrameBaseAddress, ConstantInt::get(ctxt, APInt(32, sourceOffset)));
+				new StoreInst(targetMemBaseInst, lw, &((*insertInBB)->back()));
+			}
+		}
+	}
+
+	static void addRedefineCommInstructions(HyperOpEdge * parentEdge, Value* childCFBaseAddr, BasicBlock** insertInBB) {
+		Value* sourceData = parentEdge->getValue();
+		Module* M = (*insertInBB)->getParent()->getParent();
+		LLVMContext & ctxt = (*insertInBB)->getContext();
+		if(parentEdge->getType() == HyperOpEdge::SCALAR || parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) {
+			Value* writeCMArgs[] = { childCFBaseAddr, ConstantInt::get(ctxt, APInt(32, parentEdge->getPositionOfContextSlot() * 4)), sourceData };
+			CallInst::Create((Value*) Intrinsic::getDeclaration(M, (llvm::Intrinsic::ID) Intrinsic::writecm, 0), writeCMArgs, "", &((*insertInBB)->back()));
+		}else if(parentEdge->getType() == HyperOpEdge::PREDICATE){
+			Value* predicate = sourceData;
+			if (!parentEdge->getPredicateValue()) {
+				//Invert the predicate value
+				predicate = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, sourceData, ConstantInt::get(ctxt, APInt(32, 1)), "invertedPred", &((*insertInBB)->back()));
+			}
+			Value* predicateArgs[] = { childCFBaseAddr, predicate };
+			CallInst::Create((Value*) Intrinsic::getDeclaration(M, (llvm::Intrinsic::ID) Intrinsic::writecmp, 0), predicateArgs, "", &((*insertInBB)->back()));
+			//TODO figure out how to deliver operand decrement count
+		}
+	}
+
 	virtual bool runOnModule(Module &M) {
 		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
 		graph->computeDominatorInfo();
+
+		if (MAKE_GRAPH_STRUCTURED) {
+			graph->removeUnreachableHops();
+			graph->makeGraphStructured();
+			graph->computeDominatorInfo();
+		}
+
 		graph->addContextFrameAddressForwardingEdges();
 		graph->addSelfFrameAddressRegisters();
-		graph->addNecessarySyncEdges();
-		graph->convertRemoteScalarsToStores();
 		graph->clusterNodes();
+		graph->convertRemoteScalarsToStores();
+		graph->shuffleHyperOpArguments();
+		graph->setMaxContextFrameSize(MAX_CONTEXT_FRAME_SIZE);
+		graph->convertSpillScalarsToStores();
+		graph->addNecessarySyncEdges();
 		graph->addArgDecrementCountOnControlPaths();
 		graph->addSyncCountDecrementOnControlPaths();
 		graph->associateStaticContextFrames();
-		graph->verify();
+		graph->updateLocalRefEdgeMemOffset();
+		graph->verify(1);
 		map<Function*, unsigned> functionAndIndexMap;
 
 		unsigned index = 0;
@@ -4428,7 +4541,7 @@ struct REDEFINEIRPass: public ModulePass {
 		for (auto vertexItr : graph->Vertices) {
 			HyperOp* vertex = vertexItr;
 			//Do nothing in unrolled instance functions
-			if(vertex->isUnrolledInstance()){
+			if (vertex->isUnrolledInstance()) {
 				continue;
 			}
 			Function* vertexFunction = vertex->getFunction();
@@ -4437,85 +4550,179 @@ struct REDEFINEIRPass: public ModulePass {
 			DEBUG(dbgs() << "Adding falloc, fbind instructions to module\n");
 			for (auto childItr : vertex->getChildList()) {
 				HyperOp* child = childItr;
+				BasicBlock * loopBegin, *loopBody, *loopEnd;
+				LoadInst* loadInst;
+				Value *fallocArgs[1];
+				/* Range HyperOp's base address, obtained either with falloc or by loading with forwarded address */
+				Value* baseAddress = NULL, *memFrameAddress = NULL;
 				if (child->getImmediateDominator() == vertex && !child->isStaticHyperOp()) {
-					BasicBlock * loopBegin, *loopBody, *loopEnd;
-					LoadInst* loadInst;
-					CallInst* fallocCallInst, *fbindInst;
-					Value *fallocArgs[1];
-					Value* baseAddress;
 					if (child->getInRange()) {
-						addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, &loadInst);
-						fallocArgs[0] = child->getRangeUpperBound();
+						Value* diff = BinaryOperator::CreateNSWSub(child->getRangeUpperBound(), child->getRangeLowerBound(), "diff", &insertInBB->back());
+						fallocArgs[0] = BinaryOperator::CreateExactUDiv(diff, child->getStride(), "", &insertInBB->back());
 					} else {
 						fallocArgs[0] = ConstantInt::get(M.getContext(), APInt(32, 0));
-						baseAddress = fallocCallInst;
 					}
+					baseAddress = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::falloc, 0), fallocArgs, "falloc_reg", &insertInBB->back());
+				} else {
+					assert(!child->getInRange() && "Range hyperops can't be static\n");
+					/* Address was forwarded to the hyperop */
+					for (auto parentItr = vertex->ParentMap.begin(); parentItr != vertex->ParentMap.end(); parentItr++) {
+						if ((parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) && parentItr->first->getContextFrameAddress() == child) {
+							Argument* childHopCFAddress;
+							int argIndex = 0;
+							for (auto argItr = child->getFunction()->arg_begin(); argItr != child->getFunction()->arg_end(); argItr++, argIndex++) {
+								Argument* arg = argItr;
+								if (parentItr->first->getPositionOfContextSlot() == argIndex) {
+									childHopCFAddress = arg;
+									break;
+								}
+							}
+							assert(childHopCFAddress!=NULL && "Context frame address of the child HyperOp was never passed to the current HyperOp");
+							bool hasInRegAttr = child->getFunction()->getAttributes().hasAttribute(argIndex + 1, Attribute::InReg);
+							assert(((parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR && hasInRegAttr) || (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF && !hasInRegAttr)) && "Incorrect attrbute to the argument");
 
-					fallocCallInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::falloc, 0), fallocArgs, "falloc_reg", &insertInBB->back());
-
-					if (child->getInRange()) {
-						insertInBB = loopBody;
-						baseAddress = BinaryOperator::CreateNSWAdd(fallocCallInst, ConstantInt::get(M.getContext(), APInt(32, 64)), "base_addr", &loopBody->back());
-					}
-
-					Value *fbindArgs[] = { baseAddress, ConstantInt::get(M.getContext(), APInt(32, functionAndIndexMap[child->getFunction()])) };
-					fbindInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fbind, 0), fbindArgs, "", &insertInBB->back());
-
-					/* Add falloc and fbind instructions */
-					if (child->getInRange()) {
-						BinaryOperator* incItr = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 1)), "", &loopBody->back());
-						insertInBB = loopEnd;
-					}
-				}
-			}
-
-			DEBUG(dbgs() << "Adding fdelete instructions to module\n");
-			for (auto hyperOpItr : vertex->getParentGraph()->Vertices) {
-				HyperOp* child = hyperOpItr;
-				if (child != vertex && !child->isPredicatedHyperOp() && child->getImmediateDominator() != NULL && child->getImmediateDominator()->getImmediatePostDominator() == vertex) {
-					HyperOpEdge* contextFrameAddressEdge = NULL;
-					for(auto incomingEdgeItr:child->ParentMap){
-						HyperOpEdge* edge = incomingEdgeItr.first;
-						if(edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR && edge->getContextFrameAddress() == child){
-							contextFrameAddressEdge = edge;
+							if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) {
+								baseAddress = new LoadInst(childHopCFAddress, "", insertInBB);
+							} else {
+								baseAddress = (Value*) childHopCFAddress;
+							}
 							break;
 						}
 					}
-					assert((contextFrameAddressEdge!=NULL)&&"");
-					unsigned argSlot = contextFrameAddressEdge->getPositionOfContextSlot();
-					Value* argContainingAddress = 0;
-					unsigned index = 0;
-					for (auto argItr = vertexFunction->getArgumentList().begin(); argItr != vertexFunction->getArgumentList().end(); argItr++, index++) {
-						if (argSlot == index) {
-							argContainingAddress = argItr;
-							break;
-						}
-					}
-					BasicBlock * loopBegin, *loopBody, *loopEnd;
-					LoadInst* loadInst;
-					if (child->getInRange()) {
-						addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, &loadInst);
-						insertInBB = loopBody;
-					}
+				}
 
-					CallInst* fdeleteInst;
-					Value *fdeleteArgs[] = { argContainingAddress };
-					fdeleteInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fdelete, 0), fdeleteArgs, "", &insertInBB->back());
-					/* Add falloc and fbind instructions */
-					if (child->getInRange()) {
-						BinaryOperator* incItr = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 1)), "", &loopBody->back());
-						insertInBB = loopEnd;
+				assert(baseAddress!=NULL && "Could not load the base address of the child hyperop\n");
+				/* Find out if the child hyperop has any incoming localref edges and add mem frame base address load instruction if so */
+				for (auto incomingEdgeItr = child->ParentMap.begin(); incomingEdgeItr != child->ParentMap.end(); incomingEdgeItr++) {
+					if (incomingEdgeItr->second == vertex && (incomingEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF || incomingEdgeItr->first->getType() == HyperOpEdge::LOCAL_REFERENCE)) {
+						Value* memFrameAddrArgs[] = { baseAddress };
+						memFrameAddress = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::getmemframe, 0), memFrameAddrArgs, "memframe_reg", &insertInBB->back());
+						break;
 					}
 				}
+
+				if (child->getInRange()) {
+					addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, &loadInst, child->getRangeLowerBound(), child->getRangeUpperBound());
+					insertInBB = loopBody;
+					if (child->getImmediateDominator() == vertex && !child->isStaticHyperOp()) {
+						Value *fbindArgs[] = { baseAddress, ConstantInt::get(M.getContext(), APInt(32, functionAndIndexMap[child->getFunction()])) };
+						CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fbind, 0), fbindArgs, "", &insertInBB->back());
+					}
+				}
+
+				if (child->getImmediateDominator() == vertex && child->isBarrierHyperOp()) {
+					DEBUG(dbgs() << "Adding expected sync count to the hyperop instance created\n");
+					Value* syncCount;
+					if (child->getSyncCount(0).size() != child->getSyncCount(1).size()) {
+						list<SyncValue> zeroSyncEdgesOnHop = child->getSyncCount(0);
+						Value* zeroSync;
+						getSyncCount(insertInBB, zeroSyncEdgesOnHop, child->getFunction()->getParent(), &zeroSync);
+						Value* firstPredicate = child->getIncomingSyncPredicate(0);
+						Value* mulForZeroSync = BinaryOperator::Create(Instruction::BinaryOps::Mul, firstPredicate, zeroSync, "mulzerosync", insertInBB);
+
+						list<SyncValue> oneSyncEdgesOnHop = child->getSyncCount(0);
+						Value* secondPredicate = child->getIncomingSyncPredicate(1);
+						if (secondPredicate == NULL) {
+							secondPredicate = firstPredicate;
+						}
+						Value* oneSync;
+						getSyncCount(insertInBB, oneSyncEdgesOnHop, child->getFunction()->getParent(), &oneSync);
+						Value * invertOneSync = CmpInst::Create(Instruction::OtherOps::ICmp, llvm::CmpInst::ICMP_SLT, oneSync, ConstantInt::get(M.getContext(), APInt(32, 1)), "onepredsync", insertInBB);
+						Value* mulForOneSync = BinaryOperator::Create(Instruction::BinaryOps::Mul, firstPredicate, invertOneSync, "mulonesync", insertInBB);
+						syncCount = BinaryOperator::Create(Instruction::BinaryOps::Add, mulForZeroSync, mulForOneSync, "synccount", insertInBB);
+					} else {
+						list<SyncValue> syncEdgesOnHop = child->getSyncCount(0);
+						getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), &syncCount);
+					}
+				}
+
+				DEBUG(dbgs() << "Adding lw and sw instructions to the hyperop instance created\n");
+				for (auto childEdgeItr = vertex->ChildMap.begin(); childEdgeItr != vertex->ChildMap.end(); childEdgeItr++) {
+					if (childEdgeItr->second == child && (childEdgeItr->first->getType() == HyperOpEdge::LOCAL_REFERENCE || childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF)) {
+						Value* originalSourceData;
+						getSourceData(childEdgeItr->first, vertex, &originalSourceData);
+						/* load every data token or use it as immediate value in store operation */
+						loadAndStoreData(childEdgeItr->first->getValue(), originalSourceData, childEdgeItr->first, memFrameAddress, M.getContext(), &insertInBB);
+					}
+				}
+
+				DEBUG(dbgs() << "Adding writecm(p) instructions to the hyperop instance created\n");
+				for (auto childEdgeItr = vertex->ChildMap.begin(); childEdgeItr != vertex->ChildMap.end(); childEdgeItr++) {
+					if (childEdgeItr->second == child
+							&& (childEdgeItr->first->getType() == HyperOpEdge::SCALAR || childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR
+									|| childEdgeItr->first->getType() == HyperOpEdge::PREDICATE)) {
+						/* Ensure that the target location is marked inreg */
+						assert(child->getFunction()->getAttributes().hasAttribute(childEdgeItr->first->getPositionOfContextSlot() + 1, Attribute::InReg) && "Incorrect argument attribute, should be inreg\n");
+						addRedefineCommInstructions(childEdgeItr->first, baseAddress, &insertInBB);
+					}
+				}
+
+				if (child->isBarrierHyperOp()) {
+					DEBUG(dbgs() << "Adding sync instructions to the hyperop instance created\n");
+					for (auto childEdgeItr = vertex->ChildMap.begin(); childEdgeItr != vertex->ChildMap.end(); childEdgeItr++) {
+						if (childEdgeItr->second == child && childEdgeItr->first->getType() == HyperOpEdge::SYNC) {
+							Value* sourceData = ConstantInt::get(M.getContext(), APInt(32, 1));
+							Value* syncArgs[] = { baseAddress, sourceData };
+							CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::sync, 0), syncArgs, "", &insertInBB->back());
+						}
+					}
+				}
+
+				if (child->getInRange()) {
+					BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 64)), "", &loopBody->back());
+					insertInBB = loopEnd;
+				}
 			}
-//
-//			DEBUG(dbgs() << "Adding fdelete self instruction\n");
-//			if(!vertex->isPredicatedHyperOp()){
-//				CallInst* fdeleteInst;
-//				assert(vertexFunction->getArgumentList().size()>=1);
-//				Value *fdeleteArgs[] = { &vertexFunction->getArgumentList().front()};
-//				fdeleteInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fdelete, 0), fdeleteArgs, "", &insertInBB->back());
-//			}
+
+			for (auto childItr : vertex->getChildList()) {
+				HyperOp* child = childItr;
+				DEBUG(dbgs() << "Adding fdelete instructions to module\n");
+				if (child->getImmediateDominator()->getImmediatePostDominator() != vertex) {
+					if (child != vertex && !child->isPredicatedHyperOp() && child->getImmediateDominator() != NULL && child->getImmediateDominator()->getImmediatePostDominator() == vertex) {
+						HyperOpEdge* contextFrameAddressEdge = NULL;
+						for (auto incomingEdgeItr : child->ParentMap) {
+							HyperOpEdge* edge = incomingEdgeItr.first;
+							if (edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR && edge->getContextFrameAddress() == child) {
+								contextFrameAddressEdge = edge;
+								break;
+							}
+						}
+						assert((contextFrameAddressEdge!=NULL)&&"The address must be forwarded from another HyperOp");
+						unsigned argSlot = contextFrameAddressEdge->getPositionOfContextSlot();
+						Value* argContainingAddress = 0;
+						unsigned index = 0;
+						for (auto argItr = vertexFunction->getArgumentList().begin(); argItr != vertexFunction->getArgumentList().end(); argItr++, index++) {
+							if (argSlot == index) {
+								argContainingAddress = argItr;
+								break;
+							}
+						}
+						BasicBlock * loopBegin, *loopBody, *loopEnd;
+						LoadInst* loadInst;
+						if (child->getInRange()) {
+							addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, &loadInst, child->getRangeLowerBound(), child->getRangeUpperBound());
+							insertInBB = loopBody;
+						}
+
+						CallInst* fdeleteInst;
+						Value *fdeleteArgs[] = { argContainingAddress };
+						fdeleteInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fdelete, 0), fdeleteArgs, "", &insertInBB->back());
+						if (child->getInRange()) {
+							BinaryOperator* incItr = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 1)), "", &loopBody->back());
+							insertInBB = loopEnd;
+						}
+					}
+				}
+
+			}
+
+			DEBUG(dbgs() << "Adding fdelete self instruction\n");
+			if (!vertex->isPredicatedHyperOp()) {
+				CallInst* fdeleteInst;
+				assert(vertexFunction->getArgumentList().size() >= 1);
+				Value *fdeleteArgs[] = { &vertexFunction->getArgumentList().front() };
+				fdeleteInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fdelete, 0), fdeleteArgs, "", &insertInBB->back());
+			}
 
 		}
 		return true;

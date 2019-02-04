@@ -209,7 +209,8 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD, unsigned Builtin
     case Builtin::BI__builtin_writecm: {
       std::pair<llvm::Value*, unsigned> arg0 = EmitPointerWithAlignment(E->getArg(0));
   	  Value *arg1 = EmitScalarExpr(E->getArg(1));
-  	  return RValue::get(Builder.CreateWritecm(arg0.first, arg1, arg0.second));
+  	  Value *arg2 = EmitScalarExpr(E->getArg(2));
+  	  return RValue::get(Builder.CreateWritecm(arg0.first, arg1, arg2, arg0.second));
     }
     case Builtin::BI__builtin_writecmp: {
         std::pair<llvm::Value*, unsigned> arg0 = EmitPointerWithAlignment(E->getArg(0));
@@ -233,6 +234,11 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD, unsigned Builtin
           E->getArg(1)) };
       return RValue::get(Builder.CreateCall(F, Args));
     }
+    case Builtin::BI__builtin_getmemframe: {
+    	  Value *F = CGM.getIntrinsic(Intrinsic::getmemframe);
+    	  Value *Args[] = { EmitScalarExpr(E->getArg(0)) };
+    	  return RValue::get(Builder.CreateCall(F, Args));
+    	}
 	// Handle intrinsics and libm functions below.
 	case Builtin::BI__builtin___CFStringMakeConstantString:
 	case Builtin::BI__builtin___NSStringMakeConstantString:
