@@ -4636,7 +4636,9 @@ struct REDEFINEIRPass: public ModulePass {
 						getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), &predicatedSyncCount);
 					}else if(!child->getSyncCount(1).empty()){
 						list<SyncValue> syncEdgesOnHop = child->getSyncCount(1);
-						getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), &predicatedSyncCount);
+						Value* falsePathSyncCount;
+						getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), &falsePathSyncCount);
+						predicatedSyncCount = CmpInst::Create(Instruction::OtherOps::ICmp, llvm::CmpInst::ICMP_SLT, falsePathSyncCount, ConstantInt::get(M.getContext(), APInt(32, 1)), "unpredsynccount", insertInBB);
 					}
 					if(!child->getSyncCount(2).empty()){
 						list<SyncValue> syncEdgesOnHop = child->getSyncCount(2);
