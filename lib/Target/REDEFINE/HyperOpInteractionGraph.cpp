@@ -2843,12 +2843,23 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 		Function* hopFunction = hop->getFunction();
 		int funcArgIndex = 0;
 		int numInRegArgs = 0;
+		int skipArgs = 1;
+		if(hop->hasBaseRangeInput()){
+			skipArgs++;
+			for(auto parentItr = hop->ParentMap.begin(); parentItr!=hop->ParentMap.end(); parentItr++){
+				assert(parentItr->first->getPositionOfContextSlot()!=0 && ((parentItr->first->getPositionOfContextSlot()!=1)||((parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF) && hop->getImmediateDominator() == parentItr->second)) && "Incorrect range forwarding\n");
+			}
+		}else{
+			for(auto parentItr = hop->ParentMap.begin(); parentItr!=hop->ParentMap.end(); parentItr++){
+				assert(parentItr->first->getPositionOfContextSlot()!=0 && "There can't be an edge coming in on 0th slot\n");
+			}
+		}
 		assert((!frameArgsAdded || hop->getFunction()->getArgumentList().size() >= 2) && "After adding frame and reg args, every hop must have at least 2 arguments");
 		for (auto argItr = hopFunction->arg_begin(); argItr != hopFunction->arg_end(); argItr++, funcArgIndex++) {
 			if (hopFunction->getAttributes().hasAttribute(funcArgIndex + 1, Attribute::InReg)) {
 				numInRegArgs++;
 			}
-			if (frameArgsAdded && funcArgIndex < 2) {
+			if (frameArgsAdded && funcArgIndex < skipArgs) {
 				assert(hopFunction->getAttributes().hasAttribute(funcArgIndex + 1, Attribute::InReg) && "First two args must be marked as in register");
 			}
 			bool funcInputHasValidInput = false;
@@ -2860,7 +2871,7 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 				}
 			}
 			if (frameArgsAdded) {
-				assert((((funcArgIndex < 2) && !funcInputHasValidInput) || funcInputHasValidInput) && "Invalid input to a function");
+				assert((((funcArgIndex < skipArgs) && !funcInputHasValidInput) || funcInputHasValidInput) && "Invalid input to a function");
 			} else {
 				assert(funcInputHasValidInput && "Invalid input to a function");
 			}
@@ -3774,7 +3785,11 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		map<Argument*, int> oldArgNewIndexMap;
 		list<Type*> newArgsList;
 		auto oldArgItr = hopFunction->arg_begin();
-
+		/* Don't shuffle the first two args */
+		oldArgItr++;
+		if(hop->hasBaseRangeInput()){
+			oldArgItr++;
+		}
 		for (; oldArgItr != hopFunction->arg_end(); oldArgItr++) {
 			//	funcArgsList.push_back(oldArgItr->getType());
 			int newInsertIndex = 0;
