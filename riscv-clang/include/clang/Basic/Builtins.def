@@ -944,7 +944,6 @@ BUILTIN(__builtin_rfalloc,"c*UiUi"  , "Fnc")
 BUILTIN(__builtin_sync ,"vc*Ui"  , "Fnc")
 BUILTIN(__builtin_writecm ,"vc*UiUi"  , "Fnc")
 BUILTIN(__builtin_writecmp ,"vc*Ui"  , "Fnc")
-BUILTIN(__builtin_writecm_sync ,"vc*Ui"  , "Fnc")
 BUILTIN(__builtin_getmemframe ,"c*c*"  , "Fnc")
 #undef BUILTIN
 #undef LIBBUILTIN

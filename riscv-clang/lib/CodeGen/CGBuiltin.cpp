@@ -217,11 +217,6 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD, unsigned Builtin
     	  Value *arg1 = EmitScalarExpr(E->getArg(1));
     	  return RValue::get(Builder.CreateWritecmp(arg0.first, arg1, arg0.second));
     }
-    case Builtin::BI__builtin_writecm_sync: {
-         std::pair<llvm::Value*, unsigned> arg0 = EmitPointerWithAlignment(E->getArg(0));
-     	  Value *arg1 = EmitScalarExpr(E->getArg(1));
-     	  return RValue::get(Builder.CreateWritecmSync(arg0.first, arg1, arg0.second));
-    }
     case Builtin::BI__builtin_sync: {
       Value *F = CGM.getIntrinsic(Intrinsic::sync);
       Value *Args[] = { EmitScalarExpr(E->getArg(0)), EmitScalarExpr(

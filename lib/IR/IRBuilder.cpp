@@ -192,14 +192,3 @@ CallInst *IRBuilderBase::CreateWritecmp(Value *arg0, Value *arg1,
 	CallInst *CI = createCallHelper(TheFn, Ops, this);
 	return CI;
 }
-
-CallInst *IRBuilderBase::CreateWritecmSync(Value *arg0, Value *arg1,
-		unsigned Align, bool isVolatile, MDNode *TBAATag,
-		MDNode *TBAAStructTag) {
-	arg0 = getCastedInt8PtrValue(arg0);
-	Value *Ops[] = { arg0, arg1 };
-	Module *M = BB->getParent()->getParent();
-	Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::writecm_sync);
-	CallInst *CI = createCallHelper(TheFn, Ops, this);
-	return CI;
-}

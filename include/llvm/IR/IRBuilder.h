@@ -334,11 +334,6 @@ public:
   CallInst *CreateWritecmp(Value *arg0, Value *arg1, unsigned Align,
                           bool isVolatile = false, MDNode *TBAATag = 0,
                           MDNode *TBAAStructTag = 0);
-  CallInst *CreateWritecmSync(Value *arg0, Value *arg1, unsigned Align,
-                          bool isVolatile = false, MDNode *TBAATag = 0,
-                          MDNode *TBAAStructTag = 0);
-
-
   CallInst *CreateMemCpy(Value *Dst, Value *Src, Value *Size, unsigned Align,
                          bool isVolatile = false, MDNode *TBAATag = 0,
                          MDNode *TBAAStructTag = 0);

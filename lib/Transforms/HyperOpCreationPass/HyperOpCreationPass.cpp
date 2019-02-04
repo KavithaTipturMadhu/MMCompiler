@@ -4418,7 +4418,6 @@ struct REDEFINEIRPass: public ModulePass {
 				localSymCount = currentSyncCount;
 			} else {
 				localSymCount = BinaryOperator::Create(Instruction::BinaryOps::Add, currentSyncCount, localSymCount, "syncCount", bb);
-				;
 			}
 		}
 		*syncCountValue = localSymCount;
@@ -4612,8 +4611,10 @@ struct REDEFINEIRPass: public ModulePass {
 
 				if (child->getImmediateDominator() == vertex && child->isBarrierHyperOp()) {
 					DEBUG(dbgs() << "Adding expected sync count to the hyperop instance created\n");
-					Value* syncCount;
-					if (child->getSyncCount(0).size() != child->getSyncCount(1).size()) {
+					Value* predicatedSyncCount = NULL;
+					Value* unpredicateSyncCount = NULL;
+					Value* syncCount = NULL;
+					if (!child->getSyncCount(0).empty() && !child->getSyncCount(0).empty() && child->getSyncCount(0).size() != child->getSyncCount(1).size()) {
 						list<SyncValue> zeroSyncEdgesOnHop = child->getSyncCount(0);
 						Value* zeroSync;
 						getSyncCount(insertInBB, zeroSyncEdgesOnHop, child->getFunction()->getParent(), &zeroSync);
@@ -4629,11 +4630,29 @@ struct REDEFINEIRPass: public ModulePass {
 						getSyncCount(insertInBB, oneSyncEdgesOnHop, child->getFunction()->getParent(), &oneSync);
 						Value * invertOneSync = CmpInst::Create(Instruction::OtherOps::ICmp, llvm::CmpInst::ICMP_SLT, oneSync, ConstantInt::get(M.getContext(), APInt(32, 1)), "onepredsync", insertInBB);
 						Value* mulForOneSync = BinaryOperator::Create(Instruction::BinaryOps::Mul, firstPredicate, invertOneSync, "mulonesync", insertInBB);
-						syncCount = BinaryOperator::Create(Instruction::BinaryOps::Add, mulForZeroSync, mulForOneSync, "synccount", insertInBB);
-					} else {
+						predicatedSyncCount = BinaryOperator::Create(Instruction::BinaryOps::Add, mulForZeroSync, mulForOneSync, "unpredsynccount", insertInBB);
+					} else if(!child->getSyncCount(0).empty()){
 						list<SyncValue> syncEdgesOnHop = child->getSyncCount(0);
-						getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), &syncCount);
+						getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), &predicatedSyncCount);
+					}else if(!child->getSyncCount(1).empty()){
+						list<SyncValue> syncEdgesOnHop = child->getSyncCount(1);
+						getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), &predicatedSyncCount);
 					}
+					if(!child->getSyncCount(2).empty()){
+						list<SyncValue> syncEdgesOnHop = child->getSyncCount(2);
+						getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), &unpredicateSyncCount);
+					}
+
+					assert((predicatedSyncCount!=NULL || unpredicateSyncCount !=NULL) && "None of the sync counts are valid for a barrier hyperop\n");
+					if(predicatedSyncCount == NULL){
+						syncCount = unpredicateSyncCount;
+					}else if(unpredicateSyncCount == NULL){
+						syncCount = predicatedSyncCount;
+					}else{
+						syncCount = BinaryOperator::CreateNSWAdd(predicatedSyncCount, unpredicateSyncCount, "synccount");
+					}
+					Value *syncArgs[] = {baseAddress, syncCount, ConstantInt::get(M.getContext(), APInt(32, 60))};
+					CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::writecm, 0), syncArgs, "", &insertInBB->back());
 				}
 
 				DEBUG(dbgs() << "Adding lw and sw instructions to the hyperop instance created\n");
