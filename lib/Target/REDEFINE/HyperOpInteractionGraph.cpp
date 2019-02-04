@@ -70,6 +70,7 @@ HyperOp::HyperOp(Function* function, HyperOpInteractionGraph* hig) {
 	this->numInputsPerCE.reserve(4);
 	this->setIncomingSyncPredicate(0, NULL);
 	this->setIncomingSyncPredicate(1, NULL);
+	this->set
 }
 
 HyperOp::~HyperOp() {
@@ -756,6 +757,14 @@ HyperOp* HyperOpInteractionGraph::getOrCreateHyperOpInstance(Function* function,
 	return newHyperOp;
 }
 
+void HyperOpInteractionGraph::setHasBaseRangeInput(bool hasBaseRangeInput){
+	this->hasRangeBaseInput = hasRangeBaseInput;
+}
+
+bool HyperOpInteractionGraph:: hasBaseRangeInput(){
+	return hasRangeBaseInput;
+}
+
 list<TileCoordinates> HyperOpInteractionGraph::getEdgePathOnNetwork(HyperOp* source, HyperOp* target) {
 	list<TileCoordinates> path;
 	TileCoordinates sourceCoordinates = make_pair(source->getTargetResource() / columnCount, source->getTargetResource() % columnCount);
@@ -1153,20 +1162,6 @@ void HyperOpInteractionGraph::computeImmediateDominatorInfo() {
 	}
 }
 
-void HyperOpInteractionGraph::addContextFrameblockSizeEdges() {
-	for (auto vertexItr : this->Vertices) {
-		HyperOp* idom = vertexItr->getImmediateDominator();
-		if (idom != NULL && vertexItr->getInRange()) {
-			HyperOpEdge* edge = new HyperOpEdge();
-			edge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR);
-			edge->setPositionOfContextSlot(0);
-			edge->setContextFrameAddress(vertexItr);
-			edge->setValue(ConstantInt::get(Type::getInt32Ty(idom->getFunction()->getParent()->getContext()), APInt(32, 1)));
-			this->addEdge(idom, vertexItr, edge);
-		}
-	}
-
-}
 //Associate immediate dominator and dominance frontier information with vertices
 void HyperOpInteractionGraph::computeDominatorInfo() {
 	computeImmediateDominatorInfo();
@@ -2755,6 +2750,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
  * 7. There should be no stray functions other than intrinsics or functions attached to hyperops
  * 8. Ensure that the number of inreg arguments per function is less than context frame size
  * 9. Arguments can't be delivered to the first two function arg slots
+ * 10. Ensure that context frame base address edges are always at register slot 0
  */
 void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 //Check that sync hyperops are not predicated
@@ -3369,10 +3365,24 @@ void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
 		Function* replacementFunction;
 		list<Type*> newargs;
 		newargs.push_back(Type::getInt32Ty(func->getParent()->getContext()));
-		newargs.push_back(Type::getInt32Ty(func->getParent()->getContext()));
+
+		bool hopHasOutgoingCFEdges = false;
+		for(auto childItr = hop->ChildMap.begin(); childItr!=hop->ChildMap.end(); childItr++){
+			if(childItr->first == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childItr->first == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE){
+				hopHasOutgoingCFEdges = true;
+				break;
+			}
+		}
+		/* Second register is only required in case of range hyperops if they forward any addresses */
+		if(hop->getInRange() && hopHasOutgoingCFEdges){
+			newargs.push_back(Type::getInt32Ty(func->getParent()->getContext()));
+		}
 		cloneFunction(func, &replacementFunction, newargs, true);
 		replacementFunction->addAttribute(1, Attribute::InReg);
-		replacementFunction->addAttribute(2, Attribute::InReg);
+
+		if(hop->getInRange() && hopHasOutgoingCFEdges){
+			replacementFunction->addAttribute(2, Attribute::InReg);
+		}
 
 		/* Update context frame slots to start from 2 for all args */
 		for (auto vertexItr : this->Vertices) {
@@ -3388,6 +3398,22 @@ void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
 			HyperOp* commonFuncHop = *allHopItr;
 			if (commonFuncHop->getFunction() == func) {
 				commonFuncHop->setFunction(replacementFunction);
+			}
+			bool hopHasOutgoingCFEdges = false;
+			for (auto childItr = hop->ChildMap.begin(); childItr != hop->ChildMap.end(); childItr++) {
+				if (childItr->first == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childItr->first == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE) {
+					hopHasOutgoingCFEdges = true;
+					break;
+				}
+			}
+			if (commonFuncHop->getInRange() && hopHasOutgoingCFEdges) {
+				HyperOpEdge* edge = new HyperOpEdge();
+				edge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE);
+				edge->setPositionOfContextSlot(1);
+				edge->setContextFrameAddress(hop);
+				edge->setValue(ConstantInt::get(Type::getInt32Ty(hop->getFunction()->getParent()), APInt(32, 1)));
+				this->addEdge(commonFuncHop->getImmediateDominator(), commonFuncHop, edge);
+				commonFuncHop->setHasBaseRangeInput(true);
 			}
 		}
 		func->removeFromParent();
@@ -3716,6 +3742,9 @@ void HyperOpInteractionGraph::convertSpillScalarsToStores() {
 					case HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR:
 						parentItr.first->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF);
 						break;
+					case HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE:
+						parentItr.first->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF);
+						break;
 					case HyperOpEdge::SCALAR:
 						parentItr.first->setType(HyperOpEdge::LOCAL_REFERENCE);
 						break;
@@ -3744,7 +3773,9 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		Function* hopFunction = hop->getFunction();
 		map<Argument*, int> oldArgNewIndexMap;
 		list<Type*> newArgsList;
-		for (auto oldArgItr = hopFunction->arg_begin(); oldArgItr != hopFunction->arg_end(); oldArgItr++) {
+		auto oldArgItr = hopFunction->arg_begin();
+
+		for (; oldArgItr != hopFunction->arg_end(); oldArgItr++) {
 			//	funcArgsList.push_back(oldArgItr->getType());
 			int newInsertIndex = 0;
 			if (oldArgItr->getType()->isIntegerTy()) {
@@ -4113,7 +4144,7 @@ void HyperOpInteractionGraph::print(raw_ostream &os, int debug) {
 					os << "sync";
 				} else if (edge->Type == HyperOpEdge::RANGE) {
 					os << "range";
-				} else if (edge->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_SCALAR) {
+				} else if (edge->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE) {
 					os << "cfaddrrange";
 				}
 				os << "];\n";

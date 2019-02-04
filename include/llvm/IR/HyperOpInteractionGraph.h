@@ -70,9 +70,9 @@ public:
 		PREDICATE,
 		CONTEXT_FRAME_ADDRESS_SCALAR,
 		CONTEXT_FRAME_ADDRESS_LOCALREF,
-//		CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF,
-//		CONTEXT_FRAME_ADDRESS_RANGE_BASE_SCALAR,
-		CONTEXT_FRAME_ADDRESS_RANGE_SCALAR,
+		/* This is required in order to avoid address forwarding from all hyperops in a range to the hyperops in the dominance frontier and restrict it to the first hyperop in the range of hops created*/
+		CONTEXT_FRAME_ADDRESS_RANGE_BASE,
+		CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF,
 		//Edge used for ordering HyperOps to maintain partial order
 		ORDERING,
 		//Edge to ensure completion of the hyperOp by inserting equivalent delay instruction in the end HyperOp
@@ -156,6 +156,7 @@ class HyperOp {
 	list<unsigned int> topLevel;
 	list<unsigned> instanceId;
 	bool unrolledInstance;
+	bool hasRangeBaseInput;
 // The function is an instanceof another function,
 //	it is replicated into a newer function because it lets us associate different metadata with the static and dynamic instances
 	Function* instanceof;
@@ -258,6 +259,8 @@ public:
 	void setIncomingSyncPredicate(unsigned predicateValue, Value* predicate);
 	Value* getIncomingSyncPredicate(unsigned predicateValue);
 	HyperOpInteractionGraph* getParentGraph();
+	void setHasBaseRangeInput(bool hasBaseRangeInput);
+	bool hasBaseRangeInput();
 };
 
 class HyperOpInteractionGraph {
@@ -349,9 +352,6 @@ public:
 
 	//Update all the localref edges with memory offsets wrt base 0, needs updating when the functions are lowered to machine functions
 	void updateLocalRefEdgeMemOffset();
-
-	//Add context frame address block base address forwarding edges, since we need to execute some instructions conditionally in range hyperOps
-	void addContextFrameblockSizeEdges();
 
 	void removeUnreachableHops();
 
