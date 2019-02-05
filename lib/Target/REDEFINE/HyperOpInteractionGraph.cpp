@@ -70,7 +70,7 @@ HyperOp::HyperOp(Function* function, HyperOpInteractionGraph* hig) {
 	this->numInputsPerCE.reserve(4);
 	this->setIncomingSyncPredicate(0, NULL);
 	this->setIncomingSyncPredicate(1, NULL);
-	this->set
+	this->setHasBaseRangeInput(false);
 }
 
 HyperOp::~HyperOp() {
@@ -618,6 +618,14 @@ void HyperOp::setStride(Value* stride) {
 	this->stride = stride;
 }
 
+void HyperOp::setHasBaseRangeInput(bool hasBaseRangeInput){
+	this->hasRangeBaseInput = hasRangeBaseInput;
+}
+
+bool HyperOp:: hasBaseRangeInput(){
+	return hasRangeBaseInput;
+}
+
 HyperOpEdge::HyperOpEdge() {
 	this->Type = SCALAR;
 	this->isZeroedOut = false;
@@ -755,14 +763,6 @@ HyperOp* HyperOpInteractionGraph::getOrCreateHyperOpInstance(Function* function,
 	newHyperOp->setIsUnrolledInstance(true);
 	this->addHyperOp(newHyperOp);
 	return newHyperOp;
-}
-
-void HyperOpInteractionGraph::setHasBaseRangeInput(bool hasBaseRangeInput){
-	this->hasRangeBaseInput = hasRangeBaseInput;
-}
-
-bool HyperOpInteractionGraph:: hasBaseRangeInput(){
-	return hasRangeBaseInput;
 }
 
 list<TileCoordinates> HyperOpInteractionGraph::getEdgePathOnNetwork(HyperOp* source, HyperOp* target) {
@@ -3379,7 +3379,7 @@ void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
 
 		bool hopHasOutgoingCFEdges = false;
 		for(auto childItr = hop->ChildMap.begin(); childItr!=hop->ChildMap.end(); childItr++){
-			if(childItr->first == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childItr->first == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE){
+			if(childItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE){
 				hopHasOutgoingCFEdges = true;
 				break;
 			}
@@ -3412,7 +3412,7 @@ void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
 			}
 			bool hopHasOutgoingCFEdges = false;
 			for (auto childItr = hop->ChildMap.begin(); childItr != hop->ChildMap.end(); childItr++) {
-				if (childItr->first == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childItr->first == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE) {
+				if (childItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE) {
 					hopHasOutgoingCFEdges = true;
 					break;
 				}
@@ -3422,7 +3422,7 @@ void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
 				edge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE);
 				edge->setPositionOfContextSlot(1);
 				edge->setContextFrameAddress(hop);
-				edge->setValue(ConstantInt::get(Type::getInt32Ty(hop->getFunction()->getParent()), APInt(32, 1)));
+				edge->setValue(ConstantInt::get(Type::getInt32Ty(hop->getFunction()->getParent()->getContext()), APInt(32, 1)));
 				this->addEdge(commonFuncHop->getImmediateDominator(), commonFuncHop, edge);
 				commonFuncHop->setHasBaseRangeInput(true);
 			}

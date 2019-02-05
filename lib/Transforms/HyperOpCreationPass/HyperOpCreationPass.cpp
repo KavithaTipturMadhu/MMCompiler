@@ -4426,7 +4426,7 @@ struct REDEFINEIRPass: public ModulePass {
 	static void getSourceData(HyperOpEdge* childEdge, HyperOp* vertex, Value** originalSourceData) {
 		Value* edgeValue = childEdge->getValue();
 		HyperOpInteractionGraph * graph = vertex->getParentGraph();
-		if (childEdge->getType()!=HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE && childEdge->getType()!=HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_LOCALREF &&(edgeValue->getType()->isPointerTy() || edgeValue->getType()->isAggregateType())) {
+		if (childEdge->getType()!=HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE && childEdge->getType()!=HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF &&(edgeValue->getType()->isPointerTy() || edgeValue->getType()->isAggregateType())) {
 			/* Find the parent that passed this argument*/
 			*originalSourceData = graph->getAllocInstrForLocalReferenceData(edgeValue, vertex);
 		} else {
@@ -4434,7 +4434,7 @@ struct REDEFINEIRPass: public ModulePass {
 		}
 	}
 
-	static void loadAndStoreData(Value* sourceData, Value* originalData, HyperOpEdge* parentEdge, HyperOp* edgeSource, Value* targetMemFrameBaseAddress, LLVMContext & ctxt, BasicBlock** insertInBB, BasicBlock** newInsertionPoint) {
+	static void loadAndStoreData(Value* sourceData, Value* originalData, HyperOpEdge* parentEdge, HyperOp* edgeSource, Value* targetMemFrameBaseAddress, LLVMContext & ctxt, BasicBlock** insertInBB, BasicBlock** nextInsertionPoint) {
 		unsigned targetOffsetInBytes = parentEdge->getPositionOfContextSlot();
 		Value* targetMemBaseInst = BinaryOperator::CreateNSWAdd(targetMemFrameBaseAddress, ConstantInt::get(ctxt, APInt(32, targetOffsetInBytes)));
 
@@ -4621,7 +4621,7 @@ struct REDEFINEIRPass: public ModulePass {
 					}
 					baseAddress = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::falloc, 0), fallocArgs, "falloc_reg", &insertInBB->back());
 				} else {
-					baseAddress = CastInst::Create(Instruction::CastOps::IntToPtr, ConstantInt::get(M.getContext(), APInt(32, child->getHyperOpId())), &insertInBB->back());
+					baseAddress = CastInst::Create(Instruction::CastOps::IntToPtr, ConstantInt::get(M.getContext(), APInt(32, child->getHyperOpId())), Type::getInt32Ty(M.getContext()), "base_address", &insertInBB->back());
 				}
 
 				/* Use this for communication instruction insertion later */
