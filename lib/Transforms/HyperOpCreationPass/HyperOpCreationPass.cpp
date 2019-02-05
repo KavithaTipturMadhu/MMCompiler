@@ -4606,7 +4606,7 @@ struct REDEFINEIRPass: public ModulePass {
 				HyperOp* child = childItr;
 				BasicBlock * loopBegin, *loopBody, *loopEnd;
 				LoadInst* loadInst;
-				Value *fallocArgs[1];
+				vector<Value*> fallocArgs;
 				/* Range HyperOp's base address, obtained either with falloc or by loading with forwarded address */
 				Value* baseAddress = NULL;
 				if (child->getImmediateDominator() != vertex){
@@ -4615,11 +4615,17 @@ struct REDEFINEIRPass: public ModulePass {
 				if (!child->isStaticHyperOp()) {
 					if (child->getInRange()) {
 						Value* diff = BinaryOperator::CreateNSWSub(child->getRangeUpperBound(), child->getRangeLowerBound(), "diff", &insertInBB->back());
-						fallocArgs[0] = BinaryOperator::CreateExactUDiv(diff, child->getStride(), "", &insertInBB->back());
+						fallocArgs.push_back(BinaryOperator::CreateExactUDiv(diff, child->getStride(), "", &insertInBB->back()));
 					} else {
-						fallocArgs[0] = ConstantInt::get(M.getContext(), APInt(32, 0));
+						fallocArgs.push_back(ConstantInt::get(M.getContext(), APInt(32, 0)));
 					}
-					baseAddress = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::falloc, 0), fallocArgs, "falloc_reg", &insertInBB->back());
+					fallocArgs.push_back(ConstantInt::get(M.getContext(), APInt(32, 0)));
+					Value* func = (Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::falloc, 0);
+					if (vertex->getTargetResource() != child->getTargetResource()) {
+						fallocArgs.push_back(ConstantInt::get(M.getContext(), APInt(32, child->getTargetResource())));
+						func = (Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::falloc, 0);
+					}
+					baseAddress = CallInst::Create(func, fallocArgs, "falloc_reg", &insertInBB->back());
 				} else {
 					baseAddress = CastInst::Create(Instruction::CastOps::IntToPtr, ConstantInt::get(M.getContext(), APInt(32, child->getHyperOpId())), Type::getInt32Ty(M.getContext()), "base_address", &insertInBB->back());
 				}
