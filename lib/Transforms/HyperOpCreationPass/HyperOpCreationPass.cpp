@@ -4807,8 +4807,7 @@ struct REDEFINEIRPass: public ModulePass {
 					DEBUG(dbgs() << "Adding sync instructions to the hyperop instance created\n");
 					for (auto childEdgeItr = vertex->ChildMap.begin(); childEdgeItr != vertex->ChildMap.end(); childEdgeItr++) {
 						if (childEdgeItr->second == child && childEdgeItr->first->getType() == HyperOpEdge::SYNC) {
-							Value* sourceData = ConstantInt::get(M.getContext(), APInt(32, 1));
-							Value* syncArgs[] = { baseAddress, sourceData };
+							Value* syncArgs[] = { baseAddress, ConstantInt::get(M.getContext(), APInt(32, 0)), ConstantInt::get(M.getContext(), APInt(32, 1)) };
 							CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::sync, 0), syncArgs, "", &insertInBB->back());
 						}
 					}

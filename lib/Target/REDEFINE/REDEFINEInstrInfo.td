@@ -235,25 +235,45 @@ def MOVADDR: InstREDEFINE<4, (outs GR32:$reg), (ins imm32sx12:$src),
 def WRITECM : InstSREDEFINEImm<"writecm" , 0b0100100, 0b000, add , GR32, GR32, imm32sx12>
 {
  let Itinerary   = REDEFINEORC;
+ let Pattern = [(int_writecm i32:$dst1,i32:$src1,imm32sx12:$dst2)];
 }
+
 def WRITECMP : InstSREDEFINE<"writecmp" , 0b0100100, 0b010 , add , GR32, GR32>
 {
  let Itinerary   = REDEFINEORC;
+ let Pattern = [(int_writecmp i32:$dst1,i32:$src1)];
 }
+
 def SYNC : InstSREDEFINEImm<"sync" , 0b0100100, 0b011, add , GR32, GR32, imm32sx12>
 {
  let Itinerary   = REDEFINEORC;
+ let Pattern = [(int_sync i32:$dst1,imm32sx12:$dst2,i32:$src1)];
 }
+
 def FBIND : InstSREDEFINE<"fbind" , 0b0000100, 0b011, add , GR32, GR32>
 {
  let Itinerary   = REDEFINEORC;
  let Pattern = [(int_fbind i32:$dst1,i32:$src1)];
 }
+
 def PSFBIND : InstSREDEFINEImm<"psfbind" , 0b0000100, 0b011, add , GR32, GR32, imm32sx12>
 {
  let Itinerary   = REDEFINEORC;
 }
 
+def PSGETMEMFRAME: InstREDEFINE<4, (outs GR32:$dst), (ins GR32:$src), 
+                "getmemframe\t$dst, $src", 
+                [(set i32:$dst, (int_getmemframe i32:$src))], REDEFINEORC> {
+  field bits<32> Inst;
+
+  bits<5> RD;
+  bits<5> RS1;
+
+  let Inst{19-15} = 0b00000;
+  let Inst{14-12} = 0b010;
+  let Inst{11 - 7} = RD;
+  let Inst{6 - 0} = 0b0000100;
+}
 def FDELETE: InstREDEFINE<4, (outs), (ins GR32:$id), 
                 "fdelete \t$id", 
                 [(int_fdelete i32:$id)],REDEFINEORC> {

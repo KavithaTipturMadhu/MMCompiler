@@ -219,7 +219,7 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD, unsigned Builtin
     }
     case Builtin::BI__builtin_sync: {
       Value *F = CGM.getIntrinsic(Intrinsic::sync);
-      Value *Args[] = { EmitScalarExpr(E->getArg(0)), EmitScalarExpr(
+      Value *Args[] = { EmitScalarExpr(E->getArg(0)), EmitScalarExpr(E->getArg(0)), EmitScalarExpr(
           E->getArg(1)) };
       return RValue::get(Builder.CreateCall(F, Args));
     }
