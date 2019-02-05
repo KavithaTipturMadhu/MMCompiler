@@ -4553,6 +4553,9 @@ struct REDEFINEIRPass: public ModulePass {
 				//Invert the predicate value
 				predicate = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, sourceData, ConstantInt::get(ctxt, APInt(32, 1)), "invertedPred", &((*insertInBB)->back()));
 			}
+			if(parentEdge->getDecrementOperandCount()>0){
+				predicate = BinaryOperator::CreateNSWAdd(predicate, ConstantInt::get(ctxt, APInt(32, parentEdge->getDecrementOperandCount())), "");
+			}
 			Value* predicateArgs[] = { childCFBaseAddr, predicate };
 			CallInst::Create((Value*) Intrinsic::getDeclaration(M, (llvm::Intrinsic::ID) Intrinsic::writecmp, 0), predicateArgs, "", &((*insertInBB)->back()));
 			//TODO figure out how to deliver operand decrement count
