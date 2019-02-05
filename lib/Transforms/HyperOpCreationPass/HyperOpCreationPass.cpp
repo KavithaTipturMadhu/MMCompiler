@@ -4770,7 +4770,7 @@ struct REDEFINEIRPass: public ModulePass {
 					}
 				}
 
-				DEBUG(dbgs() << "Adding writecm(p) instructions to the hyperop instance created\n");
+				DEBUG(dbgs() << "Adding writecm instructions to the hyperop instance created\n");
 				for (auto childEdgeItr = vertex->ChildMap.begin(); childEdgeItr != vertex->ChildMap.end(); childEdgeItr++) {
 					if (childEdgeItr->second == child
 							&& (childEdgeItr->first->getType() == HyperOpEdge::SCALAR || childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE
@@ -4780,6 +4780,21 @@ struct REDEFINEIRPass: public ModulePass {
 						BasicBlock* newInsertionPoint = NULL;
 						addRedefineCommInstructions(childEdgeItr->first, baseAddress, child, &insertInBB, &newInsertionPoint);
 						if(newInsertionPoint!=NULL){
+							insertInBB = newInsertionPoint;
+						}
+					}
+				}
+
+				/* This is separated from the previous method because the frame is deactivated if false predicate is delivered: TODO check with Madhav if this constraint is necessary */
+				DEBUG(dbgs() << "Adding writecmp instructions to the hyperop instance created\n");
+				for (auto childEdgeItr = vertex->ChildMap.begin(); childEdgeItr != vertex->ChildMap.end(); childEdgeItr++) {
+					if (childEdgeItr->second == child
+							&& childEdgeItr->first->getType() == HyperOpEdge::PREDICATE) {
+						/* Ensure that the target location is marked inreg */
+						assert(child->getFunction()->getAttributes().hasAttribute(childEdgeItr->first->getPositionOfContextSlot() + 1, Attribute::InReg) && "Incorrect argument attribute, should be inreg\n");
+						BasicBlock* newInsertionPoint = NULL;
+						addRedefineCommInstructions(childEdgeItr->first, baseAddress, child, &insertInBB, &newInsertionPoint);
+						if (newInsertionPoint != NULL) {
 							insertInBB = newInsertionPoint;
 						}
 					}
