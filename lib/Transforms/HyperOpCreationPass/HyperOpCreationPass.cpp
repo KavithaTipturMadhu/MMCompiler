@@ -4363,7 +4363,7 @@ struct REDEFINEIRPass: public ModulePass {
 
 	virtual void getAnalysisUsage(AnalysisUsage &AU) const {
 		//Mandatory merge return to be invoked on each function
-		AU.addRequired<HyperOpCreationPass>();
+//		AU.addRequired<HyperOpCreationPass>();
 	}
 
 	void addRangeLoopConstructs(HyperOp* child, Function* vertexFunction, const Module &M, BasicBlock** loopBegin, BasicBlock** loopBody, BasicBlock** loopEnd, BasicBlock** insertInBB, LoadInst** loadInst, Value* lowerbound, Value* upperbound) {

@@ -2829,6 +2829,7 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 		}
 	}
 
+
 	//Ensure that every input to a function has at least one input edge starting at a parent HyperOp
 	for (auto hopItr : this->Vertices) {
 		HyperOp* hop = hopItr;
@@ -2838,33 +2839,27 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 		}
 		assert((hop->isStartHyperOp()|| (!hop->isStartHyperOp() && hop->getImmediateDominator()!=NULL)) &&"Only start HyperOp does not have an immediate dominator");
 		if (!hop->isStartHyperOp()) {
-			assert((hop->getImmediateDominator()->getImmediateDominator() == hop->getImmediatePostDominator() || hop->getChildList().size() > 1) && "HIG is not structured");
+			assert((hop->getImmediateDominator()->getImmediatePostDominator() == hop->getImmediatePostDominator() || hop->getChildList().size() > 1) && "HIG is not structured");
 		}
 		Function* hopFunction = hop->getFunction();
 		int funcArgIndex = 0;
-		int numInRegArgs = 0;
+
 		int skipArgs = 1;
 		if(hop->hasBaseRangeInput()){
 			skipArgs++;
-			for(auto parentItr = hop->ParentMap.begin(); parentItr!=hop->ParentMap.end(); parentItr++){
-				assert(parentItr->first->getPositionOfContextSlot()!=0 && ((parentItr->first->getPositionOfContextSlot()!=1)||((parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF) && hop->getImmediateDominator() == parentItr->second)) && "Incorrect range forwarding\n");
-			}
-		}else{
-			for(auto parentItr = hop->ParentMap.begin(); parentItr!=hop->ParentMap.end(); parentItr++){
-				assert(parentItr->first->getPositionOfContextSlot()!=0 && "There can't be an edge coming in on 0th slot\n");
-			}
 		}
-		assert((!frameArgsAdded || hop->getFunction()->getArgumentList().size() >= 2) && "After adding frame and reg args, every hop must have at least 2 arguments");
+		assert((!frameArgsAdded || hop->getFunction()->getArgumentList().size() >= skipArgs) && "After adding frame and reg args, every hop must have at least 1 argument (2 in case of range hops)");
+		int numInRegArgs = 0;
 		for (auto argItr = hopFunction->arg_begin(); argItr != hopFunction->arg_end(); argItr++, funcArgIndex++) {
 			if (hopFunction->getAttributes().hasAttribute(funcArgIndex + 1, Attribute::InReg)) {
 				numInRegArgs++;
 			}
-			if (frameArgsAdded && funcArgIndex < skipArgs) {
+			if (frameArgsAdded && funcArgIndex < 1) {
 				assert(hopFunction->getAttributes().hasAttribute(funcArgIndex + 1, Attribute::InReg) && "First two args must be marked as in register");
 			}
 			bool funcInputHasValidInput = false;
 			for (auto edgeItr : hop->ParentMap) {
-				assert(edgeItr.first->getPositionOfContextSlot() < 2 && "Arguments can't be delivered to the first two function arg slots");
+				assert(edgeItr.first->getPositionOfContextSlot() >=1 && "Arguments can't be delivered to the first arg slots");
 				if (edgeItr.first->getPositionOfContextSlot() == funcArgIndex && std::find(this->Vertices.begin(), this->Vertices.end(), edgeItr.second) != this->Vertices.end()) {
 					funcInputHasValidInput = true;
 					break;
@@ -2876,7 +2871,7 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 				assert(funcInputHasValidInput && "Invalid input to a function");
 			}
 		}
-		assert(numInRegArgs <= (this->getMaxContextFrameSize() + (frameArgsAdded ? 2 : 0)) && "Number of inreg args cannot exceed the number of context frame slots");
+		assert(numInRegArgs <= (this->getMaxContextFrameSize() + (frameArgsAdded ? 1 : 0)) && "Number of inreg args cannot exceed the number of context frame slots");
 	}
 
 	Module *M = this->Vertices.front()->getFunction()->getParent();
@@ -2884,7 +2879,6 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 		Function* func = funcItr;
 		assert((func->isIntrinsic()|| this->getHyperOp(func)!=NULL) && "Stray functions are not allowed");
 	}
-
 }
 
 //void associateContextFramesToCluster(list<HyperOp*> cluster, int numContextFrames) {
@@ -3785,11 +3779,13 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		map<Argument*, int> oldArgNewIndexMap;
 		list<Type*> newArgsList;
 		auto oldArgItr = hopFunction->arg_begin();
-		/* Don't shuffle the first two args */
+		/* Don't shuffle the first arg */
 		oldArgItr++;
 		if(hop->hasBaseRangeInput()){
 			oldArgItr++;
 		}
+
+		/* Shuffle all arguments except the first in case of all hyperops and the first two in case of range hyperops */
 		for (; oldArgItr != hopFunction->arg_end(); oldArgItr++) {
 			//	funcArgsList.push_back(oldArgItr->getType());
 			int newInsertIndex = 0;
@@ -3806,18 +3802,19 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 			}
 			oldArgNewIndexMap.insert(make_pair(oldArgItr, newInsertIndex));
 		}
+		if(hop->hasBaseRangeInput()){
+			newArgsList.push_front(Type::getInt32Ty(ctxt));
+		}
+		newArgsList.push_front(Type::getInt32Ty(ctxt));
+
 		std::vector<Type*> newArgsVector;
 		std::copy(newArgsList.begin(), newArgsList.end(),std::back_inserter(newArgsVector));
 		FunctionType *FT = FunctionType::get(hopFunction->getReturnType(), newArgsVector, false);
 		Function *newFunction = Function::Create(FT, Function::ExternalLinkage, hopFunction->getName(), hopFunction->getParent());
+
 		auto newArgItr = newFunction->arg_begin();
-		//Advance the pointer twice since two new args are added
 		int newArgIndex = 1;
-		map<Value*, Value*> oldToNewValueMap;
 		for (auto oldArgItr = hopFunction->arg_begin(); oldArgItr != hopFunction->arg_end(); oldArgItr++, newArgItr++, newArgIndex++) {
-			//Argument* oldArg = oldArgItr;
-			//Argument* newArg = newArgItr;
-			//printf("oldArgItr : %s -- newArgItr: %s \n",oldArgItr->getName(),newArgItr->getName());
 			oldToNewValueMap.insert(make_pair(oldArgItr, newArgItr));
 			auto oldAttrSet = hopFunction->getAttributes().getParamAttributes(newArgIndex);
 			newFunction->addAttributes(newArgIndex, oldAttrSet);
@@ -3826,6 +3823,8 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		for (auto newArgItr = newFunction->arg_begin(); newArgItr != newFunction->arg_end(); newArgItr++) {
 			newArgVector.push_back(newArgItr);
 		}
+
+		map<Value*, Value*> oldToNewValueMap;
 		for (auto argItr = hopFunction->arg_begin(); argItr != hopFunction->arg_end(); argItr++) {
 			oldToNewValueMap.insert(make_pair(argItr, newArgVector[oldArgNewIndexMap[argItr]]));
 		}
