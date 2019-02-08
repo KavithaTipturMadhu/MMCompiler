@@ -221,25 +221,16 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 							}
 							if (consumerHyperOp != 0) {
 								HyperOpEdge* edge = new HyperOpEdge();
-//								if (dataType.compare(SCALAR) == 0) {
 								edge->Type = HyperOpEdge::SCALAR;
-								//Find out if the data is being passed to an instance
-//								} else if (dataType.compare(LOCAL_REFERENCE) == 0) {
-//									edge->Type = HyperOpEdge::LOCAL_REFERENCE;
 								list<unsigned> volumeOfCommunication;
-//									Function* consumerFunction = consumerHyperOp->getFunction();
-//									AllocaInst* allocInst = getAllocInstrForLocalReferenceData(*M, instr, functionMetadataMap);
-//									edge->setValue(allocInst);
 								unsigned volume = REDEFINEUtils::getSizeOfType(instr->getType()) / 4;
 								volumeOfCommunication.push_back(volume);
 								edge->setVolume(volumeOfCommunication);
-//								}
 								edge->setPositionOfContextSlot(positionOfContextSlot);
 								edge->setValue((Value*) instr);
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)) {
-									//						&& !sourceHyperOp->isUnrolledInstance()) {
 									hyperOpTraversalList.push_back(consumerHyperOp);
 								}
 							}
@@ -400,27 +391,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 									consumerHyperOp->addIncomingSyncValue(0, (SyncValue)1);
 								}
 								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)) {
-									//						&& !sourceHyperOp->isUnrolledInstance()) {
 									hyperOpTraversalList.push_back(consumerHyperOp);
 								}
 							}
 						}
-					}
-					MDNode* rangeMDNode = instr->getMetadata(HYPEROP_RANGE);
-					if (rangeMDNode != 0) {
-						for (unsigned rangeMDNodeIndex = 0; rangeMDNodeIndex != rangeMDNode->getNumOperands(); rangeMDNodeIndex++) {
-							MDNode* indirectionNode = (MDNode*) rangeMDNode->getOperand(rangeMDNodeIndex);
-							if (indirectionNode != 0) {
-								MDNode* hyperOpMDNode = (MDNode*) indirectionNode->getOperand(0);
-								HyperOp* consumerDynamicHyperOp = hyperOpMetadataMap[hyperOpMDNode];
-								//Add an edge from the HyperOp housing the range node
-								HyperOpEdge* edge = new HyperOpEdge();
-								edge->setType(HyperOpEdge::RANGE);
-								sourceHyperOp->addChildEdge(edge, consumerDynamicHyperOp);
-								consumerDynamicHyperOp->addParentEdge(edge, sourceHyperOp);
-							}
-						}
-
 					}
 				}
 			}
