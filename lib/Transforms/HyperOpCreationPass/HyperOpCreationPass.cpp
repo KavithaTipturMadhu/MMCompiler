@@ -4356,6 +4356,8 @@ struct REDEFINEIRPass: public ModulePass {
 	static char* NEW_NAME;
 	/* Maximum context frame size in words, not bytes */
 	static const unsigned MAX_CONTEXT_FRAME_SIZE = 15;
+	static const unsigned MAX_ROW = 16;
+	static const unsigned MAX_COL = 16;
 
 	REDEFINEIRPass() :
 			ModulePass(ID) {
@@ -4577,6 +4579,8 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->addContextFrameAddressForwardingEdges();
 		graph->addSelfFrameAddressRegisters();
 		graph->clusterNodes();
+		graph->setDimensions(MAX_ROW, MAX_COL);
+		graph->mapClustersToComputeResources();
 		graph->convertRemoteScalarsToStores();
 		graph->shuffleHyperOpArguments();
 		graph->setMaxContextFrameSize(MAX_CONTEXT_FRAME_SIZE);
@@ -4821,7 +4825,7 @@ struct REDEFINEIRPass: public ModulePass {
 					DEBUG(dbgs() << "Adding sync instructions to the hyperop instance created\n");
 					for (auto childEdgeItr = vertex->ChildMap.begin(); childEdgeItr != vertex->ChildMap.end(); childEdgeItr++) {
 						if (childEdgeItr->second == child && childEdgeItr->first->getType() == HyperOpEdge::SYNC) {
-							Value* syncArgs[] = { baseAddress, ConstantInt::get(M.getContext(), APInt(32, 0)), ConstantInt::get(M.getContext(), APInt(32, 1)) };
+							Value* syncArgs[] = { baseAddress, ConstantInt::get(M.getContext(), APInt(32, 0)),  ConstantInt::get(M.getContext(), APInt(32, 1)) };
 							CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::sync, 0), syncArgs, "", &insertInBB->back());
 						}
 					}
