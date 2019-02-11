@@ -366,6 +366,7 @@ for (auto instItr = bb->instr_begin(); instItr != bb->instr_end(); instItr++) {
 	if(inst->getOpcode() == REDEFINE::FBIND){
 		MachineInstrBuilder replacementInst = BuildMI(*BB, inst, BB->begin()->getDebugLoc(), TII->get(REDEFINE::FBIND));
 		replacementInst.addOperand(inst->getOperand(0)).addSym(gaSymbol);
+		LIS->getSlotIndexes()->insertMachineInstrInMaps(replacementInst.operator ->());
 		deleteList.push_back(inst);
 	}
 	else if(inst->getOpcode() == REDEFINE::PSGETMEMFRAME){
@@ -475,7 +476,9 @@ if (RegionBegin == BB->begin()) {
 		unsigned registerForCopyOfInstId = REDEFINE::t4;
 		unsigned registerForIncrOfInstId = REDEFINE::t5;
 		MachineInstrBuilder registerCopy = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForCopyOfInstId, RegState::Define).addReg(registerForIncrOfInstId).addReg(REDEFINE::zero);
-		LIS->getSlotIndexes()->insertMachineInstrInMaps(registerCopy.operator ->());
+		if(!LIS->getSlotIndexes()->hasIndex(registerCopy.operator ->())){
+			LIS->getSlotIndexes()->insertMachineInstrInMaps(registerCopy.operator ->());
+		}
 		allInstructionsOfRegion.push_back(make_pair(registerCopy.operator->(), make_pair(i, insertPosition++)));
 		if(firstInstructionOfpHyperOpInRegion[i] == 0){
 			firstInstructionOfpHyperOpInRegion[i] = registerCopy.operator->();
@@ -1543,7 +1546,8 @@ map<unsigned, list<unsigned> > ceAndLiveInPhysicalRegMap;
 list<unsigned> liveInPhysRegisters;
 
 unsigned liveInFrameLocation = 0;
-for (MachineRegisterInfo::livein_iterator liveInItr = MF.getRegInfo().livein_begin(); liveInItr != MF.getRegInfo().livein_end(); liveInItr++, liveInFrameLocation++) {
+MachineRegisterInfo& regInfo = MF.getRegInfo();
+for (MachineRegisterInfo::livein_iterator liveInItr = regInfo.livein_begin(); liveInItr !=regInfo.livein_end(); liveInItr++, liveInFrameLocation++) {
 	liveInPhysRegisters.push_back(liveInItr->first);
 	contextFrameSlotAndPhysReg[liveInFrameLocation] = liveInItr->first;
 }
