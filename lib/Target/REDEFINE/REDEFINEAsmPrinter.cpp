@@ -185,15 +185,20 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 	int ceCount =
 			((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
-	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
-	HyperOp* hyperOp = HIG->getHyperOp(
-			const_cast<Function*>(MF->getFunction()));
-
+	int hopId = 0;
+	for(auto funcItr = MF->getFunction()->getParent()->begin(); funcItr!=MF->getFunction()->getParent()->end(); funcItr++){
+		if(MF->getFunction() == funcItr){
+			break;
+		}
+		hopId++;
+	}
 	OutStreamer.EmitRawText(";" + StringRef(MF->getFunction()->getName()));
+	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
+	HyperOp* hyperOp = HIG->getHyperOp(const_cast<Function*>(MF->getFunction()));
 
 	string staticMetadata = "\n\t.align 16\n\t.SMD_BEGIN\t\n";
 	string hyperOpLabel = "\t\t.HYPEROPID\t.";
-	hyperOpLabel.append("HyOp#").append(itostr(hyperOp->getHyperOpId())).append(
+	hyperOpLabel.append("HyOp#").append(itostr(hopId)).append(
 			"\n");
 	staticMetadata.append(StringRef(hyperOpLabel));
 
@@ -235,20 +240,10 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 	AttributeSet attributes = MF->getFunction()->getAttributes();
 	unsigned i = 1;
 	unsigned argCount = 0;
-
-	for (Function::const_arg_iterator argItr = MF->getFunction()->arg_begin();
-			argItr != MF->getFunction()->arg_end(); argItr++, i++) {
-		if (attributes.hasAttribute(i, Attribute::InReg)
-				&& !argItr->getType()->isPointerTy()) {
-			argCount++;
-		}
-	}
-	//Add context frame addresses and ordering edges also
-	for (map<HyperOpEdge*, HyperOp*>::iterator parentMapItr =
-			hyperOp->ParentMap.begin();
-			parentMapItr != hyperOp->ParentMap.end(); parentMapItr++) {
-		if (parentMapItr->first->getType()
-				== HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) {
+	Function::const_arg_iterator argItr = MF->getFunction()->arg_begin();
+	argItr++;
+	for (; argItr != MF->getFunction()->arg_end(); argItr++, i++) {
+		if (attributes.hasAttribute(i, Attribute::InReg) && !argItr->getType()->isPointerTy()) {
 			argCount++;
 		}
 	}
@@ -263,7 +258,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 	string phopPC = "\t\t.pHyPC\t";
 
 	string funcnamewithoutperiod("");
-	const char* tempstring = hyperOp->getFunction()->getName().data();
+	const char* tempstring = MF->getFunction()->getName().data();
 	unsigned j = 0;
 	while (tempstring[j] != '\0') {
 		if (tempstring[j] == '.') {
@@ -275,7 +270,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		j++;
 	}
 
-	vector<int> numInputsPerCE = (((REDEFINETargetMachine&)TM).pHyperOpAndNumInputsPerCE)[hyperOp->getFunction()];
+	vector<int> numInputsPerCE = (((REDEFINETargetMachine&)TM).pHyperOpAndNumInputsPerCE)[MF->getFunction()];
 	for (unsigned i = 0; i < ceCount; i++) {
 		if (i > 0) {
 			distCount.append(",\t");
