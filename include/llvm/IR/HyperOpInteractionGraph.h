@@ -76,8 +76,7 @@ public:
 		//Edge used for ordering HyperOps to maintain partial order
 		ORDERING,
 		//Edge to ensure completion of the hyperOp by inserting equivalent delay instruction in the end HyperOp
-		SYNC,
-		RANGE
+		SYNC
 	} Type;
 
 	HyperOpEdge();
@@ -156,7 +155,6 @@ class HyperOp {
 	list<unsigned int> topLevel;
 	list<unsigned> instanceId;
 	bool unrolledInstance;
-	bool hasRangeBaseInput;
 // The function is an instanceof another function,
 //	it is replicated into a newer function because it lets us associate different metadata with the static and dynamic instances
 	Function* instanceof;
@@ -170,6 +168,7 @@ class HyperOp {
 	//Map of source instruction in a CE and the first consumer instruction in a different CE
 	PHyperOpInteractionGraph pHopDependenceMap;
 	HyperOpInteractionGraph* hig;
+	bool rangeBaseInput;
 
 public:
 //	//Map to cache local reference object sizes that have  an alloc instruction in a different HyperOp
@@ -259,8 +258,8 @@ public:
 	void setIncomingSyncPredicate(unsigned predicateValue, Value* predicate);
 	Value* getIncomingSyncPredicate(unsigned predicateValue);
 	HyperOpInteractionGraph* getParentGraph();
-	void setHasBaseRangeInput(bool hasBaseRangeInput);
-	bool hasBaseRangeInput();
+	void setHasRangeBaseInput(bool);
+	bool hasRangeBaseInput();
 };
 
 class HyperOpInteractionGraph {

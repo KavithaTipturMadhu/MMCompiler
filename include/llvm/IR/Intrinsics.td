@@ -472,15 +472,15 @@ def int_convertus  : Intrinsic<[llvm_anyint_ty],
 def int_convertuu  : Intrinsic<[llvm_anyint_ty],
                                [llvm_anyint_ty, llvm_i32_ty, llvm_i32_ty]>;
                                
-def int_falloc : Intrinsic <[llvm_ptr_ty], [llvm_i32_ty], []>;
-def int_fdelete : Intrinsic <[], [llvm_ptr_ty], []>;
-def int_fbind: Intrinsic <[], [llvm_ptr_ty,llvm_i32_ty], []>;
+def int_falloc : Intrinsic <[llvm_i32_ty], [llvm_i32_ty], []>;
+def int_fdelete : Intrinsic <[], [llvm_i32_ty], []>;
+def int_fbind: Intrinsic <[], [llvm_i32_ty,llvm_i32_ty], []>;
 def int_end: Intrinsic <[], [llvm_i32_ty], []>;
-def int_writecm: Intrinsic <[], [llvm_ptr_ty, llvm_i32_ty, llvm_i32_ty], []>;
-def int_writecmp: Intrinsic <[], [llvm_ptr_ty, llvm_i32_ty], []>;
-def int_sync: Intrinsic <[], [llvm_ptr_ty, llvm_i32_ty, llvm_i32_ty], []>;
-def int_rfalloc: Intrinsic <[llvm_ptr_ty], [llvm_i32_ty, llvm_i32_ty], []>;
-def int_getmemframe: Intrinsic <[llvm_ptr_ty], [llvm_ptr_ty], []>;
+def int_writecm: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], []>;
+def int_writecmp: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty], []>;
+def int_sync: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], []>;
+def int_rfalloc: Intrinsic <[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], []>;
+def int_getmemframe: Intrinsic <[llvm_i32_ty], [llvm_i32_ty], []>;
 
 //===----------------------------------------------------------------------===//
 // Target-specific intrinsics

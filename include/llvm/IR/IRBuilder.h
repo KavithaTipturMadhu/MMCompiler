@@ -322,18 +322,6 @@ public:
                         TBAAStructTag);
   }
 
-  CallInst *CreateFbind(Value *arg0, Value *arg1, unsigned Align,
-                          bool isVolatile = false, MDNode *TBAATag = 0,
-                          MDNode *TBAAStructTag = 0);
-  CallInst *CreateFdelete(Value *arg0, unsigned Align,
-                            bool isVolatile = false, MDNode *TBAATag = 0,
-                            MDNode *TBAAStructTag = 0);
-  CallInst *CreateWritecm(Value *arg0, Value *arg1, Value* arg2, unsigned Align,
-                          bool isVolatile = false, MDNode *TBAATag = 0,
-                          MDNode *TBAAStructTag = 0);
-  CallInst *CreateWritecmp(Value *arg0, Value *arg1, unsigned Align,
-                          bool isVolatile = false, MDNode *TBAATag = 0,
-                          MDNode *TBAAStructTag = 0);
   CallInst *CreateMemCpy(Value *Dst, Value *Src, Value *Size, unsigned Align,
                          bool isVolatile = false, MDNode *TBAATag = 0,
                          MDNode *TBAAStructTag = 0);

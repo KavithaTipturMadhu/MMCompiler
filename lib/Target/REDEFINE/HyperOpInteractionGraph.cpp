@@ -70,7 +70,7 @@ HyperOp::HyperOp(Function* function, HyperOpInteractionGraph* hig) {
 	this->numInputsPerCE.reserve(4);
 	this->setIncomingSyncPredicate(0, NULL);
 	this->setIncomingSyncPredicate(1, NULL);
-	this->setHasBaseRangeInput(false);
+	this->setHasRangeBaseInput(false);
 }
 
 HyperOp::~HyperOp() {
@@ -167,6 +167,7 @@ void HyperOp::addIncomingSyncValue(unsigned predicateValue, SyncValue value) {
 }
 
 void HyperOp::setIncomingSyncCount(unsigned predicateValue, list<SyncValue> syncCountList) {
+	this->numIncomingSyncEdges[predicateValue].clear();
 	for (auto syncCount : syncCountList) {
 		this->numIncomingSyncEdges[predicateValue].push_back(syncCount);
 	}
@@ -309,7 +310,6 @@ void HyperOp::setImmediatePostDominator(HyperOp* ImmediatePostDominator) {
 }
 
 void HyperOp::setDominanceFrontier(list<HyperOp*> DominanceFrontier) {
-	errs() << "Setting domf of node " << this->asString() << " to size " << DominanceFrontier.size() << "\n";
 	this->DominanceFrontier = DominanceFrontier;
 }
 list<HyperOp*> HyperOp::getDominanceFrontier() {
@@ -618,12 +618,12 @@ void HyperOp::setStride(Value* stride) {
 	this->stride = stride;
 }
 
-void HyperOp::setHasBaseRangeInput(bool hasBaseRangeInput){
-	this->hasRangeBaseInput = hasRangeBaseInput;
+void HyperOp::setHasRangeBaseInput(bool value) {
+	this->rangeBaseInput = value;
 }
 
-bool HyperOp:: hasBaseRangeInput(){
-	return hasRangeBaseInput;
+bool HyperOp::hasRangeBaseInput() {
+	return rangeBaseInput;
 }
 
 HyperOpEdge::HyperOpEdge() {
@@ -815,22 +815,22 @@ void HyperOpInteractionGraph::updateLocalRefEdgeMemOffset() {
 			if (parentEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF || parentEdgeItr->first->getType() == HyperOpEdge::LOCAL_REFERENCE) {
 				// Find the position to insert the new edge in
 				auto edgeItr = edgeProcessingOrder.begin();
-				for(; edgeItr!=edgeProcessingOrder.end(); edgeItr++){
+				for (; edgeItr != edgeProcessingOrder.end(); edgeItr++) {
 					HyperOpEdge* prevEdge = *edgeItr;
 					/* Edge may be covered in a mutually exclusive path */
 					if (prevEdge->getPositionOfContextSlot() >= parentEdgeItr->first->getPositionOfContextSlot()) {
 						break;
 					}
 				}
-				if((*edgeItr)->getPositionOfContextSlot() != parentEdgeItr->first->getPositionOfContextSlot()){
-					edgeProcessingOrder.insert(edgeItr,parentEdgeItr->first);
+				if ((*edgeItr)->getPositionOfContextSlot() != parentEdgeItr->first->getPositionOfContextSlot()) {
+					edgeProcessingOrder.insert(edgeItr, parentEdgeItr->first);
 					edgeParentMap.insert(make_pair(parentEdgeItr->first, parentEdgeItr->second));
 				}
 			}
 		}
 //		Compute the size of each edge before the current edge
 		unsigned edgeOffset = 0;
-		for(auto edgeItr = edgeProcessingOrder.begin(); edgeItr!=edgeProcessingOrder.end(); edgeItr++){
+		for (auto edgeItr = edgeProcessingOrder.begin(); edgeItr != edgeProcessingOrder.end(); edgeItr++) {
 			HyperOpEdge* edge = *edgeItr;
 			edge->setMemoryOffsetInTargetFrame(edgeOffset);
 			AllocaInst* originalEdgeSource = getAllocInstrForLocalReferenceData(edge->getValue(), edgeParentMap[edge]);
@@ -1047,7 +1047,6 @@ void HyperOpInteractionGraph::computePostImmediateDominatorInfo() {
 	EndHyperOp->setImmediatePostDominator(0);
 	for (map<HyperOp*, list<HyperOp*> >::iterator temporaryIdomIterator = temporaryPostIdomMap.begin(); temporaryIdomIterator != temporaryPostIdomMap.end(); temporaryIdomIterator++) {
 		if (!(*temporaryIdomIterator).first->isEndHyperOp()) {
-			errs() << "idom of node:" << temporaryIdomIterator->first->asString() << "\n";
 			assert(((*temporaryIdomIterator).second.size() == 1) && "More than one idom of node, aborting\n");
 			(*temporaryIdomIterator).first->setImmediatePostDominator(*((*temporaryIdomIterator).second.begin()));
 		}
@@ -1142,18 +1141,15 @@ void HyperOpInteractionGraph::computeImmediateDominatorInfo() {
 //Compute and set dominance frontier
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		HyperOp* vertex = *vertexIterator;
-		errs() << "finding domf of vertex " << vertex->asString() << "\n";
 		list<HyperOp*> dominanceFrontier;
 		for (list<HyperOp*>::iterator dominatedNodeIterator = Vertices.begin(); dominatedNodeIterator != Vertices.end(); dominatedNodeIterator++) {
 			list<HyperOp*> dominators = dominatorMap.find(*dominatedNodeIterator)->second;
 			if (std::find(dominators.begin(), dominators.end(), vertex) != dominators.end()) {
-				errs() << "vertex dominates " << (*dominatedNodeIterator)->asString() << "\n";
 				list<HyperOp*> successorList = (*dominatedNodeIterator)->getChildList();
 				for (list<HyperOp*>::iterator childItr = successorList.begin(); childItr != successorList.end(); childItr++) {
 					list<HyperOp*> dominatorOfChild = dominatorMap.find(*childItr)->second;
 					if ((*childItr == vertex || std::find(dominatorOfChild.begin(), dominatorOfChild.end(), vertex) == dominatorOfChild.end()) && find(dominanceFrontier.begin(), dominanceFrontier.end(), *childItr) == dominanceFrontier.end()) {
 						dominanceFrontier.push_back(*childItr);
-						errs() << "added to domf:" << (*childItr)->asString() << "\n";
 					}
 				}
 			}
@@ -1347,7 +1343,8 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 		//First HyperOp containing the HyperOp that ought to take in all edges instead of the original source
 		for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
 			HyperOp* vertex = *vertexItr;
-			if (vertex->getChildList().size() > 1 && vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() == vertex->getImmediatePostDominator()) {
+			if (vertex->getChildList().size() > 1 && vertex->getImmediateDominator() != NULL
+					&& (vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() == vertex->getImmediatePostDominator())) {
 				HyperOp* mergeNode = vertex->getImmediateDominator()->getImmediatePostDominator();
 				if (find(mergeNode->getParentList().begin(), mergeNode->getParentList().end(), vertex->getImmediateDominator()) != mergeNode->getParentList().end()) {
 					HyperOp* joinNodeStart = vertex->getImmediateDominator();
@@ -1370,8 +1367,8 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 	this->print(errs());
 }
 
-void updateHyperOpsWithNewArgs(map<HyperOp*, list<HyperOpEdge*> > newArgsAddedToHop){
-	for(auto vertexItr : newArgsAddedToHop){
+void updateHyperOpsWithNewArgs(map<HyperOp*, list<HyperOpEdge*> > newArgsAddedToHop) {
+	for (auto vertexItr : newArgsAddedToHop) {
 		HyperOp* hopForUpdate = vertexItr.first;
 		list<HyperOpEdge*> newAddedEdges = vertexItr.second;
 		Function* functionForUpdate = hopForUpdate->getFunction();
@@ -1381,12 +1378,13 @@ void updateHyperOpsWithNewArgs(map<HyperOp*, list<HyperOpEdge*> > newArgsAddedTo
 /*
  * Create a clone of a function with 2 new inreg arguments
  */
-void cloneFunction(Function* hopFunction, Function ** replacementFunction, list<Type*> newArgs, bool pushFront) {
+void cloneFunction(HyperOp** hopForUpdate, list<Type*> additionalNewArgs, bool pushFront) {
 	vector<Type*> funcArgsList;
+	Function* hopFunction = (*hopForUpdate)->getFunction();
 	LLVMContext &ctxt = hopFunction->getParent()->getContext();
 
 	if (pushFront) {
-		for (auto argItr : newArgs) {
+		for (auto argItr : additionalNewArgs) {
 			Type* argType = argItr;
 			funcArgsList.push_back(argType);
 		}
@@ -1395,7 +1393,7 @@ void cloneFunction(Function* hopFunction, Function ** replacementFunction, list<
 		funcArgsList.push_back(oldArgItr->getType());
 	}
 	if (!pushFront) {
-		for (auto argItr : newArgs) {
+		for (auto argItr : additionalNewArgs) {
 			Type* argType = argItr;
 			funcArgsList.push_back(argType);
 		}
@@ -1407,7 +1405,7 @@ void cloneFunction(Function* hopFunction, Function ** replacementFunction, list<
 	//Advance the pointer twice since two new args are added
 	newArgItr = newArgItr->getNextNode();
 	newArgItr = newArgItr->getNextNode();
-	int newArgIndex = pushFront?newArgs.size():0;
+	int newArgIndex = pushFront ? additionalNewArgs.size() : 0;
 	int minIndex = newArgIndex;
 	map<Value*, Value*> oldToNewValueMap;
 	for (auto oldArgItr = hopFunction->arg_begin(); oldArgItr != hopFunction->arg_end(); oldArgItr++, newArgItr++, newArgIndex++) {
@@ -1436,17 +1434,28 @@ void cloneFunction(Function* hopFunction, Function ** replacementFunction, list<
 				if (oldToNewValueMap.find(oldOperand) != oldToNewValueMap.end()) {
 					newInst->setOperand(operandIndex, oldToNewValueMap[oldOperand]);
 				}
+				if(isa<PHINode>(newInst)){
+					((PHINode*)newInst)->setIncomingBlock(operandIndex, (BasicBlock*)oldToNewValueMap[((PHINode*)newInst)->getIncomingBlock(operandIndex)]);
+				}
 			}
 			newBB->getInstList().insert(newBB->end(), newInst);
 		}
 	}
-	*replacementFunction = newFunction;
+	(*hopForUpdate)->setFunction(newFunction);
+	/* Update the outgoing edges with new cloned values from the current HyperOp function */
+	for (auto edgeItr = (*hopForUpdate)->ChildMap.begin(); edgeItr != (*hopForUpdate)->ChildMap.end(); edgeItr++) {
+		if (edgeItr->first->getValue() != NULL && oldToNewValueMap.find(edgeItr->first->getValue()) != oldToNewValueMap.end()) {
+			edgeItr->first->setValue(oldToNewValueMap[edgeItr->first->getValue()]);
+		}
+	}
 }
+
 /**
  * Indicates additional edges corresponding to WriteCM instructions for forwarding context frame addresses
  */
 void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
-	map<HyperOp*, int> newArgsAddedToHop;
+	/* Context frame edges that get added to a child hop forming the value pair */
+	map<HyperOp*, list<HyperOpEdge*> > childHopsAndNewEdges;
 //Forward addresses to producers that have a HyperOp in their dominance frontier and to the HyperOps that delete the context frame
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		HyperOp* vertex = *vertexIterator;
@@ -1471,16 +1480,13 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 
 		for (list<HyperOp*>::iterator dominanceFrontierIterator = vertexDomFrontier.begin(); dominanceFrontierIterator != vertexDomFrontier.end(); dominanceFrontierIterator++) {
 			HyperOp* dominanceFrontierHyperOp = *dominanceFrontierIterator;
-			bool isRangeHop = dominanceFrontierHyperOp->getInRange();
 			if (dominanceFrontierHyperOp != vertex && !dominanceFrontierHyperOp->isStaticHyperOp()) {
 				HyperOp* immediateDominator = vertex->getImmediateDominator();
 				HyperOpEdge* contextFrameEdge = new HyperOpEdge();
 				contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR);
 				contextFrameEdge->setContextFrameAddress(dominanceFrontierHyperOp);
-				int position = -1;
 
 				int freeContextSlot;
-				int max = -1, maxAvailableContextSlots = maxContextFrameSize;
 				if (dominanceFrontierHyperOp->getImmediateDominator() == vertex->getImmediateDominator()) {
 					bool edgeAddedPreviously = false;
 					for (map<HyperOpEdge*, HyperOp*>::iterator childMapItr = immediateDominator->ChildMap.begin(); childMapItr != immediateDominator->ChildMap.end(); childMapItr++) {
@@ -1491,15 +1497,16 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 					}
 					if (!edgeAddedPreviously) {
 						this->addEdge(immediateDominator, vertex, (HyperOpEdge*) contextFrameEdge);
-
 						/* Add to map so that it can be added to argument list later */
-						int newEdgeCount = 0;
-						if (newArgsAddedToHop.find(vertex) != newArgsAddedToHop.end()) {
-							newArgsAddedToHop[vertex]++;
-						}else{
-							newArgsAddedToHop[vertex] = 1;
+						list<HyperOpEdge*> newEdgesList;
+						if (childHopsAndNewEdges.find(vertex) != childHopsAndNewEdges.end()) {
+							newEdgesList = childHopsAndNewEdges[vertex];
+							childHopsAndNewEdges.erase(vertex);
 						}
+						newEdgesList.push_back(contextFrameEdge);
+						childHopsAndNewEdges.insert(make_pair(vertex, newEdgesList));
 
+						int max = -1;
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = vertex->ParentMap.begin(); parentEdgeItr != vertex->ParentMap.end(); parentEdgeItr++) {
 							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
 							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
@@ -1507,7 +1514,6 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 							}
 						}
 						freeContextSlot = max + 1;
-						errs() << "edge added between " << immediateDominator->asString() << " and " << vertex->asString() << " containing " << dominanceFrontierHyperOp->asString() << "\n";
 						contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
 					}
 				} else {
@@ -1519,7 +1525,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						frameForwardChainEdge->setContextFrameAddress(dominanceFrontierHyperOp);
 						//Find the last free context slot at consumer
 						int freeContextSlot;
-						int max = -1, maxAvailableContextSlots = maxContextFrameSize;
+						int max = -1;
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = prevVertex->ParentMap.begin(); parentEdgeItr != prevVertex->ParentMap.end(); parentEdgeItr++) {
 							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
 							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
@@ -1539,12 +1545,14 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						if (!edgeAddedPreviously) {
 							this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) frameForwardChainEdge);
 							/* Add to map so that it can be added to argument list later */
-							int newEdgeCount = 0;
-							if (newArgsAddedToHop.find(prevVertex) != newArgsAddedToHop.end()) {
-								newArgsAddedToHop[prevVertex]++;
-							} else {
-								newArgsAddedToHop[prevVertex] = 1;
+							list<HyperOpEdge*> newEdgesList;
+							if (childHopsAndNewEdges.find(prevVertex) != childHopsAndNewEdges.end()) {
+								newEdgesList = childHopsAndNewEdges[prevVertex];
+								childHopsAndNewEdges.erase(prevVertex);
 							}
+							newEdgesList.push_back(frameForwardChainEdge);
+							childHopsAndNewEdges.insert(make_pair(prevVertex, newEdgesList));
+
 						}
 						prevVertex = immediateDominator;
 						immediateDominator = immediateDominator->getImmediateDominator();
@@ -1563,15 +1571,16 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 					if (!edgeAddedPreviously) {
 						this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) contextFrameEdge);
 						/* Add to map so that it can be added to argument list later */
-						int newEdgeCount = 0;
-						if (newArgsAddedToHop.find(prevVertex) != newArgsAddedToHop.end()) {
-							newArgsAddedToHop[prevVertex]++;
-						} else {
-							newArgsAddedToHop[prevVertex] = 1;
+						list<HyperOpEdge*> newEdgesList;
+						if (childHopsAndNewEdges.find(prevVertex) != childHopsAndNewEdges.end()) {
+							newEdgesList = childHopsAndNewEdges[prevVertex];
+							childHopsAndNewEdges.erase(prevVertex);
 						}
+						newEdgesList.push_back(contextFrameEdge);
+						childHopsAndNewEdges.insert(make_pair(prevVertex, newEdgesList));
 
 						int freeContextSlot;
-						int max = -1, maxAvailableContextSlots = maxContextFrameSize;
+						int max = -1;
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = prevVertex->ParentMap.begin(); parentEdgeItr != prevVertex->ParentMap.end(); parentEdgeItr++) {
 							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
 							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
@@ -1630,16 +1639,38 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 
 	Module* M = Vertices.front()->getFunction()->getParent();
 	/* Update hyperops with newly added args for context frames */
-	for(auto hopForUpdateItr: newArgsAddedToHop){
+	for (auto hopForUpdateItr : childHopsAndNewEdges) {
 		HyperOp* hopForUpdate = hopForUpdateItr.first;
-		int numNewEdges = hopForUpdateItr.second;
+		int numNewEdges = hopForUpdateItr.second.size();
 		list<Type*> newArgsList;
 		for (int i = 0; i < numNewEdges; i++) {
 			newArgsList.push_back(Type::getInt32Ty(M->getContext()));
 		}
-		Function* newFunction;
-		cloneFunction(hopForUpdate->getFunction(), &newFunction, newArgsList, false);
-		hopForUpdate->setFunction(newFunction);
+		Function* prevFunction = hopForUpdate->getFunction();
+		cloneFunction(&hopForUpdate, newArgsList, false);
+		prevFunction->eraseFromParent();
+	}
+
+	/* Update edges with the new values added as arguments */
+	for (auto hopForUpdateItr : childHopsAndNewEdges) {
+		HyperOp* hopForUpdate = hopForUpdateItr.first;
+		list<HyperOpEdge*> addedEdges = hopForUpdateItr.second;
+		for(auto addedEdgeItr:addedEdges){
+			HyperOpEdge* newlyAddedEdge = addedEdgeItr;
+			for(auto parentItr:hopForUpdate->ParentMap){
+				HyperOp* parent = parentItr.second;
+				if(newlyAddedEdge->getContextFrameAddress()->getImmediateDominator()!=parent && newlyAddedEdge->getContextFrameAddress() == parentItr.first->getContextFrameAddress()){
+					auto argItr = hopForUpdate->getFunction()->arg_begin();
+					for(int argIndex = 0;argIndex<parentItr.first->getPositionOfContextSlot(); argIndex++, argItr++){
+
+					}
+					assert(argItr!= hopForUpdate->getFunction()->arg_end());
+					Value * arg = argItr;
+					newlyAddedEdge->setValue(arg);
+					break;
+				}
+			}
+		}
 	}
 }
 
@@ -2753,7 +2784,8 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
  * 10. Ensure that context frame base address edges are always at register slot 0
  */
 void HyperOpInteractionGraph::verify(int frameArgsAdded) {
-//Check that sync hyperops are not predicated
+	this->print(dbgs());
+	//Check that sync hyperops are not predicated
 	HyperOp* startHyperOp = NULL;
 	HyperOp* endHyperOp = NULL;
 	for (auto vertexItr : Vertices) {
@@ -2829,7 +2861,6 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 		}
 	}
 
-
 	//Ensure that every input to a function has at least one input edge starting at a parent HyperOp
 	for (auto hopItr : this->Vertices) {
 		HyperOp* hop = hopItr;
@@ -2838,28 +2869,32 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 			continue;
 		}
 		assert((hop->isStartHyperOp()|| (!hop->isStartHyperOp() && hop->getImmediateDominator()!=NULL)) &&"Only start HyperOp does not have an immediate dominator");
-		if (!hop->isStartHyperOp()) {
+		if (!hop->isStartHyperOp() && !hop->isEndHyperOp()) {
 			assert((hop->getImmediateDominator()->getImmediatePostDominator() == hop->getImmediatePostDominator() || hop->getChildList().size() > 1) && "HIG is not structured");
 		}
 		Function* hopFunction = hop->getFunction();
-		int funcArgIndex = 0;
 
-		int skipArgs = 1;
-		if(hop->hasBaseRangeInput()){
+		int skipArgs = 0;
+		if (frameArgsAdded) {
 			skipArgs++;
+			if (hop->hasRangeBaseInput()) {
+				skipArgs++;
+			}
 		}
-		assert((!frameArgsAdded || hop->getFunction()->getArgumentList().size() >= skipArgs) && "After adding frame and reg args, every hop must have at least 1 argument (2 in case of range hops)");
+		assert((!frameArgsAdded || hopFunction->getArgumentList().size() >= skipArgs) && "After adding frame and reg args, every hop must have at least 1 argument (2 in case of range hops)");
+
 		int numInRegArgs = 0;
+		int funcArgIndex = 0;
 		for (auto argItr = hopFunction->arg_begin(); argItr != hopFunction->arg_end(); argItr++, funcArgIndex++) {
 			if (hopFunction->getAttributes().hasAttribute(funcArgIndex + 1, Attribute::InReg)) {
 				numInRegArgs++;
 			}
-			if (frameArgsAdded && funcArgIndex < 1) {
-				assert(hopFunction->getAttributes().hasAttribute(funcArgIndex + 1, Attribute::InReg) && "First two args must be marked as in register");
+			if (frameArgsAdded && funcArgIndex < skipArgs) {
+				assert(hopFunction->getAttributes().hasAttribute(funcArgIndex + 1, Attribute::InReg) && "First arg or two args must be marked as in register");
 			}
 			bool funcInputHasValidInput = false;
 			for (auto edgeItr : hop->ParentMap) {
-				assert(edgeItr.first->getPositionOfContextSlot() >=1 && "Arguments can't be delivered to the first arg slots");
+				assert((!frameArgsAdded || ((edgeItr.first->getType() == HyperOpEdge::SYNC || edgeItr.first->getType() == HyperOpEdge::PREDICATE) || edgeItr.first->getPositionOfContextSlot() >= 1)) && "Arguments can't be delivered to the first arg slot");
 				if (edgeItr.first->getPositionOfContextSlot() == funcArgIndex && std::find(this->Vertices.begin(), this->Vertices.end(), edgeItr.second) != this->Vertices.end()) {
 					funcInputHasValidInput = true;
 					break;
@@ -2871,9 +2906,10 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 				assert(funcInputHasValidInput && "Invalid input to a function");
 			}
 		}
-		assert(numInRegArgs <= (this->getMaxContextFrameSize() + (frameArgsAdded ? 1 : 0)) && "Number of inreg args cannot exceed the number of context frame slots");
+		assert(numInRegArgs <= (this->getMaxContextFrameSize() + (frameArgsAdded ? skipArgs : 0)) && "Number of inreg args cannot exceed the number of context frame slots");
 	}
 
+	this->print(errs());
 	Module *M = this->Vertices.front()->getFunction()->getParent();
 	for (auto funcItr = M->begin(); funcItr != M->end(); funcItr++) {
 		Function* func = funcItr;
@@ -3354,6 +3390,16 @@ bool mutuallyExclusiveHyperOps(HyperOp* firstHyperOp, HyperOp* secondHyperOp) {
 	return mutuallyExclusiveHyperOps(firstHyperOp->getImmediateDominator(), secondHyperOp->getImmediateDominator());
 }
 
+void setRangeBaseRequired(HyperOp** hop) {
+	if ((*hop)->getInRange()) {
+		for (auto childItr = (*hop)->ChildMap.begin(); childItr != (*hop)->ChildMap.end(); childItr++) {
+			if (childItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE) {
+				(*hop)->setHasRangeBaseInput(true);
+				break;
+			}
+		}
+	}
+}
 
 /*
  * This method adds 2 register arguments to each function in the beginning of the argument list, indicating that the function gets its own address and the base address of range hop
@@ -3363,65 +3409,49 @@ void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
 	for (auto hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hop = *hopItr;
 		Function* func = hop->getFunction();
-		if(find(coveredFunctions.begin(), coveredFunctions.end(), func) != coveredFunctions.end()){
+		if (find(coveredFunctions.begin(), coveredFunctions.end(), func) != coveredFunctions.end()) {
 			continue;
 		}
+		setRangeBaseRequired(&hop);
 		coveredFunctions.push_back(func);
 		Function* replacementFunction;
 		list<Type*> newargs;
 		newargs.push_back(Type::getInt32Ty(func->getParent()->getContext()));
 
-		bool hopHasOutgoingCFEdges = false;
-		for(auto childItr = hop->ChildMap.begin(); childItr!=hop->ChildMap.end(); childItr++){
-			if(childItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE){
-				hopHasOutgoingCFEdges = true;
-				break;
-			}
-		}
 		/* Second register is only required in case of range hyperops if they forward any addresses */
-		if(hop->getInRange() && hopHasOutgoingCFEdges){
+		int skipArgs = 1;
+		if (hop->hasRangeBaseInput()) {
 			newargs.push_back(Type::getInt32Ty(func->getParent()->getContext()));
+			skipArgs++;
 		}
-		cloneFunction(func, &replacementFunction, newargs, true);
+		cloneFunction(&hop, newargs, true);
+		replacementFunction = hop->getFunction();
 		replacementFunction->addAttribute(1, Attribute::InReg);
-
-		if(hop->getInRange() && hopHasOutgoingCFEdges){
+		if (hop->hasRangeBaseInput()) {
 			replacementFunction->addAttribute(2, Attribute::InReg);
 		}
-
 		/* Update context frame slots to start from 2 for all args */
 		for (auto vertexItr : this->Vertices) {
 			HyperOp* vertex = vertexItr;
 			for (auto childEdgeItr : vertex->ChildMap) {
-				if (childEdgeItr.second->getFunction() == func) {
-					childEdgeItr.first->setPositionOfContextSlot(childEdgeItr.first->getPositionOfContextSlot() + 2);
+				if (childEdgeItr.second->getFunction() == replacementFunction && childEdgeItr.first->getType() != HyperOpEdge::PREDICATE && childEdgeItr.first->getType() != HyperOpEdge::SYNC) {
+					childEdgeItr.first->setPositionOfContextSlot(childEdgeItr.first->getPositionOfContextSlot() + skipArgs);
 				}
 			}
 		}
 
 		for (auto allHopItr = this->Vertices.begin(); allHopItr != this->Vertices.end(); allHopItr++) {
 			HyperOp* commonFuncHop = *allHopItr;
-			if (commonFuncHop->getFunction() == func) {
-				commonFuncHop->setFunction(replacementFunction);
-			}
-			bool hopHasOutgoingCFEdges = false;
-			for (auto childItr = hop->ChildMap.begin(); childItr != hop->ChildMap.end(); childItr++) {
-				if (childItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE) {
-					hopHasOutgoingCFEdges = true;
-					break;
-				}
-			}
-			if (commonFuncHop->getInRange() && hopHasOutgoingCFEdges) {
+			if (commonFuncHop->getFunction() == replacementFunction && commonFuncHop->hasRangeBaseInput()) {
 				HyperOpEdge* edge = new HyperOpEdge();
 				edge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE);
 				edge->setPositionOfContextSlot(1);
 				edge->setContextFrameAddress(hop);
 				edge->setValue(ConstantInt::get(Type::getInt32Ty(hop->getFunction()->getParent()->getContext()), APInt(32, 1)));
 				this->addEdge(commonFuncHop->getImmediateDominator(), commonFuncHop, edge);
-				commonFuncHop->setHasBaseRangeInput(true);
 			}
 		}
-		func->removeFromParent();
+		func->eraseFromParent();
 	}
 }
 
@@ -3447,7 +3477,7 @@ void HyperOpInteractionGraph::addNecessarySyncEdges() {
 		for (map<HyperOpEdge*, HyperOp*>::iterator childEdgeItr = (*hopItr)->ChildMap.begin(); childEdgeItr != (*hopItr)->ChildMap.end(); childEdgeItr++) {
 			HyperOpEdge::EdgeType edgeType = childEdgeItr->first->getType();
 			unsigned consumerIndex = hyperOpAndIndexMap[childEdgeItr->second];
-			if (transitiveClosure[producerIndex][consumerIndex] == 0 && (edgeType == HyperOpEdge::SCALAR || edgeType == HyperOpEdge::PREDICATE || edgeType == HyperOpEdge::ORDERING || edgeType == HyperOpEdge::SYNC)) {
+			if (transitiveClosure[producerIndex][consumerIndex] == 0 && (edgeType == HyperOpEdge::SCALAR || edgeType == HyperOpEdge::PREDICATE || edgeType == HyperOpEdge::SYNC)) {
 				transitiveClosure[producerIndex][consumerIndex] = 1;
 			}
 		}
@@ -3612,10 +3642,6 @@ void HyperOpInteractionGraph::addNecessarySyncEdges() {
 						originalAndReplacementFunctionMap.erase(consumerHyperOp->getFunction());
 					}
 					originalAndReplacementFunctionMap[consumerHyperOp->getFunction()] = replacementFunction;
-					//				} else {
-					//					//TODO Not enough slots in context frame
-					//					DEBUG(dbgs() << "adding a hyperop that can sync  via context frame from " << producerHyperOp->asString() << " to " << consumerHyperOp->asString() << "\n");
-
 				}
 
 				//Update the transitive closure matrix and recompute transitive closure
@@ -3728,15 +3754,18 @@ void HyperOpInteractionGraph::convertSpillScalarsToStores() {
 	for (list<HyperOp*>::iterator hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hyperOp = *hopItr;
 		Function* hyperOpFunction = hyperOp->getFunction();
-		int argIndex = 0;
 		bool firstNonInregEncountered = false;
-		for (auto argItr = hyperOpFunction->begin(); argItr != hyperOpFunction->end(); argItr++, argIndex++) {
+		int skipArgs = 1;
+		if (hyperOp->hasRangeBaseInput()) {
+			skipArgs++;
+		}
+		int argIndex = 0;
+		for (auto argItr = hyperOpFunction->arg_begin(); argItr != hyperOpFunction->arg_end(); argItr++, argIndex++) {
 			/* This function must be invoked after the same frame memory args are added to functions, and we must ignore the first two args */
-			if (argIndex < 2) {
+			if (argIndex < skipArgs) {
 				continue;
 			}
-
-			if (!firstNonInregEncountered && (argItr->getType()->isSingleValueType() && !argItr->getType()->isPointerTy()) && (REDEFINEUtils::getSizeOfType(argItr->getType()) / 4) < this->getMaxContextFrameSize() && argIndex < (this->getMaxContextFrameSize() + 2)) {
+			if (!firstNonInregEncountered && (argItr->getType()->isSingleValueType() && !argItr->getType()->isPointerTy()) && (REDEFINEUtils::getSizeOfType(argItr->getType()) / 4) < this->getMaxContextFrameSize() && argIndex < (this->getMaxContextFrameSize() + skipArgs)) {
 				//Mark context frame args as inreg
 				hyperOpFunction->addAttribute(argIndex + 1, Attribute::InReg);
 			} else {
@@ -3781,7 +3810,7 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		auto oldArgItr = hopFunction->arg_begin();
 		/* Don't shuffle the first arg */
 		oldArgItr++;
-		if(hop->hasBaseRangeInput()){
+		if (hop->hasRangeBaseInput()) {
 			oldArgItr++;
 		}
 
@@ -3802,17 +3831,18 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 			}
 			oldArgNewIndexMap.insert(make_pair(oldArgItr, newInsertIndex));
 		}
-		if(hop->hasBaseRangeInput()){
+		if (hop->hasRangeBaseInput()) {
 			newArgsList.push_front(Type::getInt32Ty(ctxt));
 		}
 		newArgsList.push_front(Type::getInt32Ty(ctxt));
 
 		std::vector<Type*> newArgsVector;
-		std::copy(newArgsList.begin(), newArgsList.end(),std::back_inserter(newArgsVector));
+		std::copy(newArgsList.begin(), newArgsList.end(), std::back_inserter(newArgsVector));
 		FunctionType *FT = FunctionType::get(hopFunction->getReturnType(), newArgsVector, false);
 		Function *newFunction = Function::Create(FT, Function::ExternalLinkage, hopFunction->getName(), hopFunction->getParent());
 
 		auto newArgItr = newFunction->arg_begin();
+		map<Value*, Value*> oldToNewValueMap;
 		int newArgIndex = 1;
 		for (auto oldArgItr = hopFunction->arg_begin(); oldArgItr != hopFunction->arg_end(); oldArgItr++, newArgItr++, newArgIndex++) {
 			oldToNewValueMap.insert(make_pair(oldArgItr, newArgItr));
@@ -3824,7 +3854,6 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 			newArgVector.push_back(newArgItr);
 		}
 
-		map<Value*, Value*> oldToNewValueMap;
 		for (auto argItr = hopFunction->arg_begin(); argItr != hopFunction->arg_end(); argItr++) {
 			oldToNewValueMap.insert(make_pair(argItr, newArgVector[oldArgNewIndexMap[argItr]]));
 		}
@@ -3847,6 +3876,9 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 					if (oldToNewValueMap.find(oldOperand) != oldToNewValueMap.end()) {
 						newInst->setOperand(operandIndex, oldToNewValueMap[oldOperand]);
 					}
+					if (isa<PHINode>(newInst)) {
+						((PHINode*) newInst)->setIncomingBlock(operandIndex, (BasicBlock*) oldToNewValueMap[((PHINode*) newInst)->getIncomingBlock(operandIndex)]);
+					}
 				}
 				newBB->getInstList().insert(newBB->end(), newInst);
 			}
@@ -3859,12 +3891,18 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 				/* Shuffle all context slots for the updated function */
 				for (auto parentEdgeItr = hop->ParentMap.begin(); parentEdgeItr != hop->ParentMap.end(); parentEdgeItr++) {
 					auto oldArgItr = hopFunction->arg_begin();
-					for(int i=0;i<parentEdgeItr->first->getPositionOfContextSlot();i++, oldArgItr++){
+					for (int i = 0; i < parentEdgeItr->first->getPositionOfContextSlot(); i++, oldArgItr++) {
 					}
 					Argument* oldArg = oldArgItr;
 					parentEdgeItr->first->setPositionOfContextSlot(oldArgNewIndexMap[oldArg]);
 				}
 				hop->setFunction(newFunction);
+				/* Update the outgoing edges of the hop with new args cloned here */
+				for (auto childItr = hop->ChildMap.begin(); childItr != hop->ChildMap.end(); childItr++) {
+					if (childItr->first->getValue() != NULL && oldToNewValueMap.find(childItr->first->getValue()) != oldToNewValueMap.end()) {
+						childItr->first->setValue(oldToNewValueMap[childItr->first->getValue()]);
+					}
+				}
 			}
 		}
 		hopFunction->eraseFromParent();
@@ -4055,6 +4093,7 @@ void HyperOpInteractionGraph::addSyncCountDecrementOnControlPaths() {
 							incomingSyncAlongNoPred.push_back((SyncValue) 1);
 						}
 					}
+					errs() << "added sync count on pred " << predicateChain.front().first->getPredicateValue() << " for hop " << hyperOp->asString() << "\n";
 					hyperOp->setIncomingSyncPredicate(predicateChain.front().first->getPredicateValue(), predicateChain.front().first->getValue());
 					syncFromPredicatedSources = true;
 				} else {
@@ -4145,6 +4184,8 @@ void HyperOpInteractionGraph::print(raw_ostream &os, int debug) {
 //					edge->getValue()->print(os);
 				} else if (edge->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) {
 					os << "frameAddress" << edge->getPositionOfContextSlot() << edge->getContextFrameAddress()->asString();
+				} else if (edge->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) {
+					os << "frameAddressmem" << edge->getPositionOfContextSlot() << edge->getContextFrameAddress()->asString();
 				} else if (edge->Type == HyperOpEdge::PREDICATE) {
 					os << "control" << edge->getPredicateValue() << edge->getDecrementOperandCount();
 //					if (edge->getValue() != 0) {
@@ -4156,10 +4197,10 @@ void HyperOpInteractionGraph::print(raw_ostream &os, int debug) {
 					os << "order";
 				} else if (edge->Type == HyperOpEdge::SYNC) {
 					os << "sync";
-				} else if (edge->Type == HyperOpEdge::RANGE) {
-					os << "range";
 				} else if (edge->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE) {
-					os << "cfaddrrange";
+					os << "cfaddrbase";
+				} else if (edge->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF) {
+					os << "cfaddrbaselocalref";
 				}
 				os << "];\n";
 			}
@@ -4259,24 +4300,23 @@ void HyperOpInteractionGraph::removeUnreachableHops() {
 	}
 }
 
-
 AllocaInst* HyperOpInteractionGraph::getAllocInstrForLocalReferenceData(Value* sourceInstr, HyperOp* parentInstrContainingSource) {
 	if (isa<AllocaInst>(sourceInstr)) {
 		return (AllocaInst*) sourceInstr;
 	}
 
-	assert(isa<Argument>(sourceInstr)&& "Data being passed to another HyperOp must either be created locally or from another HyperOp that passed it as an argument\n");
+	assert(isa<Argument>(sourceInstr) && "Data being passed to another HyperOp must either be created locally or from another HyperOp that passed it as an argument\n");
 	int argIndex = -1;
-	for(auto argItr = parentInstrContainingSource->getFunction()->arg_begin(); argItr!=parentInstrContainingSource->getFunction()->arg_end(); argItr++){
+	for (auto argItr = parentInstrContainingSource->getFunction()->arg_begin(); argItr != parentInstrContainingSource->getFunction()->arg_end(); argItr++) {
 		argIndex++;
 		Argument* arg = argItr;
-		if(arg == sourceInstr){
+		if (arg == sourceInstr) {
 			break;
 		}
 	}
-	assert(argIndex>=0 && "Argument not passed to the HyperOp");
-	for(auto parentItr = parentInstrContainingSource->ParentMap.begin(); parentItr!=parentInstrContainingSource->ParentMap.end(); parentItr++){
-		if(parentItr->first->getPositionOfContextSlot()== argIndex){
+	assert(argIndex >= 0 && "Argument not passed to the HyperOp");
+	for (auto parentItr = parentInstrContainingSource->ParentMap.begin(); parentItr != parentInstrContainingSource->ParentMap.end(); parentItr++) {
+		if (parentItr->first->getPositionOfContextSlot() == argIndex) {
 			HyperOp* parent = parentItr->second;
 			return getAllocInstrForLocalReferenceData(parentItr->first->getValue(), parent);
 		}
