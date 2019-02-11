@@ -2878,6 +2878,7 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 			}
 			bool funcInputHasValidInput = false;
 			for (auto edgeItr : hop->ParentMap) {
+				errs()<<"edge slot "<< edgeItr.first->getPositionOfContextSlot() <<" type "<< edgeItr.first->getType() <<"\n";
 				assert((!frameArgsAdded || ((edgeItr.first->getType() == HyperOpEdge::SYNC || edgeItr.first->getType() == HyperOpEdge::PREDICATE) || edgeItr.first->getPositionOfContextSlot() >= 1)) && "Arguments can't be delivered to the first arg slot");
 				if (edgeItr.first->getPositionOfContextSlot() == funcArgIndex && std::find(this->Vertices.begin(), this->Vertices.end(), edgeItr.second) != this->Vertices.end()) {
 					funcInputHasValidInput = true;
@@ -3389,10 +3390,15 @@ void setRangeBaseRequired(HyperOp** hop) {
  * This method adds 2 register arguments to each function in the beginning of the argument list, indicating that the function gets its own address and the base address of range hop
  */
 void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
+	list<Function*> coveredFunctions;
 	for (auto hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hop = *hopItr;
 		Function* func = hop->getFunction();
+		if (find(coveredFunctions.begin(), coveredFunctions.end(), func) != coveredFunctions.end()) {
+			continue;
+		}
 		setRangeBaseRequired(&hop);
+		coveredFunctions.push_back(func);
 		Function* replacementFunction;
 		list<Type*> newargs;
 		newargs.push_back(Type::getInt32Ty(func->getParent()->getContext()));
@@ -3419,12 +3425,15 @@ void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
 			}
 		}
 
-		HyperOpEdge* edge = new HyperOpEdge();
-		edge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE);
-		edge->setPositionOfContextSlot(1);
-		edge->setContextFrameAddress(hop);
-		edge->setValue(ConstantInt::get(Type::getInt32Ty(hop->getFunction()->getParent()->getContext()), APInt(32, 1)));
-		this->addEdge(hop->getImmediateDominator(), hop, edge);
+		HyperOp* commonFuncHop = hop;
+		if (hop->hasRangeBaseInput()) {
+			HyperOpEdge* edge = new HyperOpEdge();
+			edge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE);
+			edge->setPositionOfContextSlot(1);
+			edge->setContextFrameAddress(hop);
+			edge->setValue(ConstantInt::get(Type::getInt32Ty(hop->getFunction()->getParent()->getContext()), APInt(32, 1)));
+			this->addEdge(hop->getImmediateDominator(), hop, edge);
+		}
 		func->eraseFromParent();
 	}
 }
@@ -3768,10 +3777,10 @@ void HyperOpInteractionGraph::convertSpillScalarsToStores() {
  * Shuffle arguments of a HyperOp for better mapping to context frames
  */
 void HyperOpInteractionGraph::shuffleHyperOpArguments() {
-	Module* M = this->Vertices.front()->getFunction()->getParent();
-	LLVMContext & ctxt = M->getContext();
+	Module *M = this->Vertices.front()->getFunction()->getParent();
+	LLVMContext &ctxt = M->getContext();
 
-	for (auto vertexItr = this->Vertices.begin(); vertexItr != this->Vertices.end(); vertexItr++) {
+	for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
 		HyperOp* hop = *vertexItr;
 		Function* hopFunction = hop->getFunction();
 		map<Argument*, int> oldArgNewIndexMap;
@@ -3779,8 +3788,10 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		auto oldArgItr = hopFunction->arg_begin();
 		/* Don't shuffle the first arg */
 		oldArgItr++;
+		oldArgNewIndexMap.insert(make_pair(oldArgItr, 0));
 		if (hop->hasRangeBaseInput()) {
 			oldArgItr++;
+			oldArgNewIndexMap.insert(make_pair(oldArgItr, 1));
 		}
 
 		/* Shuffle all arguments except the first in case of all hyperops and the first two in case of range hyperops */
@@ -3800,6 +3811,7 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 			}
 			oldArgNewIndexMap.insert(make_pair(oldArgItr, newInsertIndex));
 		}
+
 		if (hop->hasRangeBaseInput()) {
 			newArgsList.push_front(Type::getInt32Ty(ctxt));
 		}
@@ -3853,7 +3865,6 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 			}
 		}
 
-		/* There could be multiple hops of the same function type */
 		/* Shuffle all context slots for the updated function */
 		for (auto parentEdgeItr = hop->ParentMap.begin(); parentEdgeItr != hop->ParentMap.end(); parentEdgeItr++) {
 			auto oldArgItr = hopFunction->arg_begin();
