@@ -461,7 +461,6 @@ map<unsigned, map<unsigned, unsigned> > replacementRegisterMap;
 map<unsigned, list<unsigned> > redefinitionsInCE;
 
 if (RegionBegin == BB->begin()) {
-	HyperOpInteractionGraph * graph = ((REDEFINETargetMachine&) TM).HIG;
 	const Module* parentModule = BB->getParent()->getFunction()->getParent();
 	unsigned maxGlobalSize = 0;
 	if (!parentModule->getGlobalList().empty()) {
@@ -1244,12 +1243,6 @@ if (BB->getNumber() == MF.back().getNumber()) {
 	MachineInstr* lastInstruction = lastBB->end();
 	DebugLoc dl = MF.begin()->begin()->getDebugLoc();
 
-	map<HyperOp*, list<pair<unsigned, unsigned> > > regContainingMemFrameBaseAddress;
-
-	HyperOpInteractionGraph * graph = ((REDEFINETargetMachine&) TM).HIG;
-	Function* Fn = const_cast<Function*>(MF.getFunction());
-	HyperOp* hyperOp = ((REDEFINETargetMachine&) TM).HIG->getHyperOp(Fn);
-
 	for (unsigned i = 0; i < ceCount; i++) {
 		firstInstructionOfpHyperOpInRegion.push_back(0);
 	}
@@ -1538,7 +1531,9 @@ map<unsigned, unsigned> physRegAndContextFrameSlot;
 map<unsigned, unsigned> physRegAndLiveIn;
 
 HyperOpInteractionGraph * graph = ((REDEFINETargetMachine&) TM).HIG;
-HyperOp* currentHyperOp = graph->getHyperOp(const_cast<Function*>(MF.getFunction()));
+Function* func = const_cast<Function*>(MF.getFunction());
+HyperOp* currentHyperOp = graph->getHyperOp(func);
+assert(currentHyperOp!= NULL && "No hyperop found");
 currentHyperOp->setNumCEs(ceCount);
 
 map<unsigned, MachineInstr*> physRegAndFirstMachineOperand;
