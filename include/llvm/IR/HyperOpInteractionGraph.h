@@ -160,7 +160,6 @@ class HyperOp {
 	Function* instanceof;
 	bool staticHyperOp;
 	unsigned hyperOpId;
-	vector<unsigned> numInputsPerCE;
 	//map of predicate value to sync count
 	list<SyncValue> numIncomingSyncEdges[3];
 	bool hasMutexSyncSources;
@@ -220,9 +219,6 @@ public:
 	void setHyperOpId(unsigned hyperOpId);
 
 	//TODO need to create a seperate API for this, the following methods are dependent on the target machine
-	void setNumCEInputs(unsigned pHyperOpId, unsigned numInputs);
-	void setNumCEs(unsigned numPHyperOps);
-	unsigned getNumInputsPerCE(unsigned pHyperOpId);
 	unsigned computeDepthInGraph();
 	unsigned int getTargetResource() const;
 	void setTargetResource(unsigned int targetResource);

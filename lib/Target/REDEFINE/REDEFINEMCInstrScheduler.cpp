@@ -1530,11 +1530,7 @@ map<unsigned, unsigned> physRegAndContextFrameSlot;
 //Phys reg and the ce it is live-in
 map<unsigned, unsigned> physRegAndLiveIn;
 
-HyperOpInteractionGraph * graph = ((REDEFINETargetMachine&) TM).HIG;
 Function* func = const_cast<Function*>(MF.getFunction());
-HyperOp* currentHyperOp = graph->getHyperOp(func);
-assert(currentHyperOp!= NULL && "No hyperop found");
-currentHyperOp->setNumCEs(ceCount);
 
 map<unsigned, MachineInstr*> physRegAndFirstMachineOperand;
 map<unsigned, list<unsigned> > ceAndLiveInPhysicalRegMap;
@@ -1586,10 +1582,11 @@ for (MachineFunction::iterator MBBI = MF.begin(), MBBE = MF.end(); MBBI != MBBE;
 }
 
 unsigned contextFrameLocation = 0;
+vector<int> liveInPerCe;
 for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
 	if (ceAndLiveInPhysicalRegMap.find(ceIndex) != ceAndLiveInPhysicalRegMap.end()) {
 		list<unsigned> liveInRegs = ceAndLiveInPhysicalRegMap[ceIndex];
-		currentHyperOp->setNumCEInputs(ceIndex, liveInRegs.size());
+		liveInPerCe.push_back(liveInRegs.size());
 		if (!liveInRegs.empty()) {
 			for (list<unsigned>::iterator physRegItr = liveInRegs.begin(); physRegItr != liveInRegs.end(); physRegItr++) {
 				unsigned physReg = *physRegItr;
@@ -1601,11 +1598,8 @@ for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
 	}
 }
 
+(((REDEFINETargetMachine&)TM).pHyperOpAndNumInputsPerCE).insert(make_pair(func, liveInPerCe));
+
 LIS->computeLiveInRegUnits();
 
-/*
- * This part is for wcet
- */
-PHyperOpInteractionGraph pHopDependenceMap;
-currentHyperOp->setpHyperOpDependenceMap(pHopDependenceMap);
 }

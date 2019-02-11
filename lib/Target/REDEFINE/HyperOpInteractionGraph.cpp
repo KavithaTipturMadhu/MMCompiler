@@ -67,7 +67,6 @@ HyperOp::HyperOp(Function* function, HyperOpInteractionGraph* hig) {
 	this->unrolledInstance = false;
 	this->instanceof = NULL;
 	this->InRange = false;
-	this->numInputsPerCE.reserve(4);
 	this->setIncomingSyncPredicate(0, NULL);
 	this->setIncomingSyncPredicate(1, NULL);
 	this->setHasRangeBaseInput(false);
@@ -258,21 +257,6 @@ void HyperOp::setHyperOpId(unsigned hyperOpId) {
 	this->hyperOpId = hyperOpId;
 }
 
-void HyperOp::setNumCEInputs(unsigned ceId, unsigned numInputs) {
-	numInputsPerCE[ceId] = numInputs;
-}
-
-void HyperOp::setNumCEs(unsigned ceCount) {
-	numInputsPerCE.reserve(ceCount);
-	for (unsigned i = 0; i < ceCount; i++) {
-		numInputsPerCE[i] = 0;
-	}
-}
-
-unsigned HyperOp::getNumInputsPerCE(unsigned ceId) {
-	return numInputsPerCE[ceId];
-}
-
 list<HyperOp*> HyperOp::getParentList() {
 	list<HyperOp*> parentList;
 	for (map<HyperOpEdge*, HyperOp*>::iterator parentIterator = ParentMap.begin(); parentIterator != ParentMap.end(); parentIterator++) {
@@ -326,8 +310,8 @@ HyperOp* HyperOp::getImmediatePostDominator() {
 void HyperOp::setStartHyperOp() {
 	this->IsStart = true;
 	this->setBarrierHyperOp();
-	this->setNumCEInputs(0, 1);
 }
+
 void HyperOp::setEndHyperOp() {
 	this->IsEnd = true;
 }

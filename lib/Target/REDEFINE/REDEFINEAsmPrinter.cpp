@@ -275,12 +275,13 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		j++;
 	}
 
+	vector<int> numInputsPerCE = (((REDEFINETargetMachine&)TM).pHyperOpAndNumInputsPerCE)[hyperOp->getFunction()];
 	for (unsigned i = 0; i < ceCount; i++) {
 		if (i > 0) {
 			distCount.append(",\t");
 			phopPC.append(",\T");
 		}
-		distCount.append(itostr(hyperOp->getNumInputsPerCE(i)));
+		distCount.append(itostr(numInputsPerCE[i]));
 		phopPC.append(".PC_").append(funcnamewithoutperiod).append(itostr(i));
 	}
 	distCount.append("\n");
