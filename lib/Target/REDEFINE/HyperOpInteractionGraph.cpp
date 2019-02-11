@@ -3389,15 +3389,10 @@ void setRangeBaseRequired(HyperOp** hop) {
  * This method adds 2 register arguments to each function in the beginning of the argument list, indicating that the function gets its own address and the base address of range hop
  */
 void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
-	list<Function*> coveredFunctions;
 	for (auto hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
 		HyperOp* hop = *hopItr;
 		Function* func = hop->getFunction();
-		if (find(coveredFunctions.begin(), coveredFunctions.end(), func) != coveredFunctions.end()) {
-			continue;
-		}
 		setRangeBaseRequired(&hop);
-		coveredFunctions.push_back(func);
 		Function* replacementFunction;
 		list<Type*> newargs;
 		newargs.push_back(Type::getInt32Ty(func->getParent()->getContext()));
@@ -3424,17 +3419,12 @@ void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
 			}
 		}
 
-		for (auto allHopItr = this->Vertices.begin(); allHopItr != this->Vertices.end(); allHopItr++) {
-			HyperOp* commonFuncHop = *allHopItr;
-			if (commonFuncHop->getFunction() == replacementFunction && commonFuncHop->hasRangeBaseInput()) {
-				HyperOpEdge* edge = new HyperOpEdge();
-				edge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE);
-				edge->setPositionOfContextSlot(1);
-				edge->setContextFrameAddress(hop);
-				edge->setValue(ConstantInt::get(Type::getInt32Ty(hop->getFunction()->getParent()->getContext()), APInt(32, 1)));
-				this->addEdge(commonFuncHop->getImmediateDominator(), commonFuncHop, edge);
-			}
-		}
+		HyperOpEdge* edge = new HyperOpEdge();
+		edge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE);
+		edge->setPositionOfContextSlot(1);
+		edge->setContextFrameAddress(hop);
+		edge->setValue(ConstantInt::get(Type::getInt32Ty(hop->getFunction()->getParent()->getContext()), APInt(32, 1)));
+		this->addEdge(hop->getImmediateDominator(), hop, edge);
 		func->eraseFromParent();
 	}
 }
@@ -3778,16 +3768,11 @@ void HyperOpInteractionGraph::convertSpillScalarsToStores() {
  * Shuffle arguments of a HyperOp for better mapping to context frames
  */
 void HyperOpInteractionGraph::shuffleHyperOpArguments() {
-	Module *M = this->Vertices.front()->getFunction()->getParent();
-	LLVMContext &ctxt = M->getContext();
-	list<Function*> coveredFunctions;
+	Module* M = this->Vertices.front()->getFunction()->getParent();
+	LLVMContext & ctxt = M->getContext();
 
-	for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
+	for (auto vertexItr = this->Vertices.begin(); vertexItr != this->Vertices.end(); vertexItr++) {
 		HyperOp* hop = *vertexItr;
-		if (find(coveredFunctions.begin(), coveredFunctions.end(), hop->getFunction()) == coveredFunctions.end()) {
-			continue;
-		}
-		coveredFunctions.push_back(hop->getFunction());
 		Function* hopFunction = hop->getFunction();
 		map<Argument*, int> oldArgNewIndexMap;
 		list<Type*> newArgsList;
@@ -3869,24 +3854,19 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		}
 
 		/* There could be multiple hops of the same function type */
-		for (auto hopItr = Vertices.begin(); hopItr != Vertices.end(); hopItr++) {
-			HyperOp* hop = *hopItr;
-			if (hop->getFunction() == hopFunction) {
-				/* Shuffle all context slots for the updated function */
-				for (auto parentEdgeItr = hop->ParentMap.begin(); parentEdgeItr != hop->ParentMap.end(); parentEdgeItr++) {
-					auto oldArgItr = hopFunction->arg_begin();
-					for (int i = 0; i < parentEdgeItr->first->getPositionOfContextSlot(); i++, oldArgItr++) {
-					}
-					Argument* oldArg = oldArgItr;
-					parentEdgeItr->first->setPositionOfContextSlot(oldArgNewIndexMap[oldArg]);
-				}
-				hop->setFunction(newFunction);
-				/* Update the outgoing edges of the hop with new args cloned here */
-				for (auto childItr = hop->ChildMap.begin(); childItr != hop->ChildMap.end(); childItr++) {
-					if (childItr->first->getValue() != NULL && oldToNewValueMap.find(childItr->first->getValue()) != oldToNewValueMap.end()) {
-						childItr->first->setValue(oldToNewValueMap[childItr->first->getValue()]);
-					}
-				}
+		/* Shuffle all context slots for the updated function */
+		for (auto parentEdgeItr = hop->ParentMap.begin(); parentEdgeItr != hop->ParentMap.end(); parentEdgeItr++) {
+			auto oldArgItr = hopFunction->arg_begin();
+			for (int i = 0; i < parentEdgeItr->first->getPositionOfContextSlot(); i++, oldArgItr++) {
+			}
+			Argument* oldArg = oldArgItr;
+			parentEdgeItr->first->setPositionOfContextSlot(oldArgNewIndexMap[oldArg]);
+		}
+		hop->setFunction(newFunction);
+		/* Update the outgoing edges of the hop with new args cloned here */
+		for (auto childItr = hop->ChildMap.begin(); childItr != hop->ChildMap.end(); childItr++) {
+			if (childItr->first->getValue() != NULL && oldToNewValueMap.find(childItr->first->getValue()) != oldToNewValueMap.end()) {
+				childItr->first->setValue(oldToNewValueMap[childItr->first->getValue()]);
 			}
 		}
 		hopFunction->eraseFromParent();
