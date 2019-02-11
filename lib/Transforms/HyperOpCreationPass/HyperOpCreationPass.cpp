@@ -4858,16 +4858,17 @@ struct REDEFINEIRPass: public ModulePass {
 					BasicBlock * loopBegin, *loopBody, *loopEnd;
 					Value* loadInst;
 					if (child->getInRange()) {
-						//TODO change this to traverse through the list
-						addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, &loadInst, child->getRangeLowerBound(), child->getRangeUpperBound());
+						Value* numFrames = BinaryOperator::CreateExactUDiv(BinaryOperator::CreateNSWSub(child->getRangeUpperBound(), child->getRangeLowerBound(), "",  &insertInBB->back()), child->getStride(), "",&insertInBB->back());
+						Value* upperBound = BinaryOperator::CreateMul(numFrames, argContainingAddress, "",  &insertInBB->back());
+						addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, &loadInst, argContainingAddress, upperBound);
 						insertInBB = loopBody;
 					}
 
 					CallInst* fdeleteInst;
-					Value *fdeleteArgs[] = { argContainingAddress };
+					Value *fdeleteArgs[] = { loadInst };
 					fdeleteInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fdelete, 0), fdeleteArgs, "", &insertInBB->back());
 					if (child->getInRange()) {
-						BinaryOperator* incItr = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 1)), "", &loopBody->back());
+						loadInst = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 1)), "", &loopBody->back());
 						insertInBB = loopEnd;
 					}
 				}
