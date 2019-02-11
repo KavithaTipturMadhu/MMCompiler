@@ -4368,7 +4368,7 @@ struct REDEFINEIRPass: public ModulePass {
 //		AU.addRequired<HyperOpCreationPass>();
 	}
 
-	void addRangeLoopConstructs(HyperOp* child, Function* vertexFunction, const Module &M, BasicBlock** loopBegin, BasicBlock** loopBody, BasicBlock** loopEnd, BasicBlock** insertInBB, Value** loadInst, Value* baseAddress, Value* upperbound) {
+	void addRangeLoopConstructs(HyperOp* child, Function* vertexFunction, const Module &M, BasicBlock** loopBegin, BasicBlock** loopBody, BasicBlock** loopEnd, BasicBlock** insertInBB, Value* baseAddress, Value* upperbound) {
 		/* Add loop constructs */
 		string loopBeginNameSR = child->getFunction()->getName().str();
 		loopBeginNameSR.append("_create_begin");
@@ -4385,18 +4385,7 @@ struct REDEFINEIRPass: public ModulePass {
 		Twine loopEndName(loopEndNameSR);
 		*loopEnd = BasicBlock::Create(M.getContext(), loopEndName, vertexFunction);
 
-		AllocaInst* allocItrInst = new AllocaInst(Type::getInt32Ty(M.getContext()));
-		allocItrInst->setAlignment(4);
-		allocItrInst->insertBefore((*insertInBB)->getFirstInsertionPt());
-
-		StoreInst* storeItrInst = new StoreInst(baseAddress, allocItrInst, (*insertInBB)->getTerminator());
-		storeItrInst->setAlignment(4);
-
-		*loadInst = new LoadInst(allocItrInst, "falloc_itr", (*insertInBB)->getTerminator());
-		BranchInst* loopBodyJump = BranchInst::Create(*loopBegin, (*insertInBB)->getTerminator());
-		(*insertInBB)->getTerminator()->removeFromParent();
-
-		CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, *loadInst, upperbound, "cmpinst", *loopBegin);
+		CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, baseAddress, upperbound, "cmpinst", *loopBegin);
 		BranchInst* bgeItrInst = BranchInst::Create(*loopEnd, *loopBody, cmpInst, *loopBegin);
 		BranchInst* loopEndJump = BranchInst::Create(*loopBegin, *loopBody);
 		ReturnInst* ret = ReturnInst::Create(M.getContext(), *loopEnd);
@@ -4618,7 +4607,6 @@ struct REDEFINEIRPass: public ModulePass {
 					continue;
 				}
 				BasicBlock * loopBegin, *loopBody, *loopEnd;
-				Value* loadInst;
 				/* Range HyperOp's base address, obtained either with falloc or by loading with forwarded address */
 				Value* baseAddress = NULL;
 				Value* numFrames = NULL;
@@ -4647,7 +4635,7 @@ struct REDEFINEIRPass: public ModulePass {
 
 				if (child->getInRange()) {
 					upperbound = BinaryOperator::CreateMul(baseAddress, numFrames, "", &insertInBB->back());
-					addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, &loadInst, baseAddress, upperbound);
+					addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, baseAddress, upperbound);
 					insertInBB = loopBody;
 				}
 				/* Use this for communication instruction insertion later */
@@ -4665,7 +4653,7 @@ struct REDEFINEIRPass: public ModulePass {
 				}
 
 				if (child->getInRange()) {
-					loadInst = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 64)), "", &loopBody->back());
+					baseAddress = BinaryOperator::CreateNSWAdd(baseAddress, ConstantInt::get(M.getContext(), APInt(32, 64)), "", &loopBody->back());
 					insertInBB = loopEnd;
 				}
 			}
@@ -4723,7 +4711,7 @@ struct REDEFINEIRPass: public ModulePass {
 					}
 				}
 				if (child->getInRange()) {
-					addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, &loadInst, baseAddress, baseAddressUpperBound);
+					addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, baseAddress, baseAddressUpperBound);
 					insertInBB = loopBody;
 				}
 
@@ -4832,7 +4820,7 @@ struct REDEFINEIRPass: public ModulePass {
 				}
 
 				if (child->getInRange()) {
-					loadInst = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 64)), "", &loopBody->back());
+					baseAddress = BinaryOperator::CreateNSWAdd(baseAddress, ConstantInt::get(M.getContext(), APInt(32, 64)), "", &loopBody->back());
 					insertInBB = loopEnd;
 				}
 			}
@@ -4860,19 +4848,18 @@ struct REDEFINEIRPass: public ModulePass {
 						}
 					}
 					BasicBlock * loopBegin, *loopBody, *loopEnd;
-					Value* loadInst;
 					if (child->getInRange()) {
 						Value* numFrames = BinaryOperator::CreateExactUDiv(BinaryOperator::CreateNSWSub(child->getRangeUpperBound(), child->getRangeLowerBound(), "",  &insertInBB->back()), child->getStride(), "",&insertInBB->back());
 						Value* upperBound = BinaryOperator::CreateMul(numFrames, argContainingAddress, "",  &insertInBB->back());
-						addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, &loadInst, argContainingAddress, upperBound);
+						addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, argContainingAddress, upperBound);
 						insertInBB = loopBody;
 					}
 
 					CallInst* fdeleteInst;
-					Value *fdeleteArgs[] = { loadInst };
+					Value *fdeleteArgs[] = { argContainingAddress };
 					fdeleteInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fdelete, 0), fdeleteArgs, "", &insertInBB->back());
 					if (child->getInRange()) {
-						loadInst = BinaryOperator::CreateNSWAdd(loadInst, ConstantInt::get(M.getContext(), APInt(32, 1)), "", &loopBody->back());
+						argContainingAddress = BinaryOperator::CreateNSWAdd(argContainingAddress, ConstantInt::get(M.getContext(), APInt(32, 1)), "", &loopBody->back());
 						insertInBB = loopEnd;
 					}
 				}
