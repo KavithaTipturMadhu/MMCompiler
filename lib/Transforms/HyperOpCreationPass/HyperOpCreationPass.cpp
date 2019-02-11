@@ -4557,6 +4557,12 @@ struct REDEFINEIRPass: public ModulePass {
 		}
 	}
 
+	static inline MDString* getMDStringForProperty(string property, string propValue, LLVMContext &ctxt) {
+		string startHop = property;
+		startHop.append("=").append(propValue);
+		return MDString::get(ctxt, startHop);
+	}
+
 	virtual bool runOnModule(Module &M) {
 		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
 
@@ -4888,7 +4894,37 @@ struct REDEFINEIRPass: public ModulePass {
 				}
 			}
 		}
-		M.dump();
+		NamedMDNode * hyperOpAnnotationsNode = M.getOrInsertNamedMetadata(HYPEROP_ANNOTATIONS);
+		for (auto vertexItr : graph->Vertices) {
+			HyperOp* vertex = vertexItr;
+			vector<Value*> hopAnnotations;
+			hopAnnotations.push_back(MDString::get(M.getContext(), vertex->getFunction()->getName()));
+
+			stringstream id;
+			id << functionAndIndexMap[vertex->getFunction()];
+			hopAnnotations.push_back(getMDStringForProperty(HYPEROP_ID, id.str(), M.getContext()));
+
+			stringstream targetResource;
+			targetResource << vertex->getTargetResource();
+			hopAnnotations.push_back(getMDStringForProperty(HYPEROP_AFFINITY, targetResource.str(), M.getContext()));
+
+			hopAnnotations.push_back(getMDStringForProperty(STATIC_HYPEROP, vertex->isStaticHyperOp() ? "yes" : "no", M.getContext()));
+
+			stringstream contextFrame;
+			contextFrame << vertex->getContextFrame();
+			hopAnnotations.push_back(getMDStringForProperty(HYPEROP_FRAME, targetResource.str(), M.getContext()));
+
+			hopAnnotations.push_back(getMDStringForProperty(HYPEROP_ENTRY, vertex->isStartHyperOp() ? "yes" : "no", M.getContext()));
+
+			hopAnnotations.push_back(getMDStringForProperty(HYPEROP_EXIT, vertex->isEndHyperOp() ? "yes" : "no", M.getContext()));
+
+			hopAnnotations.push_back(getMDStringForProperty(HYPEROP_PREDICATED, vertex->isPredicatedHyperOp() ? "yes" : "no", M.getContext()));
+
+			hopAnnotations.push_back(getMDStringForProperty(HYPEROP_BARRIER, vertex->isBarrierHyperOp() ? "yes" : "no", M.getContext()));
+
+			hyperOpAnnotationsNode->addOperand(MDNode::get(M.getContext(), hopAnnotations));
+		}
+		/* Set attributes of each hyperop */
 		return true;
 	}
 };

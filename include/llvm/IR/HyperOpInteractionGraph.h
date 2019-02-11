@@ -28,19 +28,24 @@ using namespace std;
 #include "llvm/IR/InterHyperOpData.h"
 
 static string REDEFINE_ANNOTATIONS = "redefine.annotations";
+static string HYPEROP_ANNOTATIONS = "hyperop.annotations";
 static string HYPEROP = "HyperOp";
 static string HYPEROP_CONSUMED_BY = "ConsumedBy";
 static string HYPEROP_CONTROLS = "Controls";
 const string HYPEROP_SYNC = "Sync";
 const string HYPEROP_RANGE = "Range";
-static string HYPEROP_AFFINITY = "Affinity";
 static string HYPEROP_ENTRY = "Entry";
 static string HYPEROP_EXIT = "Exit";
+static string HYPEROP_PREDICATED = "Predicated";
+static string HYPEROP_BARRIER = "Barrier";
 static string HYPEROP_INTERMEDIATE = "Intermediate";
 static string SCALAR = "Scalar";
 static string LOCAL_REFERENCE = "LocalReference";
 static string STATIC_HYPEROP = "Static";
 static string DYNAMIC_HYPEROP = "Dynamic";
+static string HYPEROP_AFFINITY = "Affinity";
+static string HYPEROP_FRAME = "Frame";
+static string HYPEROP_ID = "Id";
 
 class HyperOp;
 class HyperOpInteractionGraph;
