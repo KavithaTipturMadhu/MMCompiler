@@ -159,7 +159,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 	HyperOp* hyperOp = NULL;
 	Function* hopFunction = const_cast<Function*>(MF->getFunction());
 	for(auto hopItr : ((REDEFINETargetMachine&) TM).HyperOps){
-		if(hopItr.first->getFunction() == hopFunction){
+		if(!hopItr.first->getFunction()->getName().compare(hopFunction->getName())){
 			hyperOp = hopItr.first;
 			break;
 		}
@@ -195,7 +195,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 	HyperOp* hyperOp = NULL;
 	Function* hopFunction = const_cast<Function*>(MF->getFunction());
 	for (auto hopItr : ((REDEFINETargetMachine&) TM).HyperOps) {
-		if (hopItr.first->getFunction() == hopFunction) {
+		if (!hopItr.first->getFunction()->getName().compare(hopFunction->getName())) {
 			hyperOp = hopItr.first;
 			break;
 		}
