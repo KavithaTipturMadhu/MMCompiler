@@ -204,8 +204,6 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 
 	int hopId = hyperOp->getHyperOpId();
 	OutStreamer.EmitRawText(";" + StringRef(MF->getFunction()->getName()));
-	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
-	HyperOp* hyperOp = HIG->getHyperOp(const_cast<Function*>(MF->getFunction()));
 
 	string staticMetadata = "\n\t.align 16\n\t.SMD_BEGIN\t\n";
 	string hyperOpLabel = "\t\t.HYPEROPID\t.";
