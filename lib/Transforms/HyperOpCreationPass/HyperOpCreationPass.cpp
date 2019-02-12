@@ -4584,7 +4584,7 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->addArgDecrementCountOnControlPaths();
 		graph->addSyncCountDecrementOnControlPaths();
 		graph->associateStaticContextFrames();
-		graph->updateLocalRefEdgeMemOffset();
+		graph->updateLocalRefEdgeMemSizeAndOffset();
 		graph->verify(1);
 		map<Function*, unsigned> functionAndIndexMap;
 
