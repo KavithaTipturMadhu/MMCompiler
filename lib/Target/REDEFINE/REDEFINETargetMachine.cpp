@@ -89,10 +89,10 @@ TargetPassConfig *REDEFINETargetMachine::createPassConfig(PassManagerBase &PM) {
 
 void REDEFINEPassConfig::addMachineLateOptimization() {
 
-//CUSTOM PASS ADDED HERE TARUN SINGLA 
-	if (((REDEFINESubtarget*) TM->getSubtargetImpl())->enableWCET()) {
-		addPass(createWcetAnalyzer());
-	}
+////CUSTOM PASS ADDED HERE TARUN SINGLA
+//	if (((REDEFINESubtarget*) TM->getSubtargetImpl())->enableWCET()) {
+//		addPass(createWcetAnalyzer());
+//	}
 	//return false;
 }
 

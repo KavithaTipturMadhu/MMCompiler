@@ -404,3 +404,74 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 	return graph;
 }
 
+static pair<string, string> getParsedProperty(string keyvaluestr){
+	string key = keyvaluestr.substr(0, key.find("="));
+	string value = keyvaluestr.substr(key.find("="));
+	value.replace(0,1,"");
+	return make_pair(key, value);
+}
+
+/* Parse HyperOps list from the output of IR pass*/
+map<HyperOp*, map<int, int> > HyperOpMetadataParser::parseHyperOpMetadata(Module * M){
+	map<HyperOp*, map<int, int> > hyperOps;
+
+	LLVMContext & ctxt = M->getContext();
+	NamedMDNode * HyperOpAnnotations = M->getOrInsertNamedMetadata(HYPEROP_ANNOTATIONS);
+
+	if (HyperOpAnnotations != 0) {
+		for (int i = 0; i < HyperOpAnnotations->getNumOperands(); i++) {
+			MDNode* hyperOpMDNode = HyperOpAnnotations->getOperand(i);
+
+			Function* function = (Function *) hyperOpMDNode->getOperand(0);
+			HyperOp *hyperOp = new HyperOp(function, NULL);
+			for (int j = 1; j < hyperOpMDNode->getNumOperands() - 1; j++){
+				/* Find all key value pairs */
+				Value* property = hyperOpMDNode->getOperand(j);
+				assert(isa<MDString>(property) && "No property type other than string supported");
+				MDString* propString = (MDString*)property;
+				pair<string, string> keyValuePair = getParsedProperty(propString->getString().str());
+				if(!keyValuePair.first.compare(HYPEROP_ID)){
+					hyperOp->setHyperOpId(atoi(keyValuePair.second.data()));
+				}if(!keyValuePair.first.compare(HYPEROP_AFFINITY)){
+					hyperOp->setTargetResource(atoi(keyValuePair.second.data()));
+				}if(!keyValuePair.first.compare(HYPEROP_FRAME)){
+					hyperOp->setContextFrame(atoi(keyValuePair.second.data()));
+				}if(!keyValuePair.first.compare(STATIC_HYPEROP)){
+					if(!keyValuePair.second.compare("yes"))
+						hyperOp->setStaticHyperOp(true);
+					else
+						hyperOp->setStaticHyperOp(false);
+				}if(!keyValuePair.first.compare(HYPEROP_ENTRY)){
+					if(!keyValuePair.second.compare("yes"))
+						hyperOp->setStartHyperOp();
+				}if(!keyValuePair.first.compare(HYPEROP_EXIT)){
+					if(!keyValuePair.second.compare("yes"))
+						hyperOp->setEndHyperOp();
+				}if(!keyValuePair.first.compare(HYPEROP_PREDICATED)){
+					if(!keyValuePair.second.compare("yes"))
+						hyperOp->setPredicatedHyperOp();
+				}if(!keyValuePair.first.compare(HYPEROP_BARRIER)){
+					if(!keyValuePair.second.compare("yes"))
+						hyperOp->setBarrierHyperOp();
+				}
+			}
+			map<int, int > argIndexOffsetMap;
+			/* Last operand is the offset map */
+			Value* offsetMap = hyperOpMDNode->getOperand(hyperOpMDNode->getNumOperands() - 1);
+			assert(isa<MDNode>(offsetMap) && "Offset map must be a list of MD nodes\n");
+			for (int j = 0; j < ((MDNode*)offsetMap)->getNumOperands(); j++){
+				Value* offsetKeyValue = ((MDNode*)offsetMap)->getOperand(j);
+				assert(isa<MDString>(offsetKeyValue) && "No property type other than string supported");
+				MDString* offsetString = (MDString*)offsetKeyValue;
+				pair<string, string> keyValuePair = getParsedProperty(offsetString->getString().str());
+				int argIndex = atoi(keyValuePair.first.c_str());
+				int argOffset = atoi(keyValuePair.second.c_str());
+				argIndexOffsetMap.insert(make_pair(argIndex, argOffset));
+			}
+			hyperOps.insert(make_pair(hyperOp, argIndexOffsetMap));
+		}
+	}
+
+	return hyperOps;
+}
+

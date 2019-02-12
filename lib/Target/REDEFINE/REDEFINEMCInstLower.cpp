@@ -114,23 +114,16 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 				}
 			}
 			const Function* parentFunction = MO.getParent()->getParent()->getParent()->getFunction();
-			int numScalarArgs = 0;
-			int argIndex = 1;
-			for (Function::const_arg_iterator argItr = parentFunction->arg_begin(); argItr != parentFunction->arg_end(); argItr++, argIndex++) {
-				if (parentFunction->getAttributes().hasAttribute(argIndex, Attribute::InReg)) {
-					numScalarArgs++;
-				}
-			}
-			HyperOp* currentHyperOp = ((REDEFINETargetMachine&) ((REDEFINEAsmPrinter&) AsmPrinter).TM).HIG->getHyperOp(const_cast<Function*>(parentFunction));
-			for (auto parentEdgeItr = currentHyperOp->ParentMap.begin(); parentEdgeItr != currentHyperOp->ParentMap.end(); parentEdgeItr++) {
-				HyperOpEdge* edge = parentEdgeItr->first;
-				if (edge->getType() != HyperOpEdge::LOCAL_REFERENCE && edge->getType() != HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF){
-					continue;
-				}
-				if (edge->getPositionOfContextSlot() - numScalarArgs - 1 == MO.getIndex()) {
-					currentObjectOffset += edge->getMemoryOffsetInTargetFrame();
+			map<int, int> sizeMap;
+			for(auto hopItr : ((REDEFINETargetMachine&) ((REDEFINEAsmPrinter&) AsmPrinter).TM).HyperOps){
+				if(hopItr.first->getFunction() == parentFunction){
+					sizeMap = hopItr.second;
 					break;
 				}
+			}
+
+			for (auto sizeMapItr : sizeMap) {
+				currentObjectOffset += sizeMapItr.second;
 			}
 		} else {
 			for (int i = 0; i < MO.getIndex(); i++) {

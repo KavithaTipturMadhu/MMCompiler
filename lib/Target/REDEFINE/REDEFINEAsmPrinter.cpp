@@ -155,9 +155,16 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 	int ceCount =
 			((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
-	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
-	HyperOp* hyperOp = HIG->getHyperOp(
-			const_cast<Function*>(MF->getFunction()));
+
+	HyperOp* hyperOp = NULL;
+	Function* hopFunction = const_cast<Function*>(MF->getFunction());
+	for(auto hopItr : ((REDEFINETargetMachine&) TM).HyperOps){
+		if(hopItr.first->getFunction() == hopFunction){
+			hyperOp = hopItr.first;
+			break;
+		}
+	}
+	assert(hyperOp!=NULL && "could not find hyperop in metadata map\n");
 	//Add instance metadata
 
 	if (hyperOp->isStaticHyperOp()) {
@@ -183,27 +190,27 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 }
 
 void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
-	int ceCount =
-			((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
-	int hopId = 0;
-	for(auto funcItr = MF->getFunction()->getParent()->begin(); funcItr!=MF->getFunction()->getParent()->end(); funcItr++){
-		if(MF->getFunction() == funcItr){
+	int ceCount = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
+
+	HyperOp* hyperOp = NULL;
+	Function* hopFunction = const_cast<Function*>(MF->getFunction());
+	for (auto hopItr : ((REDEFINETargetMachine&) TM).HyperOps) {
+		if (hopItr.first->getFunction() == hopFunction) {
+			hyperOp = hopItr.first;
 			break;
 		}
-		hopId++;
 	}
+	assert(hyperOp!=NULL && "could not find hyperop in metadata map\n");
+
+	int hopId = hyperOp->getHyperOpId();
 	OutStreamer.EmitRawText(";" + StringRef(MF->getFunction()->getName()));
-	HyperOpInteractionGraph * HIG = ((REDEFINETargetMachine&) TM).HIG;
-	HyperOp* hyperOp = HIG->getHyperOp(const_cast<Function*>(MF->getFunction()));
 
 	string staticMetadata = "\n\t.align 16\n\t.SMD_BEGIN\t\n";
 	string hyperOpLabel = "\t\t.HYPEROPID\t.";
-	hyperOpLabel.append("HyOp#").append(itostr(hopId)).append(
-			"\n");
+	hyperOpLabel.append("HyOp#").append(itostr(hopId)).append("\n");
 	staticMetadata.append(StringRef(hyperOpLabel));
 
-	if (hyperOp->isEndHyperOp() || hyperOp->isStartHyperOp()
-			|| hyperOp->isBarrierHyperOp() || hyperOp->isPredicatedHyperOp()) {
+	if (hyperOp->isEndHyperOp() || hyperOp->isStartHyperOp() || hyperOp->isBarrierHyperOp() || hyperOp->isPredicatedHyperOp()) {
 		staticMetadata.append("\t\t.anno\t");
 		bool added = false;
 
@@ -250,8 +257,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 	if (hyperOp->isBarrierHyperOp()) {
 		argCount++;
 	}
-	staticMetadata.append("\t\t.numOperand\t").append(itostr(argCount)).append(
-			"\n");
+	staticMetadata.append("\t\t.numOperand\t").append(itostr(argCount)).append("\n");
 
 	//Adding distribution count of operands
 	string distCount = "\t\t.opdist\t";
@@ -270,7 +276,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		j++;
 	}
 
-	vector<int> numInputsPerCE = (((REDEFINETargetMachine&)TM).pHyperOpAndNumInputsPerCE)[MF->getFunction()];
+	vector<int> numInputsPerCE = (((REDEFINETargetMachine&) TM).pHyperOpAndNumInputsPerCE)[const_cast<Function*>(MF->getFunction())];
 	for (unsigned i = 0; i < ceCount; i++) {
 		if (i > 0) {
 			distCount.append(",\t");

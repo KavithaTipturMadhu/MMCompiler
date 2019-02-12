@@ -227,9 +227,8 @@ bool REDEFINEDAGToDAGISel::runOnMachineFunction(MachineFunction &mf) {
 	static unsigned firstFunction = 0;
 	//Add instructions to write to context frames if the function is the first one being dealt with
 	if (firstFunction == 0) {
-		//Parse the HIG metadata the first time in backend, subsequent HyperOps can use the graph
 		HyperOpMetadataParser parser;
-		((REDEFINETargetMachine&) TM).HIG = parser.parseMetadata(const_cast<Module*>(Fn->getParent()));
+		((REDEFINETargetMachine&) TM).HyperOps = parser.parseHyperOpMetadata(const_cast<Module*>(Fn->getParent()));
 		firstFunction = 1;
 	}
 	return SelectionDAGISel::runOnMachineFunction(mf);

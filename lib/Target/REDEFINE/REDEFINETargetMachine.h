@@ -39,7 +39,8 @@ class REDEFINETargetMachine: public LLVMTargetMachine {
 	REDEFINEFrameLowering FrameLowering;
 
 public:
-	HyperOpInteractionGraph * HIG;
+	/* Map of HyperOps and their memory inputs and size in memory frame map */
+	map<HyperOp*, map<int, int> > HyperOps;
 	map<Function*, vector<int> > pHyperOpAndNumInputsPerCE;
 	//This is required to allocate registers during pHyperOp creation
 	FunctionLoweringInfo *FuncInfo;

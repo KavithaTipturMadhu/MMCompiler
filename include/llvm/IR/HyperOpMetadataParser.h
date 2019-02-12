@@ -42,6 +42,7 @@ public:
 	HyperOpMetadataParser();
 	virtual ~HyperOpMetadataParser();
 	static HyperOpInteractionGraph * parseMetadata(Module *);
+	static map<HyperOp*, map<int, int> > parseHyperOpMetadata(Module *);
 };
 
 
