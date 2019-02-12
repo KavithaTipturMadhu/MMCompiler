@@ -37,6 +37,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "HyperOpCreationPass"
 #define INLINE_FUNCTION_CALLS 0
+#define BASICBLOCK_HYPEROP 1
 
 /**
  * Pass to create HyperOps
@@ -1665,6 +1666,10 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 						}
 
+						/* Hack to create 1 hyperop per basic block */
+						if(accumulatedBasicBlocks.size()>=1 &&  BASICBLOCK_HYPEROP){
+							endOfHyperOp = true;
+						}
 						if (endOfHyperOp) {
 							break;
 						}
