@@ -4771,7 +4771,7 @@ struct REDEFINEIRPass: public ModulePass {
 						}
 						syncCount = BinaryOperator::CreateNSWAdd(predicatedSyncCount, unpredicateSyncCount, "synccount", &insertInBB->back());
 					}
-					Value *syncArgs[] = { baseAddress, syncCount, ConstantInt::get(M.getContext(), APInt(32, 60)) };
+					Value *syncArgs[] = { baseAddress, ConstantInt::get(M.getContext(), APInt(32, 60)), syncCount };
 					CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::writecm, 0), syncArgs, "", &insertInBB->back());
 				}
 
