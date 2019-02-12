@@ -4385,6 +4385,8 @@ struct REDEFINEIRPass: public ModulePass {
 		Twine loopEndName(loopEndNameSR);
 		*loopEnd = BasicBlock::Create(M.getContext(), loopEndName, vertexFunction);
 
+		BranchInst* loopBodyJump = BranchInst::Create(*loopBegin, (*insertInBB)->getTerminator());
+		(*insertInBB)->getTerminator()->removeFromParent();
 		CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, baseAddress, upperbound, "cmpinst", *loopBegin);
 		BranchInst* bgeItrInst = BranchInst::Create(*loopEnd, *loopBody, cmpInst, *loopBegin);
 		BranchInst* loopEndJump = BranchInst::Create(*loopBegin, *loopBody);
