@@ -4836,7 +4836,7 @@ struct REDEFINEIRPass: public ModulePass {
 			for (auto childItr : vertex->getChildList()) {
 				HyperOp* child = childItr;
 				DEBUG(dbgs() << "Adding fdelete instructions to module\n");
-				if (child != vertex && !child->isPredicatedHyperOp() && child->getImmediateDominator() != NULL && child->getImmediateDominator()->getImmediatePostDominator() == vertex) {
+				if (child != vertex && child->isPredicatedHyperOp() && child->getImmediateDominator() != NULL && child->getImmediateDominator()->getImmediatePostDominator() == vertex) {
 					HyperOpEdge* contextFrameAddressEdge = NULL;
 					for (auto incomingEdgeItr : child->ParentMap) {
 						HyperOpEdge* edge = incomingEdgeItr.first;
