@@ -250,10 +250,21 @@ def SYNC : InstSREDEFINEImm<"sync" , 0b0100100, 0b011, add , GR32, GR32, imm32sx
  let Pattern = [(int_sync i32:$dst1,imm32sx12:$dst2,i32:$src1)];
 }
 
-def FBIND : InstSREDEFINE<"fbind" , 0b0000100, 0b011, add , GR32, GR32>
-{
- let Itinerary   = REDEFINEORC;
- let Pattern = [(int_fbind i32:$dst1,i32:$src1)];
+def FBIND : InstREDEFINE<4, (outs), (ins GR32:$dst1, imm32sx12:$src1), 
+                "fbind \t$dst1, \t$src1", 
+                [(int_fbind i32:$dst1, imm32sx12:$src1)],REDEFINEORC> {
+  field bits<32> Inst;
+
+  bits<5> RS1;
+  bits<5> RS2;
+  bits<12> IMM;
+
+  let Inst{31-25} = IMM{11-5};
+  let Inst{20-24} = 0b00000;
+  let Inst{15-19} = 0b00000;
+  let Inst{12-14} = 0b000;
+  let Inst{7 - 11} = IMM{4-0};
+  let Inst{6 - 0} = 0b0000000;
 }
 
 def PSFBIND : InstSREDEFINEImm<"psfbind" , 0b0000100, 0b011, add , GR32, GR32, imm32sx12>
