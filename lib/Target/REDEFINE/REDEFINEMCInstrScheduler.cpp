@@ -377,6 +377,8 @@ for (auto instItr = bb->instr_begin(); instItr != bb->instr_end(); instItr++) {
 	else if(inst->getOpcode() == REDEFINE::PSGETMEMFRAME){
 		MachineInstr *insertionPoint = inst;
 		MachineOperand& frameAddress = inst->getOperand(0);
+		assert(frameAddress.isReg() && "Get memory frame pseudo's argument must be in reg\n");
+		unsigned frameInReg = frameAddress.getReg();
 //add global address to r31 of REDEFINE
 		string globalAddressString = "ga#";
 		globalAddressString.append(itostr(maxGlobalSize));
@@ -395,17 +397,17 @@ for (auto instItr = bb->instr_begin(); instItr != bb->instr_end(); instItr++) {
 
 //TODO
 		unsigned crId = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder shiftForCRId = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(crId, RegState::Define).addReg(REDEFINE::t5).addImm(SHIFT_FOR_CRID);
+		MachineInstrBuilder shiftForCRId = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(crId, RegState::Define).addReg(frameInReg).addImm(SHIFT_FOR_CRID);
 		addToLISSlot(LIS, shiftForCRId.operator ->());
 
 		unsigned shiftedPageNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder shiftForPageNumber = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedPageNumber, RegState::Define).addReg(REDEFINE::t5).addImm(SHIFT_FOR_PAGENUMBER);
+		MachineInstrBuilder shiftForPageNumber = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedPageNumber, RegState::Define).addReg(frameInReg).addImm(SHIFT_FOR_PAGENUMBER);
 		unsigned pageNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 		MachineInstrBuilder bitmaskForPageNumber = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ANDI)).addReg(pageNumber, RegState::Define).addReg(shiftedPageNumber).addImm(PAGE_NUMBER_MASK);
 		addToLISSlot(LIS, bitmaskForPageNumber.operator ->());
 
 		unsigned shiftedFrameNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder shiftForFrameNumber = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedFrameNumber, RegState::Define).addReg(REDEFINE::t5).addImm(SHIFT_FOR_FRAMENUMBER);
+		MachineInstrBuilder shiftForFrameNumber = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedFrameNumber, RegState::Define).addReg(frameInReg).addImm(SHIFT_FOR_FRAMENUMBER);
 		addToLISSlot(LIS, shiftForFrameNumber.operator llvm::MachineInstr *());
 
 		unsigned frameNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
@@ -478,11 +480,11 @@ if (RegionBegin == BB->begin()) {
 
 	MachineInstr* insertionPoint = BB->begin();
 	for (unsigned i = 0; i < ceCount; i++) {
-		unsigned registerForCopyOfInstId = REDEFINE::t4;
-		unsigned registerForIncrOfInstId = REDEFINE::t5;
-		MachineInstrBuilder registerCopy = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForCopyOfInstId, RegState::Define).addReg(registerForIncrOfInstId).addReg(REDEFINE::zero);
-		addToLISSlot(LIS, registerCopy.operator llvm::MachineInstr *());
+		unsigned registerForCopyOfInstId = REDEFINE::t5;
+		unsigned registerForIncrOfInstId = REDEFINE::t4;
 
+		MachineInstrBuilder registerCopy = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForIncrOfInstId, RegState::Define).addReg(registerForCopyOfInstId).addReg(REDEFINE::zero);
+		addToLISSlot(LIS, registerCopy.operator llvm::MachineInstr *());
 		allInstructionsOfRegion.push_back(make_pair(registerCopy.operator->(), make_pair(i, insertPosition++)));
 		if(firstInstructionOfpHyperOpInRegion[i] == 0){
 			firstInstructionOfpHyperOpInRegion[i] = registerCopy.operator->();
@@ -511,12 +513,12 @@ if (RegionBegin == BB->begin()) {
 
 //TODO
 		unsigned crId = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder shiftForCRId = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(crId, RegState::Define).addReg(REDEFINE::t5).addImm(SHIFT_FOR_CRID);
+		MachineInstrBuilder shiftForCRId = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(crId, RegState::Define).addReg(registerForIncrOfInstId).addImm(SHIFT_FOR_CRID);
 		addToLISSlot(LIS, shiftForCRId.operator llvm::MachineInstr *());
 		allInstructionsOfRegion.push_back(make_pair(shiftForCRId.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 
 		unsigned shiftedPageNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder shiftForPageNumber = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedPageNumber, RegState::Define).addReg(REDEFINE::t5).addImm(SHIFT_FOR_PAGENUMBER);
+		MachineInstrBuilder shiftForPageNumber = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedPageNumber, RegState::Define).addReg(registerForIncrOfInstId).addImm(SHIFT_FOR_PAGENUMBER);
 		addToLISSlot(LIS, shiftForPageNumber.operator llvm::MachineInstr *());
 		allInstructionsOfRegion.push_back(make_pair(shiftForPageNumber.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 
@@ -526,7 +528,7 @@ if (RegionBegin == BB->begin()) {
 		allInstructionsOfRegion.push_back(make_pair(bitmaskForPageNumber.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 
 		unsigned shiftedFrameNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder shiftForFrameNumber = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedFrameNumber, RegState::Define).addReg(REDEFINE::t5).addImm(SHIFT_FOR_FRAMENUMBER);
+		MachineInstrBuilder shiftForFrameNumber = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedFrameNumber, RegState::Define).addReg(registerForIncrOfInstId).addImm(SHIFT_FOR_FRAMENUMBER);
 		addToLISSlot(LIS, shiftForFrameNumber.operator llvm::MachineInstr *());
 		allInstructionsOfRegion.push_back(make_pair(shiftForFrameNumber.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 
@@ -728,7 +730,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 					MachineInstrBuilder loadFromMemory = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::ADDI));
 					loadFromMemory.addReg(dependence.getReg(), RegState::Define);
 //					loadFromMemory.addReg(virtualRegistersForInstAddr[ceContainingInstruction].second);
-					loadFromMemory.addReg(REDEFINE::t5);
+					loadFromMemory.addReg(REDEFINE::t4);
 					loadFromMemory.addFrameIndex(frameLocationToReadFrom);
 					addToLISSlot(LIS, loadFromMemory.operator llvm::MachineInstr *());
 					allInstructionsOfRegion.push_back(make_pair(loadFromMemory.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
@@ -1005,7 +1007,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 						MachineInstrBuilder loadFromMemory = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::ADDI));
 						loadFromMemory.addReg(operand.getReg(), RegState::Define);
 //						loadFromMemory.addReg(virtualRegistersForInstAddr[ceContainingInstruction].second);
-						loadFromMemory.addReg(REDEFINE::t5);
+						loadFromMemory.addReg(REDEFINE::t4);
 						loadFromMemory.addFrameIndex(frameLocationToReadFrom);
 						addToLISSlot(LIS, loadFromMemory.operator llvm::MachineInstr *());
 						allInstructionsOfRegion.push_back(make_pair(loadFromMemory.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
@@ -1282,9 +1284,9 @@ if (BB->getNumber() == MF.back().getNumber()) {
 
 		MachineInstr* insertionPoint = BB->begin();
 		for (unsigned i = 0; i < ceCount; i++) {
-			unsigned registerForCopyOfInstId = REDEFINE::t4;
-			unsigned registerForIncrOfInstId = REDEFINE::t5;
-			MachineInstrBuilder registerCopy = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForCopyOfInstId, RegState::Define).addReg(registerForIncrOfInstId).addReg(REDEFINE::zero);
+			unsigned registerForCopyOfInstId = REDEFINE::t5;
+			unsigned registerForIncrOfInstId = REDEFINE::t4;
+			MachineInstrBuilder registerCopy = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForIncrOfInstId, RegState::Define).addReg(registerForCopyOfInstId).addReg(REDEFINE::zero);
 			addToLISSlot(LIS, registerCopy.operator llvm::MachineInstr *());
 			allInstructionsOfRegion.push_back(make_pair(registerCopy.operator->(), make_pair(i, insertPosition++)));
 			if (firstInstructionOfpHyperOpInRegion[i] == 0) {
@@ -1314,12 +1316,12 @@ if (BB->getNumber() == MF.back().getNumber()) {
 
 			//TODO
 			unsigned crId = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-			MachineInstrBuilder shiftForCRId = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(crId, RegState::Define).addReg(REDEFINE::t5).addImm(SHIFT_FOR_CRID);
+			MachineInstrBuilder shiftForCRId = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(crId, RegState::Define).addReg(registerForIncrOfInstId).addImm(SHIFT_FOR_CRID);
 			addToLISSlot(LIS, shiftForCRId.operator llvm::MachineInstr *());
 			LIS->getSlotIndexes()->insertMachineInstrInMaps(shiftForCRId.operator llvm::MachineInstr *());
 
 			unsigned shiftedPageNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-			MachineInstrBuilder shiftForPageNumber = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedPageNumber, RegState::Define).addReg(REDEFINE::t5).addImm(SHIFT_FOR_PAGENUMBER);
+			MachineInstrBuilder shiftForPageNumber = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedPageNumber, RegState::Define).addReg(registerForIncrOfInstId).addImm(SHIFT_FOR_PAGENUMBER);
 			allInstructionsOfRegion.push_back(make_pair(shiftForPageNumber.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 			addToLISSlot(LIS, shiftForPageNumber.operator llvm::MachineInstr *());
 			unsigned pageNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
@@ -1328,7 +1330,7 @@ if (BB->getNumber() == MF.back().getNumber()) {
 			addToLISSlot(LIS, bitmaskForPageNumber.operator llvm::MachineInstr *());
 
 			unsigned shiftedFrameNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-			MachineInstrBuilder shiftForFrameNumber = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedFrameNumber, RegState::Define).addReg(REDEFINE::t5).addImm(SHIFT_FOR_FRAMENUMBER);
+			MachineInstrBuilder shiftForFrameNumber = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::SRLI)).addReg(shiftedFrameNumber, RegState::Define).addReg(registerForIncrOfInstId).addImm(SHIFT_FOR_FRAMENUMBER);
 			allInstructionsOfRegion.push_back(make_pair(shiftForFrameNumber.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 			addToLISSlot(LIS, shiftForFrameNumber.operator llvm::MachineInstr *());
 			unsigned frameNumber = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);

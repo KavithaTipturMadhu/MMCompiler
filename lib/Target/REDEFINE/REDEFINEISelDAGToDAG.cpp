@@ -386,7 +386,7 @@ SDNode *REDEFINEDAGToDAGISel::Select(SDNode *Node) {
 	case ISD::FrameIndex: {
 		//TODO
 		//Hack for REDEFINE, add the index object's offset as an immediate value; This might spill into larger than 12 bits, potential problem
-		SDValue reg = CurDAG->getRegister(REDEFINE::t5, MVT::getIntegerVT(32));
+		SDValue reg = CurDAG->getRegister(REDEFINE::t4, MVT::getIntegerVT(32));
 		SDValue TFI = CurDAG->getTargetFrameIndex(cast<FrameIndexSDNode>(Node)->getIndex(), TLI.getPointerTy());
 		unsigned Opc = REDEFINE::ADDI;
 		EVT VT = MVT::i32;
