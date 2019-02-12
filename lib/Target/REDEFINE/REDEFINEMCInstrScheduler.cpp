@@ -355,17 +355,17 @@ if (!parentModule->getGlobalList().empty()) {
 	}
 }
 
-string globalAddressString = "ga#";
-globalAddressString.append(itostr(maxGlobalSize));
-MCSymbol* gaSymbol = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(globalAddressString));
-
 list<MachineInstr*> deleteList;
 /* Replace getmemframe pseudo instruction with the macro for computing memory frame offset of the argument hyperop address */
 for (auto instItr = bb->instr_begin(); instItr != bb->instr_end(); instItr++) {
 	MachineInstr* inst = instItr;
 	if(inst->getOpcode() == REDEFINE::FBIND){
 		MachineInstrBuilder replacementInst = BuildMI(*BB, inst, BB->begin()->getDebugLoc(), TII->get(REDEFINE::FBIND));
-		replacementInst.addOperand(inst->getOperand(0)).addSym(gaSymbol);
+		string hyperOpId = "HyOp#";
+		assert(inst->getOperand(1).isImm() && "Fbind can only have integer immediate input operand\n");
+		hyperOpId.append(itostr(inst->getOperand(1).getImm()));
+		MCSymbol* hyOpSym = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(hyperOpId));
+		replacementInst.addOperand(inst->getOperand(0)).addSym(hyOpSym);
 		LIS->getSlotIndexes()->insertMachineInstrInMaps(replacementInst.operator ->());
 		deleteList.push_back(inst);
 	}
@@ -1426,7 +1426,9 @@ if (BB->getNumber() == MF.back().getNumber()) {
 		MachineInstrBuilder endInstruction = BuildMI(*lastBB, lastInstruction, dl, TII->get(REDEFINE::END));
 		endInstruction.addImm(0);
 		endHyperOpInstructionRegion.push_back(endInstruction.operator ->());
-		LIS->getSlotIndexes()->insertMachineInstrInMaps(endInstruction.operator llvm::MachineInstr *());
+		if(!LIS->getSlotIndexes()->hasIndex(endInstruction.operator llvm::MachineInstr *())){
+			LIS->getSlotIndexes()->insertMachineInstrInMaps(endInstruction.operator llvm::MachineInstr *());
+		}
 		allInstructionsOfBB.push_back(make_pair(endInstruction.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 	}
 }
@@ -1595,10 +1597,12 @@ for (unsigned ceIndex = 0; ceIndex < ceCount; ceIndex++) {
 				contextFrameLocation++;
 			}
 		}
+	}else{
+		liveInPerCe.push_back(0);
 	}
 }
 
-(((REDEFINETargetMachine&)TM).pHyperOpAndNumInputsPerCE).insert(make_pair(func, liveInPerCe));
+(((REDEFINETargetMachine&)TM).pHyperOpAndNumInputsPerCE).insert(make_pair(func->getName(), liveInPerCe));
 
 LIS->computeLiveInRegUnits();
 

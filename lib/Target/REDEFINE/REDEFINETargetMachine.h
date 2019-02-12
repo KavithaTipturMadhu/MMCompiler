@@ -41,7 +41,7 @@ class REDEFINETargetMachine: public LLVMTargetMachine {
 public:
 	/* Map of HyperOps and their memory inputs and size in memory frame map */
 	map<HyperOp*, map<int, int> > HyperOps;
-	map<Function*, vector<int> > pHyperOpAndNumInputsPerCE;
+	map<string, vector<int> > pHyperOpAndNumInputsPerCE;
 	//This is required to allocate registers during pHyperOp creation
 	FunctionLoweringInfo *FuncInfo;
 	REDEFINETargetMachine(const Target &T, StringRef TT, StringRef CPU, StringRef FS, const TargetOptions &Options, Reloc::Model RM, CodeModel::Model CM, CodeGenOpt::Level OL);

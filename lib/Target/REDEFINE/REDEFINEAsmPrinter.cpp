@@ -201,7 +201,6 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		}
 	}
 	assert(hyperOp!=NULL && "could not find hyperop in metadata map\n");
-
 	int hopId = hyperOp->getHyperOpId();
 	OutStreamer.EmitRawText(";" + StringRef(MF->getFunction()->getName()));
 
@@ -276,7 +275,14 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 		j++;
 	}
 
-	vector<int> numInputsPerCE = (((REDEFINETargetMachine&) TM).pHyperOpAndNumInputsPerCE)[const_cast<Function*>(MF->getFunction())];
+	vector<int> numInputsPerCE;
+	for(auto pHopItr:(((REDEFINETargetMachine&) TM).pHyperOpAndNumInputsPerCE)){
+		if(!pHopItr.first.compare(MF->getFunction()->getName().str())){
+			numInputsPerCE = pHopItr.second;
+		}
+	}
+	assert(numInputsPerCE.size() == ceCount && "number of inputs per ce map must be the same size as number of ces\n");
+
 	for (unsigned i = 0; i < ceCount; i++) {
 		if (i > 0) {
 			distCount.append(",\t");
