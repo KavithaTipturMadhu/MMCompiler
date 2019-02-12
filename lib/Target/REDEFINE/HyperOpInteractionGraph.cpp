@@ -637,6 +637,14 @@ void HyperOpEdge::clone(HyperOpEdge** clone) {
 	*clone = newEdge;
 }
 
+void HyperOpEdge::setMemorySize(int memorySize){
+	this->memorySize = memorySize;
+}
+
+int HyperOpEdge::getMemorySize(){
+	return this->memorySize;
+}
+
 list<unsigned int> HyperOpEdge::getVolume() {
 	return volume;
 }
@@ -790,7 +798,7 @@ list<TileCoordinates> HyperOpInteractionGraph::getEdgePathOnNetwork(HyperOp* sou
 	return path;
 }
 
-void HyperOpInteractionGraph::updateLocalRefEdgeMemOffset() {
+void HyperOpInteractionGraph::updateLocalRefEdgeMemSizeAndOffset() {
 	for (auto vertexItr = this->Vertices.begin(); vertexItr != this->Vertices.end(); vertexItr++) {
 		HyperOp* hyperOp = *vertexItr;
 		list<HyperOpEdge*> edgeProcessingOrder;
@@ -818,7 +826,9 @@ void HyperOpInteractionGraph::updateLocalRefEdgeMemOffset() {
 			HyperOpEdge* edge = *edgeItr;
 			edge->setMemoryOffsetInTargetFrame(edgeOffset);
 			AllocaInst* originalEdgeSource = getAllocInstrForLocalReferenceData(edge->getValue(), edgeParentMap[edge]);
-			edgeOffset += duplicateGetSizeOfType(originalEdgeSource->getAllocatedType());
+			int edgeSize = duplicateGetSizeOfType(originalEdgeSource->getAllocatedType());
+			edge->setMemorySize(edgeSize);
+			edgeOffset+=edgeSize;
 		}
 	}
 }

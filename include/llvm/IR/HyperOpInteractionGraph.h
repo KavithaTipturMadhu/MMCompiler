@@ -62,6 +62,7 @@ class HyperOpEdge {
 	unsigned decrementOperandCount;
 	MachineInstr* edgeSource;
 	int memoryOffset;
+	int memorySize;
 
 protected:
 	Value* variable;
@@ -109,6 +110,8 @@ public:
 	int getMemoryOffsetInTargetFrame() const;
 	void setMemoryOffsetInTargetFrame(int memoryOffset);
 	void clone(HyperOpEdge** clone);
+	void setMemorySize(int memorySize);
+	int getMemorySize();
 };
 typedef list<pair<MachineInstr*, MachineInstr*> > PHyperOpInteractionGraph;
 
@@ -351,7 +354,7 @@ public:
 	list<TileCoordinates> getEdgePathOnNetwork(HyperOp* source, HyperOp* target);
 
 	//Update all the localref edges with memory offsets wrt base 0, needs updating when the functions are lowered to machine functions
-	void updateLocalRefEdgeMemOffset();
+	void updateLocalRefEdgeMemSizeAndOffset();
 
 	void removeUnreachableHops();
 

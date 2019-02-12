@@ -4922,6 +4922,26 @@ struct REDEFINEIRPass: public ModulePass {
 
 			hopAnnotations.push_back(getMDStringForProperty(HYPEROP_BARRIER, vertex->isBarrierHyperOp() ? "yes" : "no", M.getContext()));
 
+
+			vector<Value*> offsetList;
+			int argIndex = 0;
+			for(auto argItr = vertex->getFunction()->arg_begin(); argItr!=vertex->getFunction()->arg_end(); argItr++, argIndex++){
+				if (!vertex->getFunction()->getAttributes().hasAttribute(argIndex + 1, Attribute::InReg)) {
+					int size = 0;
+					/* Iterate through memory arguments to identify their sizes */
+					for (auto incomingEdgeItr = vertex->ParentMap.begin(); incomingEdgeItr != vertex->ParentMap.end(); incomingEdgeItr++) {
+						if(incomingEdgeItr->first->getPositionOfContextSlot() == argIndex){
+							size = incomingEdgeItr->first->getMemorySize();
+							break;
+						}
+					}
+					assert((size>0) && "Size of an arg in memory arg must be greater than 0\n");
+					offsetList.push_back(getMDStringForProperty(itostr(argIndex), itostr(size), M.getContext()));
+				}
+			}
+
+			MDNode* offsetAnnotation = MDNode::get(M.getContext(), offsetList);
+			hopAnnotations.push_back(offsetAnnotation);
 			hyperOpAnnotationsNode->addOperand(MDNode::get(M.getContext(), hopAnnotations));
 		}
 		/* Set attributes of each hyperop */
