@@ -4356,8 +4356,8 @@ struct REDEFINEIRPass: public ModulePass {
 	static char* NEW_NAME;
 	/* Maximum context frame size in words, not bytes */
 	static const unsigned MAX_CONTEXT_FRAME_SIZE = 15;
-	static const unsigned MAX_ROW = 16;
-	static const unsigned MAX_COL = 16;
+	static const unsigned MAX_ROW = 2;
+	static const unsigned MAX_COL = 2;
 
 	REDEFINEIRPass() :
 			ModulePass(ID) {
@@ -4575,8 +4575,8 @@ struct REDEFINEIRPass: public ModulePass {
 		}
 		graph->addContextFrameAddressForwardingEdges();
 		graph->addSelfFrameAddressRegisters();
-		graph->clusterNodes();
 		graph->setDimensions(MAX_ROW, MAX_COL);
+		graph->clusterNodes();
 		graph->mapClustersToComputeResources();
 		graph->convertRemoteScalarsToStores();
 		graph->shuffleHyperOpArguments();
