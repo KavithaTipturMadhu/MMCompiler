@@ -235,7 +235,7 @@ def MOVADDR: InstREDEFINE<4, (outs GR32:$reg), (ins imm32sx12:$src),
 def WRITECM : InstSREDEFINEImm<"writecm" , 0b0100100, 0b000, add , GR32, GR32, imm32sx12>
 {
  let Itinerary   = REDEFINEORC;
- let Pattern = [(int_writecm i32:$dst1,i32:$src1,imm32sx12:$dst2)];
+ let Pattern = [(int_writecm i32:$dst1, imm32sx12:$dst2, i32:$src1)];
 }
 
 def WRITECMP : InstSREDEFINE<"writecmp" , 0b0100100, 0b010 , add , GR32, GR32>
@@ -247,7 +247,7 @@ def WRITECMP : InstSREDEFINE<"writecmp" , 0b0100100, 0b010 , add , GR32, GR32>
 def SYNC : InstSREDEFINEImm<"sync" , 0b0100100, 0b011, add , GR32, GR32, imm32sx12>
 {
  let Itinerary   = REDEFINEORC;
- let Pattern = [(int_sync i32:$dst1,imm32sx12:$dst2,i32:$src1)];
+ let Pattern = [(int_sync i32:$dst1,imm32sx12:$dst2, i32:$src1)];
 }
 
 def FBIND : InstREDEFINE<4, (outs), (ins GR32:$dst1, imm32sx12:$src1), 
