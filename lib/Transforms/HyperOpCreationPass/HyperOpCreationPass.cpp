@@ -37,7 +37,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "HyperOpCreationPass"
 #define INLINE_FUNCTION_CALLS 0
-#define BASICBLOCK_HYPEROP 1
+#define BASICBLOCK_HYPEROP 0
 
 /**
  * Pass to create HyperOps
