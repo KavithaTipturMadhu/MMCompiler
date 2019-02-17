@@ -405,8 +405,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 }
 
 static pair<string, string> getParsedProperty(string keyvaluestr){
-	string key = keyvaluestr.substr(0, key.find("="));
-	string value = keyvaluestr.substr(key.find("="));
+	string key = keyvaluestr.substr(0, keyvaluestr.find("="));
+	string value = keyvaluestr.substr(keyvaluestr.find("="));
 	value.replace(0,1,"");
 	return make_pair(key, value);
 }
