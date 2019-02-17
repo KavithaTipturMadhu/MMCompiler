@@ -171,7 +171,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 		OutStreamer.EmitRawText(StringRef("\t.STATICINSTANCE_BEGIN\n"));
 		string instanceId = ("\t.INSTID ");
 		instanceId.append(hyperOp->getFunction()->getName()).append("\n");
-		instanceId.append("\t.INSTOF ").append("HyOp#").append(itostr(hyperOp->getHyperOpId())).append(
+		instanceId.append("\t.INSTOF ").append(".HyOp#").append(itostr(hyperOp->getHyperOpId())).append(
 				"\n");
 		instanceId.append("\t.INSTADDR ").append(
 				itostr(hyperOp->getTargetResource())).append(",").append(itostr(hyperOp->getContextFrame()*64)).append("\n");
@@ -469,19 +469,21 @@ void addGlobalSymTab(const GlobalVariable* global, const Constant * initializer,
 	}
 
 void REDEFINEAsmPrinter::EmitEndOfAsmFile(Module &M) {
-	string inputs = ".DATA\n";
-	unsigned numInputsAndOutputs = 0;
-	for (Module::const_global_iterator globalArgItr = M.global_begin(); globalArgItr != M.global_end(); globalArgItr++, numInputsAndOutputs++) {
-		const GlobalVariable *globalVar = &*globalArgItr;
-		assert(globalVar->hasInitializer() && "Global without initializer does not work");
-		//Every global is a pointer type
-		globalVar->getInitializer()->dump();
-		addGlobalSymTab(globalVar, globalVar->getInitializer(), &inputs);
-	}
+	if (!M.getGlobalList().empty()) {
+		string inputs = ".DATA\n";
+		unsigned numInputsAndOutputs = 0;
+		for (Module::const_global_iterator globalArgItr = M.global_begin(); globalArgItr != M.global_end(); globalArgItr++, numInputsAndOutputs++) {
+			const GlobalVariable *globalVar = &*globalArgItr;
+			assert(globalVar->hasInitializer() && "Global without initializer does not work");
+			//Every global is a pointer type
+			globalVar->getInitializer()->dump();
+			addGlobalSymTab(globalVar, globalVar->getInitializer(), &inputs);
+		}
 
-	OutStreamer.EmitRawText(StringRef(inputs));
-	string ioEndLabel = ".END\n";
-	OutStreamer.EmitRawText(StringRef(ioEndLabel));
+		OutStreamer.EmitRawText(StringRef(inputs));
+		string ioEndLabel = ".END\n";
+		OutStreamer.EmitRawText(StringRef(ioEndLabel));
+	}
 	string maxFrameString;
 	maxFrameString.append(";FS = ").append(itostr(maxFrameValue)).append("\n");
 	OutStreamer.EmitRawText(StringRef(maxFrameString));
