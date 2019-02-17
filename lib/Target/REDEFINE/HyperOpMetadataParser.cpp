@@ -435,7 +435,9 @@ map<HyperOp*, map<int, int> > HyperOpMetadataParser::parseHyperOpMetadata(Module
 				}if(!keyValuePair.first.compare(HYPEROP_AFFINITY)){
 					hyperOp->setTargetResource(atoi(keyValuePair.second.data()));
 				}if(!keyValuePair.first.compare(HYPEROP_FRAME)){
-					hyperOp->setContextFrame(atoi(keyValuePair.second.data()));
+					if(hyperOp->isStaticHyperOp()){
+						hyperOp->setContextFrame(atoi(keyValuePair.second.data()));
+					}
 				}if(!keyValuePair.first.compare(STATIC_HYPEROP)){
 					if(!keyValuePair.second.compare("yes"))
 						hyperOp->setStaticHyperOp(true);
