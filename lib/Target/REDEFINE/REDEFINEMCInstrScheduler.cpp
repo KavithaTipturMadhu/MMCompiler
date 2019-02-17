@@ -361,18 +361,25 @@ if (!parentModule->getGlobalList().empty()) {
 }
 
 list<MachineInstr*> deleteList;
+vector<unsigned> regs;
 /* Replace getmemframe pseudo instruction with the macro for computing memory frame offset of the argument hyperop address */
 for (auto instItr = bb->instr_begin(); instItr != bb->instr_end(); instItr++) {
 	MachineInstr* inst = instItr;
-	if(inst->getOpcode() == REDEFINE::FBIND){
-		MachineInstrBuilder replacementInst = BuildMI(*BB, inst, BB->begin()->getDebugLoc(), TII->get(REDEFINE::FBIND));
-		string hyperOpId = "HyOp#";
-		assert(inst->getOperand(1).isImm() && "Fbind can only have integer immediate input operand\n");
+	if(inst->getOpcode() == REDEFINE::PSFBIND){
+		unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+		string hyperOpId = ".HyOp#";
 		hyperOpId.append(itostr(inst->getOperand(1).getImm()));
 		MCSymbol* hyOpSym = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(hyperOpId));
-		replacementInst.addOperand(inst->getOperand(0)).addSym(hyOpSym);
+		MachineInstrBuilder movaddr = BuildMI(*BB, inst, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVADDR));
+		movaddr.addReg(registerForGlobalAddr, RegState::Define).addSym(hyOpSym);
+		addToLISSlot(LIS, movaddr.operator ->());
+
+		MachineInstrBuilder replacementInst = BuildMI(*BB, inst, BB->begin()->getDebugLoc(), TII->get(REDEFINE::FBIND));
+		assert(inst->getOperand(1).isImm() && "Fbind can only have integer immediate input operand\n");
+		replacementInst.addOperand(inst->getOperand(0)).addReg(registerForGlobalAddr);
 		addToLISSlot(LIS, replacementInst.operator ->());
 		deleteList.push_back(inst);
+		regs.push_back(registerForGlobalAddr);
 	}
 	else if(inst->getOpcode() == REDEFINE::PSGETMEMFRAME){
 		MachineInstr *insertionPoint = inst;
@@ -452,6 +459,8 @@ for (auto instItr = deleteList.begin(); instItr != deleteList.end(); instItr++) 
 	MachineInstr* inst = *instItr;
 	inst->eraseFromParent();
 }
+LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), regs);
+bb->dump();
 }
 
 void REDEFINEMCInstrScheduler::exitRegion() {
