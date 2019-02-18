@@ -4661,7 +4661,7 @@ struct REDEFINEIRPass: public ModulePass {
 				}
 
 				if (child->getImmediateDominator() == vertex && !child->isStaticHyperOp()) {
-					Value *fbindArgs[] = { baseAddress, ConstantInt::get(M.getContext(), APInt(32, functionAndIndexMap[child->getFunction()])) };
+					Value *fbindArgs[] = { ConstantInt::get(M.getContext(), APInt(32, functionAndIndexMap[child->getFunction()])), baseAddress};
 					CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fbind, 0), fbindArgs, "", &insertInBB->back());
 				}
 
