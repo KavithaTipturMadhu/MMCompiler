@@ -267,7 +267,7 @@ def PSFBIND : InstREDEFINE<4, (outs), (ins imm32sx12:$src1, GR32:$dst1),
   let Inst{6 - 0} = 0b0000000;
 }
 
-def FBIND : InstREDEFINE<4, (outs), (ins GR32:$dst1, GR32:$src1), 
+def FBIND : InstREDEFINE<4, (outs), (ins GR32:$src1, GR32:$dst1), 
                 "fbind \t$src1, \t$dst1", 
                 [],REDEFINEORC> {
   field bits<32> Inst;

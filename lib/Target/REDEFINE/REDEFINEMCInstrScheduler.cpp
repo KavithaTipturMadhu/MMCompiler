@@ -368,6 +368,7 @@ for (auto instItr = bb->instr_begin(); instItr != bb->instr_end(); instItr++) {
 	if(inst->getOpcode() == REDEFINE::PSFBIND){
 		unsigned registerForHopId = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 		string hyperOpId = ".HyOp#";
+		assert(inst->getOperand(0).isImm() && "Fbind can only have integer immediate input operand\n");
 		hyperOpId.append(itostr(inst->getOperand(0).getImm()));
 		MCSymbol* hyOpSym = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(hyperOpId));
 		MachineInstrBuilder movaddr = BuildMI(*BB, inst, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVADDR));
@@ -375,8 +376,7 @@ for (auto instItr = bb->instr_begin(); instItr != bb->instr_end(); instItr++) {
 		addToLISSlot(LIS, movaddr.operator ->());
 
 		MachineInstrBuilder replacementInst = BuildMI(*BB, inst, BB->begin()->getDebugLoc(), TII->get(REDEFINE::FBIND));
-		assert(inst->getOperand(0).isImm() && "Fbind can only have integer immediate input operand\n");
-		replacementInst.addReg(registerForHopId).addOperand(inst->getOperand(0));
+		replacementInst.addReg(registerForHopId).addOperand(inst->getOperand(1));
 		addToLISSlot(LIS, replacementInst.operator ->());
 		deleteList.push_back(inst);
 		regs.push_back(registerForHopId);
