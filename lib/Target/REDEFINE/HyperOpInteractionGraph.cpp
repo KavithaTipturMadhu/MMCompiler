@@ -2793,6 +2793,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
  * 8. Ensure that the number of inreg arguments per function is less than context frame size
  * 9. Arguments can't be delivered to the first two function arg slots
  * 10. Ensure that context frame base address edges are always at register slot 0
+ * 11. Ensure that start hyperop is mapped to CE 0 and is at context frame 0
  */
 void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 	this->print(dbgs());
@@ -2926,6 +2927,12 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 	for (auto funcItr = M->begin(); funcItr != M->end(); funcItr++) {
 		Function* func = funcItr;
 		assert((func->isIntrinsic()|| this->getHyperOp(func)!=NULL) && "Stray functions are not allowed");
+	}
+
+	for(auto hopItr:this->Vertices){
+		if(hopItr->isStartHyperOp()){
+			assert(hopItr->getTargetResource() == 0 && hopItr->getContextFrame() == 0 && "Start hop must be mapped to CE 0 and to context frame 0\n");
+		}
 	}
 }
 
