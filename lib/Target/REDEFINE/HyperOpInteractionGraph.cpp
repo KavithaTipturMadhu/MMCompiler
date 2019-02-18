@@ -2395,6 +2395,7 @@ int combination(int n, int r) {
 void HyperOpInteractionGraph::mapClustersToComputeResources() {
 //Start of the edge is defined the top level of the source HyperOp of the edge and end is top level + edge weight
 
+	int indexOfStartCluster = -1;
 //First entry corresponds to the HyperOp and second, index of the cluster it belongs to in clusterList
 	map<HyperOp*, unsigned int> clusterMap;
 	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
@@ -2410,6 +2411,9 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 			i = i + 2;
 		}
 		clusterMap.insert(std::make_pair(vertex, i));
+		if(vertex->isStartHyperOp()){
+			indexOfStartCluster = i;
+		}
 	}
 
 //First pair is <source cluster index, target cluster index> tuple and second entry indicates <weight of communication, start time> tuple
@@ -2430,8 +2434,6 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 			}
 		}
 	}
-
-	errs() << "num of clusters:" << clusterList.size() << "\n";
 
 //A conflict between edges is defined as edges that execute concurrently across clusters and don't share the same source or target cluster
 //	list<pair<pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> > > conflictingEdges;
@@ -2488,7 +2490,23 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 	colno = (int *) malloc(5 * sizeof(*colno));
 	row = (REAL *) malloc(5 * sizeof(*row));
 	unsigned numRows = 0;
-//This is to ensure that two clusters don't get mapped to the same compute resource
+
+	/* Force assign cluster with start hyperOp to be mapped to the 0th ce */
+	int * forceAllocColno = (int *) malloc(1 * sizeof(*colno));
+	REAL *forceAllocRow = (REAL *) malloc(1 * sizeof(*row));
+	forceAllocColno[0] = indexOfStartCluster + 1;
+	forceAllocRow[0] = 1;
+	add_constraintex(lp, 1, forceAllocRow, forceAllocColno, EQ, 0);
+	numRows++;
+
+	int * secondForceAllocColno = (int *) malloc(1 * sizeof(*colno));
+	REAL *secondForceAllocRow = (REAL *) malloc(1 * sizeof(*row));
+	secondForceAllocColno[0] = indexOfStartCluster + 2;
+	secondForceAllocRow[0] = 1;
+	add_constraintex(lp, 1, secondForceAllocRow, secondForceAllocColno, EQ, 0);
+	numRows++;
+
+	//This is to ensure that two clusters don't get mapped to the same compute resource
 	for (i = 1; i <= Ncol - 2; i += 2) {
 		for (j = i + 2; j <= Ncol; j += 2) {
 			//Add boolean constraints for |x1-x2|>=d1
@@ -2736,7 +2754,6 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 	set_obj_fnex(lp, diffVariableCount, minimizationRow, minimizationColumn);
 	set_minim(lp);
 	set_verbose(lp, IMPORTANT);
-	errs() << "num constraints:" << numRows << "\n";
 	print_lp(lp);
 	ret = solve(lp);
 	if (ret == OPTIMAL)
