@@ -375,7 +375,7 @@ for (auto instItr = bb->instr_begin(); instItr != bb->instr_end(); instItr++) {
 		addToLISSlot(LIS, movaddr.operator ->());
 
 		MachineInstrBuilder replacementInst = BuildMI(*BB, inst, BB->begin()->getDebugLoc(), TII->get(REDEFINE::FBIND));
-		assert(inst->getOperand(1).isImm() && "Fbind can only have integer immediate input operand\n");
+		assert(inst->getOperand(0).isImm() && "Fbind can only have integer immediate input operand\n");
 		replacementInst.addReg(registerForHopId).addOperand(inst->getOperand(0));
 		addToLISSlot(LIS, replacementInst.operator ->());
 		deleteList.push_back(inst);
