@@ -198,7 +198,7 @@ def END: InstREDEFINE<4, (outs), (ins imm32sx12:$src),
   let Inst{6 - 0} = 0b0000000;
 }
 
-def MOVIMM: InstREDEFINE<4, (outs GR32:$reg), (ins imm32sx12:$src), 
+def MOVIMM: InstREDEFINE<4, (outs GR32:$reg), (ins imm32:$src), 
                 "movimm \t$reg, \t$src", 
                 [],REDEFINEALU> {
   field bits<32> Inst;
