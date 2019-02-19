@@ -33,7 +33,7 @@ def RetCC_REDEFINE32 : CallingConv<[
 //===----------------------------------------------------------------------===//
 def CC_REDEFINE32 : CallingConv<[
   CCIfInReg<CCIfType<[i32, i64], CCAssignToReg<
-                   [t5, t3, ra, sp, gp, tp,  t0, t1, t2, t3, fp, s0, s1, a0, a1, a2, a3]>>>,
+                   [t5, ra, sp, gp, tp,  t0, t1, t2, t3, fp, s0, s1, a0, a1, a2, a3]>>>,
   
   //Always assign the sret pointer to the first arg reg
   CCIfSRet<CCAssignToReg<[a0]>>,
