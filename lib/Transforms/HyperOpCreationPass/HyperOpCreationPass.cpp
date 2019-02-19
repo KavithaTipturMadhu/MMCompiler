@@ -4437,7 +4437,7 @@ struct REDEFINEIRPass: public ModulePass {
 	}
 
 	static void loadAndStoreData(Value* sourceData, Value* originalData, HyperOpEdge* parentEdge, HyperOp* edgeSource, Value* targetMemFrameBaseAddress, LLVMContext & ctxt, BasicBlock** insertInBB, BasicBlock** nextInsertionPoint) {
-		unsigned targetOffsetInBytes = parentEdge->getPositionOfContextSlot();
+		unsigned targetOffsetInBytes = parentEdge->getMemoryOffsetInTargetFrame();
 		Value* targetMemBaseInst = BinaryOperator::CreateNUWAdd(targetMemFrameBaseAddress, ConstantInt::get(ctxt, APInt(32, targetOffsetInBytes)));
 
 		Type* dataType = originalData->getType();
@@ -4550,7 +4550,10 @@ struct REDEFINEIRPass: public ModulePass {
 		}
 
 		if (parentEdge->getType() == HyperOpEdge::SCALAR || parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE) {
-			Value* writeCMArgs[] = { childCFBaseAddr, ConstantInt::get(ctxt, APInt(32, parentEdge->getPositionOfContextSlot() * 4)), sourceData };
+			/* -1 because there is one arg corresponding to the hyperop id itself, but we don't update the edges context slot because it is easier to match value pointers of argument with context slot this way */
+			Value* writeCMArgs[] = { childCFBaseAddr, ConstantInt::get(ctxt,
+					APInt(32,
+							(parentEdge->getPositionOfContextSlot() - 1) * 4)), sourceData };
 			CallInst::Create((Value*) Intrinsic::getDeclaration(M, (llvm::Intrinsic::ID) Intrinsic::writecm, 0), writeCMArgs, "", &((*insertInBB)->back()));
 		} else if (parentEdge->getType() == HyperOpEdge::PREDICATE) {
 			Value* predicate = sourceData;
@@ -4683,7 +4686,8 @@ struct REDEFINEIRPass: public ModulePass {
 						Value* zeroSync;
 						getSyncCount(insertInBB, zeroSyncEdgesOnHop, child->getFunction()->getParent(), &zeroSync);
 						Value* firstPredicate = child->getIncomingSyncPredicate(0);
-						Value* mulForZeroSync = BinaryOperator::Create(Instruction::BinaryOps::Mul, firstPredicate, zeroSync, "mulzerosync", &insertInBB->back());
+						Value * invertOneSync = CmpInst::Create(Instruction::OtherOps::ICmp, llvm::CmpInst::ICMP_SLT, zeroSync, ConstantInt::get(M.getContext(), APInt(32, 1)), "onepredsync", &insertInBB->back());
+						Value* mulForZeroSync = BinaryOperator::Create(Instruction::BinaryOps::Mul, firstPredicate, invertOneSync, "mulzerosync", &insertInBB->back());
 
 						list<SyncValue> oneSyncEdgesOnHop = child->getSyncCount(1);
 						Value* secondPredicate = child->getIncomingSyncPredicate(1);
@@ -4692,9 +4696,7 @@ struct REDEFINEIRPass: public ModulePass {
 						}
 						Value* oneSync;
 						getSyncCount(insertInBB, oneSyncEdgesOnHop, child->getFunction()->getParent(), &oneSync);
-						Value * invertOneSync = CmpInst::Create(Instruction::OtherOps::ICmp, llvm::CmpInst::ICMP_SLT, oneSync, ConstantInt::get(M.getContext(), APInt(32, 1)), "onepredsync", &insertInBB->back());
-						Value* mulForOneSync = BinaryOperator::Create(Instruction::BinaryOps::Mul, firstPredicate, invertOneSync, "mulonesync", &insertInBB->back());
-						predicatedSyncCount = BinaryOperator::Create(Instruction::BinaryOps::Add, mulForZeroSync, mulForOneSync, "predsynccount", &insertInBB->back());
+						predicatedSyncCount = BinaryOperator::Create(Instruction::BinaryOps::Add, mulForZeroSync, oneSync, "predsynccount", &insertInBB->back());
 					} else if (!child->getSyncCount(0).empty()) {
 						list<SyncValue> syncEdgesOnHop = child->getSyncCount(0);
 						getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), &predicatedSyncCount);
