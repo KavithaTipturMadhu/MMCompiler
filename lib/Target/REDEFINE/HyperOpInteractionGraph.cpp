@@ -1490,6 +1490,16 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						}
 					}
 					if (!edgeAddedPreviously) {
+						int max = -1;
+						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = vertex->ParentMap.begin(); parentEdgeItr != vertex->ParentMap.end(); parentEdgeItr++) {
+							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
+							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
+								max = previouslyAddedEdge->getPositionOfContextSlot();
+							}
+						}
+						freeContextSlot = max + 1;
+						contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
+
 						this->addEdge(immediateDominator, vertex, (HyperOpEdge*) contextFrameEdge);
 						/* Add to map so that it can be added to argument list later */
 						list<HyperOpEdge*> newEdgesList;
@@ -1500,15 +1510,6 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						newEdgesList.push_back(contextFrameEdge);
 						childHopsAndNewEdges.insert(make_pair(vertex, newEdgesList));
 
-						int max = -1;
-						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = vertex->ParentMap.begin(); parentEdgeItr != vertex->ParentMap.end(); parentEdgeItr++) {
-							HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
-							if ((previouslyAddedEdge->getType() == HyperOpEdge::SCALAR || previouslyAddedEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
-								max = previouslyAddedEdge->getPositionOfContextSlot();
-							}
-						}
-						freeContextSlot = max + 1;
-						contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
 					}
 				} else {
 					list<HyperOp*> immediateDominatorDominanceFrontier = immediateDominator->getDominanceFrontier();
@@ -1563,16 +1564,6 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						}
 					}
 					if (!edgeAddedPreviously) {
-						this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) contextFrameEdge);
-						/* Add to map so that it can be added to argument list later */
-						list<HyperOpEdge*> newEdgesList;
-						if (childHopsAndNewEdges.find(prevVertex) != childHopsAndNewEdges.end()) {
-							newEdgesList = childHopsAndNewEdges[prevVertex];
-							childHopsAndNewEdges.erase(prevVertex);
-						}
-						newEdgesList.push_back(contextFrameEdge);
-						childHopsAndNewEdges.insert(make_pair(prevVertex, newEdgesList));
-
 						int freeContextSlot;
 						int max = -1;
 						for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = prevVertex->ParentMap.begin(); parentEdgeItr != prevVertex->ParentMap.end(); parentEdgeItr++) {
@@ -1583,6 +1574,16 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 						}
 						freeContextSlot = max + 1;
 						contextFrameEdge->setPositionOfContextSlot(freeContextSlot);
+
+						this->addEdge(immediateDominator, prevVertex, (HyperOpEdge*) contextFrameEdge);
+						/* Add to map so that it can be added to argument list later */
+						list<HyperOpEdge*> newEdgesList;
+						if (childHopsAndNewEdges.find(prevVertex) != childHopsAndNewEdges.end()) {
+							newEdgesList = childHopsAndNewEdges[prevVertex];
+							childHopsAndNewEdges.erase(prevVertex);
+						}
+						newEdgesList.push_back(contextFrameEdge);
+						childHopsAndNewEdges.insert(make_pair(prevVertex, newEdgesList));
 					}
 				}
 			}
