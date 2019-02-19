@@ -477,7 +477,7 @@ map<unsigned, map<unsigned, unsigned> > replacementRegisterMap;
 //Key of the first map represents the CE and the list contains all the registers already locally defined and hence don't require a readpm from the original definition
 map<unsigned, list<unsigned> > redefinitionsInCE;
 
-if (RegionBegin == BB->begin()) {
+if (RegionBegin == BB->begin() && BB->getNumber() == 0) {
 	const Module* parentModule = BB->getParent()->getFunction()->getParent();
 	unsigned maxGlobalSize = 0;
 	if (!parentModule->getGlobalList().empty()) {
