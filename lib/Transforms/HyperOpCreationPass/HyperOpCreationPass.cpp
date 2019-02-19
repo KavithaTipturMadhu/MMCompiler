@@ -4686,8 +4686,8 @@ struct REDEFINEIRPass: public ModulePass {
 						Value* zeroSync;
 						getSyncCount(insertInBB, zeroSyncEdgesOnHop, child->getFunction()->getParent(), &zeroSync);
 						Value* firstPredicate = child->getIncomingSyncPredicate(0);
-						Value * invertOneSync = CmpInst::Create(Instruction::OtherOps::ICmp, llvm::CmpInst::ICMP_SLT, zeroSync, ConstantInt::get(M.getContext(), APInt(32, 1)), "onepredsync", &insertInBB->back());
-						Value* mulForZeroSync = BinaryOperator::Create(Instruction::BinaryOps::Mul, firstPredicate, invertOneSync, "mulzerosync", &insertInBB->back());
+						Value * invertZeroSync = CmpInst::Create(Instruction::OtherOps::ICmp, llvm::CmpInst::ICMP_EQ, zeroSync, ConstantInt::get(M.getContext(), APInt(32, 1)), "zeropredsync", &insertInBB->back());
+						Value* mulForZeroSync = BinaryOperator::Create(Instruction::BinaryOps::Mul, firstPredicate, invertZeroSync, "mulzerosync", &insertInBB->back());
 
 						list<SyncValue> oneSyncEdgesOnHop = child->getSyncCount(1);
 						Value* secondPredicate = child->getIncomingSyncPredicate(1);
@@ -4700,11 +4700,10 @@ struct REDEFINEIRPass: public ModulePass {
 					} else if (!child->getSyncCount(0).empty()) {
 						list<SyncValue> syncEdgesOnHop = child->getSyncCount(0);
 						getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), &predicatedSyncCount);
+						predicatedSyncCount = CmpInst::Create(Instruction::OtherOps::ICmp, llvm::CmpInst::ICMP_EQ, predicatedSyncCount, ConstantInt::get(M.getContext(), APInt(32, 1)), "onepredsync", &insertInBB->back());
 					} else if (!child->getSyncCount(1).empty()) {
 						list<SyncValue> syncEdgesOnHop = child->getSyncCount(1);
-						Value* falsePathSyncCount;
-						getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), &falsePathSyncCount);
-						predicatedSyncCount = CmpInst::Create(Instruction::OtherOps::ICmp, llvm::CmpInst::ICMP_SLT, falsePathSyncCount, ConstantInt::get(M.getContext(), APInt(32, 1)), "onepredsync", &insertInBB->back());
+						getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), &predicatedSyncCount);
 					}
 					if (!child->getSyncCount(2).empty()) {
 						list<SyncValue> syncEdgesOnHop = child->getSyncCount(2);
