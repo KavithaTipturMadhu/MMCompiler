@@ -4397,7 +4397,7 @@ struct REDEFINEIRPass: public ModulePass {
 		PHINode* phiNode = PHINode::Create(Type::getInt32Ty(M.getContext()), 0, "", *loopBegin);
 		phiNode->addIncoming(baseAddress, *insertInBB);
 		*phiValue = phiNode;
-		CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, phiNode, upperbound, "cmpinst", *loopBegin);
+		CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGT, phiNode, upperbound, "cmpinst", *loopBegin);
 		BranchInst* bgeItrInst = BranchInst::Create(*loopEnd, *loopBody, cmpInst, *loopBegin);
 		BranchInst* loopEndJump = BranchInst::Create(*loopBegin, *loopBody);
 		ReturnInst* ret = ReturnInst::Create(M.getContext(), *loopEnd);
@@ -4415,7 +4415,7 @@ struct REDEFINEIRPass: public ModulePass {
 				Value* max = syncCountIterator->getHyperOp()->getRangeUpperBound();
 				Value * stride = syncCountIterator->getHyperOp()->getStride();
 				Value* difference = BinaryOperator::Create(Instruction::BinaryOps::Sub, max, min, "diff", &bb->back());
-				currentSyncCount = BinaryOperator::Create(Instruction::BinaryOps::SDiv, difference, stride, "", &bb->back());
+				currentSyncCount = BinaryOperator::Create(Instruction::BinaryOps::UDiv, difference, stride, "", &bb->back());
 			}
 			if (localSymCount == NULL) {
 				localSymCount = currentSyncCount;
@@ -4630,7 +4630,7 @@ struct REDEFINEIRPass: public ModulePass {
 				Value* numFrames = NULL;
 				if (child->getInRange()) {
 					Value* diff = BinaryOperator::CreateNUWSub(child->getRangeUpperBound(), child->getRangeLowerBound(), "diff", &insertInBB->back());
-					numFrames = BinaryOperator::CreateExactUDiv(diff, child->getStride(), "", &insertInBB->back());
+					numFrames = BinaryOperator::CreateNUWSub(BinaryOperator::CreateExactUDiv(diff, child->getStride(), "", &insertInBB->back()), ConstantInt::get(M.getContext(), APInt(32, 1)), "", &insertInBB->back());
 				} else {
 					numFrames = ConstantInt::get(M.getContext(), APInt(32, 0));
 				}
@@ -4772,7 +4772,8 @@ struct REDEFINEIRPass: public ModulePass {
 						}
 					}
 					if (child->getInRange()) {
-						Value* numFrames = BinaryOperator::CreateExactUDiv(BinaryOperator::CreateSub(child->getRangeUpperBound(), child->getRangeLowerBound(), ""), child->getStride(), "", &insertInBB->back());
+						Value* diff = BinaryOperator::CreateSub(child->getRangeUpperBound(), child->getRangeLowerBound(), "", &insertInBB->back());
+						Value* numFrames = BinaryOperator::CreateNUWSub(BinaryOperator::CreateExactUDiv(diff, child->getStride(), "", &insertInBB->back()), ConstantInt::get(M.getContext(), APInt(32, 1)), "", &insertInBB->back());
 						baseAddressUpperBound = BinaryOperator::CreateNUWAdd(BinaryOperator::CreateNUWMul(ConstantInt::get(M.getContext(), APInt(32, FRAME_SIZE_BYTES)), numFrames, "", &insertInBB->back()), baseAddress, "", &insertInBB->back());
 					}
 				}
@@ -4810,7 +4811,6 @@ struct REDEFINEIRPass: public ModulePass {
 				for (auto childEdgeItr = vertex->ChildMap.begin(); childEdgeItr != vertex->ChildMap.end(); childEdgeItr++) {
 					if (childEdgeItr->second == child && (childEdgeItr->first->getType() == HyperOpEdge::SCALAR || childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE)) {
 						/* Ensure that the target location is marked inreg */
-						errs() << "what arg type isnt in reg?" << childEdgeItr->first->getType() << " and slot?" << childEdgeItr->first->getPositionOfContextSlot() << " for hop" << child->asString() << "\n";
 						assert(child->getFunction()->getAttributes().hasAttribute(childEdgeItr->first->getPositionOfContextSlot() + 1, Attribute::InReg) && "Incorrect argument attribute, should be inreg\n");
 						BasicBlock* newInsertionPoint = NULL;
 						addRedefineCommInstructions(childEdgeItr->first, childEdgeItr->first->getValue(), baseAddress, child, &insertInBB, &newInsertionPoint);
@@ -4874,7 +4874,8 @@ struct REDEFINEIRPass: public ModulePass {
 					}
 					BasicBlock * loopBegin, *loopBody, *loopEnd;
 					if (child->getInRange()) {
-						Value* numFrames = BinaryOperator::CreateExactUDiv(BinaryOperator::CreateNUWSub(child->getRangeUpperBound(), child->getRangeLowerBound(), "", &insertInBB->back()), child->getStride(), "", &insertInBB->back());
+						Value* diff = BinaryOperator::CreateSub(child->getRangeUpperBound(), child->getRangeLowerBound(), "", &insertInBB->back());
+						Value* numFrames = BinaryOperator::CreateNUWSub(BinaryOperator::CreateExactUDiv(diff, child->getStride(), "", &insertInBB->back()), ConstantInt::get(M.getContext(), APInt(32, 1)), "", &insertInBB->back());
 						Value* upperBound = BinaryOperator::CreateNUWAdd(BinaryOperator::CreateNUWMul(ConstantInt::get(M.getContext(), APInt(32, FRAME_SIZE_BYTES)), numFrames, "", &insertInBB->back()), argContainingAddress, "", &insertInBB->back());
 						addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, argContainingAddress, upperBound, &argContainingAddress);
 						insertInBB = loopBody;
