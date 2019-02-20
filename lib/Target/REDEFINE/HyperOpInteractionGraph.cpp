@@ -2883,7 +2883,7 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 		}
 		assert((hop->isStartHyperOp()|| (!hop->isStartHyperOp() && hop->getImmediateDominator()!=NULL)) &&"Only start HyperOp does not have an immediate dominator");
 		if (!hop->isStartHyperOp() && !hop->isEndHyperOp()) {
-			assert((hop->getImmediateDominator()->getImmediatePostDominator() == hop->getImmediatePostDominator() || hop->getChildList().size() > 1) && "HIG is not structured");
+			assert((hop->getImmediateDominator()->getImmediatePostDominator() == hop->getImmediatePostDominator() || hop->getInRange() || hop->getChildList().size() > 1) && "HIG is not structured");
 		}
 		Function* hopFunction = hop->getFunction();
 
