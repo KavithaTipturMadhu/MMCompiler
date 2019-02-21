@@ -4921,6 +4921,9 @@ struct REDEFINEIRPass: public ModulePass {
 		NamedMDNode * hyperOpAnnotationsNode = M.getOrInsertNamedMetadata(HYPEROP_ANNOTATIONS);
 		for (auto vertexItr : graph->Vertices) {
 			HyperOp* vertex = vertexItr;
+			if(vertex->isUnrolledInstance()){
+				continue;
+			}
 			vector<Value*> hopAnnotations;
 			hopAnnotations.push_back(MDString::get(M.getContext(), vertex->getFunction()->getName()));
 
