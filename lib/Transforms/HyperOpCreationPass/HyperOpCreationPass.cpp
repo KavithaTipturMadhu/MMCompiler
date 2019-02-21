@@ -1836,7 +1836,7 @@ struct HyperOpCreationPass: public ModulePass {
 			list<BasicBlock*> accumulatedBasicBlocks = functionToBeCreated.first;
 			Function* function = accumulatedBasicBlocks.front()->getParent();
 			HyperOpArgumentList hyperOpArguments = functionToBeCreated.second;
-			bool isStaticHyperOp = false;
+			bool isStaticHyperOp = true;
 
 			//Check if the hyperop instance being created is not in the call cycle
 			if (isa<CallInst>(accumulatedBasicBlocks.front()->front()) && !((CallInst*) &accumulatedBasicBlocks.front()->front())->getCalledFunction()->isIntrinsic()) {
@@ -1865,6 +1865,22 @@ struct HyperOpCreationPass: public ModulePass {
 			DEBUG(dbgs() << "\n-----------Creating a new HyperOp for function:" << function->getName() << "-----------\n");
 			CallInst* instanceCallSite = callSite.back();
 			Function* accumulatedFunc = accumulatedBasicBlocks.front()->getParent();
+			if ((!callSite.empty() && isa<CallInst>(instanceCallSite) && ((isHyperOpInstanceInCycle(instanceCallSite, cyclesInCallGraph)) || find(parallelLoopFunctionList.begin(), parallelLoopFunctionList.end(), instanceCallSite->getCalledFunction()) != parallelLoopFunctionList.end()))) {
+				isStaticHyperOp = false;
+			} else {
+				for (auto nestedLoopItr = originalSerialLoopBB.begin(); nestedLoopItr != originalSerialLoopBB.end(); nestedLoopItr++) {
+					list<BasicBlock*> loopBB = nestedLoopItr->first;
+					for (auto accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
+						if (find(loopBB.begin(), loopBB.end(), *accumulatedBBItr) != loopBB.end()) {
+							isStaticHyperOp = false;
+							break;
+						}
+					}
+					if (!isStaticHyperOp) {
+						break;
+					}
+				}
+			}
 
 			bool parallelLatchBB = false;
 			for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
@@ -4920,7 +4936,7 @@ struct REDEFINEIRPass: public ModulePass {
 
 			stringstream contextFrame;
 			contextFrame << vertex->getContextFrame();
-			hopAnnotations.push_back(getMDStringForProperty(HYPEROP_FRAME, targetResource.str(), M.getContext()));
+			hopAnnotations.push_back(getMDStringForProperty(HYPEROP_FRAME, contextFrame.str(), M.getContext()));
 
 			hopAnnotations.push_back(getMDStringForProperty(HYPEROP_ENTRY, vertex->isStartHyperOp() ? "yes" : "no", M.getContext()));
 
