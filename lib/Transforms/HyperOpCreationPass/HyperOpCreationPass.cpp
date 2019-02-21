@@ -643,7 +643,7 @@ struct HyperOpCreationPass: public ModulePass {
 	}
 
 	virtual bool runOnModule(Module &M) {
-
+		M.dump();
 		LLVMContext & ctxt = M.getContext();
 		//Top level annotation corresponding to all annotations REDEFINE
 		NamedMDNode * redefineAnnotationsNode = M.getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
@@ -1902,7 +1902,7 @@ struct HyperOpCreationPass: public ModulePass {
 					break;
 				case SCALAR:
 					argIndex++;
-					if (!argument->getType()->isPointerTy()) {
+					if (argument->getType()->isPointerTy()) {
 						argsList.push_back(argument->getType()->getPointerTo());
 					} else {
 						argsList.push_back(argument->getType());
@@ -1931,7 +1931,7 @@ struct HyperOpCreationPass: public ModulePass {
 					break;
 				case SCALAR:
 					originalIndexAndfuncArgIndexMap.insert(make_pair(originalIndex, functionArgIndex));
-					if (!argument->getType()->isPointerTy()) {
+					if (argument->getType()->isPointerTy()) {
 						localRefReplacementArgIndex.push_back(functionArgIndex);
 					}
 					originalIndex++;
@@ -4209,48 +4209,6 @@ struct HyperOpCreationPass: public ModulePass {
 		errs() << "before deleting unreachable bbs, module:";
 		M.dump();
 
-//		DEBUG(dbgs() << "\n-----------Removing unreachable basic blocks from created functions-----------\n");
-//		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
-//			Function* newFunction = createdHyperOpItr->first;
-//			list<BasicBlock*> bbForDelete;
-//			for (Function::iterator bbItr = newFunction->begin(); bbItr != newFunction->end(); bbItr++) {
-//				//If bbItr is not the entry block and has no predecessors or multiple predecessors (this check is in place to avoid considering basic blocks which have a single predecessor, an optimization)
-//				if (&*bbItr != &newFunction->getEntryBlock()) {
-//					BasicBlock* bb = &*bbItr;
-//					bool hasPredecessor = false;
-//					for (Function::iterator secondBBItr = newFunction->begin(); secondBBItr != newFunction->end(); secondBBItr++) {
-//						if (secondBBItr->getTerminator() != NULL) {
-//							for (unsigned i = 0; i < secondBBItr->getTerminator()->getNumSuccessors(); i++) {
-//								BasicBlock* successor = secondBBItr->getTerminator()->getSuccessor(i);
-//								if (successor == bb) {
-//									hasPredecessor = true;
-//									break;
-//								}
-//							}
-//							if (hasPredecessor) {
-//								break;
-//							}
-//						}
-//					}
-////					//Retain latch bb because it acts as sync barrier
-////					BasicBlock* originalBB;
-////					for (auto bbCloneItr = functionOriginalToClonedBBMap[newFunction].begin(); bbCloneItr != functionOriginalToClonedBBMap[newFunction].end(); bbCloneItr++) {
-////						if (bbCloneItr->second == bb) {
-////							originalBB = bbCloneItr->first;
-////							break;
-////						}
-////					}
-////					if (!hasPredecessor && find(originalParallelLatchBB.begin(), originalParallelLatchBB.end(), originalBB) == originalParallelLatchBB.end()) {
-////						bbForDelete.push_back(bb);
-////					}
-//				}
-//			}
-//
-//			for (auto deleteItr : bbForDelete) {
-//				deleteItr->eraseFromParent();
-//			}
-//		}
-
 		DEBUG(dbgs() << "\n-----------Adding entry bb-----------\n");
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
 			Function* newFunction = createdHyperOpItr->first;
@@ -4273,6 +4231,7 @@ struct HyperOpCreationPass: public ModulePass {
 		for (Module::iterator functionItr = M.begin(); functionItr != M.end(); functionItr++) {
 			//Remove old functions from module
 			if (createdHyperOpAndOriginalBasicBlockAndArgMap.find(functionItr) == createdHyperOpAndOriginalBasicBlockAndArgMap.end() && !functionItr->isIntrinsic()) {
+				errs()<<"which function are we deleting?"<<functionItr->getName()<<"\n";
 				functionItr->deleteBody();
 				functionsForDeletion.push_back(functionItr);
 			}
@@ -4280,34 +4239,11 @@ struct HyperOpCreationPass: public ModulePass {
 
 		while (!functionsForDeletion.empty()) {
 			Function* function = functionsForDeletion.front();
+			errs()<<"deleting unused function "<<function->getName()<<"\n";
 			functionsForDeletion.pop_front();
 			function->eraseFromParent();
 		}
 
-//		DEBUG(dbgs() << "Updating branch instructions to fold if branch targets are the same\n");
-//		for (auto newFunction = M.begin(); newFunction!=M.end();newFunction++) {
-//			for (auto bbItr = newFunction->begin(); bbItr != newFunction->end(); bbItr++) {
-//				TerminatorInst* instr = bbItr->getTerminator();
-//				if (isa<BranchInst>(instr)) {
-//					BranchInst* branch = (BranchInst*) instr;
-//					//find number of unique successors
-//					list<BasicBlock*> uniqueSuccessors;
-//					for (int i = 0; i < branch->getNumSuccessors(); i++) {
-//						if (find(uniqueSuccessors.begin(), uniqueSuccessors.end(), branch->getSuccessor(i)) == uniqueSuccessors.end()) {
-//							uniqueSuccessors.push_back(branch->getSuccessor(i));
-//						}
-//					}
-//
-//					if (branch->isConditional() && uniqueSuccessors.size() == 1) {
-//						//Replace the conditional branch with unconditional branch
-//						BranchInst* newBranchInst = BranchInst::Create(uniqueSuccessors.front(), branch->getParent());
-//						branch->removeFromParent();
-//						errs() << "why would an instruction not update?";
-//						newBranchInst->dump();
-//					}
-//				}
-//			}
-//		}
 		DEBUG(dbgs() << "Final module contents:");
 		M.dump();
 		DEBUG(dbgs() << "Completed generating HyperOps\n");
