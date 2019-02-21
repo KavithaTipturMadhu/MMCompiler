@@ -1397,8 +1397,9 @@ void cloneFunction(HyperOp** hopForUpdate, list<Type*> additionalNewArgs, bool p
 	Function *newFunction = Function::Create(FT, Function::ExternalLinkage, hopFunction->getName(), hopFunction->getParent());
 	auto newArgItr = newFunction->arg_begin();
 	//Advance the pointer twice since two new args are added
-	newArgItr = newArgItr->getNextNode();
-	newArgItr = newArgItr->getNextNode();
+	for(int i=0;i<additionalNewArgs.size();i++){
+		newArgItr = newArgItr->getNextNode();
+	}
 	int newArgIndex = pushFront ? additionalNewArgs.size() : 0;
 	int minIndex = newArgIndex;
 	map<Value*, Value*> oldToNewValueMap;
