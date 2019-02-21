@@ -643,7 +643,6 @@ struct HyperOpCreationPass: public ModulePass {
 	}
 
 	virtual bool runOnModule(Module &M) {
-		M.dump();
 		LLVMContext & ctxt = M.getContext();
 		//Top level annotation corresponding to all annotations REDEFINE
 		NamedMDNode * redefineAnnotationsNode = M.getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
@@ -1756,7 +1755,6 @@ struct HyperOpCreationPass: public ModulePass {
 					endOfHyperOp = false;
 				}
 
-				DEBUG(dbgs() << "Adding basic blocks for traversal in a breadth biased order for function " << function->getName() << "\n");
 				vector<unsigned> distanceToExit;
 				map<unsigned, list<BasicBlock*> > untraversedBasicBlocks;
 				list<BasicBlock*> tempTraversalList;
@@ -1857,6 +1855,7 @@ struct HyperOpCreationPass: public ModulePass {
 				//Functions to be created to substitute the called original function need to be pushed to traversal list
 				list<pair<list<BasicBlock*>, HyperOpArgumentList> > calledFunctionBBList = originalFunctionToHyperOpBBListMap[calledOriginalFunction];
 				//Update the arguments to the HyperOp to be created in place of the callsite
+				//TODO check why this is in reverse order
 				for (list<pair<list<BasicBlock*>, HyperOpArgumentList> >::reverse_iterator replacementFuncItr = calledFunctionBBList.rbegin(); replacementFuncItr != calledFunctionBBList.rend(); replacementFuncItr++) {
 					traversalList.push_back(make_pair(make_pair(replacementFuncItr->first, replacementFuncItr->second), newCallSite));
 				}
@@ -1888,8 +1887,6 @@ struct HyperOpCreationPass: public ModulePass {
 			map<unsigned, Value*> localRefReplacementArgMap;
 			unsigned argIndex = 0;
 
-			errs() << "patching instructions 1\n";
-
 			for (HyperOpArgumentList::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
 				//Set type of each argument of the HyperOp
 				Value* argument = hyperOpArgumentItr->first.front();
@@ -1902,11 +1899,7 @@ struct HyperOpCreationPass: public ModulePass {
 					break;
 				case SCALAR:
 					argIndex++;
-					if (argument->getType()->isPointerTy()) {
-						argsList.push_back(argument->getType()->getPointerTo());
-					} else {
-						argsList.push_back(argument->getType());
-					}
+					argsList.push_back(argument->getType());
 					break;
 				}
 			}
@@ -2202,7 +2195,6 @@ struct HyperOpCreationPass: public ModulePass {
 			for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 				//Find out if any basic block is predicated
 				BasicBlock* originalBB = *accumulatedBBItr;
-				errs() << "\n-------\nacquired bb:" << originalBB->getName() << "\n";
 				//check if the original bb is a part of a loop, don't bother adding conditional jumps unless the bb is a loop header
 				//Find the immediate dominator
 				DominatorTree& idomTree = getAnalysis<DominatorTree>(*originalBB->getParent());
