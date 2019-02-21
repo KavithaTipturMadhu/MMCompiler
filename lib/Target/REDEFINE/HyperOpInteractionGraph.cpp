@@ -2771,8 +2771,8 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 			int x = (int) clusterCRMap[i];
 			int y = (int) clusterCRMap[i + 1];
 			for (list<HyperOp*>::iterator nodeItr = cluster.begin(); nodeItr != cluster.end(); nodeItr++) {
-				errs() << "setting target resource " << (x * maxDimM + y) << "\n";
-				(*nodeItr)->setTargetResource(x * maxDimM + y);
+				DEBUG(dbgs() << "setting target resource " << (x * maxDimN + y) << "(" << x << "," << y << ") for node " << (*nodeItr)->asString() << "\n");
+				(*nodeItr)->setTargetResource(x * maxDimN + y);
 			}
 			std::advance(clusterItr, 1);
 		}
