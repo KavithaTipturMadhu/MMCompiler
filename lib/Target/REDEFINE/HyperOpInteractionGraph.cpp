@@ -16,6 +16,7 @@
 #include "lpsolve/lp_lib.h"
 #include "lpsolve/lp_types.h"
 #include "llvm/IR/HyperOpInteractionGraph.h"
+#include "llvm/ADT/StringExtras.h"
 using namespace llvm;
 
 using namespace std;
@@ -1395,7 +1396,9 @@ void cloneFunction(HyperOp** hopForUpdate, list<Type*> additionalNewArgs, bool p
 	}
 
 	FunctionType *FT = FunctionType::get(hopFunction->getReturnType(), funcArgsList, false);
-	Function *newFunction = Function::Create(FT, Function::ExternalLinkage, hopFunction->getName(), hopFunction->getParent());
+	string newname = hopFunction->getName().data();
+	newname.append(itostr(1));
+	Function *newFunction = Function::Create(FT, Function::ExternalLinkage, newname , hopFunction->getParent());
 	auto newArgItr = newFunction->arg_begin();
 	//Advance the pointer twice since two new args are added
 	if (pushFront) {
@@ -3911,7 +3914,9 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		std::vector<Type*> newArgsVector;
 		std::copy(newArgsList.begin(), newArgsList.end(), std::back_inserter(newArgsVector));
 		FunctionType *FT = FunctionType::get(hopFunction->getReturnType(), newArgsVector, false);
-		Function *newFunction = Function::Create(FT, Function::ExternalLinkage, hopFunction->getName(), hopFunction->getParent());
+		string newname = hopFunction->getName();
+		newname.append(itostr(1));
+		Function *newFunction = Function::Create(FT, Function::ExternalLinkage, newname, hopFunction->getParent());
 
 		auto newArgItr = newFunction->arg_begin();
 		map<Value*, Value*> oldToNewValueMap;
