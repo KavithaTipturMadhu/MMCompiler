@@ -4686,7 +4686,7 @@ struct REDEFINEIRPass: public ModulePass {
 			DEBUG(dbgs() << "Adding falloc, fbind instructions to module for dynamic non range or predicated range hops\n");
 			for (auto childItr : graph->Vertices) {
 				HyperOp* child = childItr;
-				if (child == vertex || child->getImmediateDominator() != vertex || (child->getInRange() && !child->isPredicatedHyperOp())) {
+				if (child == vertex || child->getImmediateDominator() != vertex || child->isStaticHyperOp() || (child->getInRange() && !child->isPredicatedHyperOp())) {
 					continue;
 				}
 				BasicBlock * loopBegin, *loopBody, *loopEnd;
@@ -4752,7 +4752,7 @@ struct REDEFINEIRPass: public ModulePass {
 			for (auto childItr : graph->Vertices) {
 				int numCR = MAX_ROW*MAX_COL;
 				HyperOp* child = childItr;
-				if (child == vertex || child->getImmediateDominator() != vertex || !child->getInRange() || child->isPredicatedHyperOp()) {
+				if (child == vertex || child->getImmediateDominator() != vertex || child->isStaticHyperOp() || !child->getInRange() || child->isPredicatedHyperOp()) {
 					continue;
 				}
 				BasicBlock * loopBegin, *loopBody, *loopEnd;
@@ -4802,38 +4802,37 @@ struct REDEFINEIRPass: public ModulePass {
 				/* Range HyperOp's base address, obtained either with falloc or by loading with forwarded address */
 				Value* baseAddress = NULL, *memFrameAddress = NULL;
 				Value* baseAddressUpperBound = NULL;
-				if (child->getImmediateDominator() == vertex) {
+				if (child->isStaticHyperOp()) {
+					baseAddress = getConstantValue(child->getContextFrame() * 64, M);
+				}
+				else if (child->getImmediateDominator() == vertex) {
 					baseAddress = createdHopBaseAddressMap[child].first;
 					baseAddressUpperBound = createdHopBaseAddressMap[child].second;
 					assert(baseAddress!=NULL && "Could not load the base address of the child hyperop\n");
 				} else {
-					if (!child->isStaticHyperOp()) {
-						/* Address was forwarded to the hyperop */
-						for (auto parentItr = vertex->ParentMap.begin(); parentItr != vertex->ParentMap.end(); parentItr++) {
-							if ((parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) && parentItr->first->getContextFrameAddress() == child) {
-								Argument* childHopCFAddress = NULL;
-								int argIndex = 0;
-								for (auto argItr = vertex->getFunction()->arg_begin(); argItr != vertex->getFunction()->arg_end(); argItr++, argIndex++) {
-									Argument* arg = argItr;
-									if (parentItr->first->getPositionOfContextSlot() == argIndex) {
-										childHopCFAddress = arg;
-										break;
-									}
+					/* Address was forwarded to the hyperop */
+					for (auto parentItr = vertex->ParentMap.begin(); parentItr != vertex->ParentMap.end(); parentItr++) {
+						if ((parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) && parentItr->first->getContextFrameAddress() == child) {
+							Argument* childHopCFAddress = NULL;
+							int argIndex = 0;
+							for (auto argItr = vertex->getFunction()->arg_begin(); argItr != vertex->getFunction()->arg_end(); argItr++, argIndex++) {
+								Argument* arg = argItr;
+								if (parentItr->first->getPositionOfContextSlot() == argIndex) {
+									childHopCFAddress = arg;
+									break;
 								}
-								assert(childHopCFAddress!=NULL && "Context frame address of the child HyperOp was never passed to the current HyperOp");
-								bool hasInRegAttr = vertex->getFunction()->getAttributes().hasAttribute(argIndex + 1, Attribute::InReg);
-								assert(((parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR && hasInRegAttr) || (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF && !hasInRegAttr)) && "Incorrect attrbute to the argument");
-
-								if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) {
-									baseAddress = new LoadInst(childHopCFAddress, "", insertInBB);
-								} else {
-									baseAddress = (Value*) childHopCFAddress;
-								}
-								break;
 							}
+							assert(childHopCFAddress!=NULL && "Context frame address of the child HyperOp was never passed to the current HyperOp");
+							bool hasInRegAttr = vertex->getFunction()->getAttributes().hasAttribute(argIndex + 1, Attribute::InReg);
+							assert(((parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR && hasInRegAttr) || (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF && !hasInRegAttr)) && "Incorrect attrbute to the argument");
+
+							if (parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) {
+								baseAddress = new LoadInst(childHopCFAddress, "", insertInBB);
+							} else {
+								baseAddress = (Value*) childHopCFAddress;
+							}
+							break;
 						}
-					}else{
-						baseAddress = getConstantValue(child->getContextFrame()*64, M);
 					}
 					assert(baseAddress!=NULL && "Could not load the base address of the child hyperop\n");
 					if (child->getInRange()) {
