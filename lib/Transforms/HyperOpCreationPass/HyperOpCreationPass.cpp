@@ -2237,14 +2237,20 @@ struct HyperOpCreationPass: public ModulePass {
 			BasicBlock* entryBlock = &function->getEntryBlock();
 			list<BasicBlock*> newlyAcquiredBBList;
 			newlyAcquiredBBList.push_front(accumulatedBasicBlocks.front());
-			while (!callSiteCopy.empty() && entryBlock == newlyAcquiredBBList.front()) {
+
+			/* This adds basic block corresponding to calls being made to compute predicates to HyperOps correctly */
+			if (!callSiteCopy.empty() && entryBlock == newlyAcquiredBBList.front()) {
 				CallInst* callInst = callSiteCopy.back();
-				callSiteCopy.pop_back();
-				newlyAcquiredBBList.push_front(callInst->getParent());
-				errs() << callInst->getParent()->getName() << ",";
-				entryBlock = &callInst->getParent()->getParent()->getEntryBlock();
-				numCallInstrAdded++;
+				bool entryBBIncluded = (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &callInst->getCalledFunction()->getEntryBlock()) != accumulatedBasicBlocks.end());
+				if (entryBBIncluded) {
+					callSiteCopy.pop_back();
+					newlyAcquiredBBList.push_front(callInst->getParent());
+					errs() << callInst->getParent()->getName() << ",";
+					entryBlock = &callInst->getParent()->getParent()->getEntryBlock();
+					numCallInstrAdded++;
+				}
 			}
+
 			newlyAcquiredBBList.pop_back();
 			if (numCallInstrAdded) {
 				for (list<BasicBlock*>::iterator acquiredBBItr = newlyAcquiredBBList.begin(); acquiredBBItr != newlyAcquiredBBList.end(); acquiredBBItr++) {
