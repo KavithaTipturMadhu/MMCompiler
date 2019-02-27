@@ -2259,6 +2259,8 @@ struct HyperOpCreationPass: public ModulePass {
 				//Find the immediate dominator
 				DominatorTree& idomTree = getAnalysis<DominatorTree>(*originalBB->getParent());
 				PostDominatorTree& postdomTree = getAnalysis<PostDominatorTree>(*originalBB->getParent());
+
+				//The following recursion exists because a basic block might have a chain of unconditional jumps to it, we want to find the first conditional jump that makes sense */
 				if (idomTree.getNode(originalBB) != NULL && idomTree.getNode(originalBB)->getIDom() != NULL) {
 					//Find the parent idom till one source of branch emerges somewhere
 					BasicBlock* currentBB = originalBB;
@@ -3165,65 +3167,14 @@ struct HyperOpCreationPass: public ModulePass {
 				list<CallInst*> newCallSite;
 				Function* replicatedCalledFunction = 0;
 
-				for (auto callItr = callSite.begin(); callItr != callSite.end(); callItr++) {
-					if (isa<CallInst>(&conditionalTargetBB->front()) && *callItr == ((CallInst*) (&conditionalTargetBB->front()))) {
-						break;
-					}
-					newCallSite.push_back(*callItr);
+				std::copy(callSite.begin(), callSite.end(), std::back_inserter(newCallSite));
+				bool isEntryBlockIncluded = false;
+				if(!newCallSite.empty()){
+					isEntryBlockIncluded = (find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), &newCallSite.back()->getCalledFunction()->getEntryBlock())!=accumulatedOriginalBasicBlocks.end());
 				}
 
-				if (isa<CallInst>(predicateOperand)) {
-					newCallSite.push_back((CallInst*) predicateOperand);
-					while (!newCallSite.empty()) {
-						CallInst* appendCall = 0;
-						for (map<Function*, list<CallInst*> >::iterator createdHopItr = createdHyperOpAndCallSite.begin(); createdHopItr != createdHyperOpAndCallSite.end(); createdHopItr++) {
-							bool callSiteMatch = true;
-							list<CallInst*> createdHopCallSite = createdHopItr->second;
-							if (createdHopCallSite.size() != newCallSite.size()) {
-								callSiteMatch = false;
-							}
-							if (callSiteMatch) {
-								list<CallInst*>::iterator callSiteItr = newCallSite.begin();
-								for (list<CallInst*>::iterator createHopCallSiteItr = createdHopCallSite.begin(); createHopCallSiteItr != createdHopCallSite.end() && callSiteItr != newCallSite.end(); createHopCallSiteItr++, callSiteItr++) {
-									if (*createHopCallSiteItr != *callSiteItr) {
-										callSiteMatch = false;
-										break;
-									}
-								}
-							}
-							if (callSiteMatch) {
-								Function* callSiteFunc = createdHopItr->first;
-								list<BasicBlock*> accumulatedBlocks = createdHyperOpAndOriginalBasicBlockAndArgMap[callSiteFunc].first;
-								BasicBlock* lastBB = &accumulatedBlocks.front()->getParent()->back();
-								if (find(accumulatedBlocks.begin(), accumulatedBlocks.end(), lastBB) != accumulatedBlocks.end() || (isa<CallInst>(lastBB->front()) && isa<ReturnInst>(lastBB->front().getNextNode()))) {
-									replicatedCalledFunction = createdHopItr->first;
-									if (isa<CallInst>(lastBB->front())) {
-										appendCall = (CallInst*) &lastBB->front();
-									}
-									break;
-								}
-							}
-						}
-						if (createdHyperOpAndReturnValue.find(replicatedCalledFunction) != createdHyperOpAndReturnValue.end()) {
-							predicateOperand = createdHyperOpAndReturnValue[replicatedCalledFunction];
-						}
-						if (predicateOperand == 0) {
-							if (appendCall == 0) {
-								break;
-							}
-							newCallSite.push_back(appendCall);
-						} else {
-							if (isa<CallInst>(predicateOperand)) {
-								newCallSite.push_back((CallInst*) predicateOperand);
-							} else {
-								break;
-							}
-						}
-					}
-				}
-
-				if (isa<CallInst>(predicateOperand) && predicateOperand == conditionalBranchInst->getOperand(0)) {
-					continue;
+				if(isEntryBlockIncluded){
+					newCallSite.pop_back();
 				}
 				if (isa<Constant>(predicateOperand)) {
 					//Immediate value
@@ -3425,61 +3376,14 @@ struct HyperOpCreationPass: public ModulePass {
 				list<BasicBlock*> parentBBList;
 
 				list<CallInst*> newCallSite;
-				for (auto callItr = callSite.begin(); callItr != callSite.end(); callItr++) {
-					if (isa<CallInst>(&targetBB->front()) && *callItr == ((CallInst*) (&targetBB->front()))) {
-						break;
-					}
-					newCallSite.push_back(*callItr);
+				std::copy(callSite.begin(), callSite.end(), std::back_inserter(newCallSite));
+				bool isEntryBlockIncluded = false;
+				if (!newCallSite.empty()) {
+					isEntryBlockIncluded = (find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), &newCallSite.back()->getCalledFunction()->getEntryBlock())!=accumulatedOriginalBasicBlocks.end());
 				}
 
-				if (isa<CallInst>(((Instruction*) unconditionalBranchInstr)->getParent()->front())) {
-					newCallSite.push_back((CallInst*) &targetBB->front());
-					while (true) {
-						CallInst* appendCall = 0;
-						for (map<Function*, list<CallInst*> >::iterator createdHopItr = createdHyperOpAndCallSite.begin(); createdHopItr != createdHyperOpAndCallSite.end(); createdHopItr++) {
-							bool callSiteMatch = true;
-							list<CallInst*> createdHopCallSite = createdHopItr->second;
-							if (createdHopCallSite.size() != newCallSite.size()) {
-								callSiteMatch = false;
-							}
-							if (callSiteMatch) {
-								list<CallInst*>::iterator callSiteItr = newCallSite.begin();
-								for (list<CallInst*>::iterator createHopCallSiteItr = createdHopCallSite.begin(); createHopCallSiteItr != createdHopCallSite.end() && callSiteItr != newCallSite.end(); createHopCallSiteItr++, callSiteItr++) {
-									if (*createHopCallSiteItr != *callSiteItr) {
-										callSiteMatch = false;
-										break;
-									}
-								}
-							}
-							if (callSiteMatch) {
-								Function* callSiteFunc = createdHopItr->first;
-								list<BasicBlock*> accumulatedBlocks = createdHyperOpAndOriginalBasicBlockAndArgMap[callSiteFunc].first;
-								BasicBlock* lastBB = &accumulatedBlocks.front()->getParent()->back();
-								if (find(accumulatedBlocks.begin(), accumulatedBlocks.end(), lastBB) != accumulatedBlocks.end() || (isa<CallInst>(lastBB->front()) && isa<ReturnInst>(lastBB->front().getNextNode()))) {
-									replicatedCalledFunction = createdHopItr->first;
-									appendCall = (CallInst*) &lastBB->front();
-									break;
-								}
-							}
-						}
-						if (createdHyperOpAndReturnValue.find(replicatedCalledFunction) != createdHyperOpAndReturnValue.end()) {
-							unconditionalBranchInstr = createdHyperOpAndReturnValue[replicatedCalledFunction];
-						}
-
-						if (unconditionalBranchInstr == 0) {
-							if (appendCall == 0) {
-								break;
-							}
-							newCallSite.push_back(appendCall);
-						} else {
-							if (isa<CallInst>(unconditionalBranchInstr)) {
-//									&& createdHyperOpAndType[(*unconditionalBranchSourceItr)->getParent()->getParent()]) {
-								newCallSite.push_back((CallInst*) unconditionalBranchInstr);
-							} else {
-								break;
-							}
-						}
-					}
+				if (isEntryBlockIncluded) {
+					newCallSite.pop_back();
 				}
 
 				if (unconditionalBranchInstr == unconditionalBranchSourceItr->first && isa<CallInst>(((Instruction*) unconditionalBranchInstr)->getParent()->front())) {
@@ -3747,8 +3651,6 @@ struct HyperOpCreationPass: public ModulePass {
 								ai->setMetadata(HYPEROP_CONTROLS, node);
 							} else {
 								ai->setMetadata(HYPEROP_SYNC, node);
-								errs() << "sync md added from producer " << ai->getParent()->getParent()->getName() << ":";
-								newPredicateMetadata->dump();
 							}
 							if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), ai->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
 								addedParentsToCurrentHyperOp.push_back(ai->getParent()->getParent());
@@ -3760,13 +3662,11 @@ struct HyperOpCreationPass: public ModulePass {
 			addedPredicateSourcesMap[createdFunction] = predicateProducers;
 			addedDataSourcesMap[createdFunction] = addedParentsToCurrentHyperOp;
 
-			createdFunction->dump();
 		}
 
 		DEBUG(dbgs() << "\n----------Adding sync edges between dangling hyperOps and end HyperOp----------\n");
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
 			Function* createdFunction = createdHyperOpItr->first;
-//			bool isStaticHyperOp = createdHyperOpAndType[createdFunction];
 			if (createdFunction != endHyperOp) {
 				bool hasOutgoingEdges = false;
 				for (Function::iterator bbItr = createdFunction->begin(); bbItr != createdFunction->end(); bbItr++) {
