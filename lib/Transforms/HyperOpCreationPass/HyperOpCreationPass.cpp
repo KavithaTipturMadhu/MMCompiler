@@ -2388,6 +2388,9 @@ struct HyperOpCreationPass: public ModulePass {
 			if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &mainFunction->getEntryBlock()) != accumulatedBasicBlocks.end()) {
 				isKernelEntry = true;
 			}
+			if (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), &mainFunction->back()) != accumulatedBasicBlocks.end()) {
+				isKernelExit = true;
+			}
 			//First instruction in redefine_start is a call
 			else if (!callSite.empty()) {
 				list<CallInst*> callSiteCopy;
@@ -2607,13 +2610,9 @@ struct HyperOpCreationPass: public ModulePass {
 			BasicBlock* retBB = BasicBlock::Create(ctxt, newFunction->getName().str().append(".return"), newFunction);
 			Instruction* retInst = ReturnInst::Create(ctxt);
 			retBB->getInstList().insert(retBB->getFirstInsertionPt(), retInst);
-			string tag = "<0>";
-			Value * values[5];
+			Value * values[2];
 			values[0] = MDString::get(ctxt, HYPEROP);
 			values[1] = newFunction;
-			values[2] = MDString::get(ctxt, DYNAMIC_HYPEROP);
-			values[3] = newFunction;
-			values[4] = MDString::get(ctxt, tag);
 			MDNode *funcAnnotation = MDNode::get(ctxt, values);
 			redefineAnnotationsNode->addOperand(funcAnnotation);
 			hyperOpAndAnnotationMap[newFunction] = funcAnnotation;
@@ -3670,202 +3669,6 @@ struct HyperOpCreationPass: public ModulePass {
 
 		}
 
-		DEBUG(dbgs() << "\n----------Adding sync edges between dangling hyperOps and end HyperOp----------\n");
-		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
-			Function* createdFunction = createdHyperOpItr->first;
-			if (createdFunction != endHyperOp) {
-				bool hasOutgoingEdges = false;
-				for (Function::iterator bbItr = createdFunction->begin(); bbItr != createdFunction->end(); bbItr++) {
-					for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
-						//check if any of the instructions have any metadata associated
-						if (instItr->getMetadata(HYPEROP_CONSUMED_BY) != 0 || instItr->getMetadata(HYPEROP_CONTROLS) != 0 || instItr->getMetadata(HYPEROP_SYNC) != 0) {
-							hasOutgoingEdges = true;
-							break;
-						}
-					}
-				}
-				if (!hasOutgoingEdges) {
-					//Add a sync edge to end HyperOp
-					vector<Value*> nodeList;
-					MDNode* newPredicateMetadata;
-					Value* values[1];
-					values[0] = hyperOpAndAnnotationMap[endHyperOp];
-					newPredicateMetadata = MDNode::get(ctxt, values);
-					nodeList.push_back(newPredicateMetadata);
-					MDNode* mdNode = MDNode::get(ctxt, nodeList);
-					//Create a sync edge between the current HyperOp and the last HyperOp
-					//We use sync edge here because adding a predicate to the end hyperop
-					createdFunction->begin()->front().setMetadata(HYPEROP_SYNC, mdNode);
-					syncMDNodeList.push_back(newPredicateMetadata);
-				}
-			}
-		}
-
-		DEBUG(dbgs() << "\n----------Adding a sync from entry hyperop of the function if there are no incoming edges to the hyperop----------\n");
-		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
-			Function* createdFunction = createdHyperOpItr->first;
-			MDNode* funcAnnotation = hyperOpAndAnnotationMap.find(createdFunction)->second;
-			list<Function*> addedParentsToCurrentHyperOp = addedDataSourcesMap[createdFunction];
-			list<CallInst*> callSite = createdHyperOpAndCallSite[createdFunction];
-			list<BasicBlock*> accumulatedOriginalBasicBlocks = createdHyperOpItr->second.first;
-			bool isStaticHyperOp = createdHyperOpAndType[createdFunction];
-			//Check if a HyperOp has dynamically added parents
-			if (addedParentsToCurrentHyperOp.empty()) {
-				for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
-					for (Function::iterator bbItr = createdHyperOpItr->first->begin(); bbItr != createdHyperOpItr->first->end(); bbItr++) {
-						for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
-							MDNode* consumedByMDNode = instItr->getMetadata(HYPEROP_CONSUMED_BY);
-							if (consumedByMDNode != 0) {
-								for (unsigned i = 0; i < consumedByMDNode->getNumOperands(); i++) {
-									MDNode* consumer = (MDNode*) ((MDNode*) (consumedByMDNode->getOperand(i)))->getOperand(0);
-									if (funcAnnotation == consumer) {
-										bool dynamicInstance = false;
-										if (((MDNode*) (consumedByMDNode->getOperand(i)))->getNumOperands() == 5) {
-											dynamicInstance = true;
-											StringRef dynamicInstanceId = ((MDString*) ((MDNode*) (consumedByMDNode->getOperand(i)))->getOperand(4))->getString();
-											list<StringRef> parsedId = parseInstanceIdString(dynamicInstanceId);
-											//This is clearly not complete
-											if (parsedId.back().compare("id") == 0 || isStaticHyperOp) {
-												dynamicInstance = false;
-											}
-										}
-										if (!dynamicInstance) {
-											addedParentsToCurrentHyperOp.push_back(createdHyperOpItr->first);
-											break;
-										}
-									}
-								}
-							}
-							if (addedParentsToCurrentHyperOp.empty()) {
-								MDNode* controlledByMDNode = instItr->getMetadata(HYPEROP_CONTROLS);
-								if (controlledByMDNode != 0) {
-									for (unsigned i = 0; i < controlledByMDNode->getNumOperands(); i++) {
-										MDNode* consumer = (MDNode*) ((MDNode*) (controlledByMDNode->getOperand(i)))->getOperand(0);
-										if (funcAnnotation == consumer) {
-											bool dynamicInstance = false;
-											errs() << "controls by md node from source " << bbItr->getParent()->getName() << " at i:" << i << "\n";
-											controlledByMDNode->dump();
-											if (((MDNode*) (controlledByMDNode->getOperand(i)))->getNumOperands() == 3) {
-												dynamicInstance = true;
-												StringRef dynamicInstanceId = ((MDString*) ((MDNode*) (controlledByMDNode->getOperand(i)))->getOperand(2))->getString();
-												list<StringRef> parsedId = parseInstanceIdString(dynamicInstanceId);
-												//This is clearly not complete
-												if (parsedId.back().compare("id") == 0 || isStaticHyperOp) {
-													dynamicInstance = false;
-												}
-											}
-											if (!dynamicInstance) {
-												addedParentsToCurrentHyperOp.push_back(createdHyperOpItr->first);
-												break;
-											}
-										}
-									}
-								}
-							}
-							if (addedParentsToCurrentHyperOp.empty()) {
-								MDNode* syncMDNode = instItr->getMetadata(HYPEROP_SYNC);
-								if (syncMDNode != 0) {
-									for (unsigned i = 0; i < syncMDNode->getNumOperands(); i++) {
-										MDNode* consumer = (MDNode*) ((MDNode*) (syncMDNode->getOperand(i)))->getOperand(0);
-										if (funcAnnotation == consumer) {
-											bool dynamicInstance = false;
-											if (((MDNode*) (syncMDNode->getOperand(i)))->getNumOperands() == 3) {
-												dynamicInstance = true;
-												StringRef dynamicInstanceId = ((MDString*) ((MDNode*) (syncMDNode->getOperand(i)))->getOperand(2))->getString();
-												list<StringRef> parsedId = parseInstanceIdString(dynamicInstanceId);
-												//This is clearly not complete
-												if (parsedId.back().compare("id") == 0 || isStaticHyperOp) {
-													dynamicInstance = false;
-												}
-											}
-											if (!dynamicInstance) {
-												addedParentsToCurrentHyperOp.push_back(createdHyperOpItr->first);
-												break;
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-			if (addedParentsToCurrentHyperOp.empty() && startHyperOp != createdFunction && isStaticHyperOp) {
-				//Find the corresponding function with entry node, this can't be from the start hyperop always because
-				Function *entryHyperOp = NULL;
-				if (callSite.empty()) {
-					entryHyperOp = startHyperOp;
-				} else {
-					//Check if the current HyperOp contains the entry of callsite, pop once otherwise
-					list<BasicBlock*> tempAccumulatedBBList = accumulatedOriginalBasicBlocks;
-					while (!callSite.empty()) {
-						CallInst* call = callSite.back();
-						bool accumulatedEntry = false;
-						for (auto accumulatedBB : tempAccumulatedBBList) {
-							if ((&accumulatedBB->getParent()->getEntryBlock()) == accumulatedBB) {
-								accumulatedEntry = true;
-							}
-						}
-
-						if (!accumulatedEntry) {
-							//check if accumulated entry is predicated i.e., has conditional sources
-							//Find the HyperOp created corresponding to the callsite containing the entry bb
-							list<Function*> functionList = getFunctionAtCallSite(callSite, createdHyperOpAndCallSite);
-							for (auto function : functionList) {
-								pair<list<BasicBlock*>, HyperOpArgumentList> bbList = createdHyperOpAndOriginalBasicBlockAndArgMap[function];
-								if (find(bbList.first.begin(), bbList.first.end(), &(call->getCalledFunction()->getEntryBlock())) != bbList.first.end() && !addedPredicateSourcesMap[function].empty()) {
-									//check if the function is predicated; set it as the entry from where the current function needs to be reached
-									entryHyperOp = function;
-									break;
-								}
-							}
-						}
-
-						if (entryHyperOp) {
-							break;
-						}
-						//pop the callSite by 1
-						callSite.pop_back();
-						list<Function*> createdFunctions = getFunctionAtCallSite(callSite, createdHyperOpAndCallSite);
-						bool listUpdated = false;
-						for (auto createdFunc : createdFunctions) {
-							for (auto bbItr : createdHyperOpAndOriginalBasicBlockAndArgMap[createdFunc].first) {
-								if (isa<CallInst>(bbItr->front()) && functionOriginalToClonedInstructionMap[createdFunc][call] == (&bbItr->front())) {
-									tempAccumulatedBBList = createdHyperOpAndOriginalBasicBlockAndArgMap[createdFunc].first;
-									listUpdated = true;
-									break;
-								}
-							}
-							if (listUpdated) {
-								break;
-							}
-						}
-					}
-					if (callSite.empty()) {
-						entryHyperOp = startHyperOp;
-					}
-				}
-
-				//There are no incoming edge to the hyperop, add a predicate edge from the entry HyperOp
-				vector<Value*> nodeList;
-				Value* values[1];
-				values[0] = hyperOpAndAnnotationMap[createdFunction];
-				MDNode* newPredicateMetadata = MDNode::get(ctxt, values);
-				nodeList.push_back(newPredicateMetadata);
-				MDNode* node = MDNode::get(ctxt, nodeList);
-				AllocaInst* ai = new AllocaInst(Type::getInt1Ty(ctxt));
-				ai->setAlignment(4);
-				ai->insertBefore(entryHyperOp->begin()->getFirstInsertionPt());
-				StoreInst* storeInst = new StoreInst(ConstantInt::get(ctxt, APInt(1, 1)), ai);
-				storeInst->setAlignment(4);
-				storeInst->insertBefore(retInstMap[entryHyperOp]);
-				ai->setMetadata(HYPEROP_SYNC, node);
-				list<Instruction*> incomingEdgesToHop;
-				incomingEdgesToHop.push_back(ai);
-				addedParentsToCurrentHyperOp.push_back(ai->getParent()->getParent());
-			}
-		}
-
 		DEBUG(dbgs() << "\n-----------Adding dummy entry nodes to phi nodes with null entry operands-----------\n");
 		for (Module::iterator functionItr = M.begin(); functionItr != M.end(); functionItr++) {
 			//Remove old functions from module
@@ -3890,37 +3693,6 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 						}
 					}
-				}
-			}
-		}
-
-		//TODO I don't remember why this exists, gotta check from commit history
-		DEBUG(dbgs() << "\n----------Adding sync edges to dangling HyperOps----------\n");
-		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
-			Function* createdFunction = createdHyperOpItr->first;
-			if (createdFunction != endHyperOp) {
-				bool hasOutgoingEdges = false;
-				for (Function::iterator bbItr = createdFunction->begin(); bbItr != createdFunction->end(); bbItr++) {
-					for (BasicBlock::iterator instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
-						//check if any of the instructions have any metadata associated
-						if (instItr->getMetadata(HYPEROP_CONSUMED_BY) != 0 || instItr->getMetadata(HYPEROP_CONTROLS) != 0 || instItr->getMetadata(HYPEROP_SYNC) != 0) {
-							hasOutgoingEdges = true;
-							break;
-						}
-					}
-				}
-				if (!hasOutgoingEdges) {
-					//Add a sync edge to end HyperOp
-					vector<Value*> nodeList;
-					Value* values[1];
-					values[0] = hyperOpAndAnnotationMap[endHyperOp];
-					MDNode* newPredicateMetadata = MDNode::get(ctxt, values);
-					nodeList.push_back(newPredicateMetadata);
-					MDNode* mdNode = MDNode::get(ctxt, nodeList);
-					//Create a sync edge between the current HyperOp and the last HyperOp
-					//We use sync edge here because adding a predicate to the end hyperop
-					createdFunction->begin()->front().setMetadata(HYPEROP_SYNC, mdNode);
-					syncMDNodeList.push_back(newPredicateMetadata);
 				}
 			}
 		}
