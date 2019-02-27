@@ -2620,8 +2620,6 @@ struct HyperOpCreationPass: public ModulePass {
 				std::copy(callSite.begin(), callSite.end(), back_inserter(callSiteCopy));
 
 				if (hyperOpArgItr->second != GLOBAL_REFERENCE && !isa<Instruction>(hyperOpArgItr->first.front()) && !isa<Constant>(hyperOpArgItr->first.front())) {
-					errs()<<"whats the arg?";
-					hyperOpArgItr->first.front()->dump();
 					unsigned positionOfFormalArg = 0;
 					Function* originalFunction = accumulatedOriginalBasicBlocks.front()->getParent();
 					for (Function::arg_iterator originalArgItr = originalFunction->arg_begin(); originalArgItr != originalFunction->arg_end(); originalArgItr++, positionOfFormalArg++) {
@@ -2689,6 +2687,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 					assert(clonedInst!=NULL && "clone of the operand can't be NULL\n");
 					replacementArg.insert(make_pair(clonedInst, argOperand));
+					callSiteCopy.push_back(callInst);
 				}/* return value of a function call is an argument */
 				else if (isa<CallInst>(hyperOpArgItr->first.front())) {
 					CallInst* callInst = (CallInst*) hyperOpArgItr->first.front();
@@ -2793,7 +2792,6 @@ struct HyperOpCreationPass: public ModulePass {
 								std::copy(callSiteCopy.begin(), callSiteCopy.end(), std::back_inserter(callChain));
 								list<pair<Function*, CallInst*> > cycle = *cycleItr;
 								if (cycle.front().first == createdHyperOpAndOriginalBasicBlockAndArgMap[producerFunction].first.front()->getParent()) {
-									callChain.pop_back();
 									for (list<pair<Function*, CallInst*> >::iterator cycleItr = cycle.begin(); cycleItr != cycle.end(); cycleItr++) {
 										callChain.push_back(cycleItr->second);
 									}
@@ -4059,6 +4057,7 @@ struct HyperOpCreationPass: public ModulePass {
 		DEBUG(dbgs() << "Completed generating HyperOps\n");
 		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
 		graph->print(errs());
+		M.dump();
 		return true;
 	}
 
