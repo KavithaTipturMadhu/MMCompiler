@@ -806,7 +806,7 @@ void HyperOpInteractionGraph::updateLocalRefEdgeMemSizeAndOffset() {
 		list<HyperOpEdge*> edgeProcessingOrder;
 		map<HyperOpEdge*, HyperOp*> edgeParentMap;
 		for (auto parentEdgeItr = (*vertexItr)->ParentMap.begin(); parentEdgeItr != (*vertexItr)->ParentMap.end(); parentEdgeItr++) {
-			if (parentEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF || parentEdgeItr->first->getType() == HyperOpEdge::LOCAL_REFERENCE) {
+			if (parentEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF || parentEdgeItr->first->getType() == HyperOpEdge::LOCAL_REFERENCE || parentEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF) {
 				// Find the position to insert the new edge in
 				auto edgeItr = edgeProcessingOrder.begin();
 				for (; edgeItr != edgeProcessingOrder.end(); edgeItr++) {
@@ -829,6 +829,7 @@ void HyperOpInteractionGraph::updateLocalRefEdgeMemSizeAndOffset() {
 			edge->setMemoryOffsetInTargetFrame(edgeOffset);
 			AllocaInst* originalEdgeSource = getAllocInstrForLocalReferenceData(edge->getValue(), edgeParentMap[edge]);
 			int edgeSize = duplicateGetSizeOfType(originalEdgeSource->getAllocatedType());
+			assert(edgeSize>0 && "Edge size can't be zero\n");
 			edge->setMemorySize(edgeSize);
 			edgeOffset += edgeSize;
 		}
