@@ -728,7 +728,7 @@ void HyperOpInteractionGraph::setMaxContextFrameSize(unsigned int maxFrameSize) 
 	this->maxContextFrameSize = maxFrameSize;
 }
 
-HyperOp* HyperOpInteractionGraph::getOrCreateHyperOpInstance(Function* function, Function* instanceOf, list<unsigned> instanceId) {
+HyperOp* HyperOpInteractionGraph::getOrCreateHyperOpInstance(Function* function, Function* instanceOf, list<unsigned> instanceId, bool create) {
 	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
 		if ((*vertexItr)->getInstanceof() == instanceOf) {
 			list<unsigned> originalId = (*vertexItr)->getInstanceId();
@@ -748,13 +748,16 @@ HyperOp* HyperOpInteractionGraph::getOrCreateHyperOpInstance(Function* function,
 			}
 		}
 	}
-	HyperOp* newHyperOp = new HyperOp(function, this);
-	newHyperOp->setHyperOpId(this->getHyperOp(function)->getHyperOpId());
-	newHyperOp->setInstanceof(instanceOf);
-	newHyperOp->setInstanceId(instanceId);
-	newHyperOp->setStaticHyperOp(false);
-	newHyperOp->setIsUnrolledInstance(true);
-	this->addHyperOp(newHyperOp);
+	HyperOp* newHyperOp = NULL;
+	if (create) {
+		newHyperOp = new HyperOp(function, this);
+		newHyperOp->setHyperOpId(this->getHyperOp(function)->getHyperOpId());
+		newHyperOp->setInstanceof(instanceOf);
+		newHyperOp->setInstanceId(instanceId);
+		newHyperOp->setStaticHyperOp(false);
+		newHyperOp->setIsUnrolledInstance(true);
+		this->addHyperOp(newHyperOp);
+	}
 	return newHyperOp;
 }
 

@@ -4099,6 +4099,19 @@ struct REDEFINEIRPass: public ModulePass {
 			graph->makeGraphStructured();
 			graph->computeDominatorInfo();
 		}
+		for(auto vertexItr:graph->Vertices){
+			if(vertexItr->isUnrolledInstance()){
+				continue;
+			}
+			errs()<<"nodes being created by "<<vertexItr->asString()<<":";
+			for(auto secondItr:graph->Vertices){
+				if(secondItr!=vertexItr && secondItr->getImmediateDominator() == vertexItr){
+					errs()<<secondItr->asString()<<",";
+				}
+			}
+			errs()<<"\n";
+		}
+		return false;
 		graph->addContextFrameAddressForwardingEdges();
 		graph->addSelfFrameAddressRegisters();
 		graph->setDimensions(MAX_ROW, MAX_COL);
@@ -4113,7 +4126,8 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->addSyncCountDecrementOnControlPaths();
 		graph->associateStaticContextFrames();
 		graph->updateLocalRefEdgeMemSizeAndOffset();
-		graph->verify(1);
+//		graph->verify(1);
+		graph->print(dbgs());
 		map<Function*, unsigned> functionAndIndexMap;
 
 		unsigned index = 0;

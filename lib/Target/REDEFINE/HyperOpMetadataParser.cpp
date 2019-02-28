@@ -151,6 +151,9 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 		traversedList.push_back(sourceHyperOp);
 		Function* sourceFunction;
 		sourceFunction = sourceHyperOp->getFunction();
+		if(sourceHyperOp->isUnrolledInstance()){
+			errs()<<"fixing up consumers of "<<sourceHyperOp->asString()<<"\n";
+		}
 
 		for (Function::iterator funcItr = sourceFunction->begin(); funcItr != sourceFunction->end(); funcItr++) {
 			for (BasicBlock::iterator bbItr = (*funcItr).begin(); bbItr != (*funcItr).end(); bbItr++) {
@@ -391,6 +394,45 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 			}
 		}
 	}
+
+	/* Replicate edges from dynamic to static between pairs of corresponding unrolled instances to dynamic instances */
+	for(auto dynamicVertexItr = graph->Vertices.begin(); dynamicVertexItr!=graph->Vertices.end(); dynamicVertexItr++){
+		HyperOp* dynamicVertex = *dynamicVertexItr;
+		if(dynamicVertex->isStaticHyperOp() ||  dynamicVertex->isUnrolledInstance()){
+			continue;
+		}
+		list<HyperOp*> unrolledInstances;
+		for(auto secondItr = graph->Vertices.begin(); secondItr!=graph->Vertices.end(); secondItr++){
+			HyperOp* unrolledInstance = *secondItr;
+			if(unrolledInstance->isStaticHyperOp() || !unrolledInstance->isUnrolledInstance() ||  unrolledInstance->getInstanceof() != dynamicVertex->getInstanceof() || unrolledInstance->getFunction() != dynamicVertex->getFunction()){
+				continue;
+			}
+			unrolledInstances.push_back(unrolledInstance);
+		}
+
+		map<HyperOpEdge*, HyperOp*> duplicateEdges;
+		for(auto childItr = dynamicVertex->ChildMap.begin(); childItr !=dynamicVertex->ChildMap.end(); childItr++){
+			if(childItr->second->isStaticHyperOp()){
+				duplicateEdges.insert(make_pair(childItr->first, childItr->second));
+			}
+		}
+
+		for (auto duplicateEdgeItr = duplicateEdges.begin(); duplicateEdgeItr != duplicateEdges.end(); duplicateEdgeItr++) {
+			HyperOpEdge* edgeForDuplication = duplicateEdgeItr->first;
+			HyperOp* edgeTargetStatic = duplicateEdgeItr->second;
+			for(auto unrolledInstanceItr = unrolledInstances.begin(); unrolledInstanceItr!=unrolledInstances.end(); unrolledInstanceItr++){
+				HyperOp* newProducerHop = *unrolledInstanceItr;
+				list<unsigned> id = newProducerHop->getInstanceId();
+				id.pop_back();
+				HyperOp* newConsumerHop = graph->getOrCreateHyperOpInstance(NULL, edgeTargetStatic->getFunction(), id, false);
+				assert(newConsumerHop!=NULL && "Producer instance should have existed\n");
+				HyperOpEdge* cloneEdge;
+				edgeForDuplication->clone(&cloneEdge);
+				graph->addEdge(newProducerHop, newConsumerHop, cloneEdge);
+			}
+		}
+	}
+
 	graph->print(errs());
 	return graph;
 }

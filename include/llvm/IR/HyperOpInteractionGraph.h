@@ -348,7 +348,7 @@ public:
 
 	void setMaxContextFrameSize(unsigned int maxFrameSize);
 
-	HyperOp* getOrCreateHyperOpInstance(Function* function, Function* instanceOf, list<unsigned> instanceId);
+	HyperOp* getOrCreateHyperOpInstance(Function* function, Function* instanceOf, list<unsigned> instanceId, bool create = true);
 
 	//Returns source-destination tile coordinates for an edge
 	list<TileCoordinates> getEdgePathOnNetwork(HyperOp* source, HyperOp* target);
