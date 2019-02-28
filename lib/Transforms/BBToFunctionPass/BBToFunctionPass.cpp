@@ -48,15 +48,15 @@ struct BBToFunctionPass: public ModulePass {
 
 	virtual bool runOnModule(Module &M) {
 		LLVMContext & ctxt = M.getContext();
-		map<Function*, list<BasicBlock*>> originalFunctionToBBListMap;
-		map<BasicBlock*, list<pair<Argument*,BasicBlock*>>> newBBArgMap;
+		map<Function*, list<BasicBlock*> > originalFunctionToBBListMap;
+		map<BasicBlock*, list<pair<Argument*,BasicBlock*> > > newBBArgMap;
 
 		for (Module::iterator funcItr = M.begin(); funcItr != M.end(); funcItr++) {
 			Function* function = funcItr;
 			 list<BasicBlock*> bbList;
 			for(Function::iterator bbItr = function->begin();bbItr!=function->end();bbItr++){
 				BasicBlock* bb = bbItr;
-				list<pair<Argument*,BasicBlock*>> argBBList;
+				list<pair<Argument*,BasicBlock*> > argBBList;
 				errs()<<"Inside block : "<<bb->getName()<<"\n";
 				for(BasicBlock::iterator instItr= bb->begin();instItr!= bb->end();instItr++ ){
 					Instruction *instr = instItr;
@@ -90,9 +90,9 @@ struct BBToFunctionPass: public ModulePass {
 		}
 		for(Function &Func :M){
 				for(BasicBlock &BB : Func){
-					list<pair<Argument*,BasicBlock*>> argBBList = newBBArgMap[&BB];
+					list<pair<Argument*,BasicBlock*> > argBBList = newBBArgMap[&BB];
 					errs()<<"Arguments for Basic block : "<<BB.getName().str()<<"\n";
-					for (list<pair<Argument*, BasicBlock*>>::iterator li = argBBList.begin(); li != argBBList.end(); li++) {
+					for (auto li = argBBList.begin(); li != argBBList.end(); li++) {
 						//list<pair<Argument*, BasicBlock*>> argBB = li;
 						errs() << *li->first << ", " << *li->second << "\n";
 					}
