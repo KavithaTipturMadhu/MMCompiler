@@ -3109,10 +3109,18 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 //}
 
 void HyperOpInteractionGraph::associateStaticContextFrames() {
-	int contextFrameId = 0;
 	for (auto vertexItr : this->Vertices) {
-		vertexItr->setContextFrame(contextFrameId);
-		contextFrameId++;
+		if(vertexItr->isStartHyperOp()){
+			vertexItr->setContextFrame(0);
+			break;
+		}
+	}
+	int contextFrameId = 1;
+	for (auto vertexItr : this->Vertices) {
+		if(!vertexItr->isStartHyperOp() && vertexItr->isStaticHyperOp()){
+			vertexItr->setContextFrame(contextFrameId);
+			contextFrameId++;
+		}
 	}
 }
 
