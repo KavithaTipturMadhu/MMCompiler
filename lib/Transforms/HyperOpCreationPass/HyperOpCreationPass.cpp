@@ -4114,7 +4114,7 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->addSyncCountDecrementOnControlPaths();
 		graph->associateStaticContextFrames();
 		graph->updateLocalRefEdgeMemSizeAndOffset();
-//		graph->verify(1);
+		graph->verify(1);
 		graph->print(dbgs());
 		map<Function*, unsigned> functionAndIndexMap;
 
