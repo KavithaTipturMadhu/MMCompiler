@@ -339,6 +339,13 @@ void REDEFINEMCInstrScheduler::startBlock(MachineBasicBlock *bb) {
 BB = bb;
 DEBUG(dbgs() << "\n-------------\nStarting new basic block BB#" << BB->getNumber() << "\n");
 
+if(bb == &bb->getParent()->front()){
+	/* Mark t5 as live in all basic blocks of the function */
+	for(auto bbItr = bb->getParent()->begin(); bbItr!=bb->getParent()->end(); bbItr++){
+		bbItr->addLiveIn(REDEFINE::t5);
+	}
+}
+
 faninOfHyperOp.clear();
 endOfBBLoopEdgeCovered = false;
 for (int i = 0; i < ceCount; i++) {
