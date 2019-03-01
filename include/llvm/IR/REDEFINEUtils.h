@@ -22,7 +22,6 @@ public:
 	static unsigned getSizeOfType(Type * type);
 	//This method is to ensure that the types are aligned to 'n' word sizes to guarantee that data movement between DGM and global memory and vice-versa dont need extra packets to be processed
 	static unsigned getAlignedSizeOfType(Type * type);
-	static unsigned getHyperOpId(HyperOp* hyperOp);
 	static void print_backtrace(void);
 	static bool isInteger(StringRef);
 };
