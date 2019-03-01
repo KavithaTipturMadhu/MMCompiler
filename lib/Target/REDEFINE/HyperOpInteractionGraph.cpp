@@ -3115,11 +3115,22 @@ void HyperOpInteractionGraph::associateStaticContextFrames() {
 			break;
 		}
 	}
-	int contextFrameId = 1;
+	map<unsigned, unsigned> lastAllocatedFrameInCR;
+	lastAllocatedFrameInCR[0] = 0;
+	list<HyperOp*> updatedHops;
+	/* Allocate a new frame in that cr */
 	for (auto vertexItr : this->Vertices) {
 		if(!vertexItr->isStartHyperOp() && vertexItr->isStaticHyperOp()){
-			vertexItr->setContextFrame(contextFrameId);
-			contextFrameId++;
+			int lastAllocatedFrame = -1;
+			if(lastAllocatedFrameInCR.find(vertexItr->getTargetResource())!=lastAllocatedFrameInCR.end()){
+				lastAllocatedFrame = lastAllocatedFrameInCR[vertexItr->getTargetResource()];
+				lastAllocatedFrameInCR.erase(vertexItr->getTargetResource());
+			}
+			lastAllocatedFrame++;
+			/* Compute the new context frame address */
+			vertexItr->setContextFrame(lastAllocatedFrame);
+			lastAllocatedFrameInCR[vertexItr->getTargetResource()] = lastAllocatedFrame;
+			updatedHops.push_back(vertexItr);
 		}
 	}
 }
