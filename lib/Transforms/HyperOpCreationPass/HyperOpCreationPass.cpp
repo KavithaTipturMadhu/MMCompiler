@@ -3944,6 +3944,7 @@ struct REDEFINEIRPass: public ModulePass {
 		}
 		if (parentEdge->getType() == HyperOpEdge::SCALAR || parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE) {
 			/* -1 because there is one arg corresponding to the hyperop id itself, but we don't update the edges context slot because it is easier to match value pointers of argument with context slot this way */
+			assert((parentEdge->getPositionOfContextSlot() - 1) >=0 && "context frame writes must be to a location within the frame\n");
 			Value* writeCMArgs[] = { childCFBaseAddr, ConstantInt::get(ctxt, APInt(32, (parentEdge->getPositionOfContextSlot() - 1) * 4)), sourceData };
 			CallInst::Create((Value*) Intrinsic::getDeclaration(M, (llvm::Intrinsic::ID) Intrinsic::writecm, 0), writeCMArgs, "", &((*insertInBB)->back()));
 		} else if (parentEdge->getType() == HyperOpEdge::PREDICATE) {
