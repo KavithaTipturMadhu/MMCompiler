@@ -2821,7 +2821,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
  * 9. Arguments can't be delivered to the first two function arg slots
  * 10. Ensure that context frame base address edges are always at register slot 0
  * 11. Ensure that start hyperop is mapped to CE 0 and is at context frame 0
- * 12. Ensure that no two hyperops mapped to the same CR have the same context frame
+ * 12. Ensure that no two static hyperops have the same context frame
  */
 void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 	//Check that sync hyperops are not predicated
@@ -2963,15 +2963,11 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 			break;
 		}
 	}
-	map<unsigned, list<unsigned> > crAndOccupiedFramesMap;
+	list<unsigned> occupiedFramesList;
 	for (auto hopItr : this->Vertices) {
 		if (hopItr->isStaticHyperOp()) {
-			list<unsigned> occupiedFramesList;
-			if(crAndOccupiedFramesMap.find(hopItr->getTargetResource())!=crAndOccupiedFramesMap.end()){
-				occupiedFramesList = crAndOccupiedFramesMap[hopItr->getTargetResource()];
-				crAndOccupiedFramesMap.erase(hopItr->getTargetResource());
-			}
 			assert((occupiedFramesList.empty()|| find(occupiedFramesList.begin(), occupiedFramesList.end(), hopItr->getContextFrame()) == occupiedFramesList.end()) && "Two hyperops mapped to the same context frame in the CR\n");
+			occupiedFramesList.push_back(hopItr->getContextFrame());
 		}
 	}
 }
@@ -3125,22 +3121,13 @@ void HyperOpInteractionGraph::associateStaticContextFrames() {
 			break;
 		}
 	}
-	map<unsigned, unsigned> lastAllocatedFrameInCR;
-	lastAllocatedFrameInCR[0] = 0;
-	list<HyperOp*> updatedHops;
+	int lastAllocatedFrame = 1;
 	/* Allocate a new frame in that cr */
 	for (auto vertexItr : this->Vertices) {
 		if(!vertexItr->isStartHyperOp() && vertexItr->isStaticHyperOp()){
-			int lastAllocatedFrame = -1;
-			if(lastAllocatedFrameInCR.find(vertexItr->getTargetResource())!=lastAllocatedFrameInCR.end()){
-				lastAllocatedFrame = lastAllocatedFrameInCR[vertexItr->getTargetResource()];
-				lastAllocatedFrameInCR.erase(vertexItr->getTargetResource());
-			}
-			lastAllocatedFrame++;
 			/* Compute the new context frame address */
 			vertexItr->setContextFrame(lastAllocatedFrame);
-			lastAllocatedFrameInCR[vertexItr->getTargetResource()] = lastAllocatedFrame;
-			updatedHops.push_back(vertexItr);
+			lastAllocatedFrame++;
 		}
 	}
 }
