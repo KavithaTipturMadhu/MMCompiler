@@ -151,9 +151,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 		traversedList.push_back(sourceHyperOp);
 		Function* sourceFunction;
 		sourceFunction = sourceHyperOp->getFunction();
-		if(sourceHyperOp->isUnrolledInstance()){
-			errs()<<"fixing up consumers of "<<sourceHyperOp->asString()<<"\n";
-		}
 
 		for (Function::iterator funcItr = sourceFunction->begin(); funcItr != sourceFunction->end(); funcItr++) {
 			for (BasicBlock::iterator bbItr = (*funcItr).begin(); bbItr != (*funcItr).end(); bbItr++) {
@@ -172,6 +169,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								list<StringRef> consumerInstanceId = parseInstanceIdString(parseString);
 								MDNode* hyperOp = (MDNode*) consumerMDNode->getOperand(0);
 								//TODO
+								// This check ensures that unrolled instances don't add edges that terminate at static hyperops, such edges will be replicated later
+								if (sourceHyperOp->isUnrolledInstance() && !((MDString*) hyperOp->getOperand(2))->getName().compare("Static")) {
+									continue;
+								}
 								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
 								if (!sourceHyperOp->isUnrolledInstance() || consumerInstanceId.front().compare("prefixId") == 0) {
 									if (consumerInstanceId.front().compare("id") == 0) {
@@ -247,7 +248,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								//An instance is consuming the data
 								list<StringRef> consumerInstanceId = parseInstanceIdString(((MDString*) predicatedMDNode->getOperand(2))->getName());
 								MDNode* hyperOp = (MDNode*) predicatedMDNode->getOperand(0);
-								//TODO
+								// This check ensures that unrolled instances don't add edges that terminate at static hyperops, such edges will be replicated later
+								if (sourceHyperOp->isUnrolledInstance() && !((MDString*) hyperOp->getOperand(2))->getName().compare("Static")) {
+									continue;
+								}
 								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
 								if (!sourceHyperOp->isUnrolledInstance() || consumerInstanceId.front().compare("prefixId") == 0) {
 									if (consumerInstanceId.front().compare("id") == 0) {
@@ -325,6 +329,10 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								//An instance is consuming the data
 								list<StringRef> consumerInstanceId = parseInstanceIdString(((MDString*) syncedMDNode->getOperand(1))->getName());
 								MDNode* hyperOp = (MDNode*) syncedMDNode->getOperand(0);
+								// This check ensures that unrolled instances don't add edges that terminate at static hyperops, such edges will be replicated later
+								if (sourceHyperOp->isUnrolledInstance() && !((MDString*) hyperOp->getOperand(2))->getName().compare("Static")) {
+									continue;
+								}
 								list<unsigned> consumerHyperOpId = sourceHyperOp->getInstanceId();
 								if (!sourceHyperOp->isUnrolledInstance() || consumerInstanceId.front().compare("prefixId") == 0) {
 									if (consumerInstanceId.front().compare("id") == 0) {
@@ -380,9 +388,9 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 								consumerHyperOp->setBarrierHyperOp();
 								if (sourceHyperOp->getInRange()) {
-									consumerHyperOp->addIncomingSyncValue(0, (SyncValue)sourceHyperOp);
+									consumerHyperOp->addIncomingSyncValue(0, (SyncValue) sourceHyperOp);
 								} else {
-									consumerHyperOp->addIncomingSyncValue(0, (SyncValue)1);
+									consumerHyperOp->addIncomingSyncValue(0, (SyncValue) 1);
 								}
 								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)) {
 									hyperOpTraversalList.push_back(consumerHyperOp);
@@ -396,23 +404,23 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 	}
 
 	/* Replicate edges from dynamic to static between pairs of corresponding unrolled instances to dynamic instances */
-	for(auto dynamicVertexItr = graph->Vertices.begin(); dynamicVertexItr!=graph->Vertices.end(); dynamicVertexItr++){
+	for (auto dynamicVertexItr = graph->Vertices.begin(); dynamicVertexItr != graph->Vertices.end(); dynamicVertexItr++) {
 		HyperOp* dynamicVertex = *dynamicVertexItr;
-		if(dynamicVertex->isStaticHyperOp() ||  dynamicVertex->isUnrolledInstance()){
+		if (dynamicVertex->isStaticHyperOp() || dynamicVertex->isUnrolledInstance()) {
 			continue;
 		}
 		list<HyperOp*> unrolledInstances;
-		for(auto secondItr = graph->Vertices.begin(); secondItr!=graph->Vertices.end(); secondItr++){
+		for (auto secondItr = graph->Vertices.begin(); secondItr != graph->Vertices.end(); secondItr++) {
 			HyperOp* unrolledInstance = *secondItr;
-			if(unrolledInstance->isStaticHyperOp() || !unrolledInstance->isUnrolledInstance() ||  unrolledInstance->getInstanceof() != dynamicVertex->getInstanceof() || unrolledInstance->getFunction() != dynamicVertex->getFunction()){
+			if (unrolledInstance->isStaticHyperOp() || !unrolledInstance->isUnrolledInstance() || unrolledInstance->getInstanceof() != dynamicVertex->getInstanceof() || unrolledInstance->getFunction() != dynamicVertex->getFunction()) {
 				continue;
 			}
 			unrolledInstances.push_back(unrolledInstance);
 		}
 
 		map<HyperOpEdge*, HyperOp*> duplicateEdges;
-		for(auto childItr = dynamicVertex->ChildMap.begin(); childItr !=dynamicVertex->ChildMap.end(); childItr++){
-			if(childItr->second->isStaticHyperOp()){
+		for (auto childItr = dynamicVertex->ChildMap.begin(); childItr != dynamicVertex->ChildMap.end(); childItr++) {
+			if (childItr->second->isStaticHyperOp()) {
 				duplicateEdges.insert(make_pair(childItr->first, childItr->second));
 			}
 		}
@@ -420,7 +428,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 		for (auto duplicateEdgeItr = duplicateEdges.begin(); duplicateEdgeItr != duplicateEdges.end(); duplicateEdgeItr++) {
 			HyperOpEdge* edgeForDuplication = duplicateEdgeItr->first;
 			HyperOp* edgeTargetStatic = duplicateEdgeItr->second;
-			for(auto unrolledInstanceItr = unrolledInstances.begin(); unrolledInstanceItr!=unrolledInstances.end(); unrolledInstanceItr++){
+			for (auto unrolledInstanceItr = unrolledInstances.begin(); unrolledInstanceItr != unrolledInstances.end(); unrolledInstanceItr++) {
 				HyperOp* newProducerHop = *unrolledInstanceItr;
 				list<unsigned> id = newProducerHop->getInstanceId();
 				id.pop_back();
@@ -437,15 +445,15 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 	return graph;
 }
 
-static pair<string, string> getParsedProperty(string keyvaluestr){
+static pair<string, string> getParsedProperty(string keyvaluestr) {
 	string key = keyvaluestr.substr(0, keyvaluestr.find("="));
 	string value = keyvaluestr.substr(keyvaluestr.find("="));
-	value.replace(0,1,"");
+	value.replace(0, 1, "");
 	return make_pair(key, value);
 }
 
 /* Parse HyperOps list from the output of IR pass*/
-map<HyperOp*, map<int, int> > HyperOpMetadataParser::parseHyperOpMetadata(Module * M){
+map<HyperOp*, map<int, int> > HyperOpMetadataParser::parseHyperOpMetadata(Module * M) {
 	map<HyperOp*, map<int, int> > hyperOps;
 
 	LLVMContext & ctxt = M->getContext();
@@ -457,47 +465,54 @@ map<HyperOp*, map<int, int> > HyperOpMetadataParser::parseHyperOpMetadata(Module
 
 			Function* function = (Function *) hyperOpMDNode->getOperand(0);
 			HyperOp *hyperOp = new HyperOp(function, NULL);
-			for (int j = 1; j < hyperOpMDNode->getNumOperands() - 1; j++){
+			for (int j = 1; j < hyperOpMDNode->getNumOperands() - 1; j++) {
 				/* Find all key value pairs */
 				Value* property = hyperOpMDNode->getOperand(j);
 				assert(isa<MDString>(property) && "No property type other than string supported");
-				MDString* propString = (MDString*)property;
+				MDString* propString = (MDString*) property;
 				pair<string, string> keyValuePair = getParsedProperty(propString->getString().str());
-				if(!keyValuePair.first.compare(HYPEROP_ID)){
+				if (!keyValuePair.first.compare(HYPEROP_ID)) {
 					hyperOp->setHyperOpId(atoi(keyValuePair.second.data()));
-				}if(!keyValuePair.first.compare(HYPEROP_AFFINITY)){
+				}
+				if (!keyValuePair.first.compare(HYPEROP_AFFINITY)) {
 					hyperOp->setTargetResource(atoi(keyValuePair.second.data()));
-				}if(!keyValuePair.first.compare(HYPEROP_FRAME)){
-					if(hyperOp->isStaticHyperOp()){
+				}
+				if (!keyValuePair.first.compare(HYPEROP_FRAME)) {
+					if (hyperOp->isStaticHyperOp()) {
 						hyperOp->setContextFrame(atoi(keyValuePair.second.data()));
 					}
-				}if(!keyValuePair.first.compare(STATIC_HYPEROP)){
-					if(!keyValuePair.second.compare("yes"))
+				}
+				if (!keyValuePair.first.compare(STATIC_HYPEROP)) {
+					if (!keyValuePair.second.compare("yes"))
 						hyperOp->setStaticHyperOp(true);
 					else
 						hyperOp->setStaticHyperOp(false);
-				}if(!keyValuePair.first.compare(HYPEROP_ENTRY)){
-					if(!keyValuePair.second.compare("yes"))
+				}
+				if (!keyValuePair.first.compare(HYPEROP_ENTRY)) {
+					if (!keyValuePair.second.compare("yes"))
 						hyperOp->setStartHyperOp();
-				}if(!keyValuePair.first.compare(HYPEROP_EXIT)){
-					if(!keyValuePair.second.compare("yes"))
+				}
+				if (!keyValuePair.first.compare(HYPEROP_EXIT)) {
+					if (!keyValuePair.second.compare("yes"))
 						hyperOp->setEndHyperOp();
-				}if(!keyValuePair.first.compare(HYPEROP_PREDICATED)){
-					if(!keyValuePair.second.compare("yes"))
+				}
+				if (!keyValuePair.first.compare(HYPEROP_PREDICATED)) {
+					if (!keyValuePair.second.compare("yes"))
 						hyperOp->setPredicatedHyperOp();
-				}if(!keyValuePair.first.compare(HYPEROP_BARRIER)){
-					if(!keyValuePair.second.compare("yes"))
+				}
+				if (!keyValuePair.first.compare(HYPEROP_BARRIER)) {
+					if (!keyValuePair.second.compare("yes"))
 						hyperOp->setBarrierHyperOp();
 				}
 			}
-			map<int, int > argIndexOffsetMap;
+			map<int, int> argIndexOffsetMap;
 			/* Last operand is the offset map */
 			Value* offsetMap = hyperOpMDNode->getOperand(hyperOpMDNode->getNumOperands() - 1);
 			assert(isa<MDNode>(offsetMap) && "Offset map must be a list of MD nodes\n");
-			for (int j = 0; j < ((MDNode*)offsetMap)->getNumOperands(); j++){
-				Value* offsetKeyValue = ((MDNode*)offsetMap)->getOperand(j);
+			for (int j = 0; j < ((MDNode*) offsetMap)->getNumOperands(); j++) {
+				Value* offsetKeyValue = ((MDNode*) offsetMap)->getOperand(j);
 				assert(isa<MDString>(offsetKeyValue) && "No property type other than string supported");
-				MDString* offsetString = (MDString*)offsetKeyValue;
+				MDString* offsetString = (MDString*) offsetKeyValue;
 				pair<string, string> keyValuePair = getParsedProperty(offsetString->getString().str());
 				int argIndex = atoi(keyValuePair.first.c_str());
 				int argOffset = atoi(keyValuePair.second.c_str());
