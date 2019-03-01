@@ -177,7 +177,7 @@ void REDEFINEAsmPrinter::EmitFunctionBodyEnd() {
 				itostr(hyperOp->getTargetResource())).append(",").append(itostr(hyperOp->getContextFrame()*64)).append("\n");
 		OutStreamer.EmitRawText(StringRef(instanceId));
 
-		if(hyperOp->isStartHyperOp()){
+		if(hyperOp->isStaticHyperOp()){
 			string instAnn("");
 			instAnn.append("\t.ANNO A\n");
 			OutStreamer.EmitRawText(StringRef(instAnn));
