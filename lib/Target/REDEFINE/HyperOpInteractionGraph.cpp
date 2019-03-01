@@ -2821,6 +2821,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
  * 9. Arguments can't be delivered to the first two function arg slots
  * 10. Ensure that context frame base address edges are always at register slot 0
  * 11. Ensure that start hyperop is mapped to CE 0 and is at context frame 0
+ * 12. Ensure that no two hyperops mapped to the same CR have the same context frame
  */
 void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 	//Check that sync hyperops are not predicated
@@ -2904,54 +2905,52 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 	}
 
 	//Ensure that every input to a function has at least one input edge starting at a parent HyperOp
-	for (auto hopItr : this->Vertices) {
-		HyperOp* hop = hopItr;
-		if (hop->isUnrolledInstance()) {
-			continue;
-		}
-		assert((hop->isStartHyperOp()|| (!hop->isStartHyperOp() && hop->getImmediateDominator()!=NULL)) &&"Only start HyperOp does not have an immediate dominator");
-		if (!hop->isStartHyperOp() && !hop->isEndHyperOp() && !hop->isUnrolledInstance()) {
-//			assert((hop->getImmediateDominator()->getImmediatePostDominator() == hop->getImmediatePostDominator() || hop->getInRange() || hop->getChildList().size() > 1) && "HIG is not structured");
-		}
-		Function* hopFunction = hop->getFunction();
+//	for (auto hopItr : this->Vertices) {
+//		HyperOp* hop = hopItr;
+//		if (hop->isUnrolledInstance()) {
+//			continue;
+//		}
+//		assert((hop->isStartHyperOp()|| (!hop->isStartHyperOp() && hop->getImmediateDominator()!=NULL)) &&"Only start HyperOp does not have an immediate dominator");
+//		if (!hop->isStartHyperOp() && !hop->isEndHyperOp() && !hop->isUnrolledInstance()) {
+////			assert((hop->getImmediateDominator()->getImmediatePostDominator() == hop->getImmediatePostDominator() || hop->getInRange() || hop->getChildList().size() > 1) && "HIG is not structured");
+//		}
+//		Function* hopFunction = hop->getFunction();
+//
+//		int skipArgs = 0;
+//		if (frameArgsAdded) {
+//			skipArgs++;
+//			if (hop->hasRangeBaseInput()) {
+//				skipArgs++;
+//			}
+//		}
+//		assert((!frameArgsAdded || hopFunction->getArgumentList().size() >= skipArgs) && "After adding frame and reg args, every hop must have at least 1 argument (2 in case of range hops)");
+//
+//		int numInRegArgs = 0;
+//		int funcArgIndex = 0;
+//		for (auto argItr = hopFunction->arg_begin(); argItr != hopFunction->arg_end(); argItr++, funcArgIndex++) {
+//			if (hopFunction->getAttributes().hasAttribute(funcArgIndex + 1, Attribute::InReg)) {
+//				numInRegArgs++;
+//			}
+//			if (frameArgsAdded && funcArgIndex < skipArgs) {
+//				assert(hopFunction->getAttributes().hasAttribute(funcArgIndex + 1, Attribute::InReg) && "First arg or two args must be marked as in register");
+//			}
+//			bool funcInputHasValidInput = false;
+//			for (auto edgeItr : hop->ParentMap) {
+//				assert((!frameArgsAdded || ((edgeItr.first->getType() == HyperOpEdge::SYNC || edgeItr.first->getType() == HyperOpEdge::PREDICATE) || edgeItr.first->getPositionOfContextSlot() >= 1)) && "Arguments can't be delivered to the first arg slot");
+//				if (edgeItr.first->getPositionOfContextSlot() == funcArgIndex && std::find(this->Vertices.begin(), this->Vertices.end(), edgeItr.second) != this->Vertices.end()) {
+//					funcInputHasValidInput = true;
+//					break;
+//				}
+//			}
+//			if (frameArgsAdded) {
+//				assert((((funcArgIndex < skipArgs) && !funcInputHasValidInput) || funcInputHasValidInput) && "Invalid input to a function");
+//			} else {
+//				assert(funcInputHasValidInput && "Invalid input to a function");
+//			}
+//		}
+//		assert(numInRegArgs <= (this->getMaxContextFrameSize() + (frameArgsAdded ? skipArgs : 0)) && "Number of inreg args cannot exceed the number of context frame slots");
+//	}
 
-		int skipArgs = 0;
-		if (frameArgsAdded) {
-			skipArgs++;
-			if (hop->hasRangeBaseInput()) {
-				skipArgs++;
-			}
-		}
-		assert((!frameArgsAdded || hopFunction->getArgumentList().size() >= skipArgs) && "After adding frame and reg args, every hop must have at least 1 argument (2 in case of range hops)");
-
-		int numInRegArgs = 0;
-		int funcArgIndex = 0;
-		for (auto argItr = hopFunction->arg_begin(); argItr != hopFunction->arg_end(); argItr++, funcArgIndex++) {
-			if (hopFunction->getAttributes().hasAttribute(funcArgIndex + 1, Attribute::InReg)) {
-				numInRegArgs++;
-			}
-			if (frameArgsAdded && funcArgIndex < skipArgs) {
-				assert(hopFunction->getAttributes().hasAttribute(funcArgIndex + 1, Attribute::InReg) && "First arg or two args must be marked as in register");
-			}
-			bool funcInputHasValidInput = false;
-			errs() << "when checking hop " << hop->asString() << " for slot " << funcArgIndex << ", for a function with arg count " << hopFunction->getArgumentList().size() << "\n";
-			for (auto edgeItr : hop->ParentMap) {
-				assert((!frameArgsAdded || ((edgeItr.first->getType() == HyperOpEdge::SYNC || edgeItr.first->getType() == HyperOpEdge::PREDICATE) || edgeItr.first->getPositionOfContextSlot() >= 1)) && "Arguments can't be delivered to the first arg slot");
-				if (edgeItr.first->getPositionOfContextSlot() == funcArgIndex && std::find(this->Vertices.begin(), this->Vertices.end(), edgeItr.second) != this->Vertices.end()) {
-					funcInputHasValidInput = true;
-					break;
-				}
-			}
-			if (frameArgsAdded) {
-				assert((((funcArgIndex < skipArgs) && !funcInputHasValidInput) || funcInputHasValidInput) && "Invalid input to a function");
-			} else {
-				assert(funcInputHasValidInput && "Invalid input to a function");
-			}
-		}
-		assert(numInRegArgs <= (this->getMaxContextFrameSize() + (frameArgsAdded ? skipArgs : 0)) && "Number of inreg args cannot exceed the number of context frame slots");
-	}
-
-	this->print(errs());
 	Module *M = this->Vertices.front()->getFunction()->getParent();
 	for (auto funcItr = M->begin(); funcItr != M->end(); funcItr++) {
 		Function* func = funcItr;
@@ -2962,6 +2961,17 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 		if (hopItr->isStartHyperOp()) {
 			assert(hopItr->getTargetResource() == 0 && hopItr->getContextFrame() == 0 && "Start hop must be mapped to CE 0 and to context frame 0\n");
 			break;
+		}
+	}
+	map<unsigned, list<unsigned> > crAndOccupiedFramesMap;
+	for (auto hopItr : this->Vertices) {
+		if (hopItr->isStaticHyperOp()) {
+			list<unsigned> occupiedFramesList;
+			if(crAndOccupiedFramesMap.find(hopItr->getTargetResource())!=crAndOccupiedFramesMap.end()){
+				occupiedFramesList = crAndOccupiedFramesMap[hopItr->getTargetResource()];
+				crAndOccupiedFramesMap.erase(hopItr->getTargetResource());
+			}
+			assert((occupiedFramesList.empty()|| find(occupiedFramesList.begin(), occupiedFramesList.end(), hopItr->getContextFrame()) == occupiedFramesList.end()) && "Two hyperops mapped to the same context frame in the CR\n");
 		}
 	}
 }
@@ -3902,12 +3912,15 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		}
 		map<Argument*, int> oldArgNewIndexMap;
 		list<Type*> newArgsList;
+		int argOffset = 0;
 		auto oldArgItr = hopFunction->arg_begin();
 		/* Don't shuffle the first arg */
 		oldArgItr++;
+		argOffset++;
 		oldArgNewIndexMap.insert(make_pair(oldArgItr, 0));
 		if (hop->hasRangeBaseInput()) {
 			oldArgItr++;
+			argOffset++;
 			oldArgNewIndexMap.insert(make_pair(oldArgItr, 1));
 		}
 
@@ -3926,7 +3939,7 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 				newArgsList.push_back(oldArgItr->getType());
 				newInsertIndex = newArgsList.size() - 1;
 			}
-			oldArgNewIndexMap.insert(make_pair(oldArgItr, newInsertIndex));
+			oldArgNewIndexMap.insert(make_pair(oldArgItr, newInsertIndex + argOffset));
 		}
 
 		if (hop->hasRangeBaseInput()) {
