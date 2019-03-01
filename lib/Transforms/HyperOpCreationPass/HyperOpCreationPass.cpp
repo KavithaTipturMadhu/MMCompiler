@@ -4099,19 +4099,6 @@ struct REDEFINEIRPass: public ModulePass {
 			graph->makeGraphStructured();
 			graph->computeDominatorInfo();
 		}
-		for(auto vertexItr:graph->Vertices){
-			if(vertexItr->isUnrolledInstance()){
-				continue;
-			}
-			errs()<<"nodes being created by "<<vertexItr->asString()<<":";
-			for(auto secondItr:graph->Vertices){
-				if(secondItr!=vertexItr && secondItr->getImmediateDominator() == vertexItr){
-					errs()<<secondItr->asString()<<",";
-				}
-			}
-			errs()<<"\n";
-		}
-		return false;
 		graph->addContextFrameAddressForwardingEdges();
 		graph->addSelfFrameAddressRegisters();
 		graph->setDimensions(MAX_ROW, MAX_COL);
