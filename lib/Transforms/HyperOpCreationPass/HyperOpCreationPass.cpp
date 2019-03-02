@@ -4140,7 +4140,7 @@ struct REDEFINEIRPass: public ModulePass {
 			DEBUG(dbgs() << "Adding falloc, fbind instructions to module for dynamic non range or predicated range hops\n");
 			for (auto childItr : graph->Vertices) {
 				HyperOp* child = childItr;
-				if (child == vertex || child->getImmediateDominator() != vertex || child->isStaticHyperOp() || (child->getInRange() && !child->isPredicatedHyperOp())) {
+				if (child == vertex || child->getImmediateDominator() != vertex || (child->getInRange() && !child->isPredicatedHyperOp())) {
 					continue;
 				}
 				BasicBlock * loopBegin, *loopBody, *loopEnd;
@@ -4154,17 +4154,24 @@ struct REDEFINEIRPass: public ModulePass {
 				}else{
 					numFrames = ConstantInt::get(M.getContext(), APInt(32, 0));
 				}
-				vector<Value*> fallocArgs;
-				fallocArgs.push_back(numFrames);
-				Value* func = NULL;
-				if (vertex->getTargetResource() != child->getTargetResource()) {
-					fallocArgs.push_back(ConstantInt::get(M.getContext(), APInt(32, child->getTargetResource())));
-					func = (Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::rfalloc, 0);
-				} else {
-					func = (Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::falloc, 0);
+
+				if (!child->isStaticHyperOp()) {
+					vector<Value*> fallocArgs;
+					fallocArgs.push_back(numFrames);
+					Value* func = NULL;
+					if (vertex->getTargetResource() != child->getTargetResource()) {
+						fallocArgs.push_back(ConstantInt::get(M.getContext(), APInt(32, child->getTargetResource())));
+						func = (Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::rfalloc, 0);
+					} else {
+						func = (Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::falloc, 0);
+					}
+
+					baseAddress = CallInst::Create(func, fallocArgs, "falloc_reg", &insertInBB->back());
+				}
+				else{
+					baseAddress = getConstantValue(child->getContextFrame() * 64, M);
 				}
 
-				baseAddress = CallInst::Create(func, fallocArgs, "falloc_reg", &insertInBB->back());
 				assert(baseAddress!=NULL && "Could not load the base address of the child hyperop\n");
 				Value* baseAddressMax = NULL;
 				Value* baseAddressWithoutPhi = baseAddress;
@@ -4186,8 +4193,10 @@ struct REDEFINEIRPass: public ModulePass {
 					}
 				}
 
-				Value *fbindArgs[] = { ConstantInt::get(M.getContext(), APInt(32, functionAndIndexMap[child->getFunction()])), baseAddress };
-				CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fbind, 0), fbindArgs, "", &insertInBB->back());
+				if (!child->isStaticHyperOp()) {
+					Value *fbindArgs[] = { ConstantInt::get(M.getContext(), APInt(32, functionAndIndexMap[child->getFunction()])), baseAddress };
+					CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fbind, 0), fbindArgs, "", &insertInBB->back());
+				}
 
 				if (child->isBarrierHyperOp()) {
 					addExpectedSyncCount(child, baseAddress, &insertInBB, M);
@@ -4256,14 +4265,14 @@ struct REDEFINEIRPass: public ModulePass {
 				/* Range HyperOp's base address, obtained either with falloc or by loading with forwarded address */
 				Value* baseAddress = NULL, *memFrameAddress = NULL;
 				Value* baseAddressUpperBound = NULL;
-				if (child->isStaticHyperOp()) {
-					baseAddress = getConstantValue(child->getContextFrame() * 64, M);
-				}
-				else if (child->getImmediateDominator() == vertex) {
+				if (child->getImmediateDominator() == vertex) {
 					baseAddress = createdHopBaseAddressMap[child].first;
 					baseAddressUpperBound = createdHopBaseAddressMap[child].second;
 					assert(baseAddress!=NULL && "Could not load the base address of the child hyperop\n");
-				} else {
+				}else if(child->isStaticHyperOp()){
+					baseAddress = getConstantValue(child->getContextFrame() * 64, M);
+				}
+				else {
 					/* Address was forwarded to the hyperop */
 					for (auto parentItr = vertex->ParentMap.begin(); parentItr != vertex->ParentMap.end(); parentItr++) {
 						if ((parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) && parentItr->first->getContextFrameAddress() == child) {
