@@ -3954,11 +3954,11 @@ struct REDEFINEIRPass: public ModulePass {
 			}
 			if (!parentEdge->getPredicateValue()) {
 				//Invert the predicate value
-				predicate = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, predicate, ConstantInt::get(ctxt, APInt(32, 1)), "invertedPred", &((*insertInBB)->back()));
-				predicate = new ZExtInst(predicate, Type::getInt32Ty(ctxt), "", &((*insertInBB)->back()));
+				Instruction* compare = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_EQ, predicate, ConstantInt::get(ctxt, APInt(32, 1)), "", &((*insertInBB)->back()));
+				predicate =  SelectInst::Create(compare, ConstantInt::get(ctxt, APInt(32, 0)), ConstantInt::get(ctxt, APInt(32, 1)),"invertedPred", &((*insertInBB)->back()));
 			}
 			if (parentEdge->getDecrementOperandCount() > 0) {
-				predicate = BinaryOperator::CreateNUWAdd(predicate, ConstantInt::get(ctxt, APInt(32, parentEdge->getDecrementOperandCount())), "", &((*insertInBB)->back()));
+				childCFBaseAddr = BinaryOperator::CreateNUWAdd(childCFBaseAddr, ConstantInt::get(ctxt, APInt(32, parentEdge->getDecrementOperandCount())), "", &((*insertInBB)->back()));
 			}
 			Value* predicateArgs[] = { childCFBaseAddr, predicate };
 			CallInst::Create((Value*) Intrinsic::getDeclaration(M, (llvm::Intrinsic::ID) Intrinsic::writecmp, 0), predicateArgs, "", &((*insertInBB)->back()));
