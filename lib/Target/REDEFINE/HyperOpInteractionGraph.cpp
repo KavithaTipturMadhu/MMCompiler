@@ -1467,9 +1467,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 		list<HyperOp*> vertexDomFrontier;
 		list<HyperOp*> originalDomFrontier = vertex->getDominanceFrontier();
 		for (list<HyperOp*>::iterator originalDomfItr = originalDomFrontier.begin(); originalDomfItr != originalDomFrontier.end(); originalDomfItr++) {
-			if (!(*originalDomfItr)->isStaticHyperOp()) {
-				vertexDomFrontier.push_back(*originalDomfItr);
-			}
+			vertexDomFrontier.push_back(*originalDomfItr);
 		}
 
 		for (list<HyperOp*>::iterator tempItr = Vertices.begin(); tempItr != Vertices.end(); tempItr++) {
@@ -1479,14 +1477,14 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 				liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
 			}
 			//Address also needs to be forwarded to the HyperOp deleting the context frame
-			if (!(*tempItr)->isStaticHyperOp() && (*tempItr)->isPredicatedHyperOp() && liveEndOfVertex != 0 && liveEndOfVertex == vertex && *tempItr != vertex && find(originalDomFrontier.begin(), originalDomFrontier.end(), *tempItr) == originalDomFrontier.end()) {
+			if ((*tempItr)->isPredicatedHyperOp() && liveEndOfVertex != 0 && liveEndOfVertex == vertex && *tempItr != vertex && find(originalDomFrontier.begin(), originalDomFrontier.end(), *tempItr) == originalDomFrontier.end()) {
 				vertexDomFrontier.push_back(*tempItr);
 			}
 		}
 
 		for (list<HyperOp*>::iterator dominanceFrontierIterator = vertexDomFrontier.begin(); dominanceFrontierIterator != vertexDomFrontier.end(); dominanceFrontierIterator++) {
 			HyperOp* dominanceFrontierHyperOp = *dominanceFrontierIterator;
-			if (dominanceFrontierHyperOp != vertex && !dominanceFrontierHyperOp->isStaticHyperOp()) {
+			if (dominanceFrontierHyperOp != vertex) {
 				HyperOp* immediateDominator = vertex->getImmediateDominator();
 				HyperOpEdge* contextFrameEdge = new HyperOpEdge();
 				contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR);
@@ -2828,9 +2826,6 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 	HyperOp* startHyperOp = NULL;
 	HyperOp* endHyperOp = NULL;
 	for (auto vertexItr : Vertices) {
-		if (vertexItr->isUnrolledInstance()) {
-			continue;
-		}
 		assert((!(vertexItr->isBarrierHyperOp() && vertexItr->isPredicatedHyperOp())) && "A HyperOp can't be both predicated and sync barrier");
 		if (vertexItr->isStartHyperOp()) {
 			assert(startHyperOp==NULL && "Multiple Start HyperOps not allowed\n");
