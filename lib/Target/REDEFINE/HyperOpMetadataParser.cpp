@@ -52,6 +52,20 @@ list<unsigned> parseInstanceId(StringRef instanceTag) {
 	return parsedIntegerList;
 }
 
+/* Returns true when ids are the same */
+bool idEquals(list<unsigned> first, list<unsigned> second){
+	if(first.size()!=second.size()){
+		return false;
+	}
+	auto firstItr = first.begin();
+	for(auto secondItr = second.begin(); firstItr!=first.end()&&secondItr!=second.end(); firstItr++, secondItr++){
+		if(*firstItr!=*secondItr){
+			return false;
+		}
+	}
+	return true;
+}
+
 //Take care of unrolling here so that unrolling is performed in a target aware manner instead of at the front end which doesn't know what the target params are
 HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 	LLVMContext & ctxt = M->getContext();
@@ -230,7 +244,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								edge->setValue((Value*) instr);
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
-								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)) {
+								/* Unrolled instance needn't be added because every function call has one entry and one exit, rest of the instances must be created locally inside the unrolled function */
+								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList) && !consumerHyperOp->isUnrolledInstance()) {
 									hyperOpTraversalList.push_back(consumerHyperOp);
 								}
 							}
@@ -311,8 +326,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								}
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
-								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)) {
-									//						&& !sourceHyperOp->isUnrolledInstance()) {
+								/* Unrolled instance needn't be added because every function call has one entry and one exit, rest of the instances must be created locally inside the unrolled function */
+								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList) && !sourceHyperOp->isUnrolledInstance()) {
 									hyperOpTraversalList.push_back(consumerHyperOp);
 								}
 							}
@@ -392,13 +407,32 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								} else {
 									consumerHyperOp->addIncomingSyncValue(0, (SyncValue) 1);
 								}
-								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)) {
+								/* Unrolled instance needn't be added because every function call has one entry and one exit, rest of the instances must be created locally inside the unrolled function */
+								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)  && !consumerHyperOp->isUnrolledInstance()) {
 									hyperOpTraversalList.push_back(consumerHyperOp);
 								}
 							}
 						}
 					}
 				}
+			}
+		}
+	}
+
+	/* If there are unrolled instances with no incoming edges, these are exit hyperops of a function call, their corresponding entry counterparts need to be identified and an edge must be added between them */
+	for(auto vertexItr = graph->Vertices.begin(); vertexItr!=graph->Vertices.end(); vertexItr++){
+		HyperOp* vertex = *vertexItr;
+		if(vertex->isUnrolledInstance() && vertex->ParentMap.empty()){
+			for(auto secondVertexItr =  graph->Vertices.begin(); secondVertexItr!=graph->Vertices.end(); secondVertexItr++){
+				HyperOp* sourceVertex = *secondVertexItr;
+				if(sourceVertex == vertex || !sourceVertex->isUnrolledInstance() || sourceVertex->getInstanceof() == vertex->getInstanceof() || !idEquals(sourceVertex->getInstanceId(), vertex->getInstanceId())){
+					continue;
+				}
+
+				HyperOpEdge* edge = new HyperOpEdge();
+				edge->Type = HyperOpEdge::SYNC;
+				graph->addEdge(sourceVertex, vertex, edge);
+				break;
 			}
 		}
 	}
