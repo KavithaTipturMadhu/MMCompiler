@@ -1454,16 +1454,26 @@ void cloneFunction(HyperOp** hopForUpdate, list<Type*> additionalNewArgs, bool p
 			Instruction* oldInst = instItr;
 			Instruction* newInst = oldInst->clone();
 			oldToNewValueMap.insert(make_pair(oldInst, newInst));
+			newBB->getInstList().insert(newBB->end(), newInst);
+		}
+	}
+
+	for (auto instItr = oldToNewValueMap.begin(); instItr != oldToNewValueMap.end(); instItr++) {
+		if (isa<Instruction>(instItr->first)) {
+			Instruction* oldInst = (Instruction*) instItr->first;
+			Instruction * newInst = (Instruction*) instItr->second;
+			errs() << "Patching ";
+			oldInst->dump();
 			for (int operandIndex = 0; operandIndex < oldInst->getNumOperands(); operandIndex++) {
 				Value* oldOperand = oldInst->getOperand(operandIndex);
 				if (oldToNewValueMap.find(oldOperand) != oldToNewValueMap.end()) {
+					assert(newInst->getParent()->getParent() != hopFunction && "shouldnt patch original");
 					newInst->setOperand(operandIndex, oldToNewValueMap[oldOperand]);
 				}
 				if (isa<PHINode>(newInst)) {
 					((PHINode*) newInst)->setIncomingBlock(operandIndex, (BasicBlock*) oldToNewValueMap[((PHINode*) newInst)->getIncomingBlock(operandIndex)]);
 				}
 			}
-			newBB->getInstList().insert(newBB->end(), newInst);
 		}
 	}
 	(*hopForUpdate)->setFunction(newFunction);
@@ -3548,7 +3558,10 @@ void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
 			}
 		}
 		/* Value of context frame args that used in edges to forward are not updated here */
+		func->getParent()->dump();
+//		func->dump();
 		func->eraseFromParent();
+
 	}
 }
 
@@ -3986,19 +3999,28 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 				Instruction* oldInst = instItr;
 				Instruction* newInst = oldInst->clone();
 				oldToNewValueMap.insert(make_pair(oldInst, newInst));
-				for (int operandIndex = 0; operandIndex < oldInst->getNumOperands(); operandIndex++) {
-					auto* oldOperand = oldInst->getOperand(operandIndex);
-					//newInst->setOperand(operandIndex,oldInst.get
-					if (oldToNewValueMap.find(oldOperand) != oldToNewValueMap.end()) {
-						newInst->setOperand(operandIndex, oldToNewValueMap[oldOperand]);
-					}
-					if (isa<PHINode>(newInst)) {
-						((PHINode*) newInst)->setIncomingBlock(operandIndex, (BasicBlock*) oldToNewValueMap[((PHINode*) newInst)->getIncomingBlock(operandIndex)]);
-					}
-				}
 				newBB->getInstList().insert(newBB->end(), newInst);
 			}
 		}
+
+		for (auto instItr = oldToNewValueMap.begin(); instItr != oldToNewValueMap.end(); instItr++) {
+				if (isa<Instruction>(instItr->first)) {
+					Instruction* oldInst = (Instruction*) instItr->first;
+					Instruction * newInst = (Instruction*) instItr->second;
+					errs() << "Patching ";
+					oldInst->dump();
+					for (int operandIndex = 0; operandIndex < oldInst->getNumOperands(); operandIndex++) {
+						Value* oldOperand = oldInst->getOperand(operandIndex);
+						if (oldToNewValueMap.find(oldOperand) != oldToNewValueMap.end()) {
+							assert(newInst->getParent()->getParent() != hopFunction && "shouldnt patch original");
+							newInst->setOperand(operandIndex, oldToNewValueMap[oldOperand]);
+						}
+						if (isa<PHINode>(newInst)) {
+							((PHINode*) newInst)->setIncomingBlock(operandIndex, (BasicBlock*) oldToNewValueMap[((PHINode*) newInst)->getIncomingBlock(operandIndex)]);
+						}
+					}
+				}
+			}
 
 		/* Update all hops that use the function, including the unrolled ones */
 		for (auto vertexItr : this->Vertices) {
