@@ -356,6 +356,8 @@ public:
 	//Update all the localref edges with memory offsets wrt base 0, needs updating when the functions are lowered to machine functions
 	void updateLocalRefEdgeMemSizeAndOffset();
 
+	void updateContextFrameForwardingEdges();
+
 	void removeUnreachableHops();
 
 	void addNecessarySyncEdges();

@@ -839,6 +839,34 @@ void HyperOpInteractionGraph::updateLocalRefEdgeMemSizeAndOffset() {
 	}
 }
 
+void HyperOpInteractionGraph::updateContextFrameForwardingEdges() {
+	DEBUG(dbgs() << "Updating context frame address forwarding edges with the right value\n");
+	for (auto vertexItr = this->Vertices.begin(); vertexItr != this->Vertices.end(); vertexItr++) {
+		HyperOp* hop = *vertexItr;
+		for (auto childItr = hop->ChildMap.begin(); childItr != hop->ChildMap.end(); childItr++) {
+			if ((childItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) && childItr->first->getContextFrameAddress()->getImmediateDominator() != hop) {
+				int argIndex = -1;
+				for (auto parentItr = hop->ParentMap.begin(); parentItr != hop->ParentMap.end(); parentItr++) {
+					if (parentItr->first->getContextFrameAddress() == childItr->first->getContextFrameAddress()) {
+						argIndex = parentItr->first->getPositionOfContextSlot();
+						break;
+					}
+				}
+
+				assert(argIndex >= 1 && "context frame address not forwarded\n");
+				int index = 0;
+				for(auto argItr = hop->getFunction()->arg_begin(); argItr!=hop->getFunction()->arg_end(); argItr++, index++){
+					if(index == argIndex){
+						childItr->first->setValue(argItr);
+						break;
+					}
+				}
+
+			}
+		}
+	}
+}
+
 void HyperOpInteractionGraph::addHyperOp(HyperOp *Vertex) {
 	this->Vertices.push_back(Vertex);
 }
@@ -1367,14 +1395,6 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 	this->print(errs());
 }
 
-void updateHyperOpsWithNewArgs(map<HyperOp*, list<HyperOpEdge*> > newArgsAddedToHop) {
-	for (auto vertexItr : newArgsAddedToHop) {
-		HyperOp* hopForUpdate = vertexItr.first;
-		list<HyperOpEdge*> newAddedEdges = vertexItr.second;
-		Function* functionForUpdate = hopForUpdate->getFunction();
-
-	}
-}
 /*
  * Create a clone of a function with 2 new inreg arguments
  */
@@ -1606,17 +1626,15 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 	map<HyperOp*, list<HyperOpEdge*> > incomingContextAddressFwdEdgeAndSlotMapForUnrolledInstances;
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		list<HyperOpEdge*> incomingContextEdgeSlotMap;
-		if (!(*vertexIterator)->isStaticHyperOp()) {
-			for (map<HyperOpEdge*, HyperOp*>::iterator parentMapItr = (*vertexIterator)->ParentMap.begin(); parentMapItr != (*vertexIterator)->ParentMap.end(); parentMapItr++) {
-				if (parentMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR && !(parentMapItr->second->isUnrolledInstance() && (*vertexIterator)->isUnrolledInstance())) {
-					incomingContextEdgeSlotMap.push_back(parentMapItr->first);
-				}
+		for (map<HyperOpEdge*, HyperOp*>::iterator parentMapItr = (*vertexIterator)->ParentMap.begin(); parentMapItr != (*vertexIterator)->ParentMap.end(); parentMapItr++) {
+			if (parentMapItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR && !(parentMapItr->second->isUnrolledInstance() && (*vertexIterator)->isUnrolledInstance())) {
+				incomingContextEdgeSlotMap.push_back(parentMapItr->first);
 			}
-			if ((*vertexIterator)->isUnrolledInstance()) {
-				incomingContextAddressFwdEdgeAndSlotMapForUnrolledInstances[*vertexIterator] = incomingContextEdgeSlotMap;
-			} else {
-				incomingContextAddressFwdEdgeAndSlotMapForDynamicInstances[*vertexIterator] = incomingContextEdgeSlotMap;
-			}
+		}
+		if ((*vertexIterator)->isUnrolledInstance()) {
+			incomingContextAddressFwdEdgeAndSlotMapForUnrolledInstances[*vertexIterator] = incomingContextEdgeSlotMap;
+		} else {
+			incomingContextAddressFwdEdgeAndSlotMapForDynamicInstances[*vertexIterator] = incomingContextEdgeSlotMap;
 		}
 	}
 
@@ -1673,7 +1691,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 		prevFunction->eraseFromParent();
 	}
 
-	DEBUG(dbgs() << "Updating edges with arg values after adding context frame address forwarding edges\n");
+	DEBUG(dbgs() << "\n====\nUpdating edges with arg values after adding context frame address forwarding edges\n");
 	/* Update edges with the new values added as arguments */
 	for (auto hopForUpdateItr : childHopsAndNewEdges) {
 		HyperOp* hopForUpdate = hopForUpdateItr.first;
@@ -1691,6 +1709,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 					assert(argItr != hopForUpdate->getFunction()->arg_end());
 					Value * arg = argItr;
 					newlyAddedEdge->setValue(arg);
+					arg->dump();
 					break;
 				}
 			}
@@ -3517,6 +3536,7 @@ void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
 			}
 		}
 
+
 		for (auto hopItr : this->Vertices) {
 			if (hopItr->getFunction() == replacementFunction && hop->hasRangeBaseInput()) {
 				HyperOpEdge* edge = new HyperOpEdge();
@@ -3527,6 +3547,7 @@ void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
 				this->addEdge(hop->getImmediateDominator(), hop, edge);
 			}
 		}
+		/* Value of context frame args that used in edges to forward are not updated here */
 		func->eraseFromParent();
 	}
 }
