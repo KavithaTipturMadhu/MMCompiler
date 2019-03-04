@@ -1462,12 +1462,9 @@ void cloneFunction(HyperOp** hopForUpdate, list<Type*> additionalNewArgs, bool p
 		if (isa<Instruction>(instItr->first)) {
 			Instruction* oldInst = (Instruction*) instItr->first;
 			Instruction * newInst = (Instruction*) instItr->second;
-			errs() << "Patching ";
-			oldInst->dump();
 			for (int operandIndex = 0; operandIndex < oldInst->getNumOperands(); operandIndex++) {
 				Value* oldOperand = oldInst->getOperand(operandIndex);
 				if (oldToNewValueMap.find(oldOperand) != oldToNewValueMap.end()) {
-					assert(newInst->getParent()->getParent() != hopFunction && "shouldnt patch original");
 					newInst->setOperand(operandIndex, oldToNewValueMap[oldOperand]);
 				}
 				if (isa<PHINode>(newInst)) {
@@ -4004,23 +4001,20 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		}
 
 		for (auto instItr = oldToNewValueMap.begin(); instItr != oldToNewValueMap.end(); instItr++) {
-				if (isa<Instruction>(instItr->first)) {
-					Instruction* oldInst = (Instruction*) instItr->first;
-					Instruction * newInst = (Instruction*) instItr->second;
-					errs() << "Patching ";
-					oldInst->dump();
-					for (int operandIndex = 0; operandIndex < oldInst->getNumOperands(); operandIndex++) {
-						Value* oldOperand = oldInst->getOperand(operandIndex);
-						if (oldToNewValueMap.find(oldOperand) != oldToNewValueMap.end()) {
-							assert(newInst->getParent()->getParent() != hopFunction && "shouldnt patch original");
-							newInst->setOperand(operandIndex, oldToNewValueMap[oldOperand]);
-						}
-						if (isa<PHINode>(newInst)) {
-							((PHINode*) newInst)->setIncomingBlock(operandIndex, (BasicBlock*) oldToNewValueMap[((PHINode*) newInst)->getIncomingBlock(operandIndex)]);
-						}
+			if (isa<Instruction>(instItr->first)) {
+				Instruction* oldInst = (Instruction*) instItr->first;
+				Instruction * newInst = (Instruction*) instItr->second;
+				for (int operandIndex = 0; operandIndex < oldInst->getNumOperands(); operandIndex++) {
+					Value* oldOperand = oldInst->getOperand(operandIndex);
+					if (oldToNewValueMap.find(oldOperand) != oldToNewValueMap.end()) {
+						newInst->setOperand(operandIndex, oldToNewValueMap[oldOperand]);
+					}
+					if (isa<PHINode>(newInst)) {
+						((PHINode*) newInst)->setIncomingBlock(operandIndex, (BasicBlock*) oldToNewValueMap[((PHINode*) newInst)->getIncomingBlock(operandIndex)]);
 					}
 				}
 			}
+		}
 
 		/* Update all hops that use the function, including the unrolled ones */
 		for (auto vertexItr : this->Vertices) {
