@@ -3775,7 +3775,22 @@ struct REDEFINEIRPass: public ModulePass {
 		ReturnInst* ret = ReturnInst::Create(M.getContext(), *loopEnd);
 	}
 
-	static inline void getSyncCount(BasicBlock** bb, list<SyncValue> syncCount, Module *M, Value** syncCountValue) {
+	static inline Value* getValueFromLocation(Value* sourceData, BasicBlock** insertInBB) {
+		if (sourceData->getType()->isPointerTy()) {
+			return new LoadInst(sourceData, "", &(*insertInBB)->back());
+		}
+		return sourceData;
+	}
+
+	static inline Value* getZextValue(Value* sourceData, BasicBlock** insertInBB) {
+		Module* M = (*insertInBB)->getParent()->getParent();
+		if (sourceData->getType() != Type::getInt32Ty(M->getContext())) {
+			return new ZExtInst(sourceData, Type::getInt32Ty(M->getContext()), "", &(*insertInBB)->back());
+		}
+		return sourceData;
+	}
+
+	static inline void getSyncCount(BasicBlock** bb, list<SyncValue> syncCount, Module *M, Value* predicate, unsigned expectedPredicate, Value** syncCountValue) {
 		Value* localSymCount = NULL;
 		bool first = true;
 		for (list<SyncValue>::iterator syncCountIterator = syncCount.begin(); syncCountIterator != syncCount.end(); syncCountIterator++) {
@@ -3794,6 +3809,10 @@ struct REDEFINEIRPass: public ModulePass {
 			} else {
 				localSymCount = BinaryOperator::Create(Instruction::BinaryOps::Add, currentSyncCount, localSymCount, "syncCount", &(*bb)->back());
 			}
+		}
+		if (predicate != NULL) {
+			Value* comparePredicate = new ZExtInst(CmpInst::Create(Instruction::OtherOps::ICmp, llvm::CmpInst::ICMP_EQ,  getZextValue(getValueFromLocation(predicate, bb), bb), getConstantValue(expectedPredicate, *M), "", &(*bb)->back()), Type::getInt32Ty(M->getContext()), "", &(*bb)->back());
+			localSymCount = BinaryOperator::Create(Instruction::BinaryOps::Mul, localSymCount, comparePredicate, "", &(*bb)->back());
 		}
 		*syncCountValue = localSymCount;
 	}
@@ -3915,9 +3934,7 @@ struct REDEFINEIRPass: public ModulePass {
 			*nextInsertionPoint = fallbackBB;
 			*insertInBB = communicationInsertionBB;
 		}
-		if (sourceData->getType()->isPointerTy()) {
-			sourceData = new LoadInst(sourceData, "", &(*insertInBB)->back());
-		}
+		sourceData = getValueFromLocation(sourceData, insertInBB);
 		if (parentEdge->getType() == HyperOpEdge::SCALAR || parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE) {
 			/* -1 because there is one arg corresponding to the hyperop id itself, but we don't update the edges context slot because it is easier to match value pointers of argument with context slot this way */
 			assert((parentEdge->getPositionOfContextSlot() - 1) >=0 && "context frame writes must be to a location within the frame\n");
@@ -3950,30 +3967,28 @@ struct REDEFINEIRPass: public ModulePass {
 		if (!child->getSyncCount(0).empty() && !child->getSyncCount(1).empty() && child->getSyncCount(0).size() != child->getSyncCount(1).size()) {
 			list<SyncValue> zeroSyncEdgesOnHop = child->getSyncCount(0);
 			Value* zeroSync;
-			getSyncCount(insertInBB, zeroSyncEdgesOnHop, child->getFunction()->getParent(), &zeroSync);
-			Value* firstPredicate = child->getIncomingSyncPredicate(0);
-			Value * invertZeroSync = CmpInst::Create(Instruction::OtherOps::ICmp, llvm::CmpInst::ICMP_EQ, zeroSync, ConstantInt::get(M.getContext(), APInt(32, 1)), "zeropredsync", &(*insertInBB)->back());
-			Value* mulForZeroSync = BinaryOperator::Create(Instruction::BinaryOps::Mul, firstPredicate, invertZeroSync, "mulzerosync", &(*insertInBB)->back());
+			getSyncCount(insertInBB, zeroSyncEdgesOnHop, child->getFunction()->getParent(), child->getIncomingSyncPredicate(0), 0, &zeroSync);
 
 			list<SyncValue> oneSyncEdgesOnHop = child->getSyncCount(1);
 			Value* secondPredicate = child->getIncomingSyncPredicate(1);
 			if (secondPredicate == NULL) {
-				secondPredicate = firstPredicate;
+				secondPredicate =  child->getIncomingSyncPredicate(0);
 			}
 			Value* oneSync;
-			getSyncCount(insertInBB, oneSyncEdgesOnHop, child->getFunction()->getParent(), &oneSync);
-			predicatedSyncCount = BinaryOperator::Create(Instruction::BinaryOps::Add, mulForZeroSync, oneSync, "predsynccount", &(*insertInBB)->back());
+			Value* onePredicate;
+			getSyncCount(insertInBB, oneSyncEdgesOnHop, child->getFunction()->getParent(), child->getIncomingSyncPredicate(1), 1,  &oneSync);
+			predicatedSyncCount = BinaryOperator::Create(Instruction::BinaryOps::Add, zeroSync, oneSync, "predsynccount", &(*insertInBB)->back());
 		} else if (!child->getSyncCount(0).empty()) {
 			list<SyncValue> syncEdgesOnHop = child->getSyncCount(0);
-			getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), &predicatedSyncCount);
-			predicatedSyncCount = CmpInst::Create(Instruction::OtherOps::ICmp, llvm::CmpInst::ICMP_EQ, predicatedSyncCount, ConstantInt::get(M.getContext(), APInt(32, 1)), "onepredsync", &(*insertInBB)->back());
+			getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), child->getIncomingSyncPredicate(0), 0, &predicatedSyncCount);
+			predicatedSyncCount = CmpInst::Create(Instruction::OtherOps::ICmp, llvm::CmpInst::ICMP_EQ, predicatedSyncCount, ConstantInt::get(M.getContext(), APInt(32, 1)), "zeropredsync", &(*insertInBB)->back());
 		} else if (!child->getSyncCount(1).empty()) {
 			list<SyncValue> syncEdgesOnHop = child->getSyncCount(1);
-			getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), &predicatedSyncCount);
+			getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), child->getIncomingSyncPredicate(1), 1, &predicatedSyncCount);
 		}
 		if (!child->getSyncCount(2).empty()) {
 			list<SyncValue> syncEdgesOnHop = child->getSyncCount(2);
-			getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), &unpredicateSyncCount);
+			getSyncCount(insertInBB, syncEdgesOnHop, child->getFunction()->getParent(), NULL, 0, &unpredicateSyncCount);
 		}
 
 		assert((predicatedSyncCount!=NULL || unpredicateSyncCount !=NULL) && "None of the sync counts are valid for a barrier hyperop\n");
@@ -3992,6 +4007,8 @@ struct REDEFINEIRPass: public ModulePass {
 		}
 		Value *syncArgs[] = { baseAddress, ConstantInt::get(M.getContext(), APInt(32, 60)), syncCount };
 		CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::writecm, 0), syncArgs, "", &(*insertInBB)->back());
+		errs()<<"added writecm with final sync count:";
+		syncCount->dump();
 	}
 
 	static void inline addCommunicationInstructions(HyperOp* child, HyperOp* vertex, Value* baseAddress, BasicBlock** insertInBB, Module &M){
