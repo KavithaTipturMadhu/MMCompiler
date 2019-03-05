@@ -4310,17 +4310,18 @@ void HyperOpInteractionGraph::print(raw_ostream &os, int debug) {
 void setUpdatedMetadata(HyperOp* nodeForRemoval, Instruction** instr, StringRef mdkind) {
 	vector<Value*> updatedConsumerList;
 	MDNode* consumedByMDNode = (*instr)->getMetadata(mdkind);
-	for (unsigned consumerMDNodeIndex = 0; consumerMDNodeIndex != consumedByMDNode->getNumOperands(); consumerMDNodeIndex++) {
-		MDNode* consumedByNode = (MDNode*) consumedByMDNode->getOperand(consumerMDNodeIndex);
-		if (!(consumedByNode != NULL && !((MDNode*) consumedByNode->getOperand(0))->getOperand(0)->getName().compare(nodeForRemoval->getFunction()->getName()))) {
-			updatedConsumerList.push_back(consumedByMDNode);
+	if (consumedByMDNode != NULL) {
+		for (unsigned consumerMDNodeIndex = 0; consumerMDNodeIndex != consumedByMDNode->getNumOperands(); consumerMDNodeIndex++) {
+			MDNode* consumedByNode = (MDNode*) consumedByMDNode->getOperand(consumerMDNodeIndex);
+			if (!(consumedByNode != NULL && !((MDNode*) consumedByNode->getOperand(0))->getOperand(0)->getName().compare(nodeForRemoval->getFunction()->getName()))) {
+				updatedConsumerList.push_back(consumedByMDNode);
+			}
 		}
-
-	}
-	if (!updatedConsumerList.empty()) {
-		(*instr)->setMetadata(mdkind, MDNode::get(nodeForRemoval->getFunction()->getParent()->getContext(), updatedConsumerList));
-	} else {
-		(*instr)->setMetadata(mdkind, NULL);
+		if (!updatedConsumerList.empty()) {
+			(*instr)->setMetadata(mdkind, MDNode::get(nodeForRemoval->getFunction()->getParent()->getContext(), updatedConsumerList));
+		} else {
+			(*instr)->setMetadata(mdkind, NULL);
+		}
 	}
 }
 
@@ -4374,16 +4375,19 @@ void HyperOpInteractionGraph::removeUnreachableHops() {
 					}
 				}
 				NamedMDNode *RedefineAnnotations = M->getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
-				RedefineAnnotations->eraseFromParent();
-				NamedMDNode *updatedAnnotations = M->getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
+				list<MDNode*> mdNodesForRetention;
 				for (int i = 0; i < RedefineAnnotations->getNumOperands(); i++) {
 					MDNode* hyperOpMDNode = RedefineAnnotations->getOperand(i);
 					StringRef type = ((MDString*) hyperOpMDNode->getOperand(0))->getName();
 					if (!(type.compare(HYPEROP) == 0 && !(Function *) hyperOpMDNode->getOperand(1)->getName().compare(nodeForRemoval->getFunction()->getName()))) {
-						updatedAnnotations->addOperand(hyperOpMDNode);
+						mdNodesForRetention.push_back(hyperOpMDNode);
 					}
 				}
-
+				RedefineAnnotations->eraseFromParent();
+				RedefineAnnotations = M->getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
+				for(auto nodeItr = mdNodesForRetention.begin(); nodeItr!=mdNodesForRetention.end(); nodeItr++){
+					RedefineAnnotations->addOperand(*nodeItr);
+				}
 				nodeForRemoval->getFunction()->eraseFromParent();
 			}
 
