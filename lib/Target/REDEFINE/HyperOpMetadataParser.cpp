@@ -245,7 +245,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 								/* Unrolled instance needn't be added because every function call has one entry and one exit, rest of the instances must be created locally inside the unrolled function */
-								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList) && !consumerHyperOp->isUnrolledInstance()) {
+								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)){
+//									&& !consumerHyperOp->isUnrolledInstance()) {
 									hyperOpTraversalList.push_back(consumerHyperOp);
 								}
 							}
@@ -327,7 +328,9 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 								/* Unrolled instance needn't be added because every function call has one entry and one exit, rest of the instances must be created locally inside the unrolled function */
-								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList) && !sourceHyperOp->isUnrolledInstance()) {
+								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)){
+									//&& !sourceHyperOp->isUnrolledInstance()) {
+								//}
 									hyperOpTraversalList.push_back(consumerHyperOp);
 								}
 							}
@@ -408,7 +411,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 									consumerHyperOp->addIncomingSyncValue(0, (SyncValue) 1);
 								}
 								/* Unrolled instance needn't be added because every function call has one entry and one exit, rest of the instances must be created locally inside the unrolled function */
-								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)  && !consumerHyperOp->isUnrolledInstance()) {
+								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)){
+									//&& !consumerHyperOp->isUnrolledInstance()) {
 									hyperOpTraversalList.push_back(consumerHyperOp);
 								}
 							}
@@ -458,7 +462,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 				duplicateEdges.insert(make_pair(childItr->first, childItr->second));
 			}
 		}
-
 		for (auto duplicateEdgeItr = duplicateEdges.begin(); duplicateEdgeItr != duplicateEdges.end(); duplicateEdgeItr++) {
 			HyperOpEdge* edgeForDuplication = duplicateEdgeItr->first;
 			HyperOp* edgeTargetStatic = duplicateEdgeItr->second;
