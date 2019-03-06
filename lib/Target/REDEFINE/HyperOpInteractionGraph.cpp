@@ -3943,7 +3943,6 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		map<Value*, Value*> oldToNewValueMap;
 		int newArgIndex = 1;
 		for (auto oldArgItr = hopFunction->arg_begin(); oldArgItr != hopFunction->arg_end(); oldArgItr++, newArgItr++, newArgIndex++) {
-			oldToNewValueMap.insert(make_pair(oldArgItr, newArgItr));
 			auto oldAttrSet = hopFunction->getAttributes().getParamAttributes(newArgIndex);
 			newFunction->addAttributes(newArgIndex, oldAttrSet);
 		}
@@ -3980,6 +3979,10 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 					Value* oldOperand = oldInst->getOperand(operandIndex);
 					if (oldToNewValueMap.find(oldOperand) != oldToNewValueMap.end()) {
 						newInst->setOperand(operandIndex, oldToNewValueMap[oldOperand]);
+						if(isa<Argument>(oldOperand)){
+							newArgVector[oldArgNewIndexMap[(Argument*)oldOperand]]->dump();
+						}
+						oldToNewValueMap[oldOperand]->dump();
 					}
 					if (isa<PHINode>(newInst)) {
 						((PHINode*) newInst)->setIncomingBlock(operandIndex, (BasicBlock*) oldToNewValueMap[((PHINode*) newInst)->getIncomingBlock(operandIndex)]);
@@ -3992,7 +3995,6 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		for (auto vertexItr : this->Vertices) {
 			HyperOp* oldHop = vertexItr;
 			if (oldHop->getFunction() == hopFunction) {
-				errs()<<"\n--------\nupdating values of edges of "<<oldHop->asString()<<"\n";
 				oldHop->setFunction(newFunction);
 				/* Shuffle all context slots for the updated function */
 				for (auto parentEdgeItr = oldHop->ParentMap.begin(); parentEdgeItr != oldHop->ParentMap.end(); parentEdgeItr++) {
@@ -4000,14 +4002,12 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 					for (int i = 0; i < parentEdgeItr->first->getPositionOfContextSlot(); i++, oldArgItr++) {
 					}
 					Argument* oldArg = oldArgItr;
-					errs()<<"updated parent edge from "<<parentEdgeItr->first->getPositionOfContextSlot()<<"to "<<oldArgNewIndexMap[oldArg]<<"\n";
 					parentEdgeItr->first->setPositionOfContextSlot(oldArgNewIndexMap[oldArg]);
 				}
 
 				/* Update the outgoing edges of the hop with new args cloned here */
 				for (auto childItr = oldHop->ChildMap.begin(); childItr != oldHop->ChildMap.end(); childItr++) {
 					if (childItr->first->getValue() != NULL && oldToNewValueMap.find(childItr->first->getValue()) != oldToNewValueMap.end()) {
-						errs()<<"updated child node going from "<<oldHop->asString()<<" to "<<childItr->second->asString()<<" at slot "<<childItr->first->getPositionOfContextSlot()<<"\n";
 						childItr->first->setValue(oldToNewValueMap[childItr->first->getValue()]);
 					}
 				}
