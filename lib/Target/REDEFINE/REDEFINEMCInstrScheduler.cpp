@@ -635,6 +635,11 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 
 						writepmFirst = writepm;
 						readpmFirst = readpm;
+
+						MachineInstrBuilder dummyuse = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::ADDI)).addReg(REDEFINE::zero, RegState::Define).addReg(readpmTarget).addImm(0);
+						addToLISSlot(LIS, dummyuse.operator llvm::MachineInstr *());
+						allInstructionsOfRegion.push_back(make_pair(dummyuse.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
+
 					}
 
 					{
@@ -680,6 +685,11 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 
 						writepmSecond = writepm;
 						readpmSecond = readpm;
+
+						MachineInstrBuilder dummyuse = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::ADDI)).addReg(REDEFINE::zero, RegState::Define).addReg(readpmTarget).addImm(0);
+						addToLISSlot(LIS, dummyuse.operator llvm::MachineInstr *());
+						allInstructionsOfRegion.push_back(make_pair(dummyuse.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
+
 					}
 					pHopInteractionGraph.push_back(make_pair(writepmFirst.operator ->(), readpmSecond.operator ->()));
 					pHopInteractionGraph.push_back(make_pair(writepmSecond.operator ->(), readpmFirst.operator ->()));
@@ -907,6 +917,10 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 						addToLISSlot(LIS, readpm.operator llvm::MachineInstr *());
 						allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 
+						MachineInstrBuilder dummyuse = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::ADDI)).addReg(REDEFINE::zero, RegState::Define).addReg(readpmTarget).addImm(0);
+						addToLISSlot(LIS, dummyuse.operator llvm::MachineInstr *());
+						allInstructionsOfRegion.push_back(make_pair(dummyuse.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
+
 						writepmFirst = writepm;
 						readpmFirst = readpm;
 					}
@@ -954,6 +968,10 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 
 						writepmSecond = writepm;
 						readpmSecond = readpm;
+						MachineInstrBuilder dummyuse = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::ADDI)).addReg(REDEFINE::zero, RegState::Define).addReg(readpmTarget).addImm(0);
+						addToLISSlot(LIS, dummyuse.operator llvm::MachineInstr *());
+						allInstructionsOfRegion.push_back(make_pair(dummyuse.operator llvm::MachineInstr *(), make_pair(i+increment, insertPosition++)));
+
 					}
 
 					pHopInteractionGraph.push_back(make_pair(writepmFirst.operator ->(), readpmSecond.operator ->()));
@@ -1117,7 +1135,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 	}
 
 }
-
+BB->dump();
 //Shuffle instructions in the region
 DEBUG(dbgs() << "Shuffling instructions within the region such that successive instructions belong to the same pHyperOp to ease bundle creation\n");
 
