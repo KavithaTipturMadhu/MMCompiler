@@ -4111,7 +4111,6 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->mapClustersToComputeResources();
 		graph->convertRemoteScalarsToStores();
 		graph->shuffleHyperOpArguments();
-		return false;
 		graph->setMaxContextFrameSize(MAX_CONTEXT_FRAME_SIZE);
 		graph->convertSpillScalarsToStores();
 		graph->addNecessarySyncEdges();
@@ -4121,7 +4120,6 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->updateLocalRefEdgeMemSizeAndOffset();
 		graph->updateContextFrameForwardingEdges();
 		graph->verify(1);
-		graph->print(dbgs());
 		map<Function*, unsigned> functionAndIndexMap;
 
 		unsigned index = 0;
