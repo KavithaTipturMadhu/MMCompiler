@@ -4273,10 +4273,7 @@ struct REDEFINEIRPass: public ModulePass {
 					baseAddress = createdHopBaseAddressMap[child].first;
 					baseAddressUpperBound = createdHopBaseAddressMap[child].second;
 					assert(baseAddress!=NULL && "Could not load the base address of the child hyperop\n");
-				}else if(child->isStaticHyperOp()){
-					baseAddress = getConstantValue(child->getContextFrame() * 64, M);
-				}
-				else {
+				}	else {
 					/* Address was forwarded to the hyperop */
 					for (auto parentItr = vertex->ParentMap.begin(); parentItr != vertex->ParentMap.end(); parentItr++) {
 						if ((parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) && parentItr->first->getContextFrameAddress() == child) {
