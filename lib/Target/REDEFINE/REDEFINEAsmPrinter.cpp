@@ -287,7 +287,7 @@ void REDEFINEAsmPrinter::EmitFunctionEntryLabel() {
 	for (unsigned i = 0; i < ceCount; i++) {
 		if (i > 0) {
 			distCount.append(",\t");
-			phopPC.append(",\T");
+			phopPC.append(",\t");
 		}
 		distCount.append(itostr(numInputsPerCE[i]));
 		phopPC.append(".PC_").append(funcnamewithoutperiod).append(itostr(i));
