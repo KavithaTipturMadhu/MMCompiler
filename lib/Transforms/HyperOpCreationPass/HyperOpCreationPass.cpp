@@ -3308,12 +3308,23 @@ struct HyperOpCreationPass: public ModulePass {
 					metadataList.push_back(newPredicateMetadata);
 					MDNode * predicatesRelation = MDNode::get(ctxt, metadataList);
 					metadataHost->setMetadata(HYPEROP_CONTROLS, predicatesRelation);
-
 					for (unsigned branchOperandIndex = 0; branchOperandIndex != conditionalBranchSourceItr->second.size(); branchOperandIndex++) {
 						if (conditionalBranchSourceItr->second[branchOperandIndex].second != -1) {
 							//Update the cloned conditional branch instruction with the right target
 							int conditionalSlot = conditionalBranchSourceItr->second[branchOperandIndex].second;
-							BasicBlock* targetBB = ((BranchInst*) conditionalBranchInst)->getSuccessor(conditionalSlot);
+							//TODO I have a feeling the subsequent callinst based check should deal with this, but hacking this for now */
+							BasicBlock* targetBB = ((BranchInst*) clonedInstr)->getSuccessor(conditionalSlot);
+							bool updatedBefore = false;
+							for(auto bbItr =  ((BranchInst*) clonedInstr)->getParent()->getParent()->begin(); bbItr!= ((BranchInst*) clonedInstr)->getParent()->getParent()->end(); bbItr++){
+								BasicBlock* bb = bbItr;
+								if(bb == targetBB){
+									updatedBefore = true;
+									break;
+								}
+							}
+							if(updatedBefore){
+								continue;
+							}
 							if ((!isa<CallInst>(&targetBB->front()) && find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), targetBB) == accumulatedOriginalBasicBlocks.end())
 									|| (isa<CallInst>(&targetBB->front()) && find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), (&((CallInst*) &targetBB->front())->getCalledFunction()->getEntryBlock())) == accumulatedOriginalBasicBlocks.end())) {
 								continue;
@@ -4100,6 +4111,7 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->mapClustersToComputeResources();
 		graph->convertRemoteScalarsToStores();
 		graph->shuffleHyperOpArguments();
+		return false;
 		graph->setMaxContextFrameSize(MAX_CONTEXT_FRAME_SIZE);
 		graph->convertSpillScalarsToStores();
 		graph->addNecessarySyncEdges();
