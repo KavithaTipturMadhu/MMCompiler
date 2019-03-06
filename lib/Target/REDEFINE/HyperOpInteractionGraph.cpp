@@ -1697,31 +1697,6 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 		}
 		prevFunction->eraseFromParent();
 	}
-
-	DEBUG(dbgs() << "\n====\nUpdating edges with arg values after adding context frame address forwarding edges\n");
-	/* Update edges with the new values added as arguments */
-	for (auto hopForUpdateItr : childHopsAndNewEdges) {
-		HyperOp* hopForUpdate = hopForUpdateItr.first;
-		/* We cannot skip unrolled instances here because their edges need to be updated explicitly */
-		list<HyperOpEdge*> addedEdges = hopForUpdateItr.second;
-		for (auto addedEdgeItr : addedEdges) {
-			HyperOpEdge* newlyAddedEdge = addedEdgeItr;
-			for (auto parentItr : hopForUpdate->ParentMap) {
-				HyperOp* parent = parentItr.second;
-				if (newlyAddedEdge->getContextFrameAddress()->getImmediateDominator() != parent && newlyAddedEdge->getContextFrameAddress() == parentItr.first->getContextFrameAddress()) {
-					auto argItr = hopForUpdate->getFunction()->arg_begin();
-					for (int argIndex = 0; argIndex < parentItr.first->getPositionOfContextSlot(); argIndex++, argItr++) {
-
-					}
-					assert(argItr != hopForUpdate->getFunction()->arg_end());
-					Value * arg = argItr;
-					newlyAddedEdge->setValue(arg);
-					arg->dump();
-					break;
-				}
-			}
-		}
-	}
 }
 
 void estimateExecutionTime(HyperOp *hyperOp) {
@@ -3555,10 +3530,7 @@ void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
 			}
 		}
 		/* Value of context frame args that used in edges to forward are not updated here */
-		func->getParent()->dump();
-//		func->dump();
 		func->eraseFromParent();
-
 	}
 }
 
@@ -3927,14 +3899,14 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		list<Type*> newArgsList;
 		int argOffset = 0;
 		auto oldArgItr = hopFunction->arg_begin();
+		oldArgNewIndexMap.insert(make_pair(oldArgItr, 0));
 		/* Don't shuffle the first arg */
 		oldArgItr++;
 		argOffset++;
-		oldArgNewIndexMap.insert(make_pair(oldArgItr, 0));
 		if (hop->hasRangeBaseInput()) {
+			oldArgNewIndexMap.insert(make_pair(oldArgItr, 1));
 			oldArgItr++;
 			argOffset++;
-			oldArgNewIndexMap.insert(make_pair(oldArgItr, 1));
 		}
 
 		/* Shuffle all arguments except the first in case of all hyperops and the first two in case of range hyperops */
@@ -4020,23 +3992,28 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		for (auto vertexItr : this->Vertices) {
 			HyperOp* oldHop = vertexItr;
 			if (oldHop->getFunction() == hopFunction) {
+				errs()<<"\n--------\nupdating values of edges of "<<oldHop->asString()<<"\n";
 				oldHop->setFunction(newFunction);
-
 				/* Shuffle all context slots for the updated function */
 				for (auto parentEdgeItr = oldHop->ParentMap.begin(); parentEdgeItr != oldHop->ParentMap.end(); parentEdgeItr++) {
 					auto oldArgItr = hopFunction->arg_begin();
 					for (int i = 0; i < parentEdgeItr->first->getPositionOfContextSlot(); i++, oldArgItr++) {
 					}
 					Argument* oldArg = oldArgItr;
+					errs()<<"updated parent edge from "<<parentEdgeItr->first->getPositionOfContextSlot()<<"to "<<oldArgNewIndexMap[oldArg]<<"\n";
 					parentEdgeItr->first->setPositionOfContextSlot(oldArgNewIndexMap[oldArg]);
 				}
 
 				/* Update the outgoing edges of the hop with new args cloned here */
 				for (auto childItr = oldHop->ChildMap.begin(); childItr != oldHop->ChildMap.end(); childItr++) {
 					if (childItr->first->getValue() != NULL && oldToNewValueMap.find(childItr->first->getValue()) != oldToNewValueMap.end()) {
+						errs()<<"updated child node going from "<<oldHop->asString()<<" to "<<childItr->second->asString()<<" at slot "<<childItr->first->getPositionOfContextSlot()<<"\n";
 						childItr->first->setValue(oldToNewValueMap[childItr->first->getValue()]);
 					}
 				}
+			}
+			if(oldHop->getInstanceof() == hopFunction){
+				oldHop->setInstanceof(newFunction);
 			}
 		}
 		hopFunction->eraseFromParent();
