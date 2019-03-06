@@ -1697,31 +1697,6 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 		}
 		prevFunction->eraseFromParent();
 	}
-
-	DEBUG(dbgs() << "\n====\nUpdating edges with arg values after adding context frame address forwarding edges\n");
-	/* Update edges with the new values added as arguments */
-	for (auto hopForUpdateItr : childHopsAndNewEdges) {
-		HyperOp* hopForUpdate = hopForUpdateItr.first;
-		/* We cannot skip unrolled instances here because their edges need to be updated explicitly */
-		list<HyperOpEdge*> addedEdges = hopForUpdateItr.second;
-		for (auto addedEdgeItr : addedEdges) {
-			HyperOpEdge* newlyAddedEdge = addedEdgeItr;
-			for (auto parentItr : hopForUpdate->ParentMap) {
-				HyperOp* parent = parentItr.second;
-				if (newlyAddedEdge->getContextFrameAddress()->getImmediateDominator() != parent && newlyAddedEdge->getContextFrameAddress() == parentItr.first->getContextFrameAddress()) {
-					auto argItr = hopForUpdate->getFunction()->arg_begin();
-					for (int argIndex = 0; argIndex < parentItr.first->getPositionOfContextSlot(); argIndex++, argItr++) {
-
-					}
-					assert(argItr != hopForUpdate->getFunction()->arg_end());
-					Value * arg = argItr;
-					newlyAddedEdge->setValue(arg);
-					arg->dump();
-					break;
-				}
-			}
-		}
-	}
 }
 
 void estimateExecutionTime(HyperOp *hyperOp) {
@@ -3555,10 +3530,7 @@ void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
 			}
 		}
 		/* Value of context frame args that used in edges to forward are not updated here */
-		func->getParent()->dump();
-//		func->dump();
 		func->eraseFromParent();
-
 	}
 }
 
@@ -3927,14 +3899,14 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		list<Type*> newArgsList;
 		int argOffset = 0;
 		auto oldArgItr = hopFunction->arg_begin();
+		oldArgNewIndexMap.insert(make_pair(oldArgItr, 0));
 		/* Don't shuffle the first arg */
 		oldArgItr++;
 		argOffset++;
-		oldArgNewIndexMap.insert(make_pair(oldArgItr, 0));
 		if (hop->hasRangeBaseInput()) {
+			oldArgNewIndexMap.insert(make_pair(oldArgItr, 1));
 			oldArgItr++;
 			argOffset++;
-			oldArgNewIndexMap.insert(make_pair(oldArgItr, 1));
 		}
 
 		/* Shuffle all arguments except the first in case of all hyperops and the first two in case of range hyperops */
@@ -3971,7 +3943,6 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		map<Value*, Value*> oldToNewValueMap;
 		int newArgIndex = 1;
 		for (auto oldArgItr = hopFunction->arg_begin(); oldArgItr != hopFunction->arg_end(); oldArgItr++, newArgItr++, newArgIndex++) {
-			oldToNewValueMap.insert(make_pair(oldArgItr, newArgItr));
 			auto oldAttrSet = hopFunction->getAttributes().getParamAttributes(newArgIndex);
 			newFunction->addAttributes(newArgIndex, oldAttrSet);
 		}
@@ -4008,6 +3979,10 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 					Value* oldOperand = oldInst->getOperand(operandIndex);
 					if (oldToNewValueMap.find(oldOperand) != oldToNewValueMap.end()) {
 						newInst->setOperand(operandIndex, oldToNewValueMap[oldOperand]);
+						if(isa<Argument>(oldOperand)){
+							newArgVector[oldArgNewIndexMap[(Argument*)oldOperand]]->dump();
+						}
+						oldToNewValueMap[oldOperand]->dump();
 					}
 					if (isa<PHINode>(newInst)) {
 						((PHINode*) newInst)->setIncomingBlock(operandIndex, (BasicBlock*) oldToNewValueMap[((PHINode*) newInst)->getIncomingBlock(operandIndex)]);
@@ -4021,7 +3996,6 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 			HyperOp* oldHop = vertexItr;
 			if (oldHop->getFunction() == hopFunction) {
 				oldHop->setFunction(newFunction);
-
 				/* Shuffle all context slots for the updated function */
 				for (auto parentEdgeItr = oldHop->ParentMap.begin(); parentEdgeItr != oldHop->ParentMap.end(); parentEdgeItr++) {
 					auto oldArgItr = hopFunction->arg_begin();
@@ -4037,6 +4011,9 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 						childItr->first->setValue(oldToNewValueMap[childItr->first->getValue()]);
 					}
 				}
+			}
+			if(oldHop->getInstanceof() == hopFunction){
+				oldHop->setInstanceof(newFunction);
 			}
 		}
 		hopFunction->eraseFromParent();
@@ -4310,17 +4287,18 @@ void HyperOpInteractionGraph::print(raw_ostream &os, int debug) {
 void setUpdatedMetadata(HyperOp* nodeForRemoval, Instruction** instr, StringRef mdkind) {
 	vector<Value*> updatedConsumerList;
 	MDNode* consumedByMDNode = (*instr)->getMetadata(mdkind);
-	for (unsigned consumerMDNodeIndex = 0; consumerMDNodeIndex != consumedByMDNode->getNumOperands(); consumerMDNodeIndex++) {
-		MDNode* consumedByNode = (MDNode*) consumedByMDNode->getOperand(consumerMDNodeIndex);
-		if (!(consumedByNode != NULL && !((MDNode*) consumedByNode->getOperand(0))->getOperand(0)->getName().compare(nodeForRemoval->getFunction()->getName()))) {
-			updatedConsumerList.push_back(consumedByMDNode);
+	if (consumedByMDNode != NULL) {
+		for (unsigned consumerMDNodeIndex = 0; consumerMDNodeIndex != consumedByMDNode->getNumOperands(); consumerMDNodeIndex++) {
+			MDNode* consumedByNode = (MDNode*) consumedByMDNode->getOperand(consumerMDNodeIndex);
+			if (!(consumedByNode != NULL && !((MDNode*) consumedByNode->getOperand(0))->getOperand(0)->getName().compare(nodeForRemoval->getFunction()->getName()))) {
+				updatedConsumerList.push_back(consumedByMDNode);
+			}
 		}
-
-	}
-	if (!updatedConsumerList.empty()) {
-		(*instr)->setMetadata(mdkind, MDNode::get(nodeForRemoval->getFunction()->getParent()->getContext(), updatedConsumerList));
-	} else {
-		(*instr)->setMetadata(mdkind, NULL);
+		if (!updatedConsumerList.empty()) {
+			(*instr)->setMetadata(mdkind, MDNode::get(nodeForRemoval->getFunction()->getParent()->getContext(), updatedConsumerList));
+		} else {
+			(*instr)->setMetadata(mdkind, NULL);
+		}
 	}
 }
 
@@ -4374,16 +4352,19 @@ void HyperOpInteractionGraph::removeUnreachableHops() {
 					}
 				}
 				NamedMDNode *RedefineAnnotations = M->getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
-				RedefineAnnotations->eraseFromParent();
-				NamedMDNode *updatedAnnotations = M->getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
+				list<MDNode*> mdNodesForRetention;
 				for (int i = 0; i < RedefineAnnotations->getNumOperands(); i++) {
 					MDNode* hyperOpMDNode = RedefineAnnotations->getOperand(i);
 					StringRef type = ((MDString*) hyperOpMDNode->getOperand(0))->getName();
 					if (!(type.compare(HYPEROP) == 0 && !(Function *) hyperOpMDNode->getOperand(1)->getName().compare(nodeForRemoval->getFunction()->getName()))) {
-						updatedAnnotations->addOperand(hyperOpMDNode);
+						mdNodesForRetention.push_back(hyperOpMDNode);
 					}
 				}
-
+				RedefineAnnotations->eraseFromParent();
+				RedefineAnnotations = M->getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
+				for(auto nodeItr = mdNodesForRetention.begin(); nodeItr!=mdNodesForRetention.end(); nodeItr++){
+					RedefineAnnotations->addOperand(*nodeItr);
+				}
 				nodeForRemoval->getFunction()->eraseFromParent();
 			}
 

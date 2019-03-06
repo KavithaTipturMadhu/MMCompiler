@@ -3308,12 +3308,23 @@ struct HyperOpCreationPass: public ModulePass {
 					metadataList.push_back(newPredicateMetadata);
 					MDNode * predicatesRelation = MDNode::get(ctxt, metadataList);
 					metadataHost->setMetadata(HYPEROP_CONTROLS, predicatesRelation);
-
 					for (unsigned branchOperandIndex = 0; branchOperandIndex != conditionalBranchSourceItr->second.size(); branchOperandIndex++) {
 						if (conditionalBranchSourceItr->second[branchOperandIndex].second != -1) {
 							//Update the cloned conditional branch instruction with the right target
 							int conditionalSlot = conditionalBranchSourceItr->second[branchOperandIndex].second;
-							BasicBlock* targetBB = ((BranchInst*) conditionalBranchInst)->getSuccessor(conditionalSlot);
+							//TODO I have a feeling the subsequent callinst based check should deal with this, but hacking this for now */
+							BasicBlock* targetBB = ((BranchInst*) clonedInstr)->getSuccessor(conditionalSlot);
+							bool updatedBefore = false;
+							for(auto bbItr =  ((BranchInst*) clonedInstr)->getParent()->getParent()->begin(); bbItr!= ((BranchInst*) clonedInstr)->getParent()->getParent()->end(); bbItr++){
+								BasicBlock* bb = bbItr;
+								if(bb == targetBB){
+									updatedBefore = true;
+									break;
+								}
+							}
+							if(updatedBefore){
+								continue;
+							}
 							if ((!isa<CallInst>(&targetBB->front()) && find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), targetBB) == accumulatedOriginalBasicBlocks.end())
 									|| (isa<CallInst>(&targetBB->front()) && find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), (&((CallInst*) &targetBB->front())->getCalledFunction()->getEntryBlock())) == accumulatedOriginalBasicBlocks.end())) {
 								continue;
@@ -3733,8 +3744,8 @@ struct REDEFINEIRPass: public ModulePass {
 	static char* NEW_NAME;
 	/* Maximum context frame size in words, not bytes */
 	static const unsigned MAX_CONTEXT_FRAME_SIZE = 15;
-	static const unsigned MAX_ROW = 1;
-	static const unsigned MAX_COL = 1;
+	static const unsigned MAX_ROW = 2;
+	static const unsigned MAX_COL = 2;
 	static const unsigned FRAME_SIZE_BYTES = 64;
 
 	REDEFINEIRPass() :
@@ -4109,7 +4120,6 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->updateLocalRefEdgeMemSizeAndOffset();
 		graph->updateContextFrameForwardingEdges();
 		graph->verify(1);
-		graph->print(dbgs());
 		map<Function*, unsigned> functionAndIndexMap;
 
 		unsigned index = 0;
@@ -4163,7 +4173,7 @@ struct REDEFINEIRPass: public ModulePass {
 					baseAddress = CallInst::Create(func, fallocArgs, "falloc_reg", &insertInBB->back());
 				}
 				else{
-					baseAddress = getConstantValue(child->getContextFrame() * 64, M);
+					baseAddress = getConstantValue((child->getTargetResource() << 22) + child->getContextFrame() * 64, M);
 				}
 
 				assert(baseAddress!=NULL && "Could not load the base address of the child hyperop\n");
@@ -4263,10 +4273,7 @@ struct REDEFINEIRPass: public ModulePass {
 					baseAddress = createdHopBaseAddressMap[child].first;
 					baseAddressUpperBound = createdHopBaseAddressMap[child].second;
 					assert(baseAddress!=NULL && "Could not load the base address of the child hyperop\n");
-				}else if(child->isStaticHyperOp()){
-					baseAddress = getConstantValue(child->getContextFrame() * 64, M);
-				}
-				else {
+				}	else {
 					/* Address was forwarded to the hyperop */
 					for (auto parentItr = vertex->ParentMap.begin(); parentItr != vertex->ParentMap.end(); parentItr++) {
 						if ((parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || parentItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) && parentItr->first->getContextFrameAddress() == child) {
