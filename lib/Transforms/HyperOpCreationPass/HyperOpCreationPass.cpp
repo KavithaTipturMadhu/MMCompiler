@@ -3744,8 +3744,8 @@ struct REDEFINEIRPass: public ModulePass {
 	static char* NEW_NAME;
 	/* Maximum context frame size in words, not bytes */
 	static const unsigned MAX_CONTEXT_FRAME_SIZE = 15;
-	static const unsigned MAX_ROW = 1;
-	static const unsigned MAX_COL = 1;
+	static const unsigned MAX_ROW = 2;
+	static const unsigned MAX_COL = 2;
 	static const unsigned FRAME_SIZE_BYTES = 64;
 
 	REDEFINEIRPass() :
@@ -4173,7 +4173,7 @@ struct REDEFINEIRPass: public ModulePass {
 					baseAddress = CallInst::Create(func, fallocArgs, "falloc_reg", &insertInBB->back());
 				}
 				else{
-					baseAddress = getConstantValue(child->getContextFrame() * 64, M);
+					baseAddress = getConstantValue((child->getTargetResource() << 22) + child->getContextFrame() * 64, M);
 				}
 
 				assert(baseAddress!=NULL && "Could not load the base address of the child hyperop\n");
