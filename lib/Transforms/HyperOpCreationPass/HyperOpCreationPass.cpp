@@ -2380,7 +2380,7 @@ struct HyperOpCreationPass: public ModulePass {
 				isKernelExit = true;
 			}
 			//First instruction in redefine_start is a call
-			else if (!callSite.empty()) {
+			if (!callSite.empty()) {
 				list<CallInst*> callSiteCopy;
 				std::copy(callSite.begin(), callSite.end(), std::back_inserter(callSiteCopy));
 				//Recursively find out if the call instruction is the first in the whole call chain
@@ -2397,7 +2397,7 @@ struct HyperOpCreationPass: public ModulePass {
 			}
 
 			//last instruction in redefine_start is a call
-			else if (!callSite.empty()) {
+			if (!callSite.empty()) {
 				list<CallInst*> callSiteCopy;
 				std::copy(callSite.begin(), callSite.end(), std::back_inserter(callSiteCopy));
 				//Recursively find out if the call instruction is the first in the whole call chain
