@@ -109,7 +109,21 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 	codeSegmentStart.append("\n");
 	OutStreamer.EmitRawText(StringRef(codeSegmentStart));
 
-//	string hyperOpId(itostr(hyperOp->getHyperOpId()));
+
+	/* Old to new label per ce map for all basic blocks */
+	map<string, vector<MCSymbol*>> oldToNewLabelSymbolMap;
+	for (MachineFunction::const_iterator I = MF->begin(), E = MF->end(); I != E; ++I) {
+		MCSymbol *oldlabel = I->getSymbol();
+		vector<MCSymbol*> newLabelsForPhops;
+		for (int pHyperOpIndex = 0; pHyperOpIndex < ceCount; pHyperOpIndex++) {
+			string newSymbol(oldlabel->getName().str());
+			newSymbol.append(itostr(pHyperOpIndex));
+			MCSymbol* newLabel = MF->getContext().GetOrCreateSymbol(StringRef(newSymbol));
+			newLabelsForPhops.push_back(newLabel);
+		}
+		oldToNewLabelSymbolMap[oldlabel->getName().str()] = newLabelsForPhops;
+	}
+
 	for (int pHyperOpIndex = 0; pHyperOpIndex < pHyperOpInstructions.size();
 			pHyperOpIndex++) {
 		list<const MachineInstr*> pHyperOpItr =
@@ -124,10 +138,11 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 			if (!startOfBBInPHyperOp[pHyperOpIndex].empty()
 					&& startOfBBInPHyperOp[pHyperOpIndex].front() == *mcItr) {
 				MCSymbol *label = (*mcItr)->getParent()->getSymbol();
-				label->setUndefined();
-				OutStreamer.EmitLabel(label);
+				MCSymbol* newLabel = oldToNewLabelSymbolMap[label->getName().str()][pHyperOpIndex];
+				OutStreamer.EmitLabel(newLabel);
 				startOfBBInPHyperOp[pHyperOpIndex].pop_front();
 			}
+
 			EmitInstruction(*mcItr);
 		}
 	}
