@@ -2418,392 +2418,400 @@ int combination(int n, int r) {
 	return factorial(n) / (factorial(n - r) * factorial(r));
 }
 
-void HyperOpInteractionGraph::mapClustersToComputeResources() {
-//Start of the edge is defined the top level of the source HyperOp of the edge and end is top level + edge weight
-
-	int indexOfStartCluster = -1;
-//First entry corresponds to the HyperOp and second, index of the cluster it belongs to in clusterList
-	map<HyperOp*, unsigned int> clusterMap;
-	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
-		HyperOp* vertex = *vertexItr;
-		list<unsigned int> topLevel = computeTopLevelofNode(vertex);
-		vertex->setTopLevel(topLevel);
-		int i = 0;
-		for (list<list<HyperOp*> >::iterator clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++) {
-			if (std::find(clusterItr->begin(), clusterItr->end(), vertex) != clusterItr->end()) {
-				break;
-			}
-			//Incrementing by 2 because we compute two indices for x and y coordinates
-			i = i + 2;
-		}
-		clusterMap.insert(std::make_pair(vertex, i));
-		if (vertex->isStartHyperOp()) {
-			indexOfStartCluster = i;
-		}
-	}
-
-//First pair is <source cluster index, target cluster index> tuple and second entry indicates <weight of communication, start time> tuple
-//This map is used to ensure that the source and target clusters are placed closest to each other
-	list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > > communicationMap;
-	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
-		HyperOp* vertex = *vertexItr;
-		map<HyperOp*, list<unsigned int> > childNodes = vertex->getChildNodeEdgeWeights();
-		for (map<HyperOp*, list<unsigned int> >::iterator childNodeItr = childNodes.begin(); childNodeItr != childNodes.end(); childNodeItr++) {
-			HyperOp* childNode = childNodeItr->first;
-			list<unsigned int> tempTime;
-			tempTime.push_back(0);
-			//If edge has non-zero weightage and does not correspond to edges from the same cluster
-			if (compareHierarchicalVolume(childNodeItr->second, tempTime) > 0 && clusterMap.find(vertex)->second != clusterMap.find(childNode)->second) {
-				pair<list<unsigned int>, list<unsigned int> > timeTuple = std::make_pair(childNodeItr->second, addHierarchicalVolume(vertex->getTopLevel(), vertex->getExecutionTimeEstimate()));
-				pair<unsigned int, unsigned int> clusterTuple = std::make_pair(clusterMap.find(vertex)->second, clusterMap.find(childNode)->second);
-				communicationMap.push_back(std::make_pair(clusterTuple, timeTuple));
-			}
-		}
-	}
-
-//A conflict between edges is defined as edges that execute concurrently across clusters and don't share the same source or target cluster
-//	list<pair<pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> > > conflictingEdges;
-//	for (list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > >::iterator edgeItr = communicationMap.begin(); edgeItr != communicationMap.end(); edgeItr++) {
-//		list<unsigned int> edgeStartTime = (edgeItr->second).second;
-//		list<unsigned int> edgeEndTime = addHierarchicalVolume((edgeItr->second).first, (edgeItr->second).second);
-//		for (list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > >::iterator conflictingEdgeItr = communicationMap.begin(); conflictingEdgeItr != communicationMap.end(); conflictingEdgeItr++) {
-//			//If not the same edges
-//			if (edgeItr != conflictingEdgeItr && (!(edgeItr->first.first == conflictingEdgeItr->first.first && edgeItr->first.second == conflictingEdgeItr->first.second))) {
-//				list<unsigned int> conflictEdgeStartTime = (conflictingEdgeItr->second).second;
-//				list<unsigned int> conflictEdgeEndTime = addHierarchicalVolume((conflictingEdgeItr->second).first, (conflictingEdgeItr->second).second);
-//				if (!(compareHierarchicalVolume(conflictEdgeStartTime, edgeEndTime) >= 0 || compareHierarchicalVolume(conflictEdgeEndTime, edgeStartTime) >= 0)) {
-//					//Edges that execute concurrently
-//					conflictingEdges.push_back(std::make_pair(edgeItr->first, conflictingEdgeItr->first));
-//				}
+void HyperOpInteractionGraph::mapClustersToComputeResources(){
+////Start of the edge is defined the top level of the source HyperOp of the edge and end is top level + edge weight
+//
+//	int indexOfStartCluster = -1;
+////First entry corresponds to the HyperOp and second, index of the cluster it belongs to in clusterList
+//	map<HyperOp*, unsigned int> clusterMap;
+//	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
+//		HyperOp* vertex = *vertexItr;
+//		list<unsigned int> topLevel = computeTopLevelofNode(vertex);
+//		vertex->setTopLevel(topLevel);
+//		int i = 0;
+//		for (list<list<HyperOp*> >::iterator clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++) {
+//			if (std::find(clusterItr->begin(), clusterItr->end(), vertex) != clusterItr->end()) {
+//				break;
+//			}
+//			//Incrementing by 2 because we compute two indices for x and y coordinates
+//			i = i + 2;
+//		}
+//		clusterMap.insert(std::make_pair(vertex, i));
+//		if (vertex->isStartHyperOp()) {
+//			indexOfStartCluster = i;
+//		}
+//	}
+//
+////First pair is <source cluster index, target cluster index> tuple and second entry indicates <weight of communication, start time> tuple
+////This map is used to ensure that the source and target clusters are placed closest to each other
+//	list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > > communicationMap;
+//	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
+//		HyperOp* vertex = *vertexItr;
+//		map<HyperOp*, list<unsigned int> > childNodes = vertex->getChildNodeEdgeWeights();
+//		for (map<HyperOp*, list<unsigned int> >::iterator childNodeItr = childNodes.begin(); childNodeItr != childNodes.end(); childNodeItr++) {
+//			HyperOp* childNode = childNodeItr->first;
+//			list<unsigned int> tempTime;
+//			tempTime.push_back(0);
+//			//If edge has non-zero weightage and does not correspond to edges from the same cluster
+//			if (compareHierarchicalVolume(childNodeItr->second, tempTime) > 0 && clusterMap.find(vertex)->second != clusterMap.find(childNode)->second) {
+//				pair<list<unsigned int>, list<unsigned int> > timeTuple = std::make_pair(childNodeItr->second, addHierarchicalVolume(vertex->getTopLevel(), vertex->getExecutionTimeEstimate()));
+//				pair<unsigned int, unsigned int> clusterTuple = std::make_pair(clusterMap.find(vertex)->second, clusterMap.find(childNode)->second);
+//				communicationMap.push_back(std::make_pair(clusterTuple, timeTuple));
 //			}
 //		}
 //	}
-
-//Create the linear programming problem
-	int Ncol = clusterList.size() * 2;
-	int maxDimM = rowCount;
-	int maxDimN = columnCount;
-	int ret = 0;
-	int combinationVariables = 4 * combination(clusterList.size(), 2);
-
-	lprec *lp;
-	int *colno = NULL;
-	REAL *row = NULL;
-//	errs()<<"number of clusters:"<<clusterList.size()<<" being mapped to "<<rowCount<<" and "<<columnCount<<"\n";
-
-//First set of columns are the actual x and y coordinates being computed
-//Second set of columns are to ensure that the <x,y> pair for each cluster is unique
-//Third set of columns corresponds to boolean variables being used to compute |x1-x2| and them assigned to a scalar value d1=|xj-xk| whose lower bound is 0; b1,d1 correspond to boolean variable and scalar being used for |x| followed by similar set for |y|
-//Fourth set of columns are to minimize the overlap between concurrent communication edges
-	int numColumns = Ncol + combinationVariables + communicationMap.size() * 2;
-//	+ conflictingEdges.size() * 2;
-	lp = make_lp(0, numColumns);
-
-	int i;
-// Set bounds on x,y coordinates being computed as a map of clusters
-	for (i = 1; i <= Ncol; i += 2) {
-//X bound
-		set_bounds(lp, i, 0, maxDimM - 1);
-		set_int(lp, i, 1);
-//Y bound
-		set_bounds(lp, i + 1, 0, maxDimN - 1);
-		set_int(lp, i + 1, 1);
-	}
-
-	int addedVariableIndex = Ncol + 1;
-	int j;
-
-	colno = (int *) malloc(5 * sizeof(*colno));
-	row = (REAL *) malloc(5 * sizeof(*row));
-	unsigned numRows = 0;
-
-	/* Force assign cluster with start hyperOp to be mapped to the 0th ce */
-	int * forceAllocColno = (int *) malloc(1 * sizeof(*colno));
-	REAL *forceAllocRow = (REAL *) malloc(1 * sizeof(*row));
-	forceAllocColno[0] = indexOfStartCluster + 1;
-	forceAllocRow[0] = 1;
-	add_constraintex(lp, 1, forceAllocRow, forceAllocColno, EQ, 0);
-	numRows++;
-
-	int * secondForceAllocColno = (int *) malloc(1 * sizeof(*colno));
-	REAL *secondForceAllocRow = (REAL *) malloc(1 * sizeof(*row));
-	secondForceAllocColno[0] = indexOfStartCluster + 2;
-	secondForceAllocRow[0] = 1;
-	add_constraintex(lp, 1, secondForceAllocRow, secondForceAllocColno, EQ, 0);
-	numRows++;
-
-	//This is to ensure that two clusters don't get mapped to the same compute resource
-	for (i = 1; i <= Ncol - 2; i += 2) {
-		for (j = i + 2; j <= Ncol; j += 2) {
-			//Add boolean constraints for |x1-x2|>=d1
-			colno[0] = i;
-			row[0] = 1;
-			colno[1] = j;
-			row[1] = -1;
-			colno[2] = addedVariableIndex;
-			row[2] = maxDimM + 1;
-			colno[3] = addedVariableIndex + 1;
-			row[3] = -1;
-			add_constraintex(lp, 4, row, colno, GE, 0);
-			numRows++;
-
-			colno[0] = i;
-			row[0] = 1;
-			colno[1] = j;
-			row[1] = -1;
-			colno[2] = addedVariableIndex;
-			row[2] = maxDimM + 1;
-			colno[3] = addedVariableIndex + 1;
-			row[3] = 1;
-			add_constraintex(lp, 4, row, colno, LE, maxDimM + 1);
-			set_binary(lp, addedVariableIndex, 1);
-			set_lowbo(lp, addedVariableIndex + 1, 0);
-			numRows++;
-
-			addedVariableIndex = addedVariableIndex + 2;
-			//Add boolean constraints for |y1-y2|>=d2
-			colno[0] = i + 1;
-			row[0] = 1;
-			colno[1] = j + 1;
-			row[1] = -1;
-			colno[2] = addedVariableIndex;
-			row[2] = maxDimN + 1;
-			colno[3] = addedVariableIndex + 1;
-			row[3] = -1;
-			add_constraintex(lp, 4, row, colno, GE, 0);
-			numRows++;
-
-			colno[0] = i + 1;
-			row[0] = 1;
-			colno[1] = j + 1;
-			row[1] = -1;
-			colno[2] = addedVariableIndex;
-			row[2] = maxDimN + 1;
-			colno[3] = addedVariableIndex + 1;
-			row[3] = 1;
-			add_constraintex(lp, 4, row, colno, LE, maxDimN + 1);
-			set_binary(lp, addedVariableIndex, 1);
-			set_lowbo(lp, addedVariableIndex + 1, 0);
-			numRows++;
-
-			//Add a constraint to ensure that the added variables sum up to >=1
-			colno[0] = addedVariableIndex - 1;
-			row[0] = 1;
-			colno[1] = addedVariableIndex + 1;
-			row[1] = 1;
-			add_constraintex(lp, 2, row, colno, GE, 1);
-			addedVariableIndex = addedVariableIndex + 2;
-			numRows++;
-		}
-	}
-
-	int diffVariableCount = communicationMap.size() * 2;
-//			+ conflictingEdges.size() * 2;
-	int *minimizationColumn = (int *) malloc(diffVariableCount * sizeof(*minimizationColumn));
-	REAL* minimizationRow = (REAL *) malloc(diffVariableCount * sizeof(*minimizationRow));
-//Constraints for communicating edges
-	j = 0;
-	for (list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > >::iterator communicationItr = communicationMap.begin(); communicationItr != communicationMap.end(); communicationItr++) {
-//		errs()<<"added mapping constraint\n";
-		int sourcex = communicationItr->first.first + 1;
-		int sourcey = sourcex + 1;
-
-		int targetx = communicationItr->first.second + 1;
-		int targety = targetx + 1;
-
-//Add constraints for |x1-x2|<d1
-		colno[0] = sourcex;
-		row[0] = 1;
-		colno[1] = targetx;
-		row[1] = -1;
-		colno[2] = addedVariableIndex;
-		row[2] = -1;
-		add_constraintex(lp, 3, row, colno, LE, 0);
-		numRows++;
-
-		colno[0] = sourcex;
-		row[0] = -1;
-		colno[1] = targetx;
-		row[1] = 1;
-		colno[2] = addedVariableIndex;
-		row[2] = -1;
-		add_constraintex(lp, 3, row, colno, LE, 0);
-		numRows++;
-
-		set_int(lp, addedVariableIndex, 1);
-		set_lowbo(lp, addedVariableIndex, 0);
-
-//Associate weightage
-		minimizationColumn[j] = addedVariableIndex;
-		minimizationRow[j] = linearizeTime(communicationItr->second.first);
-		j++;
-
-//Add constraints for |y1-y2|<d2
-		colno[0] = sourcey;
-		row[0] = 1;
-		colno[1] = targety;
-		row[1] = -1;
-		colno[2] = addedVariableIndex + 1;
-		row[2] = -1;
-		add_constraintex(lp, 3, row, colno, LE, 0);
-		numRows++;
-
-		colno[0] = sourcey;
-		row[0] = -1;
-		colno[1] = targety;
-		row[1] = 1;
-		colno[2] = addedVariableIndex + 1;
-		row[2] = -1;
-		add_constraintex(lp, 3, row, colno, LE, 0);
-		numRows++;
-
-//Associate weightage
-		minimizationColumn[j] = addedVariableIndex + 1;
-		minimizationRow[j] = linearizeTime(communicationItr->second.first);
-		j++;
-		set_int(lp, addedVariableIndex + 1, 1);
-		set_lowbo(lp, addedVariableIndex + 1, 0);
-		addedVariableIndex += 2;
-	}
-
-//	for (list<pair<pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> > >::iterator conflictItr = conflictingEdges.begin(); conflictItr != conflictingEdges.end(); conflictItr++) {
-//		unsigned int firstSourceX = conflictItr->first.first + 1;
-//		unsigned int firstSourceY = firstSourceX + 1;
 //
-//		unsigned int firstTargetX = conflictItr->first.second + 1;
-//		unsigned int firstTargetY = firstTargetX + 1;
+////A conflict between edges is defined as edges that execute concurrently across clusters and don't share the same source or target cluster
+////	list<pair<pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> > > conflictingEdges;
+////	for (list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > >::iterator edgeItr = communicationMap.begin(); edgeItr != communicationMap.end(); edgeItr++) {
+////		list<unsigned int> edgeStartTime = (edgeItr->second).second;
+////		list<unsigned int> edgeEndTime = addHierarchicalVolume((edgeItr->second).first, (edgeItr->second).second);
+////		for (list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > >::iterator conflictingEdgeItr = communicationMap.begin(); conflictingEdgeItr != communicationMap.end(); conflictingEdgeItr++) {
+////			//If not the same edges
+////			if (edgeItr != conflictingEdgeItr && (!(edgeItr->first.first == conflictingEdgeItr->first.first && edgeItr->first.second == conflictingEdgeItr->first.second))) {
+////				list<unsigned int> conflictEdgeStartTime = (conflictingEdgeItr->second).second;
+////				list<unsigned int> conflictEdgeEndTime = addHierarchicalVolume((conflictingEdgeItr->second).first, (conflictingEdgeItr->second).second);
+////				if (!(compareHierarchicalVolume(conflictEdgeStartTime, edgeEndTime) >= 0 || compareHierarchicalVolume(conflictEdgeEndTime, edgeStartTime) >= 0)) {
+////					//Edges that execute concurrently
+////					conflictingEdges.push_back(std::make_pair(edgeItr->first, conflictingEdgeItr->first));
+////				}
+////			}
+////		}
+////	}
 //
-//		unsigned int secondSourceX = conflictItr->second.first + 1;
-//		unsigned int secondSourceY = secondSourceX + 1;
+////Create the linear programming problem
+//	int Ncol = clusterList.size() * 2;
+//	int maxDimM = rowCount;
+//	int maxDimN = columnCount;
+//	int ret = 0;
+//	int combinationVariables = 4 * combination(clusterList.size(), 2);
 //
-//		unsigned int secondTargetX = conflictItr->second.second + 1;
-//		unsigned int secondTargetY = secondTargetX + 1;
+//	lprec *lp;
+//	int *colno = NULL;
+//	REAL *row = NULL;
+////	errs()<<"number of clusters:"<<clusterList.size()<<" being mapped to "<<rowCount<<" and "<<columnCount<<"\n";
 //
-//		//Add constraints for |x1-x2|+|x3-x4|<=d1
-//		int columnQuotientsArray[4][4] = { { 1, -1, 1, -1 }, { -1, 1, 1, -1 }, { 1, -1, -1, 1 }, { -1, 1, -1, 1 } };
+////First set of columns are the actual x and y coordinates being computed
+////Second set of columns are to ensure that the <x,y> pair for each cluster is unique
+////Third set of columns corresponds to boolean variables being used to compute |x1-x2| and them assigned to a scalar value d1=|xj-xk| whose lower bound is 0; b1,d1 correspond to boolean variable and scalar being used for |x| followed by similar set for |y|
+////Fourth set of columns are to minimize the overlap between concurrent communication edges
+//	int numColumns = Ncol + combinationVariables + communicationMap.size() * 2;
+////	+ conflictingEdges.size() * 2;
+//	lp = make_lp(0, numColumns);
 //
-//		for (int i = 0; i < 4; i++) {
-//			int columnOne = columnQuotientsArray[i][0];
-//			int columnTwo = columnQuotientsArray[i][1];
-//			int columnThree = columnQuotientsArray[i][2];
-//			int columnFour = columnQuotientsArray[i][3];
+//	int i;
+//// Set bounds on x,y coordinates being computed as a map of clusters
+//	for (i = 1; i <= Ncol; i += 2) {
+////X bound
+//		set_bounds(lp, i, 0, maxDimM - 1);
+//		set_int(lp, i, 1);
+////Y bound
+//		set_bounds(lp, i + 1, 0, maxDimN - 1);
+//		set_int(lp, i + 1, 1);
+//	}
 //
-//			if (firstSourceX == secondSourceX) {
-//				columnOne = columnThree = columnQuotientsArray[i][0] + columnQuotientsArray[i][2];
-//			}
-//			if (firstSourceX == secondTargetX) {
-//				columnOne = columnFour = columnQuotientsArray[i][0] + columnQuotientsArray[i][3];
-//			}
-//			if (firstTargetX == secondSourceX) {
-//				columnTwo = columnThree = columnQuotientsArray[i][1] + columnQuotientsArray[i][2];
-//			}
-//			if (firstTargetX == secondTargetX) {
-//				columnTwo = columnFour = columnQuotientsArray[i][1] + columnQuotientsArray[i][3];
-//			}
+//	int addedVariableIndex = Ncol + 1;
+//	int j;
 //
-//			int k = 0;
-//			if (columnOne) {
-//				colno[k] = firstSourceX;
-//				row[k++] = columnOne;
-//			}
-//			if (columnTwo) {
-//				colno[k] = firstTargetX;
-//				row[k++] = columnTwo;
-//			}
-//			if (columnThree) {
-//				colno[k] = secondSourceX;
-//				row[k++] = columnThree;
-//			}
-//			if (columnFour) {
-//				colno[k] = secondTargetX;
-//				row[k++] = columnFour;
-//			}
+//	colno = (int *) malloc(5 * sizeof(*colno));
+//	row = (REAL *) malloc(5 * sizeof(*row));
+//	unsigned numRows = 0;
 //
-//			colno[k] = addedVariableIndex;
-//			row[k++] = -1;
-//			add_constraintex(lp, k, row, colno, LE, 0);
+//	/* Force assign cluster with start hyperOp to be mapped to the 0th ce */
+//	int * forceAllocColno = (int *) malloc(1 * sizeof(*colno));
+//	REAL *forceAllocRow = (REAL *) malloc(1 * sizeof(*row));
+//	forceAllocColno[0] = indexOfStartCluster + 1;
+//	forceAllocRow[0] = 1;
+//	add_constraintex(lp, 1, forceAllocRow, forceAllocColno, EQ, 0);
+//	numRows++;
 //
-//			columnOne = columnQuotientsArray[i][0];
-//			columnTwo = columnQuotientsArray[i][1];
-//			columnThree = columnQuotientsArray[i][2];
-//			columnFour = columnQuotientsArray[i][3];
+//	int * secondForceAllocColno = (int *) malloc(1 * sizeof(*colno));
+//	REAL *secondForceAllocRow = (REAL *) malloc(1 * sizeof(*row));
+//	secondForceAllocColno[0] = indexOfStartCluster + 2;
+//	secondForceAllocRow[0] = 1;
+//	add_constraintex(lp, 1, secondForceAllocRow, secondForceAllocColno, EQ, 0);
+//	numRows++;
 //
-//			if (firstSourceY == secondSourceY) {
-//				columnOne = columnThree = columnQuotientsArray[i][0] + columnQuotientsArray[i][2];
-//			}
-//			if (firstSourceY == secondTargetY) {
-//				columnOne = columnFour = columnQuotientsArray[i][0] + columnQuotientsArray[i][3];
-//			}
-//			if (firstTargetY == secondSourceY) {
-//				columnTwo = columnThree = columnQuotientsArray[i][1] + columnQuotientsArray[i][2];
-//			}
-//			if (firstTargetY == secondTargetY) {
-//				columnTwo = columnFour = columnQuotientsArray[i][1] + columnQuotientsArray[i][3];
-//			}
+//	//This is to ensure that two clusters don't get mapped to the same compute resource
+//	for (i = 1; i <= Ncol - 2; i += 2) {
+//		for (j = i + 2; j <= Ncol; j += 2) {
+//			//Add boolean constraints for |x1-x2|>=d1
+//			colno[0] = i;
+//			row[0] = 1;
+//			colno[1] = j;
+//			row[1] = -1;
+//			colno[2] = addedVariableIndex;
+//			row[2] = maxDimM + 1;
+//			colno[3] = addedVariableIndex + 1;
+//			row[3] = -1;
+//			add_constraintex(lp, 4, row, colno, GE, 0);
+//			numRows++;
 //
-//			k = 0;
-//			if (columnOne) {
-//				colno[k] = firstSourceY;
-//				row[k++] = columnOne;
-//			}
-//			if (columnTwo) {
-//				colno[k] = firstTargetY;
-//				row[k++] = columnTwo;
-//			}
-//			if (columnThree) {
-//				colno[k] = secondSourceY;
-//				row[k++] = columnThree;
-//			}
-//			if (columnFour) {
-//				colno[k] = secondTargetY;
-//				row[k++] = columnFour;
-//			}
-//			colno[k] = addedVariableIndex + 1;
-//			row[k++] = -1;
-//			add_constraintex(lp, k, row, colno, LE, 0);
+//			colno[0] = i;
+//			row[0] = 1;
+//			colno[1] = j;
+//			row[1] = -1;
+//			colno[2] = addedVariableIndex;
+//			row[2] = maxDimM + 1;
+//			colno[3] = addedVariableIndex + 1;
+//			row[3] = 1;
+//			add_constraintex(lp, 4, row, colno, LE, maxDimM + 1);
+//			set_binary(lp, addedVariableIndex, 1);
+//			set_lowbo(lp, addedVariableIndex + 1, 0);
+//			numRows++;
+//
+//			addedVariableIndex = addedVariableIndex + 2;
+//			//Add boolean constraints for |y1-y2|>=d2
+//			colno[0] = i + 1;
+//			row[0] = 1;
+//			colno[1] = j + 1;
+//			row[1] = -1;
+//			colno[2] = addedVariableIndex;
+//			row[2] = maxDimN + 1;
+//			colno[3] = addedVariableIndex + 1;
+//			row[3] = -1;
+//			add_constraintex(lp, 4, row, colno, GE, 0);
+//			numRows++;
+//
+//			colno[0] = i + 1;
+//			row[0] = 1;
+//			colno[1] = j + 1;
+//			row[1] = -1;
+//			colno[2] = addedVariableIndex;
+//			row[2] = maxDimN + 1;
+//			colno[3] = addedVariableIndex + 1;
+//			row[3] = 1;
+//			add_constraintex(lp, 4, row, colno, LE, maxDimN + 1);
+//			set_binary(lp, addedVariableIndex, 1);
+//			set_lowbo(lp, addedVariableIndex + 1, 0);
+//			numRows++;
+//
+//			//Add a constraint to ensure that the added variables sum up to >=1
+//			colno[0] = addedVariableIndex - 1;
+//			row[0] = 1;
+//			colno[1] = addedVariableIndex + 1;
+//			row[1] = 1;
+//			add_constraintex(lp, 2, row, colno, GE, 1);
+//			addedVariableIndex = addedVariableIndex + 2;
+//			numRows++;
 //		}
+//	}
 //
-//		minimizationColumn[j] = addedVariableIndex;
-//		minimizationRow[j] = -1;
-//		minimizationColumn[j + 1] = addedVariableIndex + 1;
-//		minimizationRow[j + 1] = -1;
-//		set_lowbo(lp, addedVariableIndex, 0);
+//	int diffVariableCount = communicationMap.size() * 2;
+////			+ conflictingEdges.size() * 2;
+//	int *minimizationColumn = (int *) malloc(diffVariableCount * sizeof(*minimizationColumn));
+//	REAL* minimizationRow = (REAL *) malloc(diffVariableCount * sizeof(*minimizationRow));
+////Constraints for communicating edges
+//	j = 0;
+//	for (list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > >::iterator communicationItr = communicationMap.begin(); communicationItr != communicationMap.end(); communicationItr++) {
+////		errs()<<"added mapping constraint\n";
+//		int sourcex = communicationItr->first.first + 1;
+//		int sourcey = sourcex + 1;
+//
+//		int targetx = communicationItr->first.second + 1;
+//		int targety = targetx + 1;
+//
+////Add constraints for |x1-x2|<d1
+//		colno[0] = sourcex;
+//		row[0] = 1;
+//		colno[1] = targetx;
+//		row[1] = -1;
+//		colno[2] = addedVariableIndex;
+//		row[2] = -1;
+//		add_constraintex(lp, 3, row, colno, LE, 0);
+//		numRows++;
+//
+//		colno[0] = sourcex;
+//		row[0] = -1;
+//		colno[1] = targetx;
+//		row[1] = 1;
+//		colno[2] = addedVariableIndex;
+//		row[2] = -1;
+//		add_constraintex(lp, 3, row, colno, LE, 0);
+//		numRows++;
+//
 //		set_int(lp, addedVariableIndex, 1);
-//		set_lowbo(lp, addedVariableIndex + 1, 0);
+//		set_lowbo(lp, addedVariableIndex, 0);
+//
+////Associate weightage
+//		minimizationColumn[j] = addedVariableIndex;
+//		minimizationRow[j] = linearizeTime(communicationItr->second.first);
+//		j++;
+//
+////Add constraints for |y1-y2|<d2
+//		colno[0] = sourcey;
+//		row[0] = 1;
+//		colno[1] = targety;
+//		row[1] = -1;
+//		colno[2] = addedVariableIndex + 1;
+//		row[2] = -1;
+//		add_constraintex(lp, 3, row, colno, LE, 0);
+//		numRows++;
+//
+//		colno[0] = sourcey;
+//		row[0] = -1;
+//		colno[1] = targety;
+//		row[1] = 1;
+//		colno[2] = addedVariableIndex + 1;
+//		row[2] = -1;
+//		add_constraintex(lp, 3, row, colno, LE, 0);
+//		numRows++;
+//
+////Associate weightage
+//		minimizationColumn[j] = addedVariableIndex + 1;
+//		minimizationRow[j] = linearizeTime(communicationItr->second.first);
+//		j++;
 //		set_int(lp, addedVariableIndex + 1, 1);
+//		set_lowbo(lp, addedVariableIndex + 1, 0);
 //		addedVariableIndex += 2;
-//		j += 2;
+//	}
+//
+////	for (list<pair<pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> > >::iterator conflictItr = conflictingEdges.begin(); conflictItr != conflictingEdges.end(); conflictItr++) {
+////		unsigned int firstSourceX = conflictItr->first.first + 1;
+////		unsigned int firstSourceY = firstSourceX + 1;
+////
+////		unsigned int firstTargetX = conflictItr->first.second + 1;
+////		unsigned int firstTargetY = firstTargetX + 1;
+////
+////		unsigned int secondSourceX = conflictItr->second.first + 1;
+////		unsigned int secondSourceY = secondSourceX + 1;
+////
+////		unsigned int secondTargetX = conflictItr->second.second + 1;
+////		unsigned int secondTargetY = secondTargetX + 1;
+////
+////		//Add constraints for |x1-x2|+|x3-x4|<=d1
+////		int columnQuotientsArray[4][4] = { { 1, -1, 1, -1 }, { -1, 1, 1, -1 }, { 1, -1, -1, 1 }, { -1, 1, -1, 1 } };
+////
+////		for (int i = 0; i < 4; i++) {
+////			int columnOne = columnQuotientsArray[i][0];
+////			int columnTwo = columnQuotientsArray[i][1];
+////			int columnThree = columnQuotientsArray[i][2];
+////			int columnFour = columnQuotientsArray[i][3];
+////
+////			if (firstSourceX == secondSourceX) {
+////				columnOne = columnThree = columnQuotientsArray[i][0] + columnQuotientsArray[i][2];
+////			}
+////			if (firstSourceX == secondTargetX) {
+////				columnOne = columnFour = columnQuotientsArray[i][0] + columnQuotientsArray[i][3];
+////			}
+////			if (firstTargetX == secondSourceX) {
+////				columnTwo = columnThree = columnQuotientsArray[i][1] + columnQuotientsArray[i][2];
+////			}
+////			if (firstTargetX == secondTargetX) {
+////				columnTwo = columnFour = columnQuotientsArray[i][1] + columnQuotientsArray[i][3];
+////			}
+////
+////			int k = 0;
+////			if (columnOne) {
+////				colno[k] = firstSourceX;
+////				row[k++] = columnOne;
+////			}
+////			if (columnTwo) {
+////				colno[k] = firstTargetX;
+////				row[k++] = columnTwo;
+////			}
+////			if (columnThree) {
+////				colno[k] = secondSourceX;
+////				row[k++] = columnThree;
+////			}
+////			if (columnFour) {
+////				colno[k] = secondTargetX;
+////				row[k++] = columnFour;
+////			}
+////
+////			colno[k] = addedVariableIndex;
+////			row[k++] = -1;
+////			add_constraintex(lp, k, row, colno, LE, 0);
+////
+////			columnOne = columnQuotientsArray[i][0];
+////			columnTwo = columnQuotientsArray[i][1];
+////			columnThree = columnQuotientsArray[i][2];
+////			columnFour = columnQuotientsArray[i][3];
+////
+////			if (firstSourceY == secondSourceY) {
+////				columnOne = columnThree = columnQuotientsArray[i][0] + columnQuotientsArray[i][2];
+////			}
+////			if (firstSourceY == secondTargetY) {
+////				columnOne = columnFour = columnQuotientsArray[i][0] + columnQuotientsArray[i][3];
+////			}
+////			if (firstTargetY == secondSourceY) {
+////				columnTwo = columnThree = columnQuotientsArray[i][1] + columnQuotientsArray[i][2];
+////			}
+////			if (firstTargetY == secondTargetY) {
+////				columnTwo = columnFour = columnQuotientsArray[i][1] + columnQuotientsArray[i][3];
+////			}
+////
+////			k = 0;
+////			if (columnOne) {
+////				colno[k] = firstSourceY;
+////				row[k++] = columnOne;
+////			}
+////			if (columnTwo) {
+////				colno[k] = firstTargetY;
+////				row[k++] = columnTwo;
+////			}
+////			if (columnThree) {
+////				colno[k] = secondSourceY;
+////				row[k++] = columnThree;
+////			}
+////			if (columnFour) {
+////				colno[k] = secondTargetY;
+////				row[k++] = columnFour;
+////			}
+////			colno[k] = addedVariableIndex + 1;
+////			row[k++] = -1;
+////			add_constraintex(lp, k, row, colno, LE, 0);
+////		}
+////
+////		minimizationColumn[j] = addedVariableIndex;
+////		minimizationRow[j] = -1;
+////		minimizationColumn[j + 1] = addedVariableIndex + 1;
+////		minimizationRow[j + 1] = -1;
+////		set_lowbo(lp, addedVariableIndex, 0);
+////		set_int(lp, addedVariableIndex, 1);
+////		set_lowbo(lp, addedVariableIndex + 1, 0);
+////		set_int(lp, addedVariableIndex + 1, 1);
+////		addedVariableIndex += 2;
+////		j += 2;
+////	}
+//
+//	set_add_rowmode(lp, 0);
+//	/* set the objective in lpsolve */
+//	set_obj_fnex(lp, diffVariableCount, minimizationRow, minimizationColumn);
+//	set_minim(lp);
+//	set_verbose(lp, IMPORTANT);
+//	print_lp(lp);
+//	ret = solve(lp);
+//	if (ret == OPTIMAL)
+//		ret = 0;
+//
+//	list<pair<int, int> > solution;
+//	REAL clusterCRMap[clusterMap.size() * 2];
+//	list<list<HyperOp*> >::iterator clusterItr = clusterList.begin();
+//	if (ret == 0) {
+//		get_variables(lp, clusterCRMap);
+////TODO (previously:a solution is calculated, now lets compute the overlap in edges; this part is now commented out because we need to employ branch and bound to eliminate each solution from the next problem being solved)
+//		for (i = 0; i < Ncol; i += 2) {
+//			list<HyperOp*> cluster = *clusterItr;
+//			int x = (int) clusterCRMap[i];
+//			int y = (int) clusterCRMap[i + 1];
+//			for (list<HyperOp*>::iterator nodeItr = cluster.begin(); nodeItr != cluster.end(); nodeItr++) {
+////				DEBUG(dbgs() << "setting target resource " << (x * maxDimN + y) << "("<<x<<","<<y<<") for node "<<(*nodeItr)->asString()<<"\n");
+//				(*nodeItr)->setTargetResource(x * maxDimN + y);
+//			}
+//			std::advance(clusterItr, 1);
+//		}
+//	}
+//	if (lp != NULL) {
+//		delete_lp(lp);
 //	}
 
-	set_add_rowmode(lp, 0);
-	/* set the objective in lpsolve */
-	set_obj_fnex(lp, diffVariableCount, minimizationRow, minimizationColumn);
-	set_minim(lp);
-	set_verbose(lp, IMPORTANT);
-	print_lp(lp);
-	ret = solve(lp);
-	if (ret == OPTIMAL)
-		ret = 0;
-
-	list<pair<int, int> > solution;
-	REAL clusterCRMap[clusterMap.size() * 2];
-	list<list<HyperOp*> >::iterator clusterItr = clusterList.begin();
-	if (ret == 0) {
-		get_variables(lp, clusterCRMap);
-//TODO (previously:a solution is calculated, now lets compute the overlap in edges; this part is now commented out because we need to employ branch and bound to eliminate each solution from the next problem being solved)
-		for (i = 0; i < Ncol; i += 2) {
-			list<HyperOp*> cluster = *clusterItr;
-			int x = (int) clusterCRMap[i];
-			int y = (int) clusterCRMap[i + 1];
-			for (list<HyperOp*>::iterator nodeItr = cluster.begin(); nodeItr != cluster.end(); nodeItr++) {
-//				DEBUG(dbgs() << "setting target resource " << (x * maxDimN + y) << "("<<x<<","<<y<<") for node "<<(*nodeItr)->asString()<<"\n");
-				(*nodeItr)->setTargetResource(x * maxDimN + y);
-			}
-			std::advance(clusterItr, 1);
+	unsigned clusterIndex = 0;
+	for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
+		list<HyperOp*> cluster = *clusterItr;
+		for (list<HyperOp*>::iterator nodeItr = cluster.begin(); nodeItr != cluster.end(); nodeItr++) {
+			(*nodeItr)->setTargetResource(clusterIndex);
 		}
-	}
-	if (lp != NULL) {
-		delete_lp(lp);
 	}
 }
 
