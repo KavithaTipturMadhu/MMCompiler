@@ -111,7 +111,7 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 
 
 	/* Old to new label per ce map for all basic blocks */
-	map<string, vector<MCSymbol*>> oldToNewLabelSymbolMap;
+	map<string, vector<MCSymbol*> > oldToNewLabelSymbolMap;
 	for (MachineFunction::const_iterator I = MF->begin(), E = MF->end(); I != E; ++I) {
 		MCSymbol *oldlabel = I->getSymbol();
 		vector<MCSymbol*> newLabelsForPhops;
