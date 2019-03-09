@@ -2194,7 +2194,6 @@ struct HyperOpCreationPass: public ModulePass {
 								((PHINode*) clonedInst)->setIncomingBlock(incomingValItr, NULL);
 							}
 						}
-						originalToClonedInstMap.find(instItr)->second->dump();
 					}
 				}
 			}
@@ -2207,11 +2206,16 @@ struct HyperOpCreationPass: public ModulePass {
 						if (terminator->getSuccessor(i) == (*accumulatedBBItr)) {
 							((TerminatorInst*) originalToClonedInstMap[terminator])->setSuccessor(i, originalToClonedBasicBlockMap[*accumulatedBBItr]);
 						} else {
+							bool latchBB = false;
 							//Check if the target is the latch of a parallel loop
 							for (auto parallelLoopLatchBB : originalParallelLatchBB) {
 								if (terminator->getSuccessor(i) == parallelLoopLatchBB) {
 									((TerminatorInst*) originalToClonedInstMap[terminator])->setSuccessor(i, originalToClonedBasicBlockMap[*accumulatedBBItr]);
+									latchBB = true;
 								}
+							}
+							if(!latchBB){
+								((TerminatorInst*) originalToClonedInstMap[terminator])->setSuccessor(i, &newFunction->back());
 							}
 						}
 					}
@@ -2253,7 +2257,6 @@ struct HyperOpCreationPass: public ModulePass {
 				//Find the immediate dominator
 				DominatorTree& idomTree = getAnalysis<DominatorTree>(*originalBB->getParent());
 				PostDominatorTree& postdomTree = getAnalysis<PostDominatorTree>(*originalBB->getParent());
-
 				//The following recursion exists because a basic block might have a chain of unconditional jumps to it, we want to find the first conditional jump that makes sense */
 				if (idomTree.getNode(originalBB) != NULL && idomTree.getNode(originalBB)->getIDom() != NULL) {
 					//Find the parent idom till one source of branch emerges somewhere
@@ -2261,28 +2264,25 @@ struct HyperOpCreationPass: public ModulePass {
 					BasicBlock* idom = idomTree.getNode(originalBB)->getIDom()->getBlock();
 					BasicBlock* originalIdom = idom;
 					bool idomPredecessor = false;
+					BasicBlock* loopLatch = NULL;
 					while (true) {
 						idomPredecessor = false;
 						for (auto predItr = pred_begin(currentBB); predItr != pred_end(currentBB); predItr++) {
 							BasicBlock* predecessor = *predItr;
 							if (predecessor == idom && (predecessor->getTerminator()->getNumSuccessors() > 1 || (isa<BranchInst>(predecessor->getTerminator()) && ((BranchInst*) predecessor->getTerminator())->isConditional()))) {
-								bool isConditionalJumpFromLoop = false;
+								idomPredecessor = true;
 								for (LoopInfo* loopInfoItr : loopCache) {
 									for (LoopInfo::iterator loopItr = loopInfoItr->begin(); loopItr != loopInfoItr->end(); loopItr++) {
 										vector<BasicBlock*> loopBBList = (*loopItr)->getBlocks();
-										if ((*loopItr)->getHeader() == idom && find(loopBBList.begin(), loopBBList.end(), currentBB) == loopBBList.end()) {
-											isConditionalJumpFromLoop = true;
-											break;
+										if ((*loopItr)->getHeader() == idom && find(loopBBList.begin(), loopBBList.end(), currentBB) == loopBBList.end() && currentBB == (*loopItr)->getExitBlock()) {
+												loopLatch = (*loopItr)->getLoopLatch()->getPrevNode();
+												break;
 										}
 									}
 								}
-								if (!isConditionalJumpFromLoop) {
-									idomPredecessor = true;
-									break;
-								}
+								break;
 							}
 						}
-
 						if (idomPredecessor || idomTree.getNode(idom) == NULL || idomTree.getNode(idom)->getIDom() == NULL) {
 							break;
 						}
@@ -2290,51 +2290,46 @@ struct HyperOpCreationPass: public ModulePass {
 						currentBB = idom;
 						idom = idomTree.getNode(idom)->getIDom()->getBlock();
 					}
-
 					//if the idom is not in accumulated list, add it as a branch source
 					if (idom != NULL) {
 						if (idomPredecessor && (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), idom) == accumulatedBasicBlocks.end() || find(newlyAcquiredBBList.begin(), newlyAcquiredBBList.end(), originalBB) != newlyAcquiredBBList.end())) {
 							//Find the terminator of idom that leads to bbItr
 							vector<pair<BasicBlock*, int> > successorBBList;
-							TerminatorInst* terminator = idom->getTerminator();
-							bool parallelLoopLatchSource = false;
-							for (auto parallelLoopItr : originalParallelLatchBB) {
-								if (parallelLoopItr == idom) {
-									parallelLoopLatchSource = true;
-									break;
-								}
-							}
-							if (parallelLoopLatchSource) {
-								continue;
-							}
-
+							TerminatorInst* terminator = NULL;
 							int numSuccessorsCovered = 0;
-							for (unsigned i = 0; i < terminator->getNumSuccessors(); i++) {
-								BasicBlock* postIdomOfSucc = NULL;
-								if (postdomTree.getNode(terminator->getSuccessor(i))->getIDom() != NULL) {
-									postIdomOfSucc = postdomTree.getNode(terminator->getSuccessor(i))->getIDom()->getBlock();
+							if (loopLatch == NULL) {
+								terminator = idom->getTerminator();
+								for (unsigned i = 0; i < terminator->getNumSuccessors(); i++) {
+									BasicBlock* postIdomOfSucc = NULL;
+									if (postdomTree.getNode(terminator->getSuccessor(i))->getIDom() != NULL) {
+										postIdomOfSucc = postdomTree.getNode(terminator->getSuccessor(i))->getIDom()->getBlock();
+									}
+									if (terminator->getSuccessor(i) == originalBB || terminator->getSuccessor(i) == currentBB || postIdomOfSucc == currentBB || postIdomOfSucc == originalBB) {
+										//Add only those successors that correspond to a basic block in the current HyperOp
+										successorBBList.push_back(make_pair(originalBB, i));
+										numSuccessorsCovered++;
+									}
 								}
-								if (terminator->getSuccessor(i) == originalBB || terminator->getSuccessor(i) == currentBB || postIdomOfSucc == currentBB || postIdomOfSucc == originalBB) {
-									//Add only those successors that correspond to a basic block in the current HyperOp
-									successorBBList.push_back(make_pair(originalBB, i));
-									numSuccessorsCovered++;
+								if (numSuccessorsCovered == terminator->getNumSuccessors()) {
+									//All successors of the terminator instruction are in the same target HyperOp, mark the jump as unconditional
+									if (unconditionalBranchSources.find(terminator) == unconditionalBranchSources.end()) {
+										unconditionalBranchSources[terminator] = successorBBList;
+									}
+								} else {
+									if (conditionalBranchSources.find(terminator) != conditionalBranchSources.end()) {
+										vector<pair<BasicBlock*, int> > previousSuccessorIndexList = conditionalBranchSources[terminator];
+										conditionalBranchSources.erase(terminator);
+										std::copy(previousSuccessorIndexList.begin(), previousSuccessorIndexList.end(), back_inserter(successorBBList));
+									}
+									conditionalBranchSources[terminator] = successorBBList;
+									terminator->dump();
 								}
-							}
-							if (numSuccessorsCovered == terminator->getNumSuccessors()) {
-								//All successors of the terminator instruction are in the same target HyperOp, mark the jump as unconditional
-								if (unconditionalBranchSources.find(terminator) == unconditionalBranchSources.end()) {
-									unconditionalBranchSources[terminator] = successorBBList;
-								}
-							} else {
-								if (conditionalBranchSources.find(terminator) != conditionalBranchSources.end()) {
-									vector<pair<BasicBlock*, int> > previousSuccessorIndexList = conditionalBranchSources[terminator];
-									conditionalBranchSources.erase(terminator);
-									std::copy(previousSuccessorIndexList.begin(), previousSuccessorIndexList.end(), back_inserter(successorBBList));
-								}
-								conditionalBranchSources[terminator] = successorBBList;
+							}else{
+								unconditionalBranchSources[loopLatch->getTerminator()] = successorBBList;
+								loopLatch->getTerminator()->dump();
 							}
 						}
-
+						errs()<<"after latch:";
 						//Add all the jump sources of the basic block to point to their return blocks
 						for (auto predItr = pred_begin(originalBB); predItr != pred_end(originalBB); predItr++) {
 							BasicBlock* pred = *predItr;
@@ -2348,7 +2343,8 @@ struct HyperOpCreationPass: public ModulePass {
 							if (parallelLoopLatchSource) {
 								continue;
 							}
-							if ((pred != idom || !idomPredecessor) && originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()
+							/* These are instructions that need patching, and no real edges */
+							if ((!idomPredecessor||loopLatch != NULL) && originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()
 									&& (find(accumulatedBasicBlocks.begin(), accumulatedBasicBlocks.end(), pred) == accumulatedBasicBlocks.end() || find(newlyAcquiredBBList.begin(), newlyAcquiredBBList.end(), pred->getTerminator()->getSuccessor(0)) != newlyAcquiredBBList.end())
 									&& originalFunctionToHyperOpBBListMap.find(pred->getParent()) != originalFunctionToHyperOpBBListMap.end()) {
 								vector<pair<BasicBlock*, int> > successorBBList;
@@ -2365,7 +2361,6 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 			}
-
 			while (numCallInstrAdded) {
 				accumulatedBasicBlocks.pop_back();
 				numCallInstrAdded--;
@@ -2617,7 +2612,6 @@ struct HyperOpCreationPass: public ModulePass {
 			createdHyperOpAndOriginalBasicBlockAndArgMap[newFunction] = make_pair(accumulatedBasicBlocks, hyperOpArguments);
 		}
 		//End of creation of hyperops
-
 		list<MDNode*> syncMDNodeList;
 		map<Function*, list<Function*> > addedPredicateSourcesMap;
 		map<Function*, list<Function*> > addedDataSourcesMap;
@@ -3369,28 +3363,36 @@ struct HyperOpCreationPass: public ModulePass {
 
 				list<CallInst*> newCallSite;
 				std::copy(callSite.begin(), callSite.end(), std::back_inserter(newCallSite));
-				bool isEntryBlockIncluded = false;
-				if (!newCallSite.empty()) {
-					isEntryBlockIncluded = (find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), &newCallSite.back()->getCalledFunction()->getEntryBlock())!=accumulatedOriginalBasicBlocks.end());
-				}
 
-				if (isEntryBlockIncluded) {
-					newCallSite.pop_back();
-				}
+				if (isa<CallInst>(((Instruction*) unconditionalBranchInstr)->getParent()->front())) {
+					Instruction* call = ((Instruction*) unconditionalBranchInstr)->getParent()->begin();
+					CallInst* callInst = (CallInst*)call;
+					newCallSite.push_back(callInst);
 
-				if (unconditionalBranchInstr == unconditionalBranchSourceItr->first && isa<CallInst>(((Instruction*) unconditionalBranchInstr)->getParent()->front())) {
-					continue;
-				}
-				if (isa<Constant>(unconditionalBranchInstr)) {
-					//Immediate value
-					clonedInstr = new AllocaInst(unconditionalBranchInstr->getType());
-					((AllocaInst*) clonedInstr)->setAlignment(4);
-					//Alloc instructions need to be inserted in the entry basic block of the function because other allocs are treated as dynamic stack allocs
-					clonedInstr->insertBefore(replicatedCalledFunction->getEntryBlock().getFirstInsertionPt());
-					StoreInst* storeInst = new StoreInst(unconditionalBranchInstr, clonedInstr);
-					storeInst->setAlignment(4);
-					storeInst->insertBefore(retInstMap[replicatedCalledFunction]);
+					Value* returnValue = 0;
+					BasicBlock* lookForBB = &callInst->getCalledFunction()->back();
+
+					/* Get the newly created function's argument matching the arg operand */
+					Function *sourceFunction = getFunctionWithBB(lookForBB, newCallSite, createdHyperOpAndCallSite, createdHyperOpAndOriginalBasicBlockAndArgMap);
+
+					/* Producer is an unrolled instance, cant do anything there */
+					if (sourceFunction == NULL) {
+						continue;
+					}
+					assert(createdHyperOpAndReturnValue.find(sourceFunction) != createdHyperOpAndReturnValue.end() && "A function for return value of called function was never created\n");
+					returnValue = createdHyperOpAndReturnValue[sourceFunction];
+					assert(returnValue!=NULL && "Return hyperOp not attached to the producer function\n");
+					Instruction* clonedInst;
+					clonedInstr = getClonedArgument(returnValue, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
 				} else {
+					bool isEntryBlockIncluded = false;
+					if (!newCallSite.empty()) {
+						isEntryBlockIncluded = (find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), &newCallSite.back()->getCalledFunction()->getEntryBlock()) != accumulatedOriginalBasicBlocks.end());
+					}
+
+					if (isEntryBlockIncluded) {
+						newCallSite.pop_back();
+					}
 					clonedInstr = getClonedArgument(unconditionalBranchInstr, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
 				}
 
