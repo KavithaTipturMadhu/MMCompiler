@@ -3992,7 +3992,6 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 						if(isa<Argument>(oldOperand)){
 							newArgVector[oldArgNewIndexMap[(Argument*)oldOperand]]->dump();
 						}
-						oldToNewValueMap[oldOperand]->dump();
 					}
 					if (isa<PHINode>(newInst)) {
 						((PHINode*) newInst)->setIncomingBlock(operandIndex, (BasicBlock*) oldToNewValueMap[((PHINode*) newInst)->getIncomingBlock(operandIndex)]);
