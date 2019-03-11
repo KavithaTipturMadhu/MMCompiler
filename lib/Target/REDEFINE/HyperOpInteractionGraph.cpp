@@ -13,8 +13,10 @@
 #include <vector>
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Instructions.h"
+/*
 #include "lpsolve/lp_lib.h"
 #include "lpsolve/lp_types.h"
+*/
 #include "llvm/IR/HyperOpInteractionGraph.h"
 #include "llvm/ADT/StringExtras.h"
 using namespace llvm;
