@@ -3821,20 +3821,25 @@ void HyperOpInteractionGraph::convertRemoteScalarsToStores() {
 			HyperOp* childHyperOp = *childHopItr;
 			if (childHyperOp->getTargetResource() != hyperOp->getTargetResource()) {
 				list<HyperOpEdge*> scalarEdgesForConversion;
+				bool hasPredOrSyncFromHop = false;
 				for (map<HyperOpEdge*, HyperOp*>::iterator childMapItr = hyperOp->ChildMap.begin(); childMapItr != hyperOp->ChildMap.end(); childMapItr++) {
-					if (childMapItr->second == childHyperOp && childMapItr->first->getType() == HyperOpEdge::SCALAR) {
+					if(childMapItr->second != childHyperOp){
+						continue;
+					}
+					if (childMapItr->first->getType() == HyperOpEdge::PREDICATE || childMapItr->first->getType() == HyperOpEdge::SYNC){
+						hasPredOrSyncFromHop = true;
+					}
+					if (childMapItr->first->getType() == HyperOpEdge::SCALAR) {
 						scalarEdgesForConversion.push_back(childMapItr->first);
 					}
 				}
 
-				if (scalarEdgesForConversion.size() > 1) {
-					if (childHyperOp->isPredicatedHyperOp() || childHyperOp->isBarrierHyperOp()) {
-						scalarEdgesForConversion.pop_front();
-					}
-					for (list<HyperOpEdge*>::iterator edgeItr = scalarEdgesForConversion.begin(); edgeItr != scalarEdgesForConversion.end(); edgeItr++) {
-						HyperOpEdge* scalarEdgeForConversion = *edgeItr;
-						scalarEdgeForConversion->setType(HyperOpEdge::LOCAL_REFERENCE);
-					}
+				if ((hasPredOrSyncFromHop && scalarEdgesForConversion.size() >= 1) || scalarEdgesForConversion.size() > 1) {
+					scalarEdgesForConversion.pop_back();
+				}
+				for (list<HyperOpEdge*>::iterator edgeItr = scalarEdgesForConversion.begin(); edgeItr != scalarEdgesForConversion.end(); edgeItr++) {
+					HyperOpEdge* scalarEdgeForConversion = *edgeItr;
+					scalarEdgeForConversion->setType(HyperOpEdge::LOCAL_REFERENCE);
 				}
 			}
 		}
@@ -4391,7 +4396,6 @@ AllocaInst* HyperOpInteractionGraph::getAllocInstrForLocalReferenceData(Value* s
 	if (isa<AllocaInst>(sourceInstr)) {
 		return (AllocaInst*) sourceInstr;
 	}
-
 	assert(isa<Argument>(sourceInstr) && "Data being passed to another HyperOp must either be created locally or from another HyperOp that passed it as an argument\n");
 	int argIndex = -1;
 	for (auto argItr = parentInstrContainingSource->getFunction()->arg_begin(); argItr != parentInstrContainingSource->getFunction()->arg_end(); argItr++) {
