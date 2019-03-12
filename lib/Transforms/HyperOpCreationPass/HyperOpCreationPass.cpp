@@ -4269,7 +4269,7 @@ struct REDEFINEIRPass: public ModulePass {
 				BasicBlock * loopBegin, *loopBody, *loopEnd;
 				Value* loadInst;
 				/* Range HyperOp's base address, obtained either with falloc or by loading with forwarded address */
-				Value* baseAddress = NULL, *memFrameAddress = NULL;
+				Value* baseAddress = NULL;
 				Value* baseAddressUpperBound = NULL;
 				if (child->getImmediateDominator() == vertex) {
 					baseAddress = createdHopBaseAddressMap[child].first;
