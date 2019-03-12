@@ -2343,24 +2343,11 @@ void HyperOpInteractionGraph::clusterNodes() {
 	HIGSubtree subtree(Vertices, startHyperOp, endHyperOp);
 	subtree.clusterSubTree();
 
-	map<unsigned, list<HyperOp*> > roundRobinClusterDist;
-//	roundRobinClusterDist.reserve(this->rowCount*this->columnCount);
 	auto computeClusterList = subtree.subtreeClusterList;
 
 	unsigned crId = 0;
 	for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterItr = computeClusterList.begin(); clusterItr != computeClusterList.end(); clusterItr++) {
-		if (roundRobinClusterDist.find(crId) == roundRobinClusterDist.end()) {
-			list<HyperOp*> newList;
-			roundRobinClusterDist.insert(make_pair(crId, newList));
-		}
-		for (list<HyperOp*>::iterator printItr = clusterItr->first.begin(); printItr != clusterItr->first.end(); printItr++) {
-			roundRobinClusterDist[crId].push_back(*printItr);
-		}
-		crId = (crId + 1) % (this->rowCount * this->columnCount);
-	}
-
-	for (map<unsigned, list<HyperOp*> >::iterator clusterItr = roundRobinClusterDist.begin(); clusterItr != roundRobinClusterDist.end(); clusterItr++) {
-		clusterList.push_back(clusterItr->second);
+		clusterList.push_back(clusterItr->first);
 	}
 
 	DEBUG(dbgs() << "Minimizing ordering edges\n");
@@ -2504,6 +2491,10 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 				clusterEdgesList.erase(edgeItr);
 			}
 			weight += linearizeTime(hopChildItr->first->getVolume());
+			if (weight == 0) {
+				//SYNC/PREDICATE edges
+				weight = 1;
+			}
 			clusterEdgesList.insert(make_pair(make_pair(clusterIndex, hopAndClusterIndex[childHop]), weight));
 		}
 	}
@@ -2522,10 +2513,12 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 	clusterIndex = 0;
 	for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
 		list<HyperOp*> cluster = *clusterItr;
-		velotab[clusterIndex++] = getExecutionTimeOfCluster(cluster);
+		int time = getExecutionTimeOfCluster(cluster);
+		assert(time > 0 && "Execution time cant be zero\n");
+		velotab[clusterIndex] = time;
 	}
 
-	SCOTCH_Num* verttab = (SCOTCH_Num*) calloc(clusterList.size(), sizeof(SCOTCH_Num));
+	SCOTCH_Num* verttab = (SCOTCH_Num*) calloc(clusterList.size() + 1, sizeof(SCOTCH_Num));
 	SCOTCH_Num* vendtab = NULL;
 	map<int, map<int, int> > clusterAndTargetEdgesMap;
 	int edgeMapSize = 0;
@@ -2537,10 +2530,11 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 				targetClusterWeights.insert(make_pair(clusterEdgeItr->first.second, clusterEdgeItr->second));
 			}
 		}
-		verttab[i] = targetClusterWeights.size();
+		verttab[i] = edgeMapSize;
 		edgeMapSize += targetClusterWeights.size();
 		clusterAndTargetEdgesMap[i] = targetClusterWeights;
 	}
+	verttab[clusterList.size()] = edgeMapSize;
 
 	SCOTCH_Num* edgetab = NULL;
 	SCOTCH_Num* edlotab = NULL;
@@ -2565,15 +2559,22 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 	SCOTCH_Num* parttab = (SCOTCH_Num*) calloc(clusterList.size(), sizeof(SCOTCH_Num));
 	SCOTCH_Strat* strat = SCOTCH_stratAlloc();
 	SCOTCH_stratInit(strat);
-	if (SCOTCH_graphMap(graph, &arch, strat, parttab) != 0) {
-		errs() << "couldn't map onto graph\n";
-	}
-	//TODO add assert for map's return value to be correct
-	clusterIndex = 0;
-	for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
-		list<HyperOp*> cluster = *clusterItr;
-		for (auto hopItr : cluster) {
-			hopItr->setTargetResource(parttab[clusterIndex]);
+	if (SCOTCH_graphMap(graph, &arch, strat, parttab) == 0) {
+		//TODO add assert for map's return value to be correct
+		clusterIndex = 0;
+		for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
+			list<HyperOp*> cluster = *clusterItr;
+			for (auto hopItr : cluster) {
+				hopItr->setTargetResource(parttab[clusterIndex]);
+			}
+		}
+	} else {
+		clusterIndex = 0;
+		for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
+			list<HyperOp*> cluster = *clusterItr;
+			for (auto hopItr : cluster) {
+				hopItr->setTargetResource(clusterIndex);
+			}
 		}
 	}
 }
