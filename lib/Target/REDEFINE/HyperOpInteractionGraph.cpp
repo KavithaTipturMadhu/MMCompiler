@@ -2425,7 +2425,7 @@ unsigned inline getExecutionTimeOfCluster(list<HyperOp*> cluster){
 	return time;
 }
 
-void HyperOpInteractionGraph::mapClustersToComputeResources(){
+void HyperOpInteractionGraph::mapClustersToComputeResources() {
 //Start of the edge is defined the top level of the source HyperOp of the edge and end is top level + edge weight
 
 ////This map is used to ensure that the source and target clusters are placed closest to each other
@@ -2500,11 +2500,11 @@ void HyperOpInteractionGraph::mapClustersToComputeResources(){
 				}
 			}
 
-			if(edgeItr != clusterEdgesList.end()){
+			if (edgeItr != clusterEdgesList.end()) {
 				clusterEdgesList.erase(edgeItr);
 			}
-			weight+=linearizeTime(hopChildItr->first->getVolume());
-			clusterEdgesList.insert(make_pair(make_pair(clusterIndex,hopAndClusterIndex[childHop]), weight));
+			weight += linearizeTime(hopChildItr->first->getVolume());
+			clusterEdgesList.insert(make_pair(make_pair(clusterIndex, hopAndClusterIndex[childHop]), weight));
 		}
 	}
 
@@ -2514,53 +2514,65 @@ void HyperOpInteractionGraph::mapClustersToComputeResources(){
 
 	SCOTCH_Graph* graph = SCOTCH_graphAlloc();
 
-	SCOTCH_Num* vertnbr = (SCOTCH_Num*)malloc(sizeof(SCOTCH_Num));
+	SCOTCH_Num* vertnbr = (SCOTCH_Num*) malloc(sizeof(SCOTCH_Num));
 	vertnbr[0] = clusterList.size();
 
 	/* Execution time of each cluster in an array */
-	SCOTCH_Num* velotab = (SCOTCH_Num*)calloc(clusterList.size(), sizeof(SCOTCH_Num));
+	SCOTCH_Num* velotab = (SCOTCH_Num*) calloc(clusterList.size(), sizeof(SCOTCH_Num));
 	clusterIndex = 0;
-	for(auto clusterItr = clusterList.begin(); clusterItr!=clusterList.end(); clusterItr++, clusterIndex++){
+	for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
 		list<HyperOp*> cluster = *clusterItr;
 		velotab[clusterIndex++] = getExecutionTimeOfCluster(cluster);
 	}
 
-	SCOTCH_Num* verttab = (SCOTCH_Num*)calloc(clusterList.size(), sizeof(SCOTCH_Num));
-	SCOTCH_Num* vendtab =NULL;
-	if(clusterList.size()>1){
-		vendtab = &verttab[1];
-	}
-	SCOTCH_Num* edgetab = (SCOTCH_Num*) malloc(pow(clusterList.size(),2)* sizeof(SCOTCH_Num));
-	SCOTCH_Num* edlotab =  (SCOTCH_Num*) malloc(pow(clusterList.size(),2)* sizeof(SCOTCH_Num));;
-	int edgeTabIndex = 0;
-	for(int i=0;i<clusterList.size();i++){
+	SCOTCH_Num* verttab = (SCOTCH_Num*) calloc(clusterList.size(), sizeof(SCOTCH_Num));
+	SCOTCH_Num* vendtab = NULL;
+	map<int, map<int, int> > clusterAndTargetEdgesMap;
+	int edgeMapSize = 0;
+	for (int i = 0; i < clusterList.size(); i++) {
 		int numEdges = 0;
 		map<int, int> targetClusterWeights;
-		for(auto clusterEdgeItr = clusterEdgesList.begin(); clusterEdgeItr!=clusterEdgesList.end(); clusterEdgeItr++){
-			if(clusterEdgeItr->first.first == i){
+		for (auto clusterEdgeItr = clusterEdgesList.begin(); clusterEdgeItr != clusterEdgesList.end(); clusterEdgeItr++) {
+			if (clusterEdgeItr->first.first == i) {
 				targetClusterWeights.insert(make_pair(clusterEdgeItr->first.second, clusterEdgeItr->second));
 			}
 		}
 		verttab[i] = targetClusterWeights.size();
-		if (targetClusterWeights.size()) {
-			for (auto targetClusterItr = targetClusterWeights.begin(); targetClusterItr != targetClusterWeights.end(); targetClusterItr++, edgeTabIndex++) {
-				edgetab[edgeTabIndex] = targetClusterItr->first;
-				edlotab[edgeTabIndex] = targetClusterItr->second;
+		edgeMapSize += targetClusterWeights.size();
+		clusterAndTargetEdgesMap[i] = targetClusterWeights;
+	}
+
+	SCOTCH_Num* edgetab = NULL;
+	SCOTCH_Num* edlotab = NULL;
+
+	if (edgeMapSize > 0) {
+		edgetab = (SCOTCH_Num*) malloc(edgeMapSize * sizeof(SCOTCH_Num));
+		edlotab = (SCOTCH_Num*) malloc(edgeMapSize * sizeof(SCOTCH_Num));
+		int edgeTabIndex = 0;
+		for (int i = 0; i < clusterList.size(); i++) {
+			map<int, int> targetClusterWeights = clusterAndTargetEdgesMap[i];
+			if (targetClusterWeights.size()) {
+				for (auto targetClusterItr = targetClusterWeights.begin(); targetClusterItr != targetClusterWeights.end(); targetClusterItr++, edgeTabIndex++) {
+					edgetab[edgeTabIndex] = targetClusterItr->first;
+					edlotab[edgeTabIndex] = targetClusterItr->second;
+				}
 			}
 		}
 	}
 	int graphBuildRetVal = SCOTCH_graphBuild(graph, 0, clusterList.size(), verttab, vendtab, velotab, NULL, clusterEdgesList.size(), edgetab, edlotab);
 	assert(graphBuildRetVal == 0);
 
-	SCOTCH_Num* parttab = (SCOTCH_Num*)calloc(clusterList.size(), sizeof(SCOTCH_Num));
+	SCOTCH_Num* parttab = (SCOTCH_Num*) calloc(clusterList.size(), sizeof(SCOTCH_Num));
 	SCOTCH_Strat* strat = SCOTCH_stratAlloc();
 	SCOTCH_stratInit(strat);
-	int mapRetVal = SCOTCH_graphMap(graph, &arch, strat, parttab);
+	if (SCOTCH_graphMap(graph, &arch, strat, parttab) != 0) {
+		errs() << "couldn't map onto graph\n";
+	}
 	//TODO add assert for map's return value to be correct
 	clusterIndex = 0;
-	for(auto clusterItr = clusterList.begin(); clusterItr!=clusterList.end(); clusterItr++, clusterIndex++){
+	for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
 		list<HyperOp*> cluster = *clusterItr;
-		for(auto hopItr:cluster){
+		for (auto hopItr : cluster) {
 			hopItr->setTargetResource(parttab[clusterIndex]);
 		}
 	}
