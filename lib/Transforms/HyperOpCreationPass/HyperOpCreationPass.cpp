@@ -4111,7 +4111,7 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->setDimensions(MAX_ROW, MAX_COL);
 		graph->clusterNodes();
 		graph->mapClustersToComputeResources();
-		graph->convertRemoteScalarsToStores();
+//		graph->convertRemoteScalarsToStores();
 		graph->shuffleHyperOpArguments();
 		graph->setMaxContextFrameSize(MAX_CONTEXT_FRAME_SIZE);
 		graph->convertSpillScalarsToStores();
