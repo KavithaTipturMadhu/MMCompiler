@@ -2577,7 +2577,8 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 		for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
 			list<HyperOp*> cluster = *clusterItr;
 			for (auto hopItr : cluster) {
-				hopItr->setTargetResource(clusterIndex);
+				int targetResource = clusterIndex%(rowCount*columnCount);
+				hopItr->setTargetResource(targetResource);
 			}
 		}
 	}
