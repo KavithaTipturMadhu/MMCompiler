@@ -23,7 +23,7 @@ using namespace std;
 #include "llvm/Support/Debug.h"
 using namespace llvm;
 
-#include "scotch.h"
+//#include "scotch.h"
 //Returns size of the type in bytes
 //Duplicate cos utils can't be added as header
 unsigned duplicateGetSizeOfType(Type * type) {
@@ -626,6 +626,7 @@ HyperOpEdge::~HyperOpEdge() {
 void HyperOpEdge::clone(HyperOpEdge** clone) {
 	HyperOpEdge* newEdge = new HyperOpEdge();
 	newEdge->setIsEdgeIgnored(this->isEdgeIgnored());
+	newEdge->setType(this->getType());
 	newEdge->zeroOutEdge(this->isEdgeZeroedOut());
 	newEdge->setPositionOfContextSlot(this->getPositionOfContextSlot());
 	newEdge->setPredicateValue(this->getPredicateValue());
@@ -935,6 +936,7 @@ pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > getCFG(HyperOpInteracti
 		}
 	}
 
+	errs()<<"looking for hanging hops in cfg\n";
 //Check if there are hanging hyperops
 	for (list<HyperOp*>::iterator vertexItr = dfg->Vertices.begin(); vertexItr != dfg->Vertices.end(); vertexItr++) {
 		HyperOp* targetHop = originalToClonedNodesMap[*vertexItr];
@@ -942,6 +944,7 @@ pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > getCFG(HyperOpInteracti
 			auto parentItr = (*vertexItr)->ParentMap.begin();
 			HyperOp* sourceHop = originalToClonedNodesMap[parentItr->second];
 			HyperOpEdge* edge = new HyperOpEdge();
+			errs()<<"adding edge to replace the one between "<<(parentItr->second)->asString()<<" and "<<(*vertexItr)->asString()<<"\n";
 			edge->Type = parentItr->first->getType();
 			edge->setVolume(parentItr->first->getVolume());
 			edge->setValue(parentItr->first->getValue());
@@ -2013,8 +2016,6 @@ void printDS(list<HyperOp*> dominantSequence) {
 
 void HyperOpInteractionGraph::clusterNodes() {
 
-	errs() << "rowcount:" << this->rowCount << " and column count:" << columnCount << "\n";
-
 //Create a wrapper to HyperOp class to hierarchically cluster nodes
 	class HIGSubtree {
 	public:
@@ -2380,6 +2381,169 @@ void HyperOpInteractionGraph::clusterNodes() {
 		}
 	}
 }
+static void inline mergeHyperOps(HyperOp** parentHyperOp, HyperOp** childHyperOp){
+	DEBUG(dbgs()<<"Merging nodes "<<(*parentHyperOp)->asString()<<" and "<<(*childHyperOp)->asString()<<"\n");
+	vector<Type*> funcArgsList;
+	Function* parentHopFunction = (*parentHyperOp)->getFunction();
+	LLVMContext &ctxt = parentHopFunction->getParent()->getContext();
+
+	for (auto oldArgItr = parentHopFunction->arg_begin(); oldArgItr != parentHopFunction->arg_end(); oldArgItr++) {
+		funcArgsList.push_back(oldArgItr->getType());
+	}
+	FunctionType *FT = FunctionType::get(parentHopFunction->getReturnType(), funcArgsList, false);
+	string newname = parentHopFunction->getName().data();
+//	newname.append(itostr(1));
+	Function *newFunction = Function::Create(FT, Function::ExternalLinkage, newname , parentHopFunction->getParent());
+	auto newArgItr = newFunction->arg_begin();
+
+	map<Value*, Value*> oldToNewValueMap;
+	int newArgIndex = 0;
+	for (auto oldArgItr = parentHopFunction->arg_begin(); oldArgItr != parentHopFunction->arg_end(); oldArgItr++, newArgItr++, newArgIndex++) {
+		Argument* oldArg = oldArgItr;
+		Argument* newArg = newArgItr;
+		oldToNewValueMap.insert(make_pair(oldArgItr, newArgItr));
+		auto oldAttrSet = parentHopFunction->getAttributes().getParamAttributes(newArgIndex);
+		newFunction->addAttributes(newArgIndex, oldAttrSet);
+	}
+
+	list<BasicBlock*> oldBBList;
+	for (auto funcItr = parentHopFunction->begin(); funcItr != parentHopFunction->end(); funcItr++) {
+		BasicBlock* oldBB = funcItr;
+		oldBBList.push_back(oldBB);
+		BasicBlock* newBB = BasicBlock::Create(ctxt, oldBB->getName(), newFunction);
+		oldToNewValueMap.insert(make_pair(oldBB, newBB));
+	}
+
+	BasicBlock* firstBBInChild = NULL;
+	Function* childHopFunction = (*childHyperOp)->getFunction();
+	for (auto funcItr = childHopFunction->begin(); funcItr != childHopFunction->end(); funcItr++) {
+		BasicBlock* oldBB = funcItr;
+		oldBBList.push_back(oldBB);
+		BasicBlock* newBB = BasicBlock::Create(ctxt, oldBB->getName(), newFunction);
+		if(firstBBInChild == NULL){
+			firstBBInChild = newBB;
+		}
+		oldToNewValueMap.insert(make_pair(oldBB, newBB));
+	}
+
+	for (auto bbItr = oldBBList.begin(); bbItr != oldBBList.end(); bbItr++) {
+		BasicBlock* oldBB = *bbItr;
+		assert(oldToNewValueMap.find(oldBB) != oldToNewValueMap.end() && "Basicblock not cloned before");
+		BasicBlock* newBB = (BasicBlock*) oldToNewValueMap[oldBB];
+		for (auto instItr = oldBB->begin(); instItr != oldBB->end(); instItr++) {
+			Instruction* oldInst = instItr;
+			Instruction* newInst;
+			if (isa<ReturnInst>(oldInst) && oldInst->getParent()->getParent() == parentHopFunction) {
+				newInst = BranchInst::Create(firstBBInChild);
+			}else{
+				newInst = oldInst->clone();
+			}
+			oldToNewValueMap.insert(make_pair(oldInst, newInst));
+			newBB->getInstList().insert(newBB->end(), newInst);
+		}
+	}
+
+	int argIndex = 0;
+	for (auto oldArgItr = childHopFunction->arg_begin(); oldArgItr != childHopFunction->arg_end(); oldArgItr++, argIndex++) {
+		Argument* oldArg = oldArgItr;
+		Value* newArg;
+		for (auto parentItr = (*childHyperOp)->ParentMap.begin(); parentItr != (*childHyperOp)->ParentMap.end(); parentItr++) {
+			if (parentItr->first->getPositionOfContextSlot() == argIndex) {
+				newArg = parentItr->first->getValue();
+				break;
+			}
+		}
+		if (newArg != NULL && oldToNewValueMap.find(newArg) != oldToNewValueMap.end()) {
+			oldToNewValueMap.insert(make_pair(oldArg, oldToNewValueMap[newArg]));
+		}
+	}
+
+	for (auto instItr = oldToNewValueMap.begin(); instItr != oldToNewValueMap.end(); instItr++) {
+		if (isa<Instruction>(instItr->first)) {
+			Instruction* oldInst = (Instruction*) instItr->first;
+			Instruction * newInst = (Instruction*) instItr->second;
+			for (int operandIndex = 0; operandIndex < oldInst->getNumOperands(); operandIndex++) {
+				Value* oldOperand = oldInst->getOperand(operandIndex);
+				if (oldToNewValueMap.find(oldOperand) != oldToNewValueMap.end()) {
+					Value* newOperand = oldToNewValueMap[oldOperand];
+					if(isa<AllocaInst>(newOperand) && oldInst->getParent()->getParent() == childHopFunction){
+						for(auto mapItr:oldToNewValueMap){
+							if(mapItr.second == newOperand && isa<AllocaInst>(mapItr.first) && ((AllocaInst*)mapItr.first)->getParent()->getParent() == parentHopFunction){
+								newOperand = new LoadInst(oldToNewValueMap[oldOperand], "", newInst);
+								break;
+							}
+						}
+					}
+					newInst->setOperand(operandIndex, newOperand);
+				}
+				if (isa<PHINode>(newInst)) {
+					((PHINode*) newInst)->setIncomingBlock(operandIndex, (BasicBlock*) oldToNewValueMap[((PHINode*) newInst)->getIncomingBlock(operandIndex)]);
+				}
+			}
+		}
+	}
+	(*parentHyperOp)->setFunction(newFunction);
+	/* Update the outgoing edges with new cloned values from the current HyperOp function */
+	list<HyperOpEdge*> edgesForRemoval;
+	for (auto edgeItr = (*parentHyperOp)->ChildMap.begin(); edgeItr != (*parentHyperOp)->ChildMap.end(); edgeItr++) {
+		if (edgeItr->first->getValue() != NULL && oldToNewValueMap.find(edgeItr->first->getValue()) != oldToNewValueMap.end()) {
+			edgeItr->first->setValue(oldToNewValueMap[edgeItr->first->getValue()]);
+		}
+		if(edgeItr->second == *childHyperOp){
+			edgesForRemoval.push_back(edgeItr->first);
+		}
+	}
+	for (auto edgeItr = (*childHyperOp)->ChildMap.begin(); edgeItr != (*childHyperOp)->ChildMap.end(); edgeItr++) {
+		edgesForRemoval.push_back(edgeItr->first);
+		HyperOpEdge* clonedEdge;
+		edgeItr->first->clone(&clonedEdge);
+		if (clonedEdge->getValue() != NULL && oldToNewValueMap.find(clonedEdge->getValue()) != oldToNewValueMap.end()) {
+			Value* newOperand = oldToNewValueMap[edgeItr->first->getValue()];
+			Value* oldOperand = edgeItr->first->getValue();
+			if (isa<AllocaInst>(newOperand) && isa<AllocaInst>(oldOperand) && ((AllocaInst*)oldOperand)->getParent()->getParent() == childHopFunction) {
+				for (auto mapItr : oldToNewValueMap) {
+					if (mapItr.second == newOperand && isa<AllocaInst>(mapItr.first) && ((AllocaInst*) mapItr.first)->getParent()->getParent() == parentHopFunction) {
+						newOperand = new LoadInst(oldToNewValueMap[oldOperand], "", newOperand);
+						break;
+					}
+				}
+			}
+			clonedEdge->setValue(newOperand);
+		}
+		(*parentHyperOp)->getParentGraph()->addEdge(*parentHyperOp, edgeItr->second, clonedEdge);
+	}
+	(*parentHyperOp)->getParentGraph()->removeHyperOp(*childHyperOp);
+	parentHopFunction->eraseFromParent();
+	childHopFunction->eraseFromParent();
+
+	for(auto edgeForRemovalItr:edgesForRemoval){
+		(*parentHyperOp)->ChildMap.erase(edgeForRemovalItr);
+	}
+}
+
+void HyperOpInteractionGraph::mergeUnpredicatedNodesInCluster(){
+	/* Merge nodes in a cluster if this does not affect parallelism */
+	for(auto clusterItr:clusterList){
+		/* Merge a node with its last parent in the cluster if the node isnt predicated and all its parents are in the cluster */
+		bool change = true;
+		while (change) {
+			change = false;
+			for (auto hopItr = clusterItr.begin(); hopItr != clusterItr.end(); hopItr++) {
+				HyperOp* hop = *hopItr;
+				auto parentList = hop->getParentList();
+				if (hop->isUnrolledInstance() ||  hop->isPredicatedHyperOp() || parentList.size() > 1 || find(clusterItr.begin(), clusterItr.end(), parentList.front()) == clusterItr.end() || parentList.front()->isUnrolledInstance()) {
+					continue;
+				}
+				HyperOp* parentHyperOp = parentList.front();
+				mergeHyperOps(&parentHyperOp, &hop);
+				change = true;
+				clusterItr.erase(hopItr);
+				break;
+			}
+		}
+		break;
+	}
+}
 
 int linearizeTime(list<unsigned int> time) {
 	int linearTime = 0, temp = 1;
@@ -2457,123 +2621,123 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 //			(*nodeItr)->setTargetResource(clusterIndex);
 //		}
 //	}
-
-	/* Map of edges between clusters labeled by their index */
-	int clusterIndex = 0;
-	map<HyperOp*, int> hopAndClusterIndex;
-	for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
-		list<HyperOp*> cluster = *clusterItr;
-		for (auto hopItr = cluster.begin(); hopItr != cluster.end(); hopItr++) {
-			hopAndClusterIndex.insert(make_pair(*hopItr, clusterIndex));
-		}
-	}
-
-	map<pair<int, int>, int> clusterEdgesList;
-	for (auto hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
-		HyperOp* hop = *hopItr;
-		int clusterIndex = hopAndClusterIndex[hop];
-		for (auto hopChildItr = hop->ChildMap.begin(); hopChildItr != hop->ChildMap.end(); hopChildItr++) {
-			HyperOp* childHop = hopChildItr->second;
-			if (hopAndClusterIndex[childHop] == clusterIndex) {
-				continue;
-			}
-			auto edgeItr = clusterEdgesList.begin();
-			int weight = 0;
-			for (; edgeItr != clusterEdgesList.end(); edgeItr++) {
-				auto edgeKey = edgeItr->first;
-				if (edgeKey.first == clusterIndex && edgeKey.second == hopAndClusterIndex[childHop]) {
-					weight = edgeItr->second;
-					break;
-				}
-			}
-
-			if (edgeItr != clusterEdgesList.end()) {
-				clusterEdgesList.erase(edgeItr);
-			}
-			weight += linearizeTime(hopChildItr->first->getVolume());
-			if (weight == 0) {
-				//SYNC/PREDICATE edges
-				weight = 1;
-			}
-			clusterEdgesList.insert(make_pair(make_pair(clusterIndex, hopAndClusterIndex[childHop]), weight));
-		}
-	}
-
-	SCOTCH_Arch arch;
-	SCOTCH_archInit(&arch);
-	SCOTCH_archMesh2(&arch, this->rowCount, this->columnCount);
-
-	SCOTCH_Graph* graph = SCOTCH_graphAlloc();
-
-	SCOTCH_Num* vertnbr = (SCOTCH_Num*) malloc(sizeof(SCOTCH_Num));
-	vertnbr[0] = clusterList.size();
-
-	/* Execution time of each cluster in an array */
-	SCOTCH_Num* velotab = (SCOTCH_Num*) calloc(clusterList.size(), sizeof(SCOTCH_Num));
-	clusterIndex = 0;
-	for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
-		list<HyperOp*> cluster = *clusterItr;
-		int time = getExecutionTimeOfCluster(cluster);
-		assert(time > 0 && "Execution time cant be zero\n");
-		velotab[clusterIndex] = time;
-	}
-
-	SCOTCH_Num* verttab = (SCOTCH_Num*) calloc(clusterList.size() + 1, sizeof(SCOTCH_Num));
-	SCOTCH_Num* vendtab = NULL;
-	map<int, map<int, int> > clusterAndTargetEdgesMap;
-	int edgeMapSize = 0;
-	for (int i = 0; i < clusterList.size(); i++) {
-		int numEdges = 0;
-		map<int, int> targetClusterWeights;
-		for (auto clusterEdgeItr = clusterEdgesList.begin(); clusterEdgeItr != clusterEdgesList.end(); clusterEdgeItr++) {
-			if (clusterEdgeItr->first.first == i) {
-				targetClusterWeights.insert(make_pair(clusterEdgeItr->first.second, clusterEdgeItr->second));
-			}
-		}
-		verttab[i] = edgeMapSize;
-		edgeMapSize += targetClusterWeights.size();
-		clusterAndTargetEdgesMap[i] = targetClusterWeights;
-	}
-	verttab[clusterList.size()] = edgeMapSize;
-
-	SCOTCH_Num* edgetab = NULL;
-	SCOTCH_Num* edlotab = NULL;
-
-	if (edgeMapSize > 0) {
-		edgetab = (SCOTCH_Num*) malloc(edgeMapSize * sizeof(SCOTCH_Num));
-		edlotab = (SCOTCH_Num*) malloc(edgeMapSize * sizeof(SCOTCH_Num));
-		int edgeTabIndex = 0;
-		for (int i = 0; i < clusterList.size(); i++) {
-			map<int, int> targetClusterWeights = clusterAndTargetEdgesMap[i];
-			if (targetClusterWeights.size()) {
-				for (auto targetClusterItr = targetClusterWeights.begin(); targetClusterItr != targetClusterWeights.end(); targetClusterItr++, edgeTabIndex++) {
-					edgetab[edgeTabIndex] = targetClusterItr->first;
-					edlotab[edgeTabIndex] = targetClusterItr->second;
-				}
-			}
-		}
-	}
-	int graphBuildRetVal = SCOTCH_graphBuild(graph, 0, clusterList.size(), verttab, vendtab, velotab, NULL, clusterEdgesList.size(), edgetab, edlotab);
-	assert(graphBuildRetVal == 0);
-
-	SCOTCH_Num* parttab = (SCOTCH_Num*) calloc(clusterList.size(), sizeof(SCOTCH_Num));
-	SCOTCH_Strat* strat = SCOTCH_stratAlloc();
-	SCOTCH_stratInit(strat);
-	if (SCOTCH_graphMap(graph, &arch, strat, parttab) == 0) {
-		//TODO add assert for map's return value to be correct
-		clusterIndex = 0;
-		for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
-			list<HyperOp*> cluster = *clusterItr;
-			for (auto hopItr : cluster) {
-				if(hopItr->isStartHyperOp()){
-					hopItr->setTargetResource(0);
-				}else{
-					hopItr->setTargetResource(parttab[clusterIndex]);
-				}
-			}
-		}
-	} else {
-		clusterIndex = 0;
+//
+//	/* Map of edges between clusters labeled by their index */
+//	int clusterIndex = 0;
+//	map<HyperOp*, int> hopAndClusterIndex;
+//	for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
+//		list<HyperOp*> cluster = *clusterItr;
+//		for (auto hopItr = cluster.begin(); hopItr != cluster.end(); hopItr++) {
+//			hopAndClusterIndex.insert(make_pair(*hopItr, clusterIndex));
+//		}
+//	}
+//
+//	map<pair<int, int>, int> clusterEdgesList;
+//	for (auto hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
+//		HyperOp* hop = *hopItr;
+//		int clusterIndex = hopAndClusterIndex[hop];
+//		for (auto hopChildItr = hop->ChildMap.begin(); hopChildItr != hop->ChildMap.end(); hopChildItr++) {
+//			HyperOp* childHop = hopChildItr->second;
+//			if (hopAndClusterIndex[childHop] == clusterIndex) {
+//				continue;
+//			}
+//			auto edgeItr = clusterEdgesList.begin();
+//			int weight = 0;
+//			for (; edgeItr != clusterEdgesList.end(); edgeItr++) {
+//				auto edgeKey = edgeItr->first;
+//				if (edgeKey.first == clusterIndex && edgeKey.second == hopAndClusterIndex[childHop]) {
+//					weight = edgeItr->second;
+//					break;
+//				}
+//			}
+//
+//			if (edgeItr != clusterEdgesList.end()) {
+//				clusterEdgesList.erase(edgeItr);
+//			}
+//			weight += linearizeTime(hopChildItr->first->getVolume());
+//			if (weight == 0) {
+//				//SYNC/PREDICATE edges
+//				weight = 1;
+//			}
+//			clusterEdgesList.insert(make_pair(make_pair(clusterIndex, hopAndClusterIndex[childHop]), weight));
+//		}
+//	}
+//
+//	SCOTCH_Arch arch;
+//	SCOTCH_archInit(&arch);
+//	SCOTCH_archMesh2(&arch, this->rowCount, this->columnCount);
+//
+//	SCOTCH_Graph* graph = SCOTCH_graphAlloc();
+//
+//	SCOTCH_Num* vertnbr = (SCOTCH_Num*) malloc(sizeof(SCOTCH_Num));
+//	vertnbr[0] = clusterList.size();
+//
+//	/* Execution time of each cluster in an array */
+//	SCOTCH_Num* velotab = (SCOTCH_Num*) calloc(clusterList.size(), sizeof(SCOTCH_Num));
+//	clusterIndex = 0;
+//	for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
+//		list<HyperOp*> cluster = *clusterItr;
+//		int time = getExecutionTimeOfCluster(cluster);
+//		assert(time > 0 && "Execution time cant be zero\n");
+//		velotab[clusterIndex] = time;
+//	}
+//
+//	SCOTCH_Num* verttab = (SCOTCH_Num*) calloc(clusterList.size() + 1, sizeof(SCOTCH_Num));
+//	SCOTCH_Num* vendtab = NULL;
+//	map<int, map<int, int> > clusterAndTargetEdgesMap;
+//	int edgeMapSize = 0;
+//	for (int i = 0; i < clusterList.size(); i++) {
+//		int numEdges = 0;
+//		map<int, int> targetClusterWeights;
+//		for (auto clusterEdgeItr = clusterEdgesList.begin(); clusterEdgeItr != clusterEdgesList.end(); clusterEdgeItr++) {
+//			if (clusterEdgeItr->first.first == i) {
+//				targetClusterWeights.insert(make_pair(clusterEdgeItr->first.second, clusterEdgeItr->second));
+//			}
+//		}
+//		verttab[i] = edgeMapSize;
+//		edgeMapSize += targetClusterWeights.size();
+//		clusterAndTargetEdgesMap[i] = targetClusterWeights;
+//	}
+//	verttab[clusterList.size()] = edgeMapSize;
+//
+//	SCOTCH_Num* edgetab = NULL;
+//	SCOTCH_Num* edlotab = NULL;
+//
+//	if (edgeMapSize > 0) {
+//		edgetab = (SCOTCH_Num*) malloc(edgeMapSize * sizeof(SCOTCH_Num));
+//		edlotab = (SCOTCH_Num*) malloc(edgeMapSize * sizeof(SCOTCH_Num));
+//		int edgeTabIndex = 0;
+//		for (int i = 0; i < clusterList.size(); i++) {
+//			map<int, int> targetClusterWeights = clusterAndTargetEdgesMap[i];
+//			if (targetClusterWeights.size()) {
+//				for (auto targetClusterItr = targetClusterWeights.begin(); targetClusterItr != targetClusterWeights.end(); targetClusterItr++, edgeTabIndex++) {
+//					edgetab[edgeTabIndex] = targetClusterItr->first;
+//					edlotab[edgeTabIndex] = targetClusterItr->second;
+//				}
+//			}
+//		}
+//	}
+//	int graphBuildRetVal = SCOTCH_graphBuild(graph, 0, clusterList.size(), verttab, vendtab, velotab, NULL, clusterEdgesList.size(), edgetab, edlotab);
+//	assert(graphBuildRetVal == 0);
+//
+//	SCOTCH_Num* parttab = (SCOTCH_Num*) calloc(clusterList.size(), sizeof(SCOTCH_Num));
+//	SCOTCH_Strat* strat = SCOTCH_stratAlloc();
+//	SCOTCH_stratInit(strat);
+//	if (SCOTCH_graphMap(graph, &arch, strat, parttab) == 0) {
+//		//TODO add assert for map's return value to be correct
+//		clusterIndex = 0;
+//		for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
+//			list<HyperOp*> cluster = *clusterItr;
+//			for (auto hopItr : cluster) {
+//				if(hopItr->isStartHyperOp()){
+//					hopItr->setTargetResource(0);
+//				}else{
+//					hopItr->setTargetResource(parttab[clusterIndex]);
+//				}
+//			}
+//		}
+//	} else {
+		int clusterIndex = 0;
 		for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
 			list<HyperOp*> cluster = *clusterItr;
 			for (auto hopItr : cluster) {
@@ -2581,7 +2745,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 				hopItr->setTargetResource(targetResource);
 			}
 		}
-	}
+//	}
 }
 
 /* Verification passes in that order:
