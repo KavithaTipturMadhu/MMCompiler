@@ -4110,6 +4110,8 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->addSelfFrameAddressRegisters();
 		graph->setDimensions(MAX_ROW, MAX_COL);
 		graph->clusterNodes();
+		graph->mergeUnpredicatedNodesInCluster();
+		graph->computeDominatorInfo();
 		graph->mapClustersToComputeResources();
 //		graph->convertRemoteScalarsToStores();
 		graph->shuffleHyperOpArguments();
