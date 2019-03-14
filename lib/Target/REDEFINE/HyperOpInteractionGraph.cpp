@@ -936,34 +936,24 @@ pair<HyperOpInteractionGraph*, map<HyperOp*, HyperOp*> > getCFG(HyperOpInteracti
 		}
 	}
 
-	errs()<<"looking for hanging hops in cfg\n";
 //Check if there are hanging hyperops
 	for (list<HyperOp*>::iterator vertexItr = dfg->Vertices.begin(); vertexItr != dfg->Vertices.end(); vertexItr++) {
 		HyperOp* targetHop = originalToClonedNodesMap[*vertexItr];
 		if (!targetHop->isStartHyperOp() && targetHop->ParentMap.empty()) {
 			auto parentItr = (*vertexItr)->ParentMap.begin();
 			HyperOp* sourceHop = originalToClonedNodesMap[parentItr->second];
-			HyperOpEdge* edge = new HyperOpEdge();
-			errs()<<"adding edge to replace the one between "<<(parentItr->second)->asString()<<" and "<<(*vertexItr)->asString()<<"\n";
-			edge->Type = parentItr->first->getType();
-			edge->setVolume(parentItr->first->getVolume());
-			edge->setValue(parentItr->first->getValue());
-			edge->setPredicateValue(parentItr->first->getPredicateValue());
+			HyperOpEdge* edge;
+			parentItr->first->clone(&edge);
+			edge->setContextFrameAddress(NULL);
 			//Added to ensure that 0th context address is set to the edge, to avoid patching the dot file
-			edge->setContextFrameAddress(0);
-			targetHop->addParentEdge(edge, sourceHop);
-			sourceHop->addChildEdge(edge, targetHop);
+			cfg->addEdge(sourceHop, targetHop, edge);
 		}
 		if (!targetHop->isEndHyperOp() && targetHop->ChildMap.empty()) {
 			auto childItr = (*vertexItr)->ChildMap.begin();
 			HyperOp* sourceHop = originalToClonedNodesMap[childItr->second];
-			HyperOpEdge* edge = new HyperOpEdge();
-			edge->Type = childItr->first->getType();
-			edge->setVolume(childItr->first->getVolume());
-			edge->setValue(childItr->first->getValue());
-			edge->setPredicateValue(childItr->first->getPredicateValue());
-			sourceHop->addParentEdge(edge, targetHop);
-			targetHop->addChildEdge(edge, sourceHop);
+			HyperOpEdge* edge;
+			childItr->first->clone(&edge);
+			cfg->addEdge(targetHop, sourceHop, edge);
 		}
 	}
 	return make_pair(cfg, originalToClonedNodesMap);
@@ -1439,8 +1429,8 @@ void cloneFunction(HyperOp** hopForUpdate, list<Type*> additionalNewArgs, bool p
 		Argument* oldArg = oldArgItr;
 		Argument* newArg = newArgItr;
 		oldToNewValueMap.insert(make_pair(oldArgItr, newArgItr));
-		auto oldAttrSet = hopFunction->getAttributes().getParamAttributes(newArgIndex - minIndex);
-		newFunction->addAttributes(newArgIndex, oldAttrSet);
+		auto oldAttrSet = hopFunction->getAttributes().getParamAttributes(newArgIndex - minIndex + 1);
+		newFunction->addAttributes(newArgIndex + 1, oldAttrSet);
 	}
 
 	for (auto funcItr = hopFunction->begin(); funcItr != hopFunction->end(); funcItr++) {
@@ -2402,8 +2392,8 @@ static void inline mergeHyperOps(HyperOp** parentHyperOp, HyperOp** childHyperOp
 		Argument* oldArg = oldArgItr;
 		Argument* newArg = newArgItr;
 		oldToNewValueMap.insert(make_pair(oldArgItr, newArgItr));
-		auto oldAttrSet = parentHopFunction->getAttributes().getParamAttributes(newArgIndex);
-		newFunction->addAttributes(newArgIndex, oldAttrSet);
+		auto oldAttrSet = parentHopFunction->getAttributes().getParamAttributes(newArgIndex + 1);
+		newFunction->addAttributes((newArgIndex + 1), oldAttrSet);
 	}
 
 	list<BasicBlock*> oldBBList;
@@ -2518,6 +2508,9 @@ static void inline mergeHyperOps(HyperOp** parentHyperOp, HyperOp** childHyperOp
 
 	for(auto edgeForRemovalItr:edgesForRemoval){
 		(*parentHyperOp)->ChildMap.erase(edgeForRemovalItr);
+	}
+	if ((*childHyperOp)->isEndHyperOp()) {
+		(*parentHyperOp)->setEndHyperOp();
 	}
 }
 
@@ -3889,8 +3882,12 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		map<Value*, Value*> oldToNewValueMap;
 		int newArgIndex = 1;
 		for (auto oldArgItr = hopFunction->arg_begin(); oldArgItr != hopFunction->arg_end(); oldArgItr++, newArgItr++, newArgIndex++) {
-			auto oldAttrSet = hopFunction->getAttributes().getParamAttributes(newArgIndex);
-			newFunction->addAttributes(newArgIndex, oldAttrSet);
+			auto oldAttrSet = hopFunction->getAttributes().getParamAttributes(newArgIndex + 1);
+			newFunction->addAttributes(newArgIndex + 1, oldAttrSet);
+		}
+		newFunction->addAttribute(1, Attribute::InReg);
+		if (hop->hasRangeBaseInput()) {
+			newFunction->addAttribute(2, Attribute::InReg);
 		}
 		vector<Argument*> newArgVector;
 		for (auto newArgItr = newFunction->arg_begin(); newArgItr != newFunction->arg_end(); newArgItr++) {
