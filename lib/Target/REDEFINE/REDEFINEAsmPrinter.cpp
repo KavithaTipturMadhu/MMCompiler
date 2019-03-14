@@ -86,6 +86,7 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 	string codeSegmentStart = "\t.align\t16\n\t.PHYPEROP\t";
 	string funcnamewithoutperiod("");
 	const char* tempstring = MF->getFunction()->getName().data();
+	vector<string> pHyperOpsList ;
 	int i = 0;
 	while (tempstring[i] != '\0') {
 		if (tempstring[i] == '.') {
@@ -93,6 +94,7 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 		} else {
 			char value[2] = { tempstring[i], '\0' };
 			funcnamewithoutperiod.append(string(value));
+
 		}
 		i++;
 	}
@@ -104,6 +106,7 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 
 		codeSegmentStart.append(".PC_").append(funcnamewithoutperiod).append(
 				itostr(pHyperOpIndex)); //p-HyperOp-PC label
+		pHyperOpsList.push_back(string(funcnamewithoutperiod).append(itostr(pHyperOpIndex)));
 		added = true;
 	}
 	codeSegmentStart.append("\n");
@@ -123,7 +126,10 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 		}
 		oldToNewLabelSymbolMap[oldlabel->getName().str()] = newLabelsForPhops;
 	}
-
+	string pHyperOpJumps("");
+	for(int index = 1 ; index < pHyperOpsList.size(); index++){
+		pHyperOpJumps.append("\tJAL x0, .PC_").append(pHyperOpsList[index]).append("\n");
+	}
 	for (int pHyperOpIndex = 0; pHyperOpIndex < pHyperOpInstructions.size();
 			pHyperOpIndex++) {
 		list<const MachineInstr*> pHyperOpItr =
@@ -133,12 +139,21 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 				itostr(pHyperOpIndex)).append(":\n"); //p-HyperOp-PC label
 		OutStreamer.EmitRawText(StringRef(codeSegmentStart));
 
+
+
+
+
 		for (list<const MachineInstr*>::iterator mcItr = pHyperOpItr.begin();
 				mcItr != pHyperOpItr.end(); mcItr++) {
 			if (!startOfBBInPHyperOp[pHyperOpIndex].empty()
 					&& startOfBBInPHyperOp[pHyperOpIndex].front() == *mcItr) {
 				MCSymbol *label = (*mcItr)->getParent()->getSymbol();
 				MCSymbol* newLabel = oldToNewLabelSymbolMap[label->getName().str()][pHyperOpIndex];
+				if(pHyperOpIndex == 0 && mcItr == pHyperOpItr.begin()){
+					string jumpInstrs("\tJAL x0, ");
+					jumpInstrs.append(newLabel->getName().str()).append("\n").append(pHyperOpJumps);
+					OutStreamer.EmitRawText(StringRef(jumpInstrs));
+				}
 				OutStreamer.EmitLabel(newLabel);
 				startOfBBInPHyperOp[pHyperOpIndex].pop_front();
 			}

@@ -32,7 +32,7 @@ namespace llvm {
 
 class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 
-	static const unsigned SPLOCATIONS = 256;
+	static const unsigned SPLOCATIONS = 1024;
 
 	//Number of bytes in an addressable location
 	static const unsigned datawidth = 4;
