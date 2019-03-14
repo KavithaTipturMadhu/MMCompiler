@@ -23,7 +23,7 @@ using namespace std;
 #include "llvm/Support/Debug.h"
 using namespace llvm;
 
-//#include "scotch.h"
+#include "scotch.h"
 //Returns size of the type in bytes
 //Duplicate cos utils can't be added as header
 unsigned duplicateGetSizeOfType(Type * type) {
@@ -2570,167 +2570,122 @@ unsigned inline getExecutionTimeOfCluster(list<HyperOp*> cluster){
 }
 
 void HyperOpInteractionGraph::mapClustersToComputeResources() {
-//Start of the edge is defined the top level of the source HyperOp of the edge and end is top level + edge weight
+	unsigned clusterIndex = 0;
+	/* Map of edges between clusters labeled by their index */
+	map<HyperOp*, int> hopAndClusterIndex;
+	for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
+		list<HyperOp*> cluster = *clusterItr;
+		for (auto hopItr = cluster.begin(); hopItr != cluster.end(); hopItr++) {
+			hopAndClusterIndex.insert(make_pair(*hopItr, clusterIndex));
+		}
+	}
 
-////This map is used to ensure that the source and target clusters are placed closest to each other
-//	list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > > communicationMap;
-//	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
-//		HyperOp* vertex = *vertexItr;
-//		map<HyperOp*, list<unsigned int> > childNodes = vertex->getChildNodeEdgeWeights();
-//		for (map<HyperOp*, list<unsigned int> >::iterator childNodeItr = childNodes.begin(); childNodeItr != childNodes.end(); childNodeItr++) {
-//			HyperOp* childNode = childNodeItr->first;
-//			list<unsigned int> tempTime;
-//			tempTime.push_back(0);
-//			//If edge has non-zero weightage and does not correspond to edges from the same cluster
-//			if (compareHierarchicalVolume(childNodeItr->second, tempTime) > 0 && clusterMap.find(vertex)->second != clusterMap.find(childNode)->second) {
-//				pair<list<unsigned int>, list<unsigned int> > timeTuple = std::make_pair(childNodeItr->second, addHierarchicalVolume(vertex->getTopLevel(), vertex->getExecutionTimeEstimate()));
-//				pair<unsigned int, unsigned int> clusterTuple = std::make_pair(clusterMap.find(vertex)->second, clusterMap.find(childNode)->second);
-//				communicationMap.push_back(std::make_pair(clusterTuple, timeTuple));
-//			}
-//		}
-//	}
-//
-////A conflict between edges is defined as edges that execute concurrently across clusters and don't share the same source or target cluster
-////	list<pair<pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> > > conflictingEdges;
-////	for (list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > >::iterator edgeItr = communicationMap.begin(); edgeItr != communicationMap.end(); edgeItr++) {
-////		list<unsigned int> edgeStartTime = (edgeItr->second).second;
-////		list<unsigned int> edgeEndTime = addHierarchicalVolume((edgeItr->second).first, (edgeItr->second).second);
-////		for (list<pair<pair<unsigned int, unsigned int>, pair<list<unsigned int>, list<unsigned int> > > >::iterator conflictingEdgeItr = communicationMap.begin(); conflictingEdgeItr != communicationMap.end(); conflictingEdgeItr++) {
-////			//If not the same edges
-////			if (edgeItr != conflictingEdgeItr && (!(edgeItr->first.first == conflictingEdgeItr->first.first && edgeItr->first.second == conflictingEdgeItr->first.second))) {
-////				list<unsigned int> conflictEdgeStartTime = (conflictingEdgeItr->second).second;
-////				list<unsigned int> conflictEdgeEndTime = addHierarchicalVolume((conflictingEdgeItr->second).first, (conflictingEdgeItr->second).second);
-////				if (!(compareHierarchicalVolume(conflictEdgeStartTime, edgeEndTime) >= 0 || compareHierarchicalVolume(conflictEdgeEndTime, edgeStartTime) >= 0)) {
-////					//Edges that execute concurrently
-////					conflictingEdges.push_back(std::make_pair(edgeItr->first, conflictingEdgeItr->first));
-////				}
-////			}
-////		}
-////	}
-//	unsigned clusterIndex = 0;
-//	for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
-//		list<HyperOp*> cluster = *clusterItr;
-//		for (list<HyperOp*>::iterator nodeItr = cluster.begin(); nodeItr != cluster.end(); nodeItr++) {
-//			(*nodeItr)->setTargetResource(clusterIndex);
-//		}
-//	}
-//
-//	/* Map of edges between clusters labeled by their index */
-//	int clusterIndex = 0;
-//	map<HyperOp*, int> hopAndClusterIndex;
-//	for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
-//		list<HyperOp*> cluster = *clusterItr;
-//		for (auto hopItr = cluster.begin(); hopItr != cluster.end(); hopItr++) {
-//			hopAndClusterIndex.insert(make_pair(*hopItr, clusterIndex));
-//		}
-//	}
-//
-//	map<pair<int, int>, int> clusterEdgesList;
-//	for (auto hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
-//		HyperOp* hop = *hopItr;
-//		int clusterIndex = hopAndClusterIndex[hop];
-//		for (auto hopChildItr = hop->ChildMap.begin(); hopChildItr != hop->ChildMap.end(); hopChildItr++) {
-//			HyperOp* childHop = hopChildItr->second;
-//			if (hopAndClusterIndex[childHop] == clusterIndex) {
-//				continue;
-//			}
-//			auto edgeItr = clusterEdgesList.begin();
-//			int weight = 0;
-//			for (; edgeItr != clusterEdgesList.end(); edgeItr++) {
-//				auto edgeKey = edgeItr->first;
-//				if (edgeKey.first == clusterIndex && edgeKey.second == hopAndClusterIndex[childHop]) {
-//					weight = edgeItr->second;
-//					break;
-//				}
-//			}
-//
-//			if (edgeItr != clusterEdgesList.end()) {
-//				clusterEdgesList.erase(edgeItr);
-//			}
-//			weight += linearizeTime(hopChildItr->first->getVolume());
-//			if (weight == 0) {
-//				//SYNC/PREDICATE edges
-//				weight = 1;
-//			}
-//			clusterEdgesList.insert(make_pair(make_pair(clusterIndex, hopAndClusterIndex[childHop]), weight));
-//		}
-//	}
-//
-//	SCOTCH_Arch arch;
-//	SCOTCH_archInit(&arch);
-//	SCOTCH_archMesh2(&arch, this->rowCount, this->columnCount);
-//
-//	SCOTCH_Graph* graph = SCOTCH_graphAlloc();
-//
-//	SCOTCH_Num* vertnbr = (SCOTCH_Num*) malloc(sizeof(SCOTCH_Num));
-//	vertnbr[0] = clusterList.size();
-//
-//	/* Execution time of each cluster in an array */
-//	SCOTCH_Num* velotab = (SCOTCH_Num*) calloc(clusterList.size(), sizeof(SCOTCH_Num));
-//	clusterIndex = 0;
-//	for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
-//		list<HyperOp*> cluster = *clusterItr;
-//		int time = getExecutionTimeOfCluster(cluster);
-//		assert(time > 0 && "Execution time cant be zero\n");
-//		velotab[clusterIndex] = time;
-//	}
-//
-//	SCOTCH_Num* verttab = (SCOTCH_Num*) calloc(clusterList.size() + 1, sizeof(SCOTCH_Num));
-//	SCOTCH_Num* vendtab = NULL;
-//	map<int, map<int, int> > clusterAndTargetEdgesMap;
-//	int edgeMapSize = 0;
-//	for (int i = 0; i < clusterList.size(); i++) {
-//		int numEdges = 0;
-//		map<int, int> targetClusterWeights;
-//		for (auto clusterEdgeItr = clusterEdgesList.begin(); clusterEdgeItr != clusterEdgesList.end(); clusterEdgeItr++) {
-//			if (clusterEdgeItr->first.first == i) {
-//				targetClusterWeights.insert(make_pair(clusterEdgeItr->first.second, clusterEdgeItr->second));
-//			}
-//		}
-//		verttab[i] = edgeMapSize;
-//		edgeMapSize += targetClusterWeights.size();
-//		clusterAndTargetEdgesMap[i] = targetClusterWeights;
-//	}
-//	verttab[clusterList.size()] = edgeMapSize;
-//
-//	SCOTCH_Num* edgetab = NULL;
-//	SCOTCH_Num* edlotab = NULL;
-//
-//	if (edgeMapSize > 0) {
-//		edgetab = (SCOTCH_Num*) malloc(edgeMapSize * sizeof(SCOTCH_Num));
-//		edlotab = (SCOTCH_Num*) malloc(edgeMapSize * sizeof(SCOTCH_Num));
-//		int edgeTabIndex = 0;
-//		for (int i = 0; i < clusterList.size(); i++) {
-//			map<int, int> targetClusterWeights = clusterAndTargetEdgesMap[i];
-//			if (targetClusterWeights.size()) {
-//				for (auto targetClusterItr = targetClusterWeights.begin(); targetClusterItr != targetClusterWeights.end(); targetClusterItr++, edgeTabIndex++) {
-//					edgetab[edgeTabIndex] = targetClusterItr->first;
-//					edlotab[edgeTabIndex] = targetClusterItr->second;
-//				}
-//			}
-//		}
-//	}
-//	int graphBuildRetVal = SCOTCH_graphBuild(graph, 0, clusterList.size(), verttab, vendtab, velotab, NULL, clusterEdgesList.size(), edgetab, edlotab);
-//	assert(graphBuildRetVal == 0);
-//
-//	SCOTCH_Num* parttab = (SCOTCH_Num*) calloc(clusterList.size(), sizeof(SCOTCH_Num));
-//	SCOTCH_Strat* strat = SCOTCH_stratAlloc();
-//	SCOTCH_stratInit(strat);
-//	if (SCOTCH_graphMap(graph, &arch, strat, parttab) == 0) {
-//		//TODO add assert for map's return value to be correct
-//		clusterIndex = 0;
-//		for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
-//			list<HyperOp*> cluster = *clusterItr;
-//			for (auto hopItr : cluster) {
-//				if(hopItr->isStartHyperOp()){
-//					hopItr->setTargetResource(0);
-//				}else{
-//					hopItr->setTargetResource(parttab[clusterIndex]);
-//				}
-//			}
-//		}
-//	} else {
-		int clusterIndex = 0;
+	map<pair<int, int>, int> clusterEdgesList;
+	for (auto hopItr = this->Vertices.begin(); hopItr != this->Vertices.end(); hopItr++) {
+		HyperOp* hop = *hopItr;
+		int clusterIndex = hopAndClusterIndex[hop];
+		for (auto hopChildItr = hop->ChildMap.begin(); hopChildItr != hop->ChildMap.end(); hopChildItr++) {
+			HyperOp* childHop = hopChildItr->second;
+			if (hopAndClusterIndex[childHop] == clusterIndex) {
+				continue;
+			}
+			auto edgeItr = clusterEdgesList.begin();
+			int weight = 0;
+			for (; edgeItr != clusterEdgesList.end(); edgeItr++) {
+				auto edgeKey = edgeItr->first;
+				if (edgeKey.first == clusterIndex && edgeKey.second == hopAndClusterIndex[childHop]) {
+					weight = edgeItr->second;
+					break;
+				}
+			}
+
+			if (edgeItr != clusterEdgesList.end()) {
+				clusterEdgesList.erase(edgeItr);
+			}
+			weight += linearizeTime(hopChildItr->first->getVolume());
+			if (weight == 0) {
+				//SYNC/PREDICATE edges
+				weight = 1;
+			}
+			clusterEdgesList.insert(make_pair(make_pair(clusterIndex, hopAndClusterIndex[childHop]), weight));
+		}
+	}
+
+	SCOTCH_Arch arch;
+	SCOTCH_archInit(&arch);
+	SCOTCH_archMesh2(&arch, this->rowCount, this->columnCount);
+
+	SCOTCH_Graph* graph = SCOTCH_graphAlloc();
+
+	SCOTCH_Num* vertnbr = (SCOTCH_Num*) malloc(sizeof(SCOTCH_Num));
+	vertnbr[0] = clusterList.size();
+
+	/* Execution time of each cluster in an array */
+	SCOTCH_Num* velotab = (SCOTCH_Num*) calloc(clusterList.size(), sizeof(SCOTCH_Num));
+	clusterIndex = 0;
+	for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
+		list<HyperOp*> cluster = *clusterItr;
+		int time = getExecutionTimeOfCluster(cluster);
+		assert(time > 0 && "Execution time cant be zero\n");
+		velotab[clusterIndex] = time;
+	}
+
+	SCOTCH_Num* verttab = (SCOTCH_Num*) calloc(clusterList.size() + 1, sizeof(SCOTCH_Num));
+	SCOTCH_Num* vendtab = NULL;
+	map<int, map<int, int> > clusterAndTargetEdgesMap;
+	int edgeMapSize = 0;
+	for (int i = 0; i < clusterList.size(); i++) {
+		int numEdges = 0;
+		map<int, int> targetClusterWeights;
+		for (auto clusterEdgeItr = clusterEdgesList.begin(); clusterEdgeItr != clusterEdgesList.end(); clusterEdgeItr++) {
+			if (clusterEdgeItr->first.first == i) {
+				targetClusterWeights.insert(make_pair(clusterEdgeItr->first.second, clusterEdgeItr->second));
+			}
+		}
+		verttab[i] = edgeMapSize;
+		edgeMapSize += targetClusterWeights.size();
+		clusterAndTargetEdgesMap[i] = targetClusterWeights;
+	}
+	verttab[clusterList.size()] = edgeMapSize;
+
+	SCOTCH_Num* edgetab = NULL;
+	SCOTCH_Num* edlotab = NULL;
+
+	if (edgeMapSize > 0) {
+		edgetab = (SCOTCH_Num*) malloc(edgeMapSize * sizeof(SCOTCH_Num));
+		edlotab = (SCOTCH_Num*) malloc(edgeMapSize * sizeof(SCOTCH_Num));
+		int edgeTabIndex = 0;
+		for (int i = 0; i < clusterList.size(); i++) {
+			map<int, int> targetClusterWeights = clusterAndTargetEdgesMap[i];
+			if (targetClusterWeights.size()) {
+				for (auto targetClusterItr = targetClusterWeights.begin(); targetClusterItr != targetClusterWeights.end(); targetClusterItr++, edgeTabIndex++) {
+					edgetab[edgeTabIndex] = targetClusterItr->first;
+					edlotab[edgeTabIndex] = targetClusterItr->second;
+				}
+			}
+		}
+	}
+	int graphBuildRetVal = SCOTCH_graphBuild(graph, 0, clusterList.size(), verttab, vendtab, velotab, NULL, clusterEdgesList.size(), edgetab, edlotab);
+	assert(graphBuildRetVal == 0);
+
+	SCOTCH_Num* parttab = (SCOTCH_Num*) calloc(clusterList.size(), sizeof(SCOTCH_Num));
+	SCOTCH_Strat* strat = SCOTCH_stratAlloc();
+	SCOTCH_stratInit(strat);
+	if (SCOTCH_graphMap(graph, &arch, strat, parttab) == 0) {
+		//TODO add assert for map's return value to be correct
+		clusterIndex = 0;
+		for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
+			list<HyperOp*> cluster = *clusterItr;
+			for (auto hopItr : cluster) {
+				if(hopItr->isStartHyperOp()){
+					hopItr->setTargetResource(0);
+				}else{
+					hopItr->setTargetResource(parttab[clusterIndex]);
+				}
+			}
+		}
+	} else {
+		clusterIndex = 0;
 		for (auto clusterItr = clusterList.begin(); clusterItr != clusterList.end(); clusterItr++, clusterIndex++) {
 			list<HyperOp*> cluster = *clusterItr;
 			for (auto hopItr : cluster) {
@@ -2738,7 +2693,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
 				hopItr->setTargetResource(targetResource);
 			}
 		}
-//	}
+	}
 }
 
 /* Verification passes in that order:
