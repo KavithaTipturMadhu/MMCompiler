@@ -3254,7 +3254,7 @@ list<list<pair<HyperOpEdge*, HyperOp*> > > mergePredicateChains(list<list<pair<H
 }
 
 //Returns predicate from start hyperop
-list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp * currentHyperOp, HyperOp* idom) {
+list<pair<HyperOpEdge*, HyperOp*> > lastPredicateInput(HyperOp * currentHyperOp) {
 //Now we find the shortest predicate chain
 	list<pair<HyperOpEdge*, HyperOp*> > reachingPredicateChain;
 	while (!currentHyperOp->isStartHyperOp()) {
@@ -3316,10 +3316,8 @@ bool mutuallyExclusiveHyperOps(HyperOp* firstHyperOp, HyperOp* secondHyperOp) {
 			//HyperOps are on different paths
 			//Check if the HyperOps are on mutually exclusive predicates at all
 			list<list<pair<HyperOpEdge*, HyperOp*> > > predicateChains;
-			auto firstHyperOpPredicateChain = lastPredicateInput(firstHyperOp,
-			NULL);
-			auto secondHyperOpPredicateChain = lastPredicateInput(secondHyperOp,
-			NULL);
+			auto firstHyperOpPredicateChain = lastPredicateInput(firstHyperOp);
+			auto secondHyperOpPredicateChain = lastPredicateInput(secondHyperOp);
 
 			predicateChains.push_back(firstHyperOpPredicateChain);
 			predicateChains.push_back(secondHyperOpPredicateChain);
@@ -3964,7 +3962,7 @@ void HyperOpInteractionGraph::addArgDecrementCountOnControlPaths() {
 		HyperOp* hyperOp = *hopItr;
 		if (hyperOp->isPredicatedHyperOp()) {
 			HyperOp* immediateDominator = hyperOp->getImmediateDominator();
-			list<pair<HyperOpEdge*, HyperOp*> > parentPredicateChain = lastPredicateInput(controlFlowGraphAndOriginalHopMap.second[hyperOp], controlFlowGraphAndOriginalHopMap.second[hyperOp->getImmediateDominator()]);
+			list<pair<HyperOpEdge*, HyperOp*> > parentPredicateChain = lastPredicateInput(controlFlowGraphAndOriginalHopMap.second[hyperOp]);
 			pair<HyperOpEdge*, HyperOp*> parentPredicate;
 			if (parentPredicateChain.empty()) {
 				continue;
