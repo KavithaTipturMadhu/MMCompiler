@@ -469,7 +469,6 @@ for (auto instItr = deleteList.begin(); instItr != deleteList.end(); instItr++) 
 
 if (BB->getNumber() == 0) {
 	MachineInstr* insertionPoint = BB->begin();
-	for (unsigned i = 0; i < ceCount; i++) {
 		unsigned registerForCopyOfInstId = REDEFINE::t5;
 		unsigned registerForIncrOfInstId = REDEFINE::t4;
 
@@ -487,7 +486,7 @@ if (BB->getNumber() == 0) {
 		unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 		MachineInstrBuilder movimm = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVADDR)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
 		addToLISSlot(LIS, movimm.operator llvm::MachineInstr *());
-		allInstructionsOfRegion.push_back(make_pair(movimm.operator->(), make_pair(i, insertPosition++)));
+		allInstructionsOfRegion.push_back(make_pair(movimm.operator->(), make_pair(0, insertPosition++)));
 
 		unsigned registerForMulOperand = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 		MachineInstrBuilder addiForMul = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addSym(frameSizeSymbol);
@@ -544,7 +543,6 @@ if (BB->getNumber() == 0) {
 
 		MachineInstrBuilder addForGlobalAddr = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForIncrOfInstId, RegState::Define).addReg(registerForGlobalAddr).addReg(registerForMul);
 		addToLISSlot(LIS, addForGlobalAddr.operator llvm::MachineInstr *());
-	}
 }
 LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), regs);
 bb->dump();
@@ -844,6 +842,28 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 				//Increment by 4 since scratchpad is byte addressable
 				faninOfHyperOp[ceContainingInstruction] = faninOfHyperOp[ceContainingInstruction] + datawidth;
 			}
+		}
+	}
+	unsigned nextFrameLocation = 0;
+	for(int i=0;i<machineInstruction->getNumOperands();i++){
+		MachineInstr* lastInstr = RegionEnd;
+		MachineOperand op = machineInstruction->getOperand(i);
+		if(op.isReg() && !TRI->isPhysicalRegister(op.getReg()) && LIS->isLiveOutOfMBB(LIS->getInterval(op.getReg()), BB)){
+			unsigned liveoutRegister = op.getReg();
+
+			MachineInstrBuilder storeInMem = BuildMI(*BB, lastInstr, lastInstr->getDebugLoc(), TII->get(REDEFINE::SW));
+			storeInMem.addReg(REDEFINE::zero);
+			storeInMem.addReg(liveoutRegister);
+			if (registerAndFrameLocation.find(liveoutRegister) == registerAndFrameLocation.end()) {
+				registerAndFrameLocation.insert(make_pair(liveoutRegister, nextFrameLocation));
+				storeInMem.addFrameIndex(nextFrameLocation);
+				nextFrameLocation += 1;
+			} else {
+				storeInMem.addFrameIndex(registerAndFrameLocation.find(liveoutRegister)->second);
+			}
+			addToLISSlot(LIS, storeInMem.operator ->());
+			//LIS->getSlotIndexes()->insertMachineInstrInMaps(storeInMem.operator llvm::MachineInstr *());
+			allInstructionsOfRegion.push_back(make_pair(storeInMem.operator llvm::MachineInstr *(), make_pair(ceContainingInstruction, insertPosition++)));
 		}
 	}
 	if (firstInstructionOfpHyperOpInRegion[ceContainingInstruction] == 0) {
