@@ -97,7 +97,6 @@ static unsigned getPageSize() {
 #elif defined(HAVE_SYSCONF)
   long page_size = ::sysconf(_SC_PAGE_SIZE);
 #else
-  #After adding scoth libraries control is comming to else loop where page_size is not defined.
   const int page_size = ::getpagesize();
 #warning Cannot get the page size on this machine
 #endif
