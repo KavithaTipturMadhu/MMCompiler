@@ -201,7 +201,7 @@ public:
 	void setEndHyperOp();
 	void setIntermediateHyperOp();
 	void setBarrierHyperOp();
-	void setPredicatedHyperOp();
+	void setPredicatedHyperOp(bool predicate = true);
 	void setInRange();
 	bool getInRange();
 	bool isBarrierHyperOp();
@@ -373,6 +373,8 @@ public:
 	void shuffleHyperOpArguments();
 
 	void mergeUnpredicatedNodesInCluster();
+
+	void removeCoveredPredicateEdges();
 
 	AllocaInst* getAllocInstrForLocalReferenceData(Value* sourceInstr, HyperOp* hyperOp);
 };
