@@ -4104,6 +4104,7 @@ struct REDEFINEIRPass: public ModulePass {
 		if (MAKE_GRAPH_STRUCTURED) {
 			graph->removeUnreachableHops();
 			graph->makeGraphStructured();
+			graph->removeCoveredPredicateEdges();
 			graph->computeDominatorInfo();
 		}
 		graph->addContextFrameAddressForwardingEdges();
@@ -4112,8 +4113,7 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->clusterNodes();
 		graph->mergeUnpredicatedNodesInCluster();
 		graph->computeDominatorInfo();
-		graph->mapClustersToComputeResources();
-//		graph->convertRemoteScalarsToStores();
+		//graph->convertRemoteScalarsToStores();
 		graph->shuffleHyperOpArguments();
 		graph->setMaxContextFrameSize(MAX_CONTEXT_FRAME_SIZE);
 		graph->convertSpillScalarsToStores();
@@ -4123,6 +4123,7 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->associateStaticContextFrames();
 		graph->updateLocalRefEdgeMemSizeAndOffset();
 		graph->updateContextFrameForwardingEdges();
+		graph->mapClustersToComputeResources();
 		graph->verify(1);
 		map<Function*, unsigned> functionAndIndexMap;
 
