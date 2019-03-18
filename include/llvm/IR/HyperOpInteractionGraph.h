@@ -319,6 +319,8 @@ public:
 
 	HyperOp * getHyperOp(Function* F);
 
+	list<HyperOp*> getHyperOpInstances(Function * F);
+
 	/**
 	 * 	Clusters HyperOps together with the objective of minimizing execution time
 	 */

@@ -4447,6 +4447,17 @@ struct REDEFINEIRPass: public ModulePass {
 			hopAnnotations.push_back(offsetAnnotation);
 			hyperOpAnnotationsNode->addOperand(MDNode::get(M.getContext(), hopAnnotations));
 		}
+		list<Function*> unusedFunctions;
+		/* Delete functions that are not directly used */
+		for (auto functionItr = M.begin(); functionItr != M.end(); functionItr++) {
+			Function* f = functionItr;
+			if(graph->getHyperOp(f) == NULL && !f->isIntrinsic()){
+				unusedFunctions.push_back(f);
+			}
+		}
+		for(auto unusedFuncItr:unusedFunctions){
+			unusedFuncItr->eraseFromParent();
+		}
 		/* Set attributes of each hyperop */
 		return true;
 	}

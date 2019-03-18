@@ -2741,10 +2741,11 @@ static void inline mergeHyperOps(HyperOp* parentHyperOp, HyperOp* childHyperOp, 
 	if(parentHyperOp->isStaticHyperOp() && !childHyperOp->isStaticHyperOp()){
 		parentHyperOp->setStaticHyperOp(false);
 	}
-	hyperOpPairsToBeMerged.push_front(make_pair(parentHyperOp, childHyperOp));
 	list<Function*> functionsToBeDeleted;
 	functionsToBeDeleted.push_back(childHopFunction);
 	functionsToBeDeleted.push_back(parentHopFunction);
+
+	hyperOpPairsToBeMerged.push_front(make_pair(parentHyperOp, childHyperOp));
 	for (auto instanceItr : hyperOpPairsToBeMerged) {
 		HyperOp* instanceParent = instanceItr.first;
 		HyperOp* instanceChild = instanceItr.second;
@@ -2776,17 +2777,17 @@ static void inline mergeHyperOps(HyperOp* parentHyperOp, HyperOp* childHyperOp, 
 				clonedEdge->setValue(newOperand);
 			}
 			graph->addEdge(instanceParent, edgeItr->second, clonedEdge);
-			instanceParent->setStaticHyperOp(false);
-			Function* prevFunction = instanceParent->getFunction();
-			instanceParent->setFunction(newFunction);
-			instanceParent->setInstanceof(newFunction);
+		}
+		instanceParent->setStaticHyperOp(false);
+		Function* prevFunction = instanceParent->getFunction();
+		instanceParent->setFunction(newFunction);
+		instanceParent->setInstanceof(newFunction);
 
-			if (instanceParent != parentHyperOp && instanceChild != childHyperOp) {
-				instanceParent->setInstanceId(instanceParent->getInstanceId());
-				instanceParent->setIsUnrolledInstance(instanceChild->isUnrolledInstance());
-				if(find(functionsToBeDeleted.begin(), functionsToBeDeleted.end(), prevFunction)==functionsToBeDeleted.end()){
-					functionsToBeDeleted.push_back(prevFunction);
-				}
+		if (instanceParent != parentHyperOp && instanceChild != childHyperOp) {
+			instanceParent->setInstanceId(instanceParent->getInstanceId());
+			instanceParent->setIsUnrolledInstance(instanceChild->isUnrolledInstance());
+			if (find(functionsToBeDeleted.begin(), functionsToBeDeleted.end(), prevFunction) == functionsToBeDeleted.end()) {
+				functionsToBeDeleted.push_back(prevFunction);
 			}
 		}
 		for (auto edgeForRemovalItr : edgesForRemoval) {
@@ -2828,17 +2829,23 @@ void HyperOpInteractionGraph::mergeUnpredicatedNodesInCluster(){
 				HyperOp* parentHyperOp = parentList.front();
 				list<pair<HyperOp*, HyperOp*> > hyperOpPairsToBeMerged;
 				Function* childHopFunction = hop->getFunction();
-				DEBUG(dbgs() << "Merging nodes " << parentHyperOp->asString() << " and " << hop->asString() << "\n");
+				bool canMergeInstances = true;
 				for (auto vertexItr = this->Vertices.begin(); vertexItr != this->Vertices.end(); vertexItr++) {
 					HyperOp* vertex = *vertexItr;
 					HyperOp* parent = vertex->getParentList().front();
 					if (vertex->getInstanceof() == hop->getInstanceof() && vertex != hop && vertex->isUnrolledInstance() && vertex->getParentList().size() == 1 && parent->getInstanceof() == parentHyperOp->getFunction() && !parent->isStaticHyperOp()) {
+						if (vertex->getParentList().front()->getTargetResource() != vertex->getTargetResource()) {
+							canMergeInstances = false;
+							break;
+						}
 						hyperOpPairsToBeMerged.push_back(make_pair(vertex->getParentList().front(), vertex));
-						errs() << "along with " << vertex->getParentList().front()->asString() << " and " << vertex->asString() << "\n";
 					}
 				}
-				if(hop->isEndHyperOp())
-					break;
+				/* Don't want to lose out on load balancing opportunities, hence this check */
+				if (!hyperOpPairsToBeMerged.empty() && !canMergeInstances) {
+					continue;
+				}
+				DEBUG(dbgs() << "Merging nodes " << parentHyperOp->asString() << " and " << hop->asString() << "\n");
 				mergeHyperOps(parentHyperOp, hop, hyperOpPairsToBeMerged, this);
 				change = true;
 				clusterItr.erase(hopItr);
@@ -3084,6 +3091,7 @@ void HyperOpInteractionGraph::mapClustersToComputeResources() {
  * 12. Ensure that no two static hyperops have the same context frame
  */
 void HyperOpInteractionGraph::verify(int frameArgsAdded) {
+	this->print(dbgs());
 	//Check that sync hyperops are not predicated
 	HyperOp* startHyperOp = NULL;
 	HyperOp* endHyperOp = NULL;
@@ -3211,7 +3219,7 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 	Module *M = this->Vertices.front()->getFunction()->getParent();
 	for (auto funcItr = M->begin(); funcItr != M->end(); funcItr++) {
 		Function* func = funcItr;
-		assert((func->isIntrinsic()|| this->getHyperOp(func)!=NULL) && "Stray functions are not allowed");
+		assert((func->isIntrinsic()|| this->getHyperOp(func)!=NULL || !this->getHyperOpInstances(func).empty()) && "Stray functions are not allowed");
 	}
 
 	for (auto hopItr : this->Vertices) {
@@ -4197,6 +4205,17 @@ HyperOp * HyperOpInteractionGraph::getHyperOp(Function * F) {
 	}
 	return 0;
 }
+
+list<HyperOp*> HyperOpInteractionGraph::getHyperOpInstances(Function * F) {
+	list<HyperOp*> instances;
+	for (list<HyperOp*>::iterator vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
+		if ((*vertexItr)->getInstanceof() == F) {
+			instances.push_back(*vertexItr);
+		}
+	}
+	return instances;
+}
+
 void HyperOpInteractionGraph::print(raw_ostream &os, int debug) {
 	os << "digraph{\n";
 	if (!this->Vertices.empty()) {
