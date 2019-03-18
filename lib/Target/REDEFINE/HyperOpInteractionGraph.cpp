@@ -1128,7 +1128,6 @@ void HyperOpInteractionGraph::updateContextFrameForwardingEdges() {
 						break;
 					}
 				}
-
 			}
 		}
 	}
@@ -2638,10 +2637,9 @@ void HyperOpInteractionGraph::clusterNodes() {
 		}
 	}
 }
-static void inline mergeHyperOps(HyperOp** parentHyperOp, HyperOp** childHyperOp){
-	DEBUG(dbgs()<<"Merging nodes "<<(*parentHyperOp)->asString()<<" and "<<(*childHyperOp)->asString()<<"\n");
+static void inline mergeHyperOps(HyperOp* parentHyperOp, HyperOp* childHyperOp, list<pair<HyperOp*, HyperOp*> > hyperOpPairsToBeMerged, HyperOpInteractionGraph* graph){
 	vector<Type*> funcArgsList;
-	Function* parentHopFunction = (*parentHyperOp)->getFunction();
+	Function* parentHopFunction = parentHyperOp->getFunction();
 	LLVMContext &ctxt = parentHopFunction->getParent()->getContext();
 
 	for (auto oldArgItr = parentHopFunction->arg_begin(); oldArgItr != parentHopFunction->arg_end(); oldArgItr++) {
@@ -2672,7 +2670,7 @@ static void inline mergeHyperOps(HyperOp** parentHyperOp, HyperOp** childHyperOp
 	}
 
 	BasicBlock* firstBBInChild = NULL;
-	Function* childHopFunction = (*childHyperOp)->getFunction();
+	Function* childHopFunction = childHyperOp->getFunction();
 	for (auto funcItr = childHopFunction->begin(); funcItr != childHopFunction->end(); funcItr++) {
 		BasicBlock* oldBB = funcItr;
 		oldBBList.push_back(oldBB);
@@ -2704,7 +2702,7 @@ static void inline mergeHyperOps(HyperOp** parentHyperOp, HyperOp** childHyperOp
 	for (auto oldArgItr = childHopFunction->arg_begin(); oldArgItr != childHopFunction->arg_end(); oldArgItr++, argIndex++) {
 		Argument* oldArg = oldArgItr;
 		Value* newArg;
-		for (auto parentItr = (*childHyperOp)->ParentMap.begin(); parentItr != (*childHyperOp)->ParentMap.end(); parentItr++) {
+		for (auto parentItr = childHyperOp->ParentMap.begin(); parentItr != childHyperOp->ParentMap.end(); parentItr++) {
 			if (parentItr->first->getPositionOfContextSlot() == argIndex) {
 				newArg = parentItr->first->getValue();
 				break;
@@ -2739,51 +2737,84 @@ static void inline mergeHyperOps(HyperOp** parentHyperOp, HyperOp** childHyperOp
 			}
 		}
 	}
-	(*parentHyperOp)->setFunction(newFunction);
-	/* Update the outgoing edges with new cloned values from the current HyperOp function */
-	list<HyperOpEdge*> edgesForRemoval;
-	for (auto edgeItr = (*parentHyperOp)->ChildMap.begin(); edgeItr != (*parentHyperOp)->ChildMap.end(); edgeItr++) {
-		if (edgeItr->first->getValue() != NULL && oldToNewValueMap.find(edgeItr->first->getValue()) != oldToNewValueMap.end()) {
-			edgeItr->first->setValue(oldToNewValueMap[edgeItr->first->getValue()]);
-		}
-		if(edgeItr->second == *childHyperOp){
-			edgesForRemoval.push_back(edgeItr->first);
-		}
+
+	if(parentHyperOp->isStaticHyperOp() && !childHyperOp->isStaticHyperOp()){
+		parentHyperOp->setStaticHyperOp(false);
 	}
-	for (auto edgeItr = (*childHyperOp)->ChildMap.begin(); edgeItr != (*childHyperOp)->ChildMap.end(); edgeItr++) {
-		edgesForRemoval.push_back(edgeItr->first);
-		HyperOpEdge* clonedEdge;
-		edgeItr->first->clone(&clonedEdge);
-		if (clonedEdge->getValue() != NULL && oldToNewValueMap.find(clonedEdge->getValue()) != oldToNewValueMap.end()) {
-			Value* newOperand = oldToNewValueMap[edgeItr->first->getValue()];
-			Value* oldOperand = edgeItr->first->getValue();
-			if (isa<AllocaInst>(newOperand) && isa<AllocaInst>(oldOperand) && ((AllocaInst*)oldOperand)->getParent()->getParent() == childHopFunction) {
-				for (auto mapItr : oldToNewValueMap) {
-					if (mapItr.second == newOperand && isa<AllocaInst>(mapItr.first) && ((AllocaInst*) mapItr.first)->getParent()->getParent() == parentHopFunction) {
-						newOperand = new LoadInst(oldToNewValueMap[oldOperand], "", newOperand);
-						break;
+	hyperOpPairsToBeMerged.push_front(make_pair(parentHyperOp, childHyperOp));
+	list<Function*> functionsToBeDeleted;
+	functionsToBeDeleted.push_back(childHopFunction);
+	functionsToBeDeleted.push_back(parentHopFunction);
+	for (auto instanceItr : hyperOpPairsToBeMerged) {
+		HyperOp* instanceParent = instanceItr.first;
+		HyperOp* instanceChild = instanceItr.second;
+		/* Update the outgoing edges with new cloned values from the current HyperOp function */
+		list<HyperOpEdge*> edgesForRemoval;
+		for (auto edgeItr = instanceParent->ChildMap.begin(); edgeItr != instanceParent->ChildMap.end(); edgeItr++) {
+			if (edgeItr->first->getValue() != NULL && oldToNewValueMap.find(edgeItr->first->getValue()) != oldToNewValueMap.end()) {
+				edgeItr->first->setValue(oldToNewValueMap[edgeItr->first->getValue()]);
+			}
+			if (edgeItr->second == instanceChild) {
+				edgesForRemoval.push_back(edgeItr->first);
+			}
+		}
+		for (auto edgeItr = instanceChild->ChildMap.begin(); edgeItr != instanceChild->ChildMap.end(); edgeItr++) {
+			edgesForRemoval.push_back(edgeItr->first);
+			HyperOpEdge* clonedEdge;
+			edgeItr->first->clone(&clonedEdge);
+			if (clonedEdge->getValue() != NULL && oldToNewValueMap.find(clonedEdge->getValue()) != oldToNewValueMap.end()) {
+				Value* newOperand = oldToNewValueMap[edgeItr->first->getValue()];
+				Value* oldOperand = edgeItr->first->getValue();
+				if (isa<AllocaInst>(newOperand) && isa<AllocaInst>(oldOperand) && ((AllocaInst*) oldOperand)->getParent()->getParent() == childHopFunction) {
+					for (auto mapItr : oldToNewValueMap) {
+						if (mapItr.second == newOperand && isa<AllocaInst>(mapItr.first) && ((AllocaInst*) mapItr.first)->getParent()->getParent() == parentHopFunction) {
+							newOperand = new LoadInst(oldToNewValueMap[oldOperand], "", newOperand);
+							break;
+						}
 					}
 				}
+				clonedEdge->setValue(newOperand);
 			}
-			clonedEdge->setValue(newOperand);
-		}
-		(*parentHyperOp)->getParentGraph()->addEdge(*parentHyperOp, edgeItr->second, clonedEdge);
-	}
-	(*parentHyperOp)->getParentGraph()->removeHyperOp(*childHyperOp);
-	parentHopFunction->eraseFromParent();
-	childHopFunction->eraseFromParent();
+			graph->addEdge(instanceParent, edgeItr->second, clonedEdge);
+			instanceParent->setStaticHyperOp(false);
+			Function* prevFunction = instanceParent->getFunction();
+			instanceParent->setFunction(newFunction);
+			instanceParent->setInstanceof(newFunction);
 
-	for(auto edgeForRemovalItr:edgesForRemoval){
-		(*parentHyperOp)->ChildMap.erase(edgeForRemovalItr);
+			if (instanceParent != parentHyperOp && instanceChild != childHyperOp) {
+				instanceParent->setInstanceId(instanceParent->getInstanceId());
+				instanceParent->setIsUnrolledInstance(instanceChild->isUnrolledInstance());
+				if(find(functionsToBeDeleted.begin(), functionsToBeDeleted.end(), prevFunction)==functionsToBeDeleted.end()){
+					functionsToBeDeleted.push_back(prevFunction);
+				}
+			}
+		}
+		for (auto edgeForRemovalItr : edgesForRemoval) {
+			instanceParent->ChildMap.erase(edgeForRemovalItr);
+		}
+		graph->removeHyperOp(instanceChild);
 	}
-	if ((*childHyperOp)->isEndHyperOp()) {
-		(*parentHyperOp)->setEndHyperOp();
+
+	for(auto functionItr:functionsToBeDeleted){
+		bool functionUse = false;
+		for(auto vertexItr:graph->Vertices){
+			if(vertexItr->getFunction() == functionItr || vertexItr->getInstanceof() == functionItr){
+				functionUse = true;
+				break;
+			}
+		}
+		if(!functionUse){
+			functionItr->eraseFromParent();
+		}
+	}
+	if (childHyperOp->isEndHyperOp()) {
+		parentHyperOp->setEndHyperOp();
 	}
 }
 
 void HyperOpInteractionGraph::mergeUnpredicatedNodesInCluster(){
 	/* Merge nodes in a cluster if this does not affect parallelism */
-	for(auto clusterItr:clusterList){
+	for (auto clusterItr : clusterList) {
 		/* Merge a node with its last parent in the cluster if the node isnt predicated and all its parents are in the cluster */
 		bool change = true;
 		while (change) {
@@ -2791,13 +2822,27 @@ void HyperOpInteractionGraph::mergeUnpredicatedNodesInCluster(){
 			for (auto hopItr = clusterItr.begin(); hopItr != clusterItr.end(); hopItr++) {
 				HyperOp* hop = *hopItr;
 				auto parentList = hop->getParentList();
-				if (hop->isUnrolledInstance() ||  hop->isPredicatedHyperOp() || parentList.size() > 1 || find(clusterItr.begin(), clusterItr.end(), parentList.front()) == clusterItr.end() || parentList.front()->isUnrolledInstance()) {
+				if (hop->isUnrolledInstance() || hop->isPredicatedHyperOp() || parentList.size() != 1 || find(clusterItr.begin(), clusterItr.end(), parentList.front()) == clusterItr.end() || parentList.front()->isUnrolledInstance() || parentList.front()->isStartHyperOp()) {
 					continue;
 				}
 				HyperOp* parentHyperOp = parentList.front();
-				mergeHyperOps(&parentHyperOp, &hop);
+				list<pair<HyperOp*, HyperOp*> > hyperOpPairsToBeMerged;
+				Function* childHopFunction = hop->getFunction();
+				DEBUG(dbgs() << "Merging nodes " << parentHyperOp->asString() << " and " << hop->asString() << "\n");
+				for (auto vertexItr = this->Vertices.begin(); vertexItr != this->Vertices.end(); vertexItr++) {
+					HyperOp* vertex = *vertexItr;
+					HyperOp* parent = vertex->getParentList().front();
+					if (vertex->getInstanceof() == hop->getInstanceof() && vertex != hop && vertex->isUnrolledInstance() && vertex->getParentList().size() == 1 && parent->getInstanceof() == parentHyperOp->getFunction() && !parent->isStaticHyperOp()) {
+						hyperOpPairsToBeMerged.push_back(make_pair(vertex->getParentList().front(), vertex));
+						errs() << "along with " << vertex->getParentList().front()->asString() << " and " << vertex->asString() << "\n";
+					}
+				}
+				if(hop->isEndHyperOp())
+					break;
+				mergeHyperOps(parentHyperOp, hop, hyperOpPairsToBeMerged, this);
 				change = true;
 				clusterItr.erase(hopItr);
+				this->print(dbgs());
 				break;
 			}
 		}
@@ -3166,6 +3211,7 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 	Module *M = this->Vertices.front()->getFunction()->getParent();
 	for (auto funcItr = M->begin(); funcItr != M->end(); funcItr++) {
 		Function* func = funcItr;
+		errs()<<"who is the stray function?"<<func->getName()<<"\n";
 		assert((func->isIntrinsic()|| this->getHyperOp(func)!=NULL) && "Stray functions are not allowed");
 	}
 
@@ -3935,9 +3981,6 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 					Value* oldOperand = oldInst->getOperand(operandIndex);
 					if (oldToNewValueMap.find(oldOperand) != oldToNewValueMap.end()) {
 						newInst->setOperand(operandIndex, oldToNewValueMap[oldOperand]);
-						if(isa<Argument>(oldOperand)){
-							newArgVector[oldArgNewIndexMap[(Argument*)oldOperand]]->dump();
-						}
 					}
 					if (isa<PHINode>(newInst)) {
 						((PHINode*) newInst)->setIncomingBlock(operandIndex, (BasicBlock*) oldToNewValueMap[((PHINode*) newInst)->getIncomingBlock(operandIndex)]);
