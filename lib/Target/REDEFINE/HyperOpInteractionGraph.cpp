@@ -3211,7 +3211,6 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 	Module *M = this->Vertices.front()->getFunction()->getParent();
 	for (auto funcItr = M->begin(); funcItr != M->end(); funcItr++) {
 		Function* func = funcItr;
-		errs()<<"who is the stray function?"<<func->getName()<<"\n";
 		assert((func->isIntrinsic()|| this->getHyperOp(func)!=NULL) && "Stray functions are not allowed");
 	}
 
