@@ -4103,7 +4103,9 @@ struct REDEFINEIRPass: public ModulePass {
 
 		if (MAKE_GRAPH_STRUCTURED) {
 			graph->removeUnreachableHops();
+			graph->computeDominatorInfo();
 			graph->makeGraphStructured();
+			graph->clusterAllNodesInOne();
 			graph->removeCoveredPredicateEdges();
 		}
 		graph->computeDominatorInfo();

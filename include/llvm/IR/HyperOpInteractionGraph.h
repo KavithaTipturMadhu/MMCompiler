@@ -378,6 +378,8 @@ public:
 
 	void removeCoveredPredicateEdges();
 
+	void clusterAllNodesInOne();
+
 	AllocaInst* getAllocInstrForLocalReferenceData(Value* sourceInstr, HyperOp* hyperOp);
 };
 #endif /* LIB_TARGET_RISCV_HYPEROPINTERACTIONGRAPH_H_ */
