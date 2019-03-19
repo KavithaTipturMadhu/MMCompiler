@@ -4325,7 +4325,7 @@ struct REDEFINEIRPass: public ModulePass {
 				}
 			}
 
-			for (auto childItr : vertex->getChildList()) {
+			for (auto childItr : graph->Vertices) {
 				HyperOp* child = childItr;
 				DEBUG(dbgs() << "Adding fdelete instructions to module\n");
 				if (child != vertex && child->isPredicatedHyperOp() && child->getImmediateDominator() != NULL && child->getImmediateDominator()->getImmediatePostDominator() == vertex) {
@@ -4334,7 +4334,7 @@ struct REDEFINEIRPass: public ModulePass {
 						argContainingAddress = getConstantValue(child->getContextFrame()*64, M);
 					} else {
 						HyperOpEdge* contextFrameAddressEdge = NULL;
-						for (auto incomingEdgeItr : child->ParentMap) {
+						for (auto incomingEdgeItr : vertex->ParentMap) {
 							HyperOpEdge* edge = incomingEdgeItr.first;
 							if (edge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR && edge->getContextFrameAddress() == child) {
 								contextFrameAddressEdge = edge;
