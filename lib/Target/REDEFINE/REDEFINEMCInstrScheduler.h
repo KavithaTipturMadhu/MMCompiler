@@ -41,7 +41,7 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	unsigned frameSize;
 	//This is introduced to spill all the liveout registers in a basic block to be used by successive basic blocks
 	map<unsigned, unsigned> registerAndFrameLocation;
-	list<pair<MachineInstr*, unsigned>>  registerAndCElocation;
+	map<unsigned, unsigned>  registerAndCElocation;
 
 	//Instruction and the pHyperOp it belongs to
 	//Not a map because I want to maintain the order of traversal
