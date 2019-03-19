@@ -2597,50 +2597,86 @@ void HyperOpInteractionGraph::clusterNodes() {
 			endHyperOp = *vertexItr;
 		}
 	}
-//	/* Identify the subtrees to be clustered, the root and the idom added here */
-//	list<pair<HyperOp*, HyperOp*> > clusteringSubtreeList;
-//	clusteringSubtreeList.push_front(make_pair(startHyperOp, endHyperOp));
-//	list<HyperOp*> rootNodeForTraversal;
-//	HyperOp* rootNode = startHyperOp;
-//	while (rootNode) {
-//		if (rootNode->getChildList().size() > 1 || (!rootNode->getChildList().empty() && rootNode->getChildList().front()->getInRange())) {
-//			break;
-//		}
-//		rootNode = rootNode->getImmediatePostDominator();
-//	}
-//
-//	rootNodeForTraversal.push_front(rootNode);
-//	errs()<<"starting at traversal:"<<rootNodeForTraversal.front()->asString()<<"\n";
-//
-//	while (!rootNodeForTraversal.empty()) {
-//		HyperOp* currentRoot = rootNodeForTraversal.front();
-//		rootNodeForTraversal.pop_front();
-//		//Find all the children of rootNode and add them in traversal queue
-//		if (currentRoot != NULL) {
-//			for (auto childItr : currentRoot->getChildList()) {
-//				HyperOp* ipdom = childItr;
-//				errs()<<"whats ipdom "<<ipdom->asString()<<" and post dom?"<<currentRoot->getImmediatePostDominator()->asString()<<"\n";
-//				if(ipdom == currentRoot->getImmediatePostDominator()){
-//					continue;
-//				}
-//				while (ipdom != currentRoot->getImmediatePostDominator() && ipdom->getImmediatePostDominator() != currentRoot->getImmediatePostDominator()) {
-//					ipdom = ipdom->getImmediatePostDominator();
-//				}
-//				clusteringSubtreeList.push_front(make_pair(ipdom, currentRoot->getImmediatePostDominator()));
-//				rootNodeForTraversal.push_front(ipdom);
-//				errs()<<"adding to traversal:"<<rootNodeForTraversal.front()->asString()<<"\n";
-//			}
-//		}
-//	}
-//
-//	errs()<<"what are our subtrees?";
-//	for(auto subtreeItr:clusteringSubtreeList){
-//		errs()<<"root:"<<subtreeItr.first->asString()<<", merge:"<<subtreeItr.second->asString()<<"\n";
-//	}
+	/* Identify the subtrees to be clustered, the root and the idom added here */
+	list<pair<HyperOp*, HyperOp*> > clusteringSubtreeList;
+	list<HyperOp*> rootNodeForTraversal;
+	HyperOp* rootNode = startHyperOp;
+	while (rootNode) {
+		if (rootNode->getChildList().size() > 1 || (!rootNode->getChildList().empty() && rootNode->getChildList().front()->getInRange())) {
+			break;
+		}
+		rootNode = rootNode->getImmediatePostDominator();
+	}
 
+	/* The cluster ought to cover the entire graph, to ensure that all nodes belong to a cluster */
+	clusteringSubtreeList.push_front(make_pair(startHyperOp, endHyperOp));
+	rootNodeForTraversal.push_front(rootNode);
+
+	list<HyperOp*> traversedNodes;
+	while (!rootNodeForTraversal.empty()) {
+		HyperOp* currentRoot = rootNodeForTraversal.front();
+		rootNodeForTraversal.pop_front();
+		//Find all the children of rootNode and add them in traversal queue
+		if (currentRoot != NULL) {
+			for (auto childItr : currentRoot->getChildList()) {
+				HyperOp* child = childItr;
+				if(child->isUnrolledInstance() || find(traversedNodes.begin(), traversedNodes.end(), child) != traversedNodes.end() || child->getImmediatePostDominator() == NULL){
+					continue;
+				}
+				if (child->ChildMap.size() > 1) {
+					clusteringSubtreeList.push_front(make_pair(child, child->getImmediatePostDominator()));
+					rootNodeForTraversal.push_front(child);
+					traversedNodes.push_back(child);
+				}
+			}
+		}
+	}
+
+	for(auto subtreeItr:clusteringSubtreeList){
+		list<HyperOp*> nodesCovered;
+		HyperOp* subtreeStart = subtreeItr.first;
+		HyperOp* subtreeEnd = subtreeItr.second;
+		/* Compute the nodes between start and end */
+		nodesCovered.push_back(subtreeStart);
+		nodesCovered.push_back(subtreeEnd);
+		list<HyperOp*> idomSet;
+		idomSet.push_back(subtreeStart);
+		bool change = true;
+
+		while (change) {
+			change = false;
+			for (auto vertexItr : this->Vertices) {
+				if (find(idomSet.begin(), idomSet.end(), vertexItr->getImmediateDominator()) != idomSet.end() && find(nodesCovered.begin(), nodesCovered.end(),vertexItr) == nodesCovered.end()) {
+					nodesCovered.push_back(vertexItr);
+					if (find(idomSet.begin(), idomSet.end(), vertexItr) == idomSet.end()) {
+						idomSet.push_back(vertexItr);
+						change = true;
+					}
+				}
+			}
+		}
+		bool atleastOnePredicatedChild = false;
+		for(auto vertexItr:nodesCovered){
+			if(vertexItr->isPredicatedHyperOp()){
+				 atleastOnePredicatedChild = true;
+				 break;
+			}
+		}
+		if(atleastOnePredicatedChild){
+			HIGSubtree subtree(nodesCovered, subtreeStart, subtreeEnd);
+			errs()<<"\n============\nnew subtree\n";
+			subtree.clusterSubTree();
+			auto subtreeClusterList = subtree.subtreeClusterList;
+			for(auto subclusterListItr:subtreeClusterList){
+				errs()<<"\n----\nhops in cluster "<<subclusterListItr.second<<":";
+				for(auto vertexItr:subclusterListItr.first){
+					errs()<<vertexItr->asString()<<"\n";
+				}
+			}
+		}
+	}
 	HIGSubtree subtree(Vertices, startHyperOp, endHyperOp);
 	subtree.clusterSubTree();
-
 	auto computeClusterList = subtree.subtreeClusterList;
 
 	clusterList.clear();
@@ -2953,6 +2989,7 @@ void HyperOpInteractionGraph::removeCoveredPredicateEdges() {
 }
 
 void HyperOpInteractionGraph::clusterAllNodesInOne(){
+	clusterList.clear();
 	clusterList.push_back(Vertices);
 }
 
