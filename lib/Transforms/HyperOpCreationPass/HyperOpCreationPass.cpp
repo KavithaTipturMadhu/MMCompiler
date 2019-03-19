@@ -4100,15 +4100,13 @@ struct REDEFINEIRPass: public ModulePass {
 
 	virtual bool runOnModule(Module &M) {
 		HyperOpInteractionGraph* graph = HyperOpMetadataParser::parseMetadata(&M);
-
 		if (MAKE_GRAPH_STRUCTURED) {
 			graph->removeUnreachableHops();
 			graph->computeDominatorInfo();
-			graph->makeGraphStructured();
-			graph->clusterAllNodesInOne();
 			graph->removeCoveredPredicateEdges();
+			graph->clusterAllNodesInOne();
+			graph->mergeUnpredicatedNodesInCluster();
 		}
-		graph->computeDominatorInfo();
 		graph->clusterNodes();
 		graph->mergeUnpredicatedNodesInCluster();
 		graph->computeDominatorInfo();

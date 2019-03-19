@@ -1622,16 +1622,7 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 	bool change = true;
 	int i = 0;
 	DEBUG(dbgs() << "before making graph structured:");
-//	this->print(dbgs(), 0);
-//
-//	for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
-//		HyperOp* vertex = *vertexItr;
-//		if (vertex->getImmediateDominator() != NULL && vertex->getImmediatePostDominator() != vertex->getImmediateDominator()->getImmediatePostDominator()) {
-//			errs()<<"immediate dom of a hop and post dom dont match for "<<vertex->asString()<<" cos pdom:"<<(vertex->getImmediatePostDominator()!=NULL?vertex->getImmediatePostDominator()->asString():"")<<"\n";
-////			errs()<<"and ipdom:"<<(vertex->getImmediateDominator()->getImmediatePostDominator()!=NULL?vertex->getImmediateDominator()->getImmediatePostDominator()->asString():"")<<"\n";
-//		}
-//	}
-//	return;
+	this->print(dbgs(), 0);
 	while (change) {
 		i++;
 		change = false;
@@ -1639,7 +1630,7 @@ void HyperOpInteractionGraph::makeGraphStructured() {
 		for (auto vertexItr = Vertices.begin(); vertexItr != Vertices.end(); vertexItr++) {
 			HyperOp* vertex = *vertexItr;
 			if (vertex->getChildList().size() > 1 && vertex->getImmediateDominator() != NULL
-					&& (vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != vertex->getImmediatePostDominator())) {
+					&& (vertex->getImmediateDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() != NULL && vertex->getImmediateDominator()->getImmediatePostDominator() == vertex->getImmediatePostDominator())) {
 				HyperOp* mergeNode = vertex->getImmediateDominator()->getImmediatePostDominator();
 				if (find(mergeNode->getParentList().begin(), mergeNode->getParentList().end(), vertex->getImmediateDominator()) != mergeNode->getParentList().end()) {
 					HyperOp* joinNodeStart = vertex->getImmediateDominator();
@@ -1758,10 +1749,10 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 //Forward addresses to producers that have a HyperOp in their dominance frontier and to the HyperOps that delete the context frame
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		HyperOp* vertex = *vertexIterator;
-		list<HyperOp*> vertexDomFrontier;
+		list<pair<HyperOp*, HyperOp*> > vertexDomFrontier;
 		list<HyperOp*> originalDomFrontier = vertex->getDominanceFrontier();
 		for (list<HyperOp*>::iterator originalDomfItr = originalDomFrontier.begin(); originalDomfItr != originalDomFrontier.end(); originalDomfItr++) {
-			vertexDomFrontier.push_back(*originalDomfItr);
+			vertexDomFrontier.push_back(make_pair(*originalDomfItr, vertex->getImmediateDominator()));
 		}
 
 		for (list<HyperOp*>::iterator tempItr = Vertices.begin(); tempItr != Vertices.end(); tempItr++) {
@@ -1772,14 +1763,14 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 			}
 			//Address also needs to be forwarded to the HyperOp deleting the context frame
 			if ((*tempItr)->isPredicatedHyperOp() && liveEndOfVertex != 0 && liveEndOfVertex == vertex && *tempItr != vertex && find(originalDomFrontier.begin(), originalDomFrontier.end(), *tempItr) == originalDomFrontier.end()) {
-				vertexDomFrontier.push_back(*tempItr);
+				vertexDomFrontier.push_back(make_pair(*tempItr, liveStartOfVertex));
 			}
 		}
 
-		for (list<HyperOp*>::iterator dominanceFrontierIterator = vertexDomFrontier.begin(); dominanceFrontierIterator != vertexDomFrontier.end(); dominanceFrontierIterator++) {
-			HyperOp* dominanceFrontierHyperOp = *dominanceFrontierIterator;
+		for (auto dominanceFrontierIterator = vertexDomFrontier.begin(); dominanceFrontierIterator != vertexDomFrontier.end(); dominanceFrontierIterator++) {
+			HyperOp* dominanceFrontierHyperOp = dominanceFrontierIterator->first;
 			if (dominanceFrontierHyperOp != vertex) {
-				HyperOp* immediateDominator = vertex->getImmediateDominator();
+				HyperOp* immediateDominator = dominanceFrontierIterator->second;
 				HyperOpEdge* contextFrameEdge = new HyperOpEdge();
 				contextFrameEdge->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR);
 				contextFrameEdge->setContextFrameAddress(dominanceFrontierHyperOp);
@@ -2606,52 +2597,53 @@ void HyperOpInteractionGraph::clusterNodes() {
 			endHyperOp = *vertexItr;
 		}
 	}
-	/* Identify the subtrees to be clustered, the root and the idom added here */
-	list<pair<HyperOp*, HyperOp*> > clusteringSubtreeList;
-	clusteringSubtreeList.push_front(make_pair(startHyperOp, endHyperOp));
-	list<HyperOp*> rootNodeForTraversal;
-	HyperOp* rootNode = startHyperOp;
-	while (rootNode) {
-		if (rootNode->getChildList().size() > 1 || (!rootNode->getChildList().empty() && rootNode->getChildList().front()->getInRange())) {
-			break;
-		}
-		rootNode = rootNode->getImmediatePostDominator();
-	}
-
-	rootNodeForTraversal.push_front(rootNode);
-	errs()<<"starting at traversal:"<<rootNodeForTraversal.front()->asString()<<"\n";
-
-	while (!rootNodeForTraversal.empty()) {
-		HyperOp* currentRoot = rootNodeForTraversal.front();
-		rootNodeForTraversal.pop_front();
-		//Find all the children of rootNode and add them in traversal queue
-		if (currentRoot != NULL) {
-			for (auto childItr : currentRoot->getChildList()) {
-				HyperOp* ipdom = childItr;
-				errs()<<"whats ipdom "<<ipdom->asString()<<" and post dom?"<<currentRoot->getImmediatePostDominator()->asString()<<"\n";
-				if(ipdom == currentRoot->getImmediatePostDominator()){
-					continue;
-				}
-				while (ipdom != currentRoot->getImmediatePostDominator() && ipdom->getImmediatePostDominator() != currentRoot->getImmediatePostDominator()) {
-					ipdom = ipdom->getImmediatePostDominator();
-				}
-				clusteringSubtreeList.push_front(make_pair(ipdom, currentRoot->getImmediatePostDominator()));
-				rootNodeForTraversal.push_front(ipdom);
-				errs()<<"adding to traversal:"<<rootNodeForTraversal.front()->asString()<<"\n";
-			}
-		}
-	}
-
-	errs()<<"what are our subtrees?";
-	for(auto subtreeItr:clusteringSubtreeList){
-		errs()<<"root:"<<subtreeItr.first->asString()<<", merge:"<<subtreeItr.second->asString()<<"\n";
-	}
+//	/* Identify the subtrees to be clustered, the root and the idom added here */
+//	list<pair<HyperOp*, HyperOp*> > clusteringSubtreeList;
+//	clusteringSubtreeList.push_front(make_pair(startHyperOp, endHyperOp));
+//	list<HyperOp*> rootNodeForTraversal;
+//	HyperOp* rootNode = startHyperOp;
+//	while (rootNode) {
+//		if (rootNode->getChildList().size() > 1 || (!rootNode->getChildList().empty() && rootNode->getChildList().front()->getInRange())) {
+//			break;
+//		}
+//		rootNode = rootNode->getImmediatePostDominator();
+//	}
+//
+//	rootNodeForTraversal.push_front(rootNode);
+//	errs()<<"starting at traversal:"<<rootNodeForTraversal.front()->asString()<<"\n";
+//
+//	while (!rootNodeForTraversal.empty()) {
+//		HyperOp* currentRoot = rootNodeForTraversal.front();
+//		rootNodeForTraversal.pop_front();
+//		//Find all the children of rootNode and add them in traversal queue
+//		if (currentRoot != NULL) {
+//			for (auto childItr : currentRoot->getChildList()) {
+//				HyperOp* ipdom = childItr;
+//				errs()<<"whats ipdom "<<ipdom->asString()<<" and post dom?"<<currentRoot->getImmediatePostDominator()->asString()<<"\n";
+//				if(ipdom == currentRoot->getImmediatePostDominator()){
+//					continue;
+//				}
+//				while (ipdom != currentRoot->getImmediatePostDominator() && ipdom->getImmediatePostDominator() != currentRoot->getImmediatePostDominator()) {
+//					ipdom = ipdom->getImmediatePostDominator();
+//				}
+//				clusteringSubtreeList.push_front(make_pair(ipdom, currentRoot->getImmediatePostDominator()));
+//				rootNodeForTraversal.push_front(ipdom);
+//				errs()<<"adding to traversal:"<<rootNodeForTraversal.front()->asString()<<"\n";
+//			}
+//		}
+//	}
+//
+//	errs()<<"what are our subtrees?";
+//	for(auto subtreeItr:clusteringSubtreeList){
+//		errs()<<"root:"<<subtreeItr.first->asString()<<", merge:"<<subtreeItr.second->asString()<<"\n";
+//	}
 
 	HIGSubtree subtree(Vertices, startHyperOp, endHyperOp);
 	subtree.clusterSubTree();
 
 	auto computeClusterList = subtree.subtreeClusterList;
 
+	clusterList.clear();
 	unsigned crId = 0;
 	for (list<pair<list<HyperOp*>, unsigned int> >::iterator clusterItr = computeClusterList.begin(); clusterItr != computeClusterList.end(); clusterItr++) {
 		clusterList.push_back(clusterItr->first);
@@ -2735,41 +2727,11 @@ static void inline mergeHyperOps(HyperOp* parentHyperOp, HyperOp* childHyperOp, 
 		BasicBlock* oldBB = *bbItr;
 		assert(oldToNewValueMap.find(oldBB) != oldToNewValueMap.end() && "Basicblock not cloned before");
 		BasicBlock* newBB = (BasicBlock*) oldToNewValueMap[oldBB];
-		BasicBlock* newExit = NULL;
 		for (auto instItr = oldBB->begin(); instItr != oldBB->end(); instItr++) {
 			Instruction* oldInst = instItr;
 			Instruction* newInst;
 			if (isa<ReturnInst>(oldInst) && oldInst->getParent()->getParent() == parentHopFunction) {
-				if (childHyperOp->isPredicatedHyperOp()) {
-					int expectedPredicateValue = -1;
-					Value* oldPredicate = NULL;
-					for(auto incomingEdge:childHyperOp->ParentMap){
-						if(incomingEdge.first->getType() == HyperOpEdge::PREDICATE){
-							expectedPredicateValue = incomingEdge.first->getPredicateValue();
-							oldPredicate = incomingEdge.first->getValue();
-							break;
-						}
-					}
-					assert(oldPredicate != NULL && expectedPredicateValue!=-1);
-					Value* newPredicate = oldToNewValueMap[oldPredicate];
-					if (newPredicate->getType() != Type::getInt32Ty(ctxt)) {
-						newPredicate = new ZExtInst(newPredicate, Type::getInt32Ty(ctxt), "", &(oldBB->back()));
-					}
-					if (!expectedPredicateValue) {
-						//Invert the predicate value
-						Instruction* compare = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_EQ, newPredicate, ConstantInt::get(ctxt, APInt(32, 1)), "", &(oldBB->back()));
-						newPredicate =  SelectInst::Create(compare, ConstantInt::get(ctxt, APInt(32, 0)), ConstantInt::get(ctxt, APInt(32, 1)),"invertedPred", &(oldBB->back()));
-					}
-					newExit = BasicBlock::Create(ctxt, oldBB->getName(), newFunction);
-					ReturnInst* retInst = ReturnInst::Create(ctxt, newExit);
-					BranchInst::Create(firstBBInChild, newExit,newPredicate,firstBBInChild);
-				}else{
-					if(isa<ReturnInst>(oldInst) && childHyperOp->isPredicatedHyperOp()){
-						newInst = BranchInst::Create(firstBBInChild);
-					}else{
-						newInst = BranchInst::Create(newExit);
-					}
-				}
+				newInst = BranchInst::Create(firstBBInChild);
 			}else{
 				newInst = oldInst->clone();
 			}
@@ -2903,7 +2865,7 @@ void HyperOpInteractionGraph::mergeUnpredicatedNodesInCluster(){
 			for (auto hopItr = clusterItr.begin(); hopItr != clusterItr.end(); hopItr++) {
 				HyperOp* hop = *hopItr;
 				auto parentList = hop->getParentList();
-				if (hop->isUnrolledInstance() || parentList.size() != 1 || find(clusterItr.begin(), clusterItr.end(), parentList.front()) == clusterItr.end() || parentList.front()->isUnrolledInstance() || parentList.front()->isStartHyperOp()) {
+				if (hop->isUnrolledInstance() || hop->isPredicatedHyperOp() || parentList.size() != 1 || find(clusterItr.begin(), clusterItr.end(), parentList.front()) == clusterItr.end() || parentList.front()->isUnrolledInstance() || parentList.front()->isStartHyperOp()) {
 					continue;
 				}
 				HyperOp* parentHyperOp = parentList.front();
@@ -2991,7 +2953,7 @@ void HyperOpInteractionGraph::removeCoveredPredicateEdges() {
 }
 
 void HyperOpInteractionGraph::clusterAllNodesInOne(){
-	clusterList.push_back(Vertices)
+	clusterList.push_back(Vertices);
 }
 
 int linearizeTime(list<unsigned int> time) {
