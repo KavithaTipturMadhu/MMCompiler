@@ -4107,6 +4107,7 @@ struct REDEFINEIRPass: public ModulePass {
 			graph->clusterAllNodesInOne();
 			graph->mergeUnpredicatedNodesInCluster();
 		}
+		graph->computeDominatorInfo();
 		graph->clusterNodes();
 		graph->mergeUnpredicatedNodesInCluster();
 		graph->computeDominatorInfo();
