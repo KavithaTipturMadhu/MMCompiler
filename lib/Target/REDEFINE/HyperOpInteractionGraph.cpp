@@ -1762,7 +1762,7 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 				liveEndOfVertex = liveStartOfVertex->getImmediatePostDominator();
 			}
 			//Address also needs to be forwarded to the HyperOp deleting the context frame
-			if ((*tempItr)->isPredicatedHyperOp() && liveEndOfVertex != 0 && liveEndOfVertex == vertex && *tempItr != vertex && find(originalDomFrontier.begin(), originalDomFrontier.end(), *tempItr) == originalDomFrontier.end()) {
+			if ((*tempItr)->isPredicatedHyperOp() && (*tempItr)->getParentList().size() != 1 && liveEndOfVertex != 0 && liveEndOfVertex == vertex && *tempItr != vertex && find(originalDomFrontier.begin(), originalDomFrontier.end(), *tempItr) == originalDomFrontier.end()) {
 				vertexDomFrontier.push_back(make_pair(*tempItr, liveStartOfVertex));
 			}
 		}
