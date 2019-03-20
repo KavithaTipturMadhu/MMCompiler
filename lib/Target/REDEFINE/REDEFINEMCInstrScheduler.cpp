@@ -1250,7 +1250,7 @@ void REDEFINEMCInstrScheduler::finishBlock() {
 const Module * parentModule = BB->getParent()->getFunction()->getParent();
 
 //If the basic block is the terminator
-if (BB->getNumber() == MF.back().getNumber()) {
+if (BB->succ_size() == 0) {
 	MachineBasicBlock* lastBB = &MF.back();
 	MachineInstr* lastInstruction = lastBB->end();
 	DebugLoc dl = MF.begin()->begin()->getDebugLoc();
@@ -1309,7 +1309,7 @@ if (BB->getNumber() == MF.back().getNumber()) {
 	}
 
 	DEBUG(dbgs() << "Adding endHyperOp instructions to each pHyperOp\n");
-	lastBB = &BB->getParent()->back();
+	lastBB = BB;
 	lastInstruction = lastBB->end();
 //End HyperOp and the two NOPs that follow are kinda like a new region that gets shuffled next
 	vector<MachineInstr*> endHyperOpInstructionRegion;
