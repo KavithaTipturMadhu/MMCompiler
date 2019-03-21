@@ -39,6 +39,7 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 	static const unsigned numLiveOuts = 8;
 	unsigned ceCount;
 	unsigned frameSize;
+	unsigned nextFrameLocation;
 	//This is introduced to spill all the liveout registers in a basic block to be used by successive basic blocks
 	map<unsigned, unsigned> registerAndFrameLocation;
 	map<unsigned, unsigned>  registerAndCElocation;
