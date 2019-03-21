@@ -2819,9 +2819,6 @@ static void inline mergeHyperOps(HyperOp* parentHyperOp, HyperOp* childHyperOp, 
 	if(parentHyperOp->isStaticHyperOp() && !childHyperOp->isStaticHyperOp()){
 		parentHyperOp->setStaticHyperOp(false);
 	}
-	list<Function*> functionsToBeDeleted;
-	functionsToBeDeleted.push_back(childHopFunction);
-	functionsToBeDeleted.push_back(parentHopFunction);
 
 	hyperOpPairsToBeMerged.push_front(make_pair(parentHyperOp, childHyperOp));
 	for (auto instanceItr : hyperOpPairsToBeMerged) {
@@ -2864,17 +2861,14 @@ static void inline mergeHyperOps(HyperOp* parentHyperOp, HyperOp* childHyperOp, 
 		if (instanceParent != parentHyperOp && instanceChild != childHyperOp) {
 			instanceParent->setInstanceId(instanceParent->getInstanceId());
 			instanceParent->setIsUnrolledInstance(instanceChild->isUnrolledInstance());
-			if (find(functionsToBeDeleted.begin(), functionsToBeDeleted.end(), prevFunction) == functionsToBeDeleted.end()) {
-				functionsToBeDeleted.push_back(prevFunction);
-			}
 		}
 		for (auto edgeForRemovalItr : edgesForRemoval) {
 			instanceParent->ChildMap.erase(edgeForRemovalItr);
 		}
 		graph->removeHyperOp(instanceChild);
 	}
-
-	for(auto functionItr:functionsToBeDeleted){
+	list<Function*> functionsToBeDeleted;
+	for(auto functionItr = parentHopFunction->getParent()->begin(); functionItr!=parentHopFunction->getParent()->end(); functionItr++){
 		bool functionUse = false;
 		for(auto vertexItr:graph->Vertices){
 			if(vertexItr->getFunction() == functionItr || vertexItr->getInstanceof() == functionItr){
@@ -2883,8 +2877,11 @@ static void inline mergeHyperOps(HyperOp* parentHyperOp, HyperOp* childHyperOp, 
 			}
 		}
 		if(!functionUse){
-			functionItr->eraseFromParent();
+			functionsToBeDeleted.push_back(functionItr);
 		}
+	}
+	for(auto deleteItr:functionsToBeDeleted){
+		deleteItr->eraseFromParent();
 	}
 	if (childHyperOp->isEndHyperOp()) {
 		parentHyperOp->setEndHyperOp();
