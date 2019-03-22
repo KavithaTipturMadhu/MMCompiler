@@ -4429,7 +4429,7 @@ struct REDEFINEIRPass: public ModulePass {
 			}
 
 			DEBUG(dbgs() << "Adding fdelete self instruction\n");
-			if (!vertex->isPredicatedHyperOp()) {
+			if (!vertex->isPredicatedHyperOp() || vertex->getParentList().size() == 1) {
 				CallInst* fdeleteInst;
 				assert(vertexFunction->getArgumentList().size() >= 1);
 				Value* frameAddress = vertexFunction->arg_begin();
