@@ -79,6 +79,9 @@ public:
 		/* This is required in order to avoid address forwarding from all hyperops in a range to the hyperops in the dominance frontier and restrict it to the first hyperop in the range of hops created*/
 		CONTEXT_FRAME_ADDRESS_RANGE_BASE,
 		CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF,
+		/* This is required to deliver the predicate to conditionally run communication instructions to a predicated hyperop */
+		CONTEXT_FRAME_ADDRESS_PREDICATE,
+		CONTEXT_FRAME_ADDRESS_PREDICATE_LOCALREF,
 		//Edge used for ordering HyperOps to maintain partial order
 		ORDERING,
 		//Edge to ensure completion of the hyperOp by inserting equivalent delay instruction in the end HyperOp
