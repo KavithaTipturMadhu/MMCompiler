@@ -3972,6 +3972,13 @@ struct REDEFINEIRPass: public ModulePass {
 			}
 			Value* predicateArgs[] = { childCFBaseAddr, predicate };
 			CallInst::Create((Value*) Intrinsic::getDeclaration(M, (llvm::Intrinsic::ID) Intrinsic::writecmp, 0), predicateArgs, "", &((*insertInBB)->back()));
+		}else if(parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_PREDICATE){
+			Value* predicate = sourceData;
+			if(predicate->getType() != Type::getInt32Ty(ctxt)){
+				predicate = new ZExtInst(predicate, Type::getInt32Ty(ctxt), "", &(*insertInBB)->back());
+			}
+			Value* predicateArgs[] = { childCFBaseAddr, ConstantInt::get(ctxt, APInt(32, (parentEdge->getPositionOfContextSlot() - 1) * 4)), predicate };
+			CallInst::Create((Value*) Intrinsic::getDeclaration(M, (llvm::Intrinsic::ID) Intrinsic::writecm, 0), predicateArgs, "", &((*insertInBB)->back()));
 		}
 	}
 
@@ -4056,7 +4063,7 @@ struct REDEFINEIRPass: public ModulePass {
 
 		DEBUG(dbgs() << "Adding writecm instructions to the hyperop instance passed\n");
 		for (auto childEdgeItr = vertex->ChildMap.begin(); childEdgeItr != vertex->ChildMap.end(); childEdgeItr++) {
-			if (childEdgeItr->second == child && (childEdgeItr->first->getType() == HyperOpEdge::SCALAR || childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE)) {
+			if (childEdgeItr->second == child && (childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_PREDICATE || childEdgeItr->first->getType() == HyperOpEdge::SCALAR || childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE)) {
 				/* Ensure that the target location is marked inreg */
 				assert(child->getFunction()->getAttributes().hasAttribute(childEdgeItr->first->getPositionOfContextSlot() + 1, Attribute::InReg) && "Incorrect argument attribute, should be inreg\n");
 				BasicBlock* newInsertionPoint = NULL;
@@ -4103,16 +4110,38 @@ struct REDEFINEIRPass: public ModulePass {
 	/* This method is used to predicate hyperop creation itself,needs to be cleaned up/merged with other emthods later */
 	static inline void addPredicateInstruction(HyperOp* parent, HyperOp* child, BasicBlock** insertInBB, BasicBlock** fallthroughBlock, LLVMContext &ctxt) {
 		/* Insert predicate check to avoid creating hyperops if predicate value doesn't match expected */
-		HyperOpEdge* predicateEdge = NULL;
-		for (auto edgeItr : child->ParentMap) {
-			if (edgeItr.first->getType() == HyperOpEdge::PREDICATE) {
-				predicateEdge = edgeItr.first;
-				break;
+		Value* predicateValue = NULL;
+		unsigned expectedPredicate;
+		if (parent == child->getImmediateDominator()) {
+			for (auto edgeItr : child->ParentMap) {
+				if (edgeItr.first->getType() == HyperOpEdge::PREDICATE) {
+					expectedPredicate = edgeItr.first->getPredicateValue();
+					predicateValue = edgeItr.first->getValue();
+					break;
+				}
+			}
+		} else {
+			for (auto edgeItr : parent->ParentMap) {
+				if(edgeItr.first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_PREDICATE && edgeItr.first->getContextFrameAddress() == child){
+					expectedPredicate = edgeItr.first->getPredicateValue();
+					predicateValue = edgeItr.first->getValue();
+					int argIndex = 0;
+					for(auto argItr = parent->getFunction()->arg_begin(); argItr!=parent->getFunction()->arg_end(); argItr++, argIndex++){
+						if(argIndex == edgeItr.first->getPositionOfContextSlot()){
+							predicateValue = argItr;
+							break;
+						}
+					}
+				}
 			}
 		}
-		assert(predicateEdge != NULL && "Incoming predicate edge to a predicated hyperop cant be NULL\n");
-		Value* predicate = getValueFromLocation(predicateEdge->getValue(), insertInBB);
-		if (!predicateEdge->getPredicateValue()) {
+		assert(predicateValue != NULL && "Incoming predicate edge to a predicated hyperop cant be NULL\n");
+		Value* predicate = getValueFromLocation(predicateValue, insertInBB);
+		if(predicate->getType() != Type::getInt1Ty(ctxt)) {
+			Instruction* compare = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_EQ, predicate, ConstantInt::get(ctxt, APInt(32, 0)), "", &((*insertInBB)->back()));
+			predicate = SelectInst::Create(compare, ConstantInt::get(ctxt, APInt(1, 0)), ConstantInt::get(ctxt, APInt(1, 1)), "", &((*insertInBB)->back()));
+		}
+		if (!expectedPredicate) {
 			//Invert the predicate value
 			Instruction* compare = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_EQ, predicate, ConstantInt::get(ctxt, APInt(1, 1)), "", &((*insertInBB)->back()));
 			predicate = SelectInst::Create(compare, ConstantInt::get(ctxt, APInt(1, 0)), ConstantInt::get(ctxt, APInt(1, 1)), "invertedPred", &((*insertInBB)->back()));
@@ -4134,13 +4163,13 @@ struct REDEFINEIRPass: public ModulePass {
 			graph->removeUnreachableHops();
 			graph->computeDominatorInfo();
 			graph->removeCoveredPredicateEdges();
-			graph->clusterAllNodesInOne();
-			graph->mergeUnpredicatedNodesInCluster();
+//			graph->clusterAllNodesInOne();
+//			graph->mergeUnpredicatedNodesInCluster();
 		}
 		graph->computeDominatorInfo();
 		graph->clusterNodes();
-		graph->mergeUnpredicatedNodesInCluster();
-		graph->computeDominatorInfo();
+//		graph->mergeUnpredicatedNodesInCluster();
+//		graph->computeDominatorInfo();
 		graph->addContextFrameAddressForwardingEdges();
 		//graph->convertRemoteScalarsToStores();
 		graph->addSelfFrameAddressRegisters();
@@ -4157,7 +4186,6 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->mapClustersToComputeResources();
 		graph->verify(1);
 		graph->print(dbgs());
-		M.dump();
 		map<Function*, unsigned> functionAndIndexMap;
 
 		unsigned index = 0;
@@ -4177,6 +4205,7 @@ struct REDEFINEIRPass: public ModulePass {
 			Function* vertexFunction = vertex->getFunction();
 			BasicBlock* insertInBB = &vertexFunction->back();
 			map<HyperOp*, pair<Value*, Value*> > createdHopBaseAddressMap;
+
 			/* we add fallocs for predicated and non range dynamic hops ealy on, to ensure that if there are communication instructions that carry address of such hyperops*/
 			DEBUG(dbgs() << "Adding falloc, fbind instructions to module for dynamic non range or predicated range hops\n");
 			for (auto childItr : graph->Vertices) {
@@ -4198,9 +4227,18 @@ struct REDEFINEIRPass: public ModulePass {
 
 				BasicBlock * fallthroughBlock = NULL;
 				BasicBlock* conditionalParentBlock = NULL;
-				if(child->isPredicatedHyperOp() && child->getParentList().size() == 1){
-					conditionalParentBlock = insertInBB;
-					addPredicateInstruction(vertex, child, &insertInBB, &fallthroughBlock, M.getContext());
+				if (child->isPredicatedHyperOp()) {
+					bool predicatedByIdom = false;
+					for (auto parentItr : child->ParentMap) {
+						if (parentItr.first->getType() == HyperOpEdge::PREDICATE && parentItr.second == child->getImmediateDominator()) {
+							predicatedByIdom = true;
+							break;
+						}
+					}
+					if (predicatedByIdom) {
+						conditionalParentBlock = insertInBB;
+						addPredicateInstruction(vertex, child, &insertInBB, &fallthroughBlock, M.getContext());
+					}
 				}
 				if (!child->isStaticHyperOp()) {
 					vector<Value*> fallocArgs;
@@ -4255,15 +4293,16 @@ struct REDEFINEIRPass: public ModulePass {
 					((PHINode*) baseAddress)->addIncoming(updatedValue, loopBody);
 					insertInBB = loopEnd;
 				}
-				if (child->isPredicatedHyperOp() && child->getParentList().size() == 1) {
+				if (child->isPredicatedHyperOp() && conditionalParentBlock != NULL) {
 					if (!child->isStaticHyperOp()) {
-						assert(isa<Instruction>(baseAddress) && conditionalParentBlock!= NULL && "Dynamic hop base address must be created\n");
+						assert(isa<Instruction>(baseAddress) && "Dynamic hop base address must be created\n");
 						/* Add a phi instruction since the address needs to be available on both paths */
 						PHINode* addressPhiNode = PHINode::Create(Type::getInt32Ty(M.getContext()), 0, "", &fallthroughBlock->back());
-						addressPhiNode->addIncoming(baseAddress, ((Instruction*)baseAddress)->getParent());
+						addressPhiNode->addIncoming(baseAddressWithoutPhi, ((Instruction*)baseAddressWithoutPhi)->getParent());
 						addressPhiNode->addIncoming(getConstantValue(0, M), conditionalParentBlock);
 						/* Use this for communication instruction insertion later, and do it now cos range hyperop may be predicated */
 						createdHopBaseAddressMap.erase(child);
+						errs()<<"updated edge between "<<vertex->asString()<<" and "<<child->asString()<<"\n";
 						createdHopBaseAddressMap.insert(make_pair(child, make_pair(addressPhiNode, baseAddressMax)));
 						for (auto outgoingEdgeItr = vertex->ChildMap.begin(); outgoingEdgeItr != vertex->ChildMap.end(); outgoingEdgeItr++) {
 							if (outgoingEdgeItr->first->getValue() == baseAddressWithoutPhi) {
@@ -4367,10 +4406,19 @@ struct REDEFINEIRPass: public ModulePass {
 				}
 
 				BasicBlock * fallthroughBlock = NULL;
-				if (child->isPredicatedHyperOp() && child->getParentList().size() == 1) {
-					addPredicateInstruction(vertex, child, &insertInBB, &fallthroughBlock, M.getContext());
+				if (child->isPredicatedHyperOp()) {
+					bool predicatedByIdom = false;
+					for (auto parentItr : child->ParentMap) {
+						if (parentItr.first->getType() == HyperOpEdge::PREDICATE && parentItr.second == child->getImmediateDominator()) {
+							predicatedByIdom = true;
+							break;
+						}
+					}
+					if (predicatedByIdom) {
+						fallthroughBlock = insertInBB;
+						addPredicateInstruction(vertex, child, &insertInBB, &fallthroughBlock, M.getContext());
+					}
 				}
-
 				if (child->getInRange()) {
 					addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, baseAddress, baseAddressUpperBound, &baseAddress, fallthroughBlock);
 					insertInBB = loopBody;
@@ -4382,7 +4430,7 @@ struct REDEFINEIRPass: public ModulePass {
 					((PHINode*) baseAddress)->addIncoming(updatedValue, loopBody);
 					insertInBB = loopEnd;
 				}
-				if (child->isPredicatedHyperOp() && child->getParentList().size() == 1) {
+				if (child->isPredicatedHyperOp() && fallthroughBlock != NULL) {
 					insertInBB = fallthroughBlock;
 				}
 			}
@@ -4390,7 +4438,16 @@ struct REDEFINEIRPass: public ModulePass {
 			for (auto childItr : graph->Vertices) {
 				HyperOp* child = childItr;
 				DEBUG(dbgs() << "Adding fdelete instructions to module\n");
-				if (child != vertex && child->isPredicatedHyperOp() && child->getParentList().size() != 1 && child->getImmediateDominator() != NULL && child->getImmediateDominator()->getImmediatePostDominator() == vertex) {
+				HyperOp* predProducer = NULL;
+				if(child->isPredicatedHyperOp()){
+					for(auto parentItr:child->ParentMap){
+						if(parentItr.first->getType() == HyperOpEdge::PREDICATE){
+							predProducer = parentItr.second;
+							break;
+						}
+					}
+				}
+				if (child != vertex && child->isPredicatedHyperOp() && child->getImmediateDominator() != predProducer && child->getImmediateDominator() != NULL && child->getImmediateDominator()->getImmediatePostDominator() == vertex) {
 					Value* argContainingAddress = NULL;
 					if(child->isStaticHyperOp()){
 						argContainingAddress = getConstantValue(child->getContextFrame()*64, M);
@@ -4437,7 +4494,17 @@ struct REDEFINEIRPass: public ModulePass {
 			}
 
 			DEBUG(dbgs() << "Adding fdelete self instruction\n");
-			if (!vertex->isPredicatedHyperOp() || vertex->getParentList().size() == 1) {
+			HyperOp* predicateSource = NULL;
+			if(vertex->isPredicatedHyperOp()){
+				/* Find predicate source */
+				for(auto parentItr:vertex->ParentMap){
+					if(parentItr.first->getType() == HyperOpEdge::PREDICATE){
+						predicateSource = parentItr.second;
+						break;
+					}
+				}
+			}
+			if (!vertex->isPredicatedHyperOp() || predicateSource == vertex->getImmediateDominator()) {
 				CallInst* fdeleteInst;
 				assert(vertexFunction->getArgumentList().size() >= 1);
 				Value* frameAddress = vertexFunction->arg_begin();
