@@ -3387,6 +3387,7 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 	}
 	list<unsigned> occupiedFramesList;
 	for (auto hopItr : this->Vertices) {
+		assert(hopItr->getTargetResource()<(rowCount*columnCount) && "Target resource can't exceed available hardware");
 		if (hopItr->isStaticHyperOp()) {
 			assert((occupiedFramesList.empty()|| find(occupiedFramesList.begin(), occupiedFramesList.end(), hopItr->getContextFrame()) == occupiedFramesList.end()) && "Two hyperops mapped to the same context frame in the CR\n");
 			occupiedFramesList.push_back(hopItr->getContextFrame());
