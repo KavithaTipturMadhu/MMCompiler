@@ -138,6 +138,9 @@ def : Pat<(select (i32 (setne GR32:$lhs, 0)), GR32:$T, GR32:$F),
 
 def : Pat<(select (i32 (seteq GR32:$lhs, 0)), GR32:$T, GR32:$F),
         (SELECT_CC GR32:$lhs, GR32:$F, GR32:$T)>;
+        
+        
+def SSMF : PseudoInst<(outs GR32:$dst),(ins GR32:$src),"ssmf $dst, $src",[]>;        
 
 /**
 REDEFINE specific instructions
