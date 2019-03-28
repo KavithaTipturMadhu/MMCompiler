@@ -142,9 +142,32 @@ def : Pat<(select (i32 (seteq GR32:$lhs, 0)), GR32:$T, GR32:$F),
 /**
 REDEFINE specific instructions
 **/
-def CREATEINST: InstIREDEFINE<"pscreateinst", 0b0000100, 0b001 , add, GR32, GR32>
-{
- let Itinerary   = REDEFINEORC;
+def PSCREATEINST: InstREDEFINE<4, (outs GR32:$dst), (ins imm32sx12:$src), 
+                "pscreateinst\t$dst, $src", 
+                [(set i32:$dst, (int_pscreateinst imm32sx12:$src))], REDEFINEORC> {
+  field bits<32> Inst;
+
+  bits<5> RD;
+  bits<5> RS1;
+
+  let Inst{19-15} = 0b00000;
+  let Inst{14-12} = 0b010;
+  let Inst{11 - 7} = RD;
+  let Inst{6 - 0} = 0b0000100;
+}
+
+def CREATEINST: InstREDEFINE<4, (outs GR32:$dst), (ins GR32:$src1, imm32sx12:$src2), 
+                "createinst\t$dst, $src1, $src2", 
+                [], REDEFINEORC> {
+  field bits<32> Inst;
+
+  bits<5> RD;
+  bits<5> RS1;
+
+  let Inst{19-15} = 0b00000;
+  let Inst{14-12} = 0b010;
+  let Inst{11 - 7} = RD;
+  let Inst{6 - 0} = 0b0000100;
 }
 
 def FALLOC: InstREDEFINE<4, (outs GR32:$dst), (ins GR32:$src), 

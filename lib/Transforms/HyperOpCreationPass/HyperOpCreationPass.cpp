@@ -4247,7 +4247,11 @@ struct REDEFINEIRPass: public ModulePass {
 					if (vertex->getTargetResource() != child->getTargetResource()) {
 						fallocArgs.push_back(ConstantInt::get(M.getContext(), APInt(32, child->getTargetResource())));
 						func = (Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::rfalloc, 0);
-					} else {
+					} else if(isa<ConstantInt>(numFrames)){
+						fallocArgs.clear();
+						fallocArgs.push_back(getConstantValue(functionAndIndexMap[child->getFunction()], M));
+						func = (Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::pscreateinst, 0);
+					}else{
 						func = (Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::falloc, 0);
 					}
 
@@ -4278,8 +4282,8 @@ struct REDEFINEIRPass: public ModulePass {
 					}
 				}
 
-				if (!child->isStaticHyperOp()) {
-					Value *fbindArgs[] = { ConstantInt::get(M.getContext(), APInt(32, functionAndIndexMap[child->getFunction()])), baseAddress };
+				if (!child->isStaticHyperOp() && !isa<ConstantInt>(numFrames)) {
+					Value *fbindArgs[] = { getConstantValue(functionAndIndexMap[child->getFunction()], M), baseAddress };
 					CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fbind, 0), fbindArgs, "", &insertInBB->back());
 				}
 
@@ -4302,7 +4306,6 @@ struct REDEFINEIRPass: public ModulePass {
 						addressPhiNode->addIncoming(getConstantValue(0, M), conditionalParentBlock);
 						/* Use this for communication instruction insertion later, and do it now cos range hyperop may be predicated */
 						createdHopBaseAddressMap.erase(child);
-						errs()<<"updated edge between "<<vertex->asString()<<" and "<<child->asString()<<"\n";
 						createdHopBaseAddressMap.insert(make_pair(child, make_pair(addressPhiNode, baseAddressMax)));
 						for (auto outgoingEdgeItr = vertex->ChildMap.begin(); outgoingEdgeItr != vertex->ChildMap.end(); outgoingEdgeItr++) {
 							if (outgoingEdgeItr->first->getValue() == baseAddressWithoutPhi) {
@@ -4439,6 +4442,10 @@ struct REDEFINEIRPass: public ModulePass {
 				HyperOp* child = childItr;
 				DEBUG(dbgs() << "Adding fdelete instructions to module\n");
 				HyperOp* predProducer = NULL;
+				if(!child->isStaticHyperOp()){
+					/* All dynamic hops are deleted via createinst */
+					continue;
+				}
 				if(child->isPredicatedHyperOp()){
 					for(auto parentItr:child->ParentMap){
 						if(parentItr.first->getType() == HyperOpEdge::PREDICATE){
@@ -4495,6 +4502,9 @@ struct REDEFINEIRPass: public ModulePass {
 
 			DEBUG(dbgs() << "Adding fdelete self instruction\n");
 			HyperOp* predicateSource = NULL;
+			if(!vertex->isStaticHyperOp()){
+				continue;
+			}
 			if(vertex->isPredicatedHyperOp()){
 				/* Find predicate source */
 				for(auto parentItr:vertex->ParentMap){

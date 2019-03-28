@@ -187,6 +187,11 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD, unsigned Builtin
 	switch (BuiltinID) {
 	default:
 		break;
+	case Builtin::BI__builtin_pscreateinst: {
+		Value *F = CGM.getIntrinsic(Intrinsic::pscreateinst);
+		Value *Args[] = { EmitScalarExpr(E->getArg(0)) ,EmitScalarExpr(E->getArg(1)) };
+		return RValue::get(Builder.CreateCall(F, Args));
+	}
 	case Builtin::BI__builtin_falloc: {
 		Value *F = CGM.getIntrinsic(Intrinsic::falloc);
 		Value *Args[] = { EmitScalarExpr(E->getArg(0)) };

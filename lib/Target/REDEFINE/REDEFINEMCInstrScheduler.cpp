@@ -387,8 +387,23 @@ for (auto instItr = bb->instr_begin(); instItr != bb->instr_end(); instItr++) {
 		addToLISSlot(LIS, replacementInst.operator ->());
 		deleteList.push_back(inst);
 		regs.push_back(registerForHopId);
-	}
-	else if(inst->getOpcode() == REDEFINE::PSGETMEMFRAME){
+	} else if (inst->getOpcode() == REDEFINE::PSCREATEINST) {
+		unsigned registerForHopId = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+		string hyperOpId = ".HyOp#";
+		assert(inst->getOperand(1).isImm() && "Createinst can only have integer immediate input operand\n");
+		hyperOpId.append(itostr(inst->getOperand(1).getImm()));
+		MCSymbol* hyOpSym = BB->getParent()->getContext().GetOrCreateSymbol(StringRef(hyperOpId));
+		MachineInstrBuilder movaddr = BuildMI(*BB, inst, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVADDR));
+		movaddr.addReg(registerForHopId, RegState::Define).addSym(hyOpSym);
+		addToLISSlot(LIS, movaddr.operator ->());
+
+		MachineInstrBuilder replacementInst = BuildMI(*BB, inst, BB->begin()->getDebugLoc(), TII->get(REDEFINE::CREATEINST));
+		replacementInst.addOperand(inst->getOperand(0)).addReg(registerForHopId).addImm(0);
+		addToLISSlot(LIS, replacementInst.operator ->());
+		deleteList.push_back(inst);
+		regs.push_back(inst->getOperand(0).getReg());
+		regs.push_back(registerForHopId);
+	} else if(inst->getOpcode() == REDEFINE::PSGETMEMFRAME){
 		MachineInstr *insertionPoint = inst;
 		MachineOperand& frameAddress = inst->getOperand(0);
 		assert(frameAddress.isReg() && "Get memory frame pseudo's argument must be in reg\n");
