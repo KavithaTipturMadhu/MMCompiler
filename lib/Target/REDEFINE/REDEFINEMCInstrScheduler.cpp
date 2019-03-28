@@ -60,6 +60,7 @@ REDEFINEMCInstrScheduler::REDEFINEMCInstrScheduler(MachineSchedContext *C, Machi
 		ScheduleDAGMI(C, S) {
 	ceCount = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
 	frameSize = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCfSize();
+	nextFrameLocation = -1;
 }
 
 REDEFINEMCInstrScheduler::~REDEFINEMCInstrScheduler() {
@@ -344,8 +345,13 @@ if(bb == &bb->getParent()->front()){
 	for(auto bbItr = bb->getParent()->begin(); bbItr!=bb->getParent()->end(); bbItr++){
 		bbItr->addLiveIn(REDEFINE::t5);
 	}
+	nextFrameLocation = BB->getParent()->getFrameInfo()->getObjectIndexEnd();
 }
 
+
+if (BB->getBasicBlock()->getName().compare(BB->getBasicBlock()->getParent()->getEntryBlock().getName()) == 0) {
+
+}
 faninOfHyperOp.clear();
 endOfBBLoopEdgeCovered = false;
 for (int i = 0; i < ceCount; i++) {
@@ -469,7 +475,6 @@ for (auto instItr = deleteList.begin(); instItr != deleteList.end(); instItr++) 
 
 if (BB->getNumber() == 0) {
 	MachineInstr* insertionPoint = BB->begin();
-	for (unsigned i = 0; i < ceCount; i++) {
 		unsigned registerForCopyOfInstId = REDEFINE::t5;
 		unsigned registerForIncrOfInstId = REDEFINE::t4;
 
@@ -487,7 +492,7 @@ if (BB->getNumber() == 0) {
 		unsigned registerForGlobalAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 		MachineInstrBuilder movimm = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVADDR)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
 		addToLISSlot(LIS, movimm.operator llvm::MachineInstr *());
-		allInstructionsOfRegion.push_back(make_pair(movimm.operator->(), make_pair(i, insertPosition++)));
+		allInstructionsOfRegion.push_back(make_pair(movimm.operator->(), make_pair(0, insertPosition++)));
 
 		unsigned registerForMulOperand = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
 		MachineInstrBuilder addiForMul = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(REDEFINE::zero).addSym(frameSizeSymbol);
@@ -544,7 +549,6 @@ if (BB->getNumber() == 0) {
 
 		MachineInstrBuilder addForGlobalAddr = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForIncrOfInstId, RegState::Define).addReg(registerForGlobalAddr).addReg(registerForMul);
 		addToLISSlot(LIS, addForGlobalAddr.operator llvm::MachineInstr *());
-	}
 }
 LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), regs);
 bb->dump();
@@ -609,7 +613,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 						//Dummy data
 						writepm.addReg(registerForTargetAddr);
 						//TODO When splocations changes
-						int32_t immediateSPOffset = SPLOCATIONS - ((depth * i + numNodesAtDepth + frameSize) * datawidth);
+						int32_t immediateSPOffset = SPLOCATIONS - ((depth * i + numNodesAtDepth + frameSize) * datawidth) + numLiveOuts*datawidth;
 						writepm.addImm(immediateSPOffset);
 						addToLISSlot(LIS, writepm.operator llvm::MachineInstr *());
 						allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
@@ -628,7 +632,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 						//Dummy data
 						readpm.addReg(registerForCurrentAddr);
 						//TODO When splocations changes
-						immediateSPOffset = SPLOCATIONS - ((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth);
+						immediateSPOffset = SPLOCATIONS - ((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth)+ numLiveOuts*datawidth;
 						readpm.addImm(immediateSPOffset);
 						addToLISSlot(LIS, readpm.operator llvm::MachineInstr *());
 						allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
@@ -659,7 +663,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 						//Dummy data
 						writepm.addReg(registerForTargetAddr);
 						//TODO
-						int32_t immediateSPOffset = SPLOCATIONS - ((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth);
+						int32_t immediateSPOffset = SPLOCATIONS - ((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth)+ numLiveOuts*datawidth;
 						writepm.addImm(immediateSPOffset);
 						addToLISSlot(LIS, writepm.operator llvm::MachineInstr *());
 						allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
@@ -678,7 +682,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 						//Dummy data
 						readpm.addReg(registerForCurrentAddr);
 						//TODO
-						immediateSPOffset = SPLOCATIONS - ((depth * i + numNodesAtDepth + frameSize) * datawidth);
+						immediateSPOffset = SPLOCATIONS - ((depth * i + numNodesAtDepth + frameSize) * datawidth) + numLiveOuts*datawidth;
 						readpm.addImm(immediateSPOffset);
 						addToLISSlot(LIS, readpm.operator llvm::MachineInstr *());
 						allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
@@ -737,7 +741,7 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 					continue;
 				}
 
-				unsigned offsetInScratchpad = faninOfHyperOp[ceContainingInstruction];
+				unsigned offsetInScratchpad = faninOfHyperOp[ceContainingInstruction] + numLiveOuts*datawidth;
 				//Load the base scratchpad address to a register in the producer CE for the first time
 				if (registerContainingBaseAddress[ceContainingPredecessorInstruction][ceContainingInstruction] == -1) {
 					MachineInstrBuilder sourceMovimm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::MOVIMM));
@@ -846,13 +850,20 @@ for (list<pair<SUnit*, unsigned> >::iterator ScheduledInstrItr = instructionAndP
 			}
 		}
 	}
+	for (int i = 0; i < machineInstruction->getNumOperands(); i++) {
+		MachineOperand& op = machineInstruction->getOperand(i);
+		if (op.isReg() && !TRI->isPhysicalRegister(op.getReg()) && LIS->isLiveOutOfMBB(LIS->getInterval(op.getReg()), BB)) {
+			errs() << "operand:: " << &op <<", :"<<op<< ", ce :: " << ceContainingInstruction << "\n";
+			registerAndCElocation.insert(make_pair(op.getReg(), ceContainingInstruction));
+
+		}
+	}
 	if (firstInstructionOfpHyperOpInRegion[ceContainingInstruction] == 0) {
 		firstInstructionOfpHyperOpInRegion[ceContainingInstruction] = machineInstruction;
 	}
 
 	allInstructionsOfRegion.push_back(make_pair(machineInstruction, make_pair(ceContainingInstruction, insertPosition++)));
 }
-
 //If the instruction is a branch operation
 if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 	MachineInstr* machineInstruction = RegionEnd;
@@ -893,7 +904,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 						//Dummy data
 						writepm.addReg(registerForTargetAddr);
 						//TODO (SPLOCATIONS * 3) since we are using only 1/4th of address space
-						int32_t immediateSPOffset = SPLOCATIONS - ((depth * i + numNodesAtDepth + frameSize) * datawidth);
+						int32_t immediateSPOffset = SPLOCATIONS - ((depth * i + numNodesAtDepth + frameSize) * datawidth)+ numLiveOuts*datawidth;
 						writepm.addImm(immediateSPOffset);
 						addToLISSlot(LIS, writepm.operator llvm::MachineInstr *());
 						allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
@@ -912,7 +923,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 						//Dummy data
 						readpm.addReg(registerForCurrentAddr);
 						//TODO
-						immediateSPOffset = SPLOCATIONS - ((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth);
+						immediateSPOffset = SPLOCATIONS - ((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth)+ numLiveOuts*datawidth;
 						readpm.addImm(immediateSPOffset);
 						addToLISSlot(LIS, readpm.operator llvm::MachineInstr *());
 						allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
@@ -942,7 +953,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 						//Dummy data
 						writepm.addReg(registerForTargetAddr);
 						//TODO
-						int32_t immediateSPOffset = SPLOCATIONS - ((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth);
+						int32_t immediateSPOffset = SPLOCATIONS - ((depth * (i + 1) + numNodesAtDepth + frameSize) * datawidth)+ numLiveOuts*datawidth;
 						writepm.addImm(immediateSPOffset);
 						addToLISSlot(LIS, writepm.operator llvm::MachineInstr *());
 						allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
@@ -961,7 +972,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 						//Dummy data
 						readpm.addReg(registerForCurrentAddr);
 						//TODO
-						immediateSPOffset = SPLOCATIONS - ((depth * i + numNodesAtDepth + frameSize) * datawidth);
+						immediateSPOffset = SPLOCATIONS - ((depth * i + numNodesAtDepth + frameSize) * datawidth)+ numLiveOuts*datawidth;
 						readpm.addImm(immediateSPOffset);
 						addToLISSlot(LIS, readpm.operator llvm::MachineInstr *());
 						allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i + increment, insertPosition++)));
@@ -991,6 +1002,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 //Had to put a hardcoded check for zero here
 		if (operand.isReg() && operand.getReg() != REDEFINE::zero) {
 			SlotIndex regSlotIndex = LIS->getInstructionIndex(machineInstruction);
+			LiveInterval& li =  LIS->getInterval(operand.getReg());
 			VNInfo * reachingDefinition = LIS->getInterval(operand.getReg()).getVNInfoBefore(regSlotIndex);
 			MachineInstr* reachingDefinitionInstruction = LIS->getInstructionFromIndex(reachingDefinition->def);
 			int ceContainingPredecessorInstruction = -1;
@@ -1025,7 +1037,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 						//Hardcoded first location to be used for communicating the operand of branch instruction because there is no use in doing any fancy register allocation in this
 						//Since sync barrier has already been executed, sp locations can be reused from 0
 						//TODO while technically we can run out of communication registers here as well, it is highly unlikely we ever will since the number of branch instructions cant be so high
-						unsigned offsetInScratchpad = faninOfHyperOp[ceContainingInstruction];
+						unsigned offsetInScratchpad = faninOfHyperOp[ceContainingInstruction] + numLiveOuts*datawidth;
 						//Add instruction to communicate the operand to the pHyperOp
 						if (registerContainingBaseAddress[ceContainingPredecessorInstruction][ceContainingInstruction] == -1) {
 							MachineInstrBuilder sourceMovimm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::MOVIMM));
@@ -1116,7 +1128,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 	}
 
 //Add the branch instruction to the first pHyperOp
-	allInstructionsOfRegion.push_back(make_pair(machineInstruction, make_pair(0, insertPosition++)));
+
 
 //Replicate the branch instruction in other CEs
 	MachineInstr* successorOfTerminator;
@@ -1125,15 +1137,86 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 	} else {
 		successorOfTerminator = parentBasicBlock.end();
 	}
+
 	for (unsigned i = 1; i < ceCount; i++) {
 		MachineInstrBuilder duplicateTerminatorInstr = BuildMI(parentBasicBlock, successorOfTerminator, location, TII->get(machineInstruction->getOpcode()));
-		for (unsigned operandIndex = 0; operandIndex < RegionEnd->getNumOperands(); operandIndex++) {
+		//errs()<< "branch machineInstruction :\n";
+		machineInstruction->dump();
+		unsigned regCount = 0 ;
+		for (unsigned operandIndex = 0; operandIndex < machineInstruction->getNumOperands(); operandIndex++) {
+			MachineOperand& operand = machineInstruction->getOperand(operandIndex);
+			if (operand.isReg() && operand.getReg() != REDEFINE::zero) {
+				SlotIndex regSlotIndex = LIS->getInstructionIndex(machineInstruction);
+				VNInfo* reachingDefinition = LIS->getInterval(operand.getReg()).getVNInfoBefore(regSlotIndex);
+				MachineBasicBlock* reachindDefintionBB =  LIS->getMBBFromIndex(reachingDefinition->def);
+				if(BB == reachindDefintionBB  && (registerAndCElocation.find(operand.getReg()) != registerAndCElocation.end())){
+					unsigned parentCE = registerAndCElocation[operand.getReg()];
+					errs()<<" (regCount / i < numLiveOuts) "<<(regCount / i < numLiveOuts) <<"\n";
+					if ((regCount / i < numLiveOuts)) {
+						{
+							MachineInstrBuilder movimmOfTargetCE = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::MOVIMM));
+							unsigned registerForTargetAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+							movimmOfTargetCE.addReg(registerForTargetAddr, RegState::Define);
+							movimmOfTargetCE.addImm(i * SPLOCATIONS * datawidth);
+							addToLISSlot(LIS, movimmOfTargetCE.operator llvm::MachineInstr *());
+							allInstructionsOfRegion.push_back(make_pair(movimmOfTargetCE.operator llvm::MachineInstr *(), make_pair(parentCE, insertPosition++)));
+
+							if (firstInstructionOfpHyperOpInRegion[parentCE] == 0) {
+								firstInstructionOfpHyperOpInRegion[parentCE] = movimmOfTargetCE.operator llvm::MachineInstr *();
+							}
+
+							MachineInstrBuilder writepm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::WRITEPM));
+							writepm.addReg(registerForTargetAddr);
+							writepm.addReg(operand.getReg());
+							int32_t immediateSPOffset = (regCount / i) * datawidth;
+							writepm.addImm(immediateSPOffset);
+							addToLISSlot(LIS, writepm.operator llvm::MachineInstr *());
+							allInstructionsOfRegion.push_back(make_pair(writepm.operator llvm::MachineInstr *(), make_pair(parentCE, insertPosition++)));
+						}
+						{
+							MachineInstrBuilder movimmOfCurrentCE = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::MOVIMM));
+							unsigned registerForCurrentAddr = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
+							movimmOfCurrentCE.addReg(registerForCurrentAddr, RegState::Define);
+							movimmOfCurrentCE.addImm(i * SPLOCATIONS * datawidth);
+							addToLISSlot(LIS, movimmOfCurrentCE.operator llvm::MachineInstr *());
+							allInstructionsOfRegion.push_back(make_pair(movimmOfCurrentCE.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
+
+							MachineInstrBuilder readpm = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::DREADPM));
+							readpm.addReg(operand.getReg());
+							readpm.addReg(registerForCurrentAddr);
+							unsigned immediateSPOffset = (regCount / i) * datawidth;
+							readpm.addImm(immediateSPOffset);
+							addToLISSlot(LIS, readpm.operator llvm::MachineInstr *());
+							allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
+						}
+						regCount++;
+					} else {
+						/*
+//						if (i == 1) {
+							MachineInstrBuilder storeInMem = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::SW));
+							storeInMem.addReg(operand.getReg());
+							storeInMem.addReg(REDEFINE::zero);
+							storeInMem.addFrameIndex(nextFrameLocation/i);
+							addToLISSlot(LIS, storeInMem.operator llvm::MachineInstr *());
+							allInstructionsOfRegion.push_back(make_pair(storeInMem.operator llvm::MachineInstr *(), make_pair(parentCE, insertPosition++)));
+//						}
+						//Add an instruction to read from memory
+						MachineInstrBuilder loadFromMemory = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::LW));
+						loadFromMemory.addReg(operand.getReg());
+						loadFromMemory.addReg(REDEFINE::zero);
+						loadFromMemory.addFrameIndex(nextFrameLocation/i);
+						addToLISSlot(LIS, loadFromMemory.operator llvm::MachineInstr *());
+						allInstructionsOfRegion.push_back(make_pair(loadFromMemory.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
+						nextFrameLocation++;
+					*/}
+				}
+			}
 			duplicateTerminatorInstr.addOperand(RegionEnd->getOperand(operandIndex));
 		}
 		addToLISSlot(LIS, duplicateTerminatorInstr.operator llvm::MachineInstr *());
 		allInstructionsOfRegion.push_back(make_pair(duplicateTerminatorInstr.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 	}
-
+	allInstructionsOfRegion.push_back(make_pair(machineInstruction, make_pair(0, insertPosition++)));
 }
 BB->dump();
 //Shuffle instructions in the region
