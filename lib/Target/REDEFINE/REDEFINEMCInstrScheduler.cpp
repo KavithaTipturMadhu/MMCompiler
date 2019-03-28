@@ -343,7 +343,7 @@ DEBUG(dbgs() << "\n-------------\nStarting new basic block BB#" << BB->getNumber
 if(bb == &bb->getParent()->front()){
 	/* Mark t5 as live in all basic blocks of the function */
 	for(auto bbItr = bb->getParent()->begin(); bbItr!=bb->getParent()->end(); bbItr++){
-		bbItr->addLiveIn(REDEFINE::t5);
+		//bbItr->addLiveIn(REDEFINE::t5);
 	}
 	nextFrameLocation = BB->getParent()->getFrameInfo()->getObjectIndexEnd();
 }
@@ -473,7 +473,7 @@ for (auto instItr = deleteList.begin(); instItr != deleteList.end(); instItr++) 
 	inst->eraseFromParent();
 }
 
-if (BB->getNumber() == 0) {
+if (BB->getNumber() == 0) {/*
 	MachineInstr* insertionPoint = BB->begin();
 		unsigned registerForCopyOfInstId = REDEFINE::t5;
 		unsigned registerForIncrOfInstId = REDEFINE::t4;
@@ -549,7 +549,7 @@ if (BB->getNumber() == 0) {
 
 		MachineInstrBuilder addForGlobalAddr = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForIncrOfInstId, RegState::Define).addReg(registerForGlobalAddr).addReg(registerForMul);
 		addToLISSlot(LIS, addForGlobalAddr.operator llvm::MachineInstr *());
-}
+*/}
 LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), regs);
 bb->dump();
 }
