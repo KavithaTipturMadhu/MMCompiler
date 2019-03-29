@@ -168,6 +168,7 @@ unsigned REDEFINEInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlo
 	//This function inserts the branch at the end of the MBB
 	return InsertBranchAtInst(MBB, MBB.end(), TBB, Cond, DL);
 }
+
 unsigned REDEFINEInstrInfo::InsertConstBranchAtInst(MachineBasicBlock &MBB, MachineInstr *I, int64_t offset, const SmallVectorImpl<MachineOperand> &Cond, DebugLoc DL) const {
 	// Shouldn't be a fall through.
 	assert(&MBB && "InsertBranch must not be told to insert a fallthrough");
@@ -186,11 +187,17 @@ unsigned REDEFINEInstrInfo::InsertConstBranchAtInst(MachineBasicBlock &MBB, Mach
 	case REDEFINE::CCMASK_CMP_EQ:
 		BuildMI(MBB, I, DL, get(REDEFINE::BEQ)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
 		break;
+	case REDEFINE::CCMASK_CMP_GT:
+		BuildMI(MBB, I, DL, get(REDEFINE::BGT)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
 	case REDEFINE::CCMASK_CMP_NE:
 		BuildMI(MBB, I, DL, get(REDEFINE::BNE)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
 		break;
 	case REDEFINE::CCMASK_CMP_LT:
 		BuildMI(MBB, I, DL, get(REDEFINE::BLT)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	case REDEFINE::CCMASK_CMP_LE:
+		BuildMI(MBB, I, DL, get(REDEFINE::BLE)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
 		break;
 	case (REDEFINE::CCMASK_CMP_LT | REDEFINE::CCMASK_CMP_UO):
 		BuildMI(MBB, I, DL, get(REDEFINE::BLTU)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
@@ -200,6 +207,9 @@ unsigned REDEFINEInstrInfo::InsertConstBranchAtInst(MachineBasicBlock &MBB, Mach
 		break;
 	case (REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO):
 		BuildMI(MBB, I, DL, get(REDEFINE::BGEU)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	case (REDEFINE::CCMASK_CMP_LE | REDEFINE::CCMASK_CMP_UO):
+		BuildMI(MBB, I, DL, get(REDEFINE::BLEU)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
 		break;
 	default:
 		llvm_unreachable("Invalid branch condition code!");
@@ -212,7 +222,6 @@ unsigned REDEFINEInstrInfo::InsertBranchAtInst(MachineBasicBlock &MBB, MachineIn
 	// Shouldn't be a fall through.
 	assert(TBB && "InsertBranch must not be told to insert a fallthrough");
 	assert(Cond.size() <= 4 && "REDEFINE branch conditions have less than four components!");
-
 	if (Cond.empty() || Cond[0].getImm() == REDEFINE::CCMASK_ANY) {
 		// Unconditional branch
 		BuildMI(MBB, I, DL, get(REDEFINE::JAL)).addMBB(TBB);
@@ -221,15 +230,22 @@ unsigned REDEFINEInstrInfo::InsertBranchAtInst(MachineBasicBlock &MBB, MachineIn
 	// Conditional branch.
 	unsigned Count = 0;
 	unsigned CC = Cond[0].getImm();
+	errs()<<"whats cc ?"<<CC<<", ";
 	switch (CC) {
 	case REDEFINE::CCMASK_CMP_EQ:
 		BuildMI(MBB, I, DL, get(REDEFINE::BEQ)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	case REDEFINE::CCMASK_CMP_GT:
+		BuildMI(MBB, I, DL, get(REDEFINE::BGT)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
 		break;
 	case REDEFINE::CCMASK_CMP_NE:
 		BuildMI(MBB, I, DL, get(REDEFINE::BNE)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
 		break;
 	case REDEFINE::CCMASK_CMP_LT:
 		BuildMI(MBB, I, DL, get(REDEFINE::BLT)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	case REDEFINE::CCMASK_CMP_LE:
+		BuildMI(MBB, I, DL, get(REDEFINE::BLE)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
 		break;
 	case (REDEFINE::CCMASK_CMP_LT | REDEFINE::CCMASK_CMP_UO):
 		BuildMI(MBB, I, DL, get(REDEFINE::BLTU)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
@@ -239,6 +255,9 @@ unsigned REDEFINEInstrInfo::InsertBranchAtInst(MachineBasicBlock &MBB, MachineIn
 		break;
 	case (REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO):
 		BuildMI(MBB, I, DL, get(REDEFINE::BGEU)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	case (REDEFINE::CCMASK_CMP_LE | REDEFINE::CCMASK_CMP_UO):
+		BuildMI(MBB, I, DL, get(REDEFINE::BLEU)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
 		break;
 	default:
 		llvm_unreachable("Invalid branch condition code!");
