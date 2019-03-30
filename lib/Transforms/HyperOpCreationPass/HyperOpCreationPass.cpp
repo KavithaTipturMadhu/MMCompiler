@@ -4103,14 +4103,9 @@ struct REDEFINEIRPass: public ModulePass {
 		if (MAKE_GRAPH_STRUCTURED) {
 			graph->removeUnreachableHops();
 			graph->computeDominatorInfo();
-			graph->removeCoveredPredicateEdges();
-			graph->clusterAllNodesInOne();
-			graph->mergeUnpredicatedNodesInCluster();
 		}
 		graph->computeDominatorInfo();
 		graph->clusterNodes();
-		graph->mergeUnpredicatedNodesInCluster();
-		graph->computeDominatorInfo();
 		graph->addContextFrameAddressForwardingEdges();
 		//graph->convertRemoteScalarsToStores();
 		graph->addSelfFrameAddressRegisters();
