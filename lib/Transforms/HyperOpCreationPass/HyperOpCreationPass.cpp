@@ -4230,8 +4230,9 @@ struct REDEFINEIRPass: public ModulePass {
 
 				BasicBlock * fallthroughBlock = NULL;
 				BasicBlock* conditionalParentBlock = NULL;
+				BasicBlock* conditionalCreateEntryBB = NULL;
+				bool predicatedByIdom = false;
 				if (child->isPredicatedHyperOp()) {
-					bool predicatedByIdom = false;
 					for (auto parentItr : child->ParentMap) {
 						if (parentItr.first->getType() == HyperOpEdge::PREDICATE && parentItr.second == child->getImmediateDominator()) {
 							predicatedByIdom = true;
@@ -4239,8 +4240,9 @@ struct REDEFINEIRPass: public ModulePass {
 						}
 					}
 					if (predicatedByIdom) {
-						conditionalParentBlock = insertInBB;
+						conditionalCreateEntryBB = insertInBB;
 						addPredicateInstruction(vertex, child, &insertInBB, &fallthroughBlock, M.getContext());
+						conditionalParentBlock = insertInBB;
 					}
 				}
 				if (!child->isStaticHyperOp()) {
@@ -4294,14 +4296,17 @@ struct REDEFINEIRPass: public ModulePass {
 					assert(isa<PHINode>(baseAddress) && "iterator of base address must be a phi node\n");
 					((PHINode*) baseAddress)->addIncoming(updatedValue, loopBody);
 					insertInBB = loopEnd;
+					if(predicatedByIdom){
+						conditionalParentBlock = insertInBB;
+					}
 				}
 				if (child->isPredicatedHyperOp() && conditionalParentBlock != NULL) {
 					if (!child->isStaticHyperOp()) {
 						assert(isa<Instruction>(baseAddress) && "Dynamic hop base address must be created\n");
 						/* Add a phi instruction since the address needs to be available on both paths */
 						PHINode* addressPhiNode = PHINode::Create(Type::getInt32Ty(M.getContext()), 0, "", &fallthroughBlock->back());
-						addressPhiNode->addIncoming(baseAddressWithoutPhi, ((Instruction*)baseAddressWithoutPhi)->getParent());
-						addressPhiNode->addIncoming(getConstantValue(0, M), conditionalParentBlock);
+						addressPhiNode->addIncoming(baseAddressWithoutPhi, conditionalParentBlock);
+						addressPhiNode->addIncoming(getConstantValue(0, M), conditionalCreateEntryBB);
 						/* Use this for communication instruction insertion later, and do it now cos range hyperop may be predicated */
 						createdHopBaseAddressMap.erase(child);
 						createdHopBaseAddressMap.insert(make_pair(child, addressPhiNode));
@@ -4509,6 +4514,7 @@ struct REDEFINEIRPass: public ModulePass {
 				Value *fdeleteArgs[] = { frameAddress };
 				fdeleteInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fdelete, 0), fdeleteArgs, "", &insertInBB->back());
 			}
+			vertex->getFunction()->dump();
 		}
 		/* Delete all metadata */
 		NamedMDNode * redefineAnnotationsNode = M.getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
