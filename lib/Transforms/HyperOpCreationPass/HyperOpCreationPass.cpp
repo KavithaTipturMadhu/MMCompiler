@@ -4307,6 +4307,7 @@ struct REDEFINEIRPass: public ModulePass {
 
 				if (child->getInRange()) {
 					Value* numFrames = BinaryOperator::CreateUDiv(BinaryOperator::CreateSub(child->getRangeUpperBound(), child->getRangeLowerBound(), "", &insertInBB->back()), child->getStride(), "", &insertInBB->back());
+					numFrames = BinaryOperator::CreateSub(numFrames, getConstantValue(1, M), "", &insertInBB->back());
 					Value* baseAddressUpperBound = BinaryOperator::CreateNUWAdd(BinaryOperator::CreateNUWMul(numFrames, getConstantValue(64, M), "", &insertInBB->back()), baseAddress, "", &insertInBB->back());
 					addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, baseAddress, baseAddressUpperBound, &baseAddress);
 					insertInBB = loopBody;
