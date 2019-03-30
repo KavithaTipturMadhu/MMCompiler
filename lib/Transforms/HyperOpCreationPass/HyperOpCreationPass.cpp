@@ -3777,7 +3777,7 @@ struct REDEFINEIRPass: public ModulePass {
 		*loopEnd = BasicBlock::Create(M.getContext(), loopEndName, vertexFunction);
 
 		BranchInst* loopBodyJump = BranchInst::Create(*loopBegin, (*insertInBB)->getTerminator());
-		(*insertInBB)->getTerminator()->removeFromParent();
+		(*insertInBB)->getTerminator()->eraseFromParent();
 
 		PHINode* phiNode = PHINode::Create(Type::getInt32Ty(M.getContext()), 0, "", *loopBegin);
 		phiNode->addIncoming(lowerBound, *insertInBB);
