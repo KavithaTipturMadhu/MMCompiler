@@ -4145,7 +4145,7 @@ struct REDEFINEIRPass: public ModulePass {
 			}
 			Function* vertexFunction = vertex->getFunction();
 			BasicBlock* insertInBB = &vertexFunction->back();
-			map<HyperOp*, pair<Value*, Value*> > createdHopBaseAddressMap;
+			map<HyperOp*, Value*> createdHopBaseAddressMap;
 
 			/* we add fallocs for predicated and non range dynamic hops ealy on, to ensure that if there are communication instructions that carry address of such hyperops*/
 			DEBUG(dbgs() << "Adding falloc, fbind instructions to module for dynamic non range or predicated range hops\n");
@@ -4184,18 +4184,17 @@ struct REDEFINEIRPass: public ModulePass {
 				}
 
 				assert(baseAddress!=NULL && "Could not load the base address of the child hyperop\n");
-				Value* baseAddressMax = NULL;
 				Value* baseAddressWithoutPhi = baseAddress;
 
 				if(child->getInRange()){
-					baseAddressMax = BinaryOperator::CreateNUWAdd(BinaryOperator::CreateNUWMul(numFrames, getConstantValue(64, M), "", &insertInBB->back()), baseAddress, "", &insertInBB->back());
+					Value* baseAddressMax = BinaryOperator::CreateNUWAdd(BinaryOperator::CreateNUWMul(numFrames, getConstantValue(64, M), "", &insertInBB->back()), baseAddress, "", &insertInBB->back());
 					addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, baseAddress, baseAddressMax, &baseAddress);
 					insertInBB = loopBody;
 					assert(isa<PHINode>(baseAddress) && "updated base address must be a phi node\n");
 				}
 
 				/* Use this for communication instruction insertion later, and do it now cos range hyperop may be predicated */
-				createdHopBaseAddressMap.insert(make_pair(child, make_pair(baseAddressWithoutPhi, baseAddressMax)));
+				createdHopBaseAddressMap.insert(make_pair(child, baseAddressWithoutPhi));
 
 				for (auto outgoingEdgeItr = vertex->ChildMap.begin(); outgoingEdgeItr != vertex->ChildMap.end(); outgoingEdgeItr++) {
 					if ((outgoingEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || outgoingEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF || outgoingEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE
@@ -4275,10 +4274,8 @@ struct REDEFINEIRPass: public ModulePass {
 				Value* loadInst;
 				/* Range HyperOp's base address, obtained either with falloc or by loading with forwarded address */
 				Value* baseAddress = NULL;
-				Value* baseAddressUpperBound = NULL;
 				if (child->getImmediateDominator() == vertex) {
-					baseAddress = createdHopBaseAddressMap[child].first;
-					baseAddressUpperBound = createdHopBaseAddressMap[child].second;
+					baseAddress = createdHopBaseAddressMap[child];
 					assert(baseAddress!=NULL && "Could not load the base address of the child hyperop\n");
 				}	else {
 					/* Address was forwarded to the hyperop */
@@ -4306,13 +4303,11 @@ struct REDEFINEIRPass: public ModulePass {
 						}
 					}
 					assert(baseAddress!=NULL && "Could not load the base address of the child hyperop\n");
-					if (child->getInRange()) {
-						Value* numFrames = BinaryOperator::CreateUDiv(BinaryOperator::CreateSub(child->getRangeUpperBound(), child->getRangeLowerBound(), "", &insertInBB->back()), child->getStride(), "", &insertInBB->back());
-						baseAddressUpperBound = BinaryOperator::CreateNUWAdd(BinaryOperator::CreateNUWMul(numFrames, getConstantValue(64, M), "", &insertInBB->back()), baseAddress, "", &insertInBB->back());
-					}
 				}
 
 				if (child->getInRange()) {
+					Value* numFrames = BinaryOperator::CreateUDiv(BinaryOperator::CreateSub(child->getRangeUpperBound(), child->getRangeLowerBound(), "", &insertInBB->back()), child->getStride(), "", &insertInBB->back());
+					Value* baseAddressUpperBound = BinaryOperator::CreateNUWAdd(BinaryOperator::CreateNUWMul(numFrames, getConstantValue(64, M), "", &insertInBB->back()), baseAddress, "", &insertInBB->back());
 					addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, baseAddress, baseAddressUpperBound, &baseAddress);
 					insertInBB = loopBody;
 				}
