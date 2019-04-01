@@ -60,7 +60,6 @@ REDEFINEMCInstrScheduler::REDEFINEMCInstrScheduler(MachineSchedContext *C, Machi
 		ScheduleDAGMI(C, S) {
 	ceCount = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCeCount();
 	frameSize = ((REDEFINETargetMachine&) TM).getSubtargetImpl()->getCfSize();
-	nextFrameLocation = -1;
 }
 
 REDEFINEMCInstrScheduler::~REDEFINEMCInstrScheduler() {
@@ -345,7 +344,6 @@ if(bb == &bb->getParent()->front()){
 	for(auto bbItr = bb->getParent()->begin(); bbItr!=bb->getParent()->end(); bbItr++){
 		bbItr->addLiveIn(REDEFINE::t5);
 	}
-	nextFrameLocation = BB->getParent()->getFrameInfo()->getObjectIndexEnd();
 }
 
 
@@ -1190,25 +1188,7 @@ if (RegionEnd != BB->end() && RegionEnd->isBranch()) {
 							allInstructionsOfRegion.push_back(make_pair(readpm.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
 						}
 						regCount++;
-					} else {
-						/*
-//						if (i == 1) {
-							MachineInstrBuilder storeInMem = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::SW));
-							storeInMem.addReg(operand.getReg());
-							storeInMem.addReg(REDEFINE::zero);
-							storeInMem.addFrameIndex(nextFrameLocation/i);
-							addToLISSlot(LIS, storeInMem.operator llvm::MachineInstr *());
-							allInstructionsOfRegion.push_back(make_pair(storeInMem.operator llvm::MachineInstr *(), make_pair(parentCE, insertPosition++)));
-//						}
-						//Add an instruction to read from memory
-						MachineInstrBuilder loadFromMemory = BuildMI(parentBasicBlock, machineInstruction, location, TII->get(REDEFINE::LW));
-						loadFromMemory.addReg(operand.getReg());
-						loadFromMemory.addReg(REDEFINE::zero);
-						loadFromMemory.addFrameIndex(nextFrameLocation/i);
-						addToLISSlot(LIS, loadFromMemory.operator llvm::MachineInstr *());
-						allInstructionsOfRegion.push_back(make_pair(loadFromMemory.operator llvm::MachineInstr *(), make_pair(i, insertPosition++)));
-						nextFrameLocation++;
-					*/}
+					}
 				}
 			}
 			duplicateTerminatorInstr.addOperand(RegionEnd->getOperand(operandIndex));
