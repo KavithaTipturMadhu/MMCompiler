@@ -754,56 +754,6 @@ struct HyperOpCreationPass: public ModulePass {
 		assert(mainFunction->getArgumentList().empty() && "REDEFINE kernel's entry point i.e., redefine_start function takes arguments, aborting\n");
 		assert((mainFunction->getReturnType()->getTypeID() == Type::VoidTyID) && "REDEFINE kernel's entry point i.e., redefine_start function returning a non-void value, aborting\n");
 
-		//TODO replace the following with callgraph analysis
-		list<pair<Function*, CallInst*> > traversedFunctions;
-		CallInst* callInstToMain = 0;
-		traversedFunctions.push_back(make_pair(mainFunction, callInstToMain));
-		list<list<pair<Function*, CallInst*> > > cyclesInCallGraph = getCyclesInCallGraph(traversedFunctions, calledFunctionMap);
-		DEBUG(dbgs() << "Found cycles?" << cyclesInCallGraph.size() << "\n");
-		for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
-			DEBUG(dbgs() << "cycle of size " << cycleItr->size() << ":");
-			for (list<pair<Function*, CallInst*> >::iterator funcItr = cycleItr->begin(); funcItr != cycleItr->end(); funcItr++) {
-				errs() << funcItr->first->getName() << "(";
-				funcItr->second->dump();
-				DEBUG(dbgs() << ")\n");
-			}
-			DEBUG(dbgs() << "\n");
-		}
-
-		//Inline calls that are not in cycles
-		list<CallInst*> callsToInline;
-		for (auto func = M.begin(); func != M.end(); func++) {
-			for (auto bb = func->begin(); bb != func->end(); bb++) {
-				for (auto instr = bb->begin(); instr != bb->end(); instr++) {
-					Instruction* instruction = instr;
-					if (isa<CallInst>(instruction)) {
-						bool callInCycle = false;
-						for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
-							for (list<pair<Function*, CallInst*> >::iterator funcItr = cycleItr->begin(); funcItr != cycleItr->end(); funcItr++) {
-								if (funcItr->second == instruction) {
-									callInCycle = true;
-									break;
-								}
-							}
-						}
-						if (!callInCycle) {
-							callsToInline.push_back((CallInst*) instruction);
-						}
-					}
-				}
-			}
-		}
-
-		const char* isHyperOpInline = std::getenv("HYPEROP_INLINE");
-		/*if (INLINE_FUNCTION_CALLS) {*/
-		if (isHyperOpInline != NULL && strcmp(isHyperOpInline, "true") == 0) {
-			for (CallInst* callInst : callsToInline) {
-				DEBUG(dbgs() << "inling function call:" << callInst);
-				InlineFunctionInfo info;
-				InlineFunction(callInst, info);
-			}
-		}
-
 		//Processing loops for parallelism detection
 		list<pair<list<BasicBlock*>, LoopIV*> > originalParallelLoopBB;
 		list<pair<list<BasicBlock*>, LoopIV*> > originalSerialLoopBB;
@@ -1097,7 +1047,6 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 						list<Loop*> loopsAtDepth = nestedLoopDepth[i + 1];
 						Loop* currentLoop = loopsAtDepth.front();
-						currentLoop->dump();
 						LoopIV* loopIVObject = NULL;
 						//Assuming no overflows in integer, because there's an add 1 in the method invoked in the next line for god knows what reason
 						PHINode* inductionVariable = currentLoop->getCanonicalInductionVariable();
@@ -1350,6 +1299,55 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 					}
 				}
+			}
+		}
+		//TODO replace the following with callgraph analysis
+		list<pair<Function*, CallInst*> > traversedFunctions;
+		CallInst* callInstToMain = 0;
+		traversedFunctions.push_back(make_pair(mainFunction, callInstToMain));
+		list<list<pair<Function*, CallInst*> > > cyclesInCallGraph = getCyclesInCallGraph(traversedFunctions, calledFunctionMap);
+		DEBUG(dbgs() << "Found cycles?" << cyclesInCallGraph.size() << "\n");
+		for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
+			DEBUG(dbgs() << "cycle of size " << cycleItr->size() << ":");
+			for (list<pair<Function*, CallInst*> >::iterator funcItr = cycleItr->begin(); funcItr != cycleItr->end(); funcItr++) {
+				errs() << funcItr->first->getName() << "(";
+				funcItr->second->dump();
+				DEBUG(dbgs() << ")\n");
+			}
+			DEBUG(dbgs() << "\n");
+		}
+
+		//Inline calls that are not in cycles
+		list<CallInst*> callsToInline;
+		for (auto func = M.begin(); func != M.end(); func++) {
+			for (auto bb = func->begin(); bb != func->end(); bb++) {
+				for (auto instr = bb->begin(); instr != bb->end(); instr++) {
+					Instruction* instruction = instr;
+					if (isa<CallInst>(instruction)) {
+						bool callInCycle = false;
+						for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
+							for (list<pair<Function*, CallInst*> >::iterator funcItr = cycleItr->begin(); funcItr != cycleItr->end(); funcItr++) {
+								if (funcItr->second == instruction) {
+									callInCycle = true;
+									break;
+								}
+							}
+						}
+						if (!callInCycle) {
+							callsToInline.push_back((CallInst*) instruction);
+						}
+					}
+				}
+			}
+		}
+
+		const char* isHyperOpInline = std::getenv("HYPEROP_INLINE");
+		/*if (INLINE_FUNCTION_CALLS) {*/
+		if (isHyperOpInline != NULL && strcmp(isHyperOpInline, "true") == 0) {
+			for (CallInst* callInst : callsToInline) {
+				DEBUG(dbgs() << "inlining function call:" << callInst);
+				InlineFunctionInfo info;
+				InlineFunction(callInst, info);
 			}
 		}
 
@@ -1851,6 +1849,7 @@ struct HyperOpCreationPass: public ModulePass {
 		for (auto functionListItr : functionList) {
 			free(functionListItr);
 		}
+		M.dump();
 
 		//Done partitioning basic blocks of all functions into multiple HyperOps
 		DEBUG(dbgs() << "-----------Creating HyperOps from partitioned functions-----------\n");
@@ -1876,8 +1875,15 @@ struct HyperOpCreationPass: public ModulePass {
 			//Check if the hyperop instance being created is not in the call cycle
 			if (isa<CallInst>(accumulatedBasicBlocks.front()->front()) && !((CallInst*) &accumulatedBasicBlocks.front()->front())->getCalledFunction()->isIntrinsic()) {
 				if (isHyperOpInstanceInCycle((CallInst*) &accumulatedBasicBlocks.front()->front(), cyclesInCallGraph)) {
-					CallInst* callInstructionInvokingTheFunction = callSite.back();
-					if (isHyperOpInstanceLastInCycle(callInstructionInvokingTheFunction, cyclesInCallGraph)) {
+					bool parentCallInCycle = false;
+					for(auto backItr=callSite.rbegin(); backItr!=callSite.rend(); backItr++){
+						CallInst* call = *backItr;
+						if (isHyperOpInstanceLastInCycle(call, cyclesInCallGraph)) {
+							parentCallInCycle = true;
+							break;
+						}
+					}
+					if(parentCallInCycle){
 						continue;
 					}
 				}
@@ -1919,13 +1925,13 @@ struct HyperOpCreationPass: public ModulePass {
 
 			bool parallelLatchBB = false;
 			for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
-				LoopIV* parallelLoopIV;
 				if (find(originalParallelLatchBB.begin(), originalParallelLatchBB.end(), *accumulatedBBItr) != originalParallelLatchBB.end()) {
 					parallelLatchBB = true;
 					break;
 				}
 			}
 			if (parallelLatchBB) {
+				assert(accumulatedBasicBlocks.size() == 1);
 				continue;
 			}
 
@@ -2322,14 +2328,11 @@ struct HyperOpCreationPass: public ModulePass {
 										std::copy(previousSuccessorIndexList.begin(), previousSuccessorIndexList.end(), back_inserter(successorBBList));
 									}
 									conditionalBranchSources[terminator] = successorBBList;
-									terminator->dump();
 								}
 							}else{
 								unconditionalBranchSources[loopLatch->getTerminator()] = successorBBList;
-								loopLatch->getTerminator()->dump();
 							}
 						}
-						errs()<<"after latch:";
 						//Add all the jump sources of the basic block to point to their return blocks
 						for (auto predItr = pred_begin(originalBB); predItr != pred_end(originalBB); predItr++) {
 							BasicBlock* pred = *predItr;
@@ -3782,7 +3785,7 @@ struct REDEFINEIRPass: public ModulePass {
 		PHINode* phiNode = PHINode::Create(Type::getInt32Ty(M.getContext()), 0, "", *loopBegin);
 		phiNode->addIncoming(lowerBound, *insertInBB);
 		*phiValue = phiNode;
-		CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGT, phiNode, upperBound, "cmpinst", *loopBegin);
+		CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, phiNode, upperBound, "cmpinst", *loopBegin);
 		BranchInst* bgeItrInst = BranchInst::Create(*loopEnd, *loopBody, cmpInst, *loopBegin);
 		BranchInst* loopEndJump = BranchInst::Create(*loopBegin, *loopBody);
 		ReturnInst* ret = ReturnInst::Create(M.getContext(), *loopEnd);
