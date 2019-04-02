@@ -2510,7 +2510,7 @@ struct HyperOpCreationPass: public ModulePass {
 
 				if (loopIV != NULL && !mismatch) {
 					if (loopIV->getLowerBoundType() == LoopIV::CONSTANT) {
-						range.push_back(MDString::get(ctxt, itostr(loopIV->getConstantLowerBound())));
+						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantLowerBound())));
 					} else {
 						Value* lowerBound = loopIV->getVariableLowerBound();
 						//Now the bounds to be a global because I need to think of how to support variable bounds
@@ -2520,7 +2520,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 
 					if (loopIV->getUpperBoundType() == LoopIV::CONSTANT) {
-						range.push_back(MDString::get(ctxt, itostr(loopIV->getConstantUpperBound())));
+						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantUpperBound())));
 					} else {
 						Value* upperBound = loopIV->getVariableUpperBound();
 						//TODO replace with the right variable prefixed by the producer function
