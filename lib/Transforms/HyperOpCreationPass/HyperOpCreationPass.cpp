@@ -47,6 +47,7 @@ struct HyperOpCreationPass: public ModulePass {
 	static char* NEW_NAME;
 	const string REDEFINE_ANNOTATIONS = "redefine.annotations";
 	const string HYPEROP = "HyperOp";
+	const string RANGE = "Range";
 	const string HYPEROP_CONSUMED_BY = "ConsumedBy";
 	const string HYPEROP_SYNC = "Sync";
 	const string HYPEROP_CONTROLS = "Controls";
@@ -455,6 +456,7 @@ struct HyperOpCreationPass: public ModulePass {
 		return functionList;
 	}
 
+	/* TODO fix to return Value* for argument and fix calls elsewhere too */
 	Instruction* getClonedArgument(Value* argument, list<CallInst*> callSite, map<Function*, list<CallInst*> > createdHyperOpAndCallSite, map<Function*, map<Instruction*, Instruction*> > originalToClonedInstructionMap) {
 		if (isa<Instruction>(argument)) {
 			for (map<Function*, list<CallInst*> >::iterator createdHopItr = createdHyperOpAndCallSite.begin(); createdHopItr != createdHyperOpAndCallSite.end(); createdHopItr++) {
@@ -983,10 +985,6 @@ struct HyperOpCreationPass: public ModulePass {
 							Loop* targetLoop = nestedLoopDepth[targetRow].front();
 							//TODO Uncomment this after making sure interchange works for sure
 //							LoopInterchangeTransform* interchange = new LoopInterchangeTransform(sourceLoop, targetLoop, &SE, &LI, &tree, loop->getExitBlock(), false, this);
-//							errs()<<"inner loop:";
-//							targetLoop->dump();
-//							errs()<<"\nhow could inner loop's latch be null?"<<(targetLoop->getLoopLatch()->getName())<<"\n";
-//							errs() << "swapped loops:" << interchange->transform() << "\n";
 						}
 					}
 
@@ -1350,7 +1348,6 @@ struct HyperOpCreationPass: public ModulePass {
 				InlineFunction(callInst, info);
 			}
 		}
-
 		while (!functionList.empty()) {
 			Function* function = functionList.front();
 			functionList.pop_front();
@@ -1849,7 +1846,6 @@ struct HyperOpCreationPass: public ModulePass {
 		for (auto functionListItr : functionList) {
 			free(functionListItr);
 		}
-		M.dump();
 
 		//Done partitioning basic blocks of all functions into multiple HyperOps
 		DEBUG(dbgs() << "-----------Creating HyperOps from partitioned functions-----------\n");
@@ -2519,20 +2515,19 @@ struct HyperOpCreationPass: public ModulePass {
 						Value* lowerBound = loopIV->getVariableLowerBound();
 						//Now the bounds to be a global because I need to think of how to support variable bounds
 						//Global value, use as is
-						assert(isa<LoadInst>(lowerBound) && "Non global bounds not supported currently");
-						values.push_back(((Instruction*) lowerBound)->getOperand(0));
+						//TODO replace with the right variable prefixed by the producer function
+						values.push_back(MDString::get(ctxt, lowerBound->getName()));
 					}
 
 					if (loopIV->getUpperBoundType() == LoopIV::CONSTANT) {
 						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantUpperBound())));
 					} else {
 						Value* upperBound = loopIV->getVariableUpperBound();
-						upperBound->dump();
-						assert(isa<LoadInst>(upperBound) && "Non global bounds not supported currently");
-						values.push_back(((Instruction*) upperBound)->getOperand(0));
+						//TODO replace with the right variable prefixed by the producer function
+						values.push_back(MDString::get(ctxt, upperBound->getName()));
 					}
-
 					values.push_back(MDString::get(ctxt, StringRef(loopIV->getIncOperation())));
+					assert(isa<ConstantInt>(loopIV->getStride()) && "Stride type unsupported, only constants work right now\n");
 					values.push_back(loopIV->getStride());
 				}
 				ArrayRef<Value*> valueArray(values);
@@ -2650,7 +2645,7 @@ struct HyperOpCreationPass: public ModulePass {
 					//the argument is a function argument
 					list<CallInst*> callSiteCopy;
 					std::copy(callSite.begin(), callSite.end(), back_inserter(callSiteCopy));
-
+					hyperOpArgItr->dump();
 					Function* sourceFunction = NULL;
 					if (hyperOpArgAtPositionItr->second != GLOBAL_REFERENCE && !isa<Instruction>(hyperOpArgItr) && !isa<Constant>(hyperOpArgItr)) {
 						unsigned positionOfFormalArg = 0;

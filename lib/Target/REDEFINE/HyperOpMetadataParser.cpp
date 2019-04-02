@@ -98,17 +98,29 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					hyperOp->setInstanceId(parsedId);
 					if (hyperOpMDNode->getNumOperands() > 5) {
 						hyperOp->setInRange();
+						StringRef lowerBound = ((MDString*) hyperOpMDNode->getOperand(5))->getName();
 						if (isa<MDString>(hyperOpMDNode->getOperand(5))) {
-							StringRef lowerBound = ((MDString*) hyperOpMDNode->getOperand(5))->getName();
 							hyperOp->setRangeLowerBound(ConstantInt::get(ctxt, APInt(32, atoi(lowerBound.str().c_str()))));
 						} else {
-							hyperOp->setRangeLowerBound(hyperOpMDNode->getOperand(5));
+							/* Check if a global is named the same */
+							Value* global = M->getGlobalVariable(lowerBound);
+							if(global!=NULL){
+								hyperOp->setRangeLowerBound(global);
+							}else{
+								hyperOp->setRangeLowerBound( hyperOpMDNode->getOperand(5));
+							}
 						}
+
+						StringRef upperBound = ((MDString*) hyperOpMDNode->getOperand(6))->getName();
 						if (isa<MDString>(hyperOpMDNode->getOperand(6))) {
-							StringRef upperBound = ((MDString*) hyperOpMDNode->getOperand(6))->getName();
 							hyperOp->setRangeUpperBound(ConstantInt::get(ctxt, APInt(32, atoi(upperBound.str().c_str()))));
 						} else {
-							hyperOp->setRangeUpperBound(hyperOpMDNode->getOperand(6));
+							Value* global = M->getGlobalVariable(upperBound);
+							if (global != NULL) {
+								hyperOp->setRangeUpperBound(global);
+							} else {
+								hyperOp->setRangeUpperBound(hyperOpMDNode->getOperand(6));
+							}
 						}
 						assert(isa<MDString>(hyperOpMDNode->getOperand(7)) && "Unsupported induction var update function");
 						StringRef strideFunction = ((MDString*) hyperOpMDNode->getOperand(7))->getName();
