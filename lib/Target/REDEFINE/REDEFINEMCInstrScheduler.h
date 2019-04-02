@@ -95,6 +95,14 @@ class REDEFINEMCInstrScheduler: public llvm::ScheduleDAGMI {
 
 	unsigned copyOfInstanceId;
 	unsigned REDEFINEphysRegs[16] = { REDEFINE::ra, REDEFINE::sp, REDEFINE::gp, REDEFINE::tp, REDEFINE::t0, REDEFINE::t1, REDEFINE::t2, REDEFINE::t3, REDEFINE::fp, REDEFINE::s0, REDEFINE::s1, REDEFINE::a0, REDEFINE::a1, REDEFINE::a2, REDEFINE::a3, REDEFINE::a4 };
+	static const int FRAMES_PER_CR = 832;
+	static const int FRAMES_PER_PAGE = 52;
+	static const int SHIFT_FOR_CRID = 22;
+	static const int SHIFT_FOR_PAGENUMBER = 12;
+	static const int PAGE_NUMBER_MASK = 15;
+	static const int SHIFT_FOR_FRAMENUMBER = 6;
+	static const int FRAME_NUMBER_MASK = 63;
+	static const int SYNC_SLOT_OFFSET = 60;
 
 public:
 	REDEFINEMCInstrScheduler(MachineSchedContext *C, MachineSchedStrategy *S);
@@ -107,15 +115,6 @@ public:
 	virtual void finishBlock();
 	virtual void finalizeSchedule();
 	void splitBranchForLongJump(MachineBasicBlock::iterator MI, MachineBasicBlock* TargetMBB);
-	static const int FRAMES_PER_CR = 832;
-	static const int FRAMES_PER_PAGE = 52;
-	static const int SHIFT_FOR_CRID = 22;
-	static const int SHIFT_FOR_PAGENUMBER = 12;
-	static const int PAGE_NUMBER_MASK = 15;
-	static const int SHIFT_FOR_FRAMENUMBER = 6;
-	static const int FRAME_NUMBER_MASK = 63;
-	static const int SYNC_SLOT_OFFSET = 60;
-
 };
 
 /// \brief Order nodes by the ILP metric.
