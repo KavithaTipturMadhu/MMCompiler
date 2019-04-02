@@ -456,6 +456,7 @@ struct HyperOpCreationPass: public ModulePass {
 		return functionList;
 	}
 
+	/* TODO fix to return Value* for argument and fix calls elsewhere too */
 	Instruction* getClonedArgument(Value* argument, list<CallInst*> callSite, map<Function*, list<CallInst*> > createdHyperOpAndCallSite, map<Function*, map<Instruction*, Instruction*> > originalToClonedInstructionMap) {
 		if (isa<Instruction>(argument)) {
 			for (map<Function*, list<CallInst*> >::iterator createdHopItr = createdHyperOpAndCallSite.begin(); createdHopItr != createdHyperOpAndCallSite.end(); createdHopItr++) {
@@ -1347,7 +1348,6 @@ struct HyperOpCreationPass: public ModulePass {
 				InlineFunction(callInst, info);
 			}
 		}
-
 		while (!functionList.empty()) {
 			Function* function = functionList.front();
 			functionList.pop_front();
@@ -1846,7 +1846,6 @@ struct HyperOpCreationPass: public ModulePass {
 		for (auto functionListItr : functionList) {
 			free(functionListItr);
 		}
-		M.dump();
 
 		//Done partitioning basic blocks of all functions into multiple HyperOps
 		DEBUG(dbgs() << "-----------Creating HyperOps from partitioned functions-----------\n");
@@ -2510,29 +2509,27 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 
 				if (loopIV != NULL && !mismatch) {
-					vector<Value*> range;
 					if (loopIV->getLowerBoundType() == LoopIV::CONSTANT) {
 						range.push_back(MDString::get(ctxt, itostr(loopIV->getConstantLowerBound())));
 					} else {
 						Value* lowerBound = loopIV->getVariableLowerBound();
 						//Now the bounds to be a global because I need to think of how to support variable bounds
 						//Global value, use as is
-						range.push_back(lowerBound);
+						//TODO replace with the right variable prefixed by the producer function
+						values.push_back(MDString::get(ctxt, lowerBound->getName()));
 					}
 
 					if (loopIV->getUpperBoundType() == LoopIV::CONSTANT) {
 						range.push_back(MDString::get(ctxt, itostr(loopIV->getConstantUpperBound())));
 					} else {
 						Value* upperBound = loopIV->getVariableUpperBound();
-						range.push_back(upperBound);
+						//TODO replace with the right variable prefixed by the producer function
+						values.push_back(MDString::get(ctxt, upperBound->getName()));
 					}
-					range.push_back(MDString::get(ctxt, StringRef(loopIV->getIncOperation())));
-					range.push_back(loopIV->getStride());
-
-					MDNode* rangeNode = MDNode::get(ctxt, range);
-					newFunction->begin()->begin()->setMetadata(RANGE, rangeNode);
+					values.push_back(MDString::get(ctxt, StringRef(loopIV->getIncOperation())));
+					assert(isa<ConstantInt>(loopIV->getStride()) && "Stride type unsupported, only constants work right now\n");
+					values.push_back(loopIV->getStride());
 				}
-				ArrayRef<Value*> valueArray(values);
 				funcAnnotation = MDNode::get(ctxt, valueArray);
 				createdHyperOpAndUniqueId[newFunction] = uniqueIdInCallTree;
 			} else {
@@ -2647,7 +2644,7 @@ struct HyperOpCreationPass: public ModulePass {
 					//the argument is a function argument
 					list<CallInst*> callSiteCopy;
 					std::copy(callSite.begin(), callSite.end(), back_inserter(callSiteCopy));
-
+					hyperOpArgItr->dump();
 					Function* sourceFunction = NULL;
 					if (hyperOpArgAtPositionItr->second != GLOBAL_REFERENCE && !isa<Instruction>(hyperOpArgItr) && !isa<Constant>(hyperOpArgItr)) {
 						unsigned positionOfFormalArg = 0;

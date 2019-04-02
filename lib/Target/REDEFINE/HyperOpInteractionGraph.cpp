@@ -4388,6 +4388,9 @@ void HyperOpInteractionGraph::print(raw_ostream &os, int debug) {
 				} else {
 					os << "fillcolor=gray,";
 				}
+				if(vertex->getInRange()){
+					os << "color=blue,";
+				}
 			}
 			if (vertex->isPredicatedHyperOp()) {
 				os << "shape=polygon,";

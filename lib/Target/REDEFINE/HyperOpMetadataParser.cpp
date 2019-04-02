@@ -96,30 +96,40 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					StringRef instanceTag = ((MDString*) hyperOpMDNode->getOperand(4))->getName();
 					list<unsigned> parsedId = parseInstanceId(instanceTag);
 					hyperOp->setInstanceId(parsedId);
-					MDNode* rangeMD = function->begin()->begin()->getMetadata("Range");
-					if (rangeMD != NULL) {
-						rangeMD->dump();
+					if (hyperOpMDNode->getNumOperands() > 5) {
 						hyperOp->setInRange();
-						if (isa<MDString>(rangeMD->getOperand(0))) {
-							StringRef lowerBound = ((MDString*) rangeMD->getOperand(0))->getName();
+						StringRef lowerBound = ((MDString*) hyperOpMDNode->getOperand(5))->getName();
+						if (isa<MDString>(hyperOpMDNode->getOperand(5))) {
 							hyperOp->setRangeLowerBound(ConstantInt::get(ctxt, APInt(32, atoi(lowerBound.str().c_str()))));
 						} else {
-							hyperOp->setRangeLowerBound(rangeMD->getOperand(0));
+							/* Check if a global is named the same */
+							Value* global = M->getGlobalVariable(lowerBound);
+							if(global!=NULL){
+								hyperOp->setRangeLowerBound(global);
+							}else{
+								hyperOp->setRangeLowerBound( hyperOpMDNode->getOperand(5));
+							}
 						}
-						if (isa<MDString>(rangeMD->getOperand(1))) {
-							StringRef upperBound = ((MDString*) rangeMD->getOperand(1))->getName();
+
+						StringRef upperBound = ((MDString*) hyperOpMDNode->getOperand(6))->getName();
+						if (isa<MDString>(hyperOpMDNode->getOperand(6))) {
 							hyperOp->setRangeUpperBound(ConstantInt::get(ctxt, APInt(32, atoi(upperBound.str().c_str()))));
 						} else {
-							hyperOp->setRangeUpperBound(rangeMD->getOperand(1));
+							Value* global = M->getGlobalVariable(upperBound);
+							if (global != NULL) {
+								hyperOp->setRangeUpperBound(global);
+							} else {
+								hyperOp->setRangeUpperBound(hyperOpMDNode->getOperand(6));
+							}
 						}
-						assert(isa<MDString>(rangeMD->getOperand(2)) && "Unsupported induction var update function");
-						StringRef strideFunction = ((MDString*) rangeMD->getOperand(2))->getName();
+						assert(isa<MDString>(hyperOpMDNode->getOperand(7)) && "Unsupported induction var update function");
+						StringRef strideFunction = ((MDString*) hyperOpMDNode->getOperand(7))->getName();
 						if (graph->StridedFunctionKeyValue.find(strideFunction) != graph->StridedFunctionKeyValue.end()) {
 							hyperOp->setInductionVarUpdateFunc(graph->StridedFunctionKeyValue[strideFunction]);
 						}
 
-						assert(isa<ConstantInt>(rangeMD->getOperand(3)) && "Unsupported increment value, only constants allowed at this point");
-						hyperOp->setStride(rangeMD->getOperand(3));
+						assert(isa<ConstantInt>(hyperOpMDNode->getOperand(8)) && "Unsupported increment value, only constants allowed at this point");
+						hyperOp->setStride(hyperOpMDNode->getOperand(8));
 					}
 				}
 				graph->addHyperOp(hyperOp);
