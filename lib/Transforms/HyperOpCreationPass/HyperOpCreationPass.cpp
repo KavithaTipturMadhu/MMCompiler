@@ -47,6 +47,7 @@ struct HyperOpCreationPass: public ModulePass {
 	static char* NEW_NAME;
 	const string REDEFINE_ANNOTATIONS = "redefine.annotations";
 	const string HYPEROP = "HyperOp";
+	const string RANGE = "Range";
 	const string HYPEROP_CONSUMED_BY = "ConsumedBy";
 	const string HYPEROP_SYNC = "Sync";
 	const string HYPEROP_CONTROLS = "Controls";
@@ -983,10 +984,6 @@ struct HyperOpCreationPass: public ModulePass {
 							Loop* targetLoop = nestedLoopDepth[targetRow].front();
 							//TODO Uncomment this after making sure interchange works for sure
 //							LoopInterchangeTransform* interchange = new LoopInterchangeTransform(sourceLoop, targetLoop, &SE, &LI, &tree, loop->getExitBlock(), false, this);
-//							errs()<<"inner loop:";
-//							targetLoop->dump();
-//							errs()<<"\nhow could inner loop's latch be null?"<<(targetLoop->getLoopLatch()->getName())<<"\n";
-//							errs() << "swapped loops:" << interchange->transform() << "\n";
 						}
 					}
 
@@ -2513,27 +2510,27 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 
 				if (loopIV != NULL && !mismatch) {
+					vector<Value*> range;
 					if (loopIV->getLowerBoundType() == LoopIV::CONSTANT) {
-						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantLowerBound())));
+						range.push_back(MDString::get(ctxt, itostr(loopIV->getConstantLowerBound())));
 					} else {
 						Value* lowerBound = loopIV->getVariableLowerBound();
 						//Now the bounds to be a global because I need to think of how to support variable bounds
 						//Global value, use as is
-						assert(isa<LoadInst>(lowerBound) && "Non global bounds not supported currently");
-						values.push_back(((Instruction*) lowerBound)->getOperand(0));
+						range.push_back(lowerBound);
 					}
 
 					if (loopIV->getUpperBoundType() == LoopIV::CONSTANT) {
-						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantUpperBound())));
+						range.push_back(MDString::get(ctxt, itostr(loopIV->getConstantUpperBound())));
 					} else {
 						Value* upperBound = loopIV->getVariableUpperBound();
-						upperBound->dump();
-						assert(isa<LoadInst>(upperBound) && "Non global bounds not supported currently");
-						values.push_back(((Instruction*) upperBound)->getOperand(0));
+						range.push_back(upperBound);
 					}
+					range.push_back(MDString::get(ctxt, StringRef(loopIV->getIncOperation())));
+					range.push_back(loopIV->getStride());
 
-					values.push_back(MDString::get(ctxt, StringRef(loopIV->getIncOperation())));
-					values.push_back(loopIV->getStride());
+					MDNode* rangeNode = MDNode::get(ctxt, range);
+					newFunction->begin()->begin()->setMetadata(RANGE, rangeNode);
 				}
 				ArrayRef<Value*> valueArray(values);
 				funcAnnotation = MDNode::get(ctxt, valueArray);
