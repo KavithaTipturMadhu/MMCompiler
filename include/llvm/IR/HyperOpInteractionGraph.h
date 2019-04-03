@@ -157,7 +157,9 @@ class HyperOp {
 	bool IsPredicated;
 	bool InRange;
 	Value* rangeUpperBound;
+	HyperOp* upperBoundScope;
 	Value* rangeLowerBound;
+	HyperOp* lowerBoundScope;
 	Value* stride;
 	StrideFunction inductionVarUpdateFunc;
 	unsigned int TargetResource;
@@ -267,6 +269,10 @@ public:
 	HyperOpInteractionGraph* getParentGraph();
 	void setHasRangeBaseInput(bool);
 	bool hasRangeBaseInput();
+	void setUpperBoundScope(HyperOp*);
+	void setLowerBoundScope(HyperOp*);
+	HyperOp* getUpperBoundScope();
+	HyperOp* getLowerBoundScope();
 };
 
 class HyperOpInteractionGraph {

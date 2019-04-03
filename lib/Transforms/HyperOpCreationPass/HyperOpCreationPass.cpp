@@ -2509,27 +2509,42 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 
 				if (loopIV != NULL && !mismatch) {
+					string lowerboundstr, upperboundstr;
 					if (loopIV->getLowerBoundType() == LoopIV::CONSTANT) {
-						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantLowerBound())));
+						lowerboundstr = itostr(loopIV->getConstantLowerBound());
 					} else {
 						Value* lowerBound = loopIV->getVariableLowerBound();
-						//Now the bounds to be a global because I need to think of how to support variable bounds
-						//Global value, use as is
-						//TODO replace with the right variable prefixed by the producer function
-						values.push_back(MDString::get(ctxt, lowerBound->getName()));
+						lowerboundstr = lowerBound->getName();
 					}
 
 					if (loopIV->getUpperBoundType() == LoopIV::CONSTANT) {
-						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantUpperBound())));
+						upperboundstr = itostr(loopIV->getConstantUpperBound());
 					} else {
 						Value* upperBound = loopIV->getVariableUpperBound();
-						//TODO replace with the right variable prefixed by the producer function
-						values.push_back(MDString::get(ctxt, upperBound->getName()));
+						upperboundstr = upperBound->getName();
 					}
+
+					if ((loopIV->getLowerBoundType() != LoopIV::CONSTANT && M.getGlobalVariable(loopIV->getVariableLowerBound()->getName()) == NULL) || (loopIV->getUpperBoundType() != LoopIV::CONSTANT && M.getGlobalVariable(loopIV->getVariableUpperBound()->getName()) == NULL)) {
+						list<CallInst*> idomCallsite;
+						std::copy(callSite.begin(), callSite.end(), std::back_inserter(idomCallsite));
+						idomCallsite.pop_back();
+						Instruction* clonedPhi = getClonedArgument((Instruction*)loopIV->getInductionVar(), idomCallsite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+						assert(clonedPhi!=NULL);
+						const Function* caller = clonedPhi->getParent()->getParent();
+						if (loopIV->getLowerBoundType() != LoopIV::CONSTANT && M.getGlobalVariable(loopIV->getVariableLowerBound()->getName())==NULL) {
+							lowerboundstr = caller->getName().str().append(":").append(lowerboundstr);
+						}
+						if (loopIV->getUpperBoundType() != LoopIV::CONSTANT && M.getGlobalVariable(loopIV->getVariableUpperBound()->getName())==NULL) {
+							upperboundstr = caller->getName().str().append(":").append(upperboundstr);
+						}
+					}
+					values.push_back(MDString::get(ctxt, lowerboundstr));
+					values.push_back(MDString::get(ctxt, upperboundstr));
 					values.push_back(MDString::get(ctxt, StringRef(loopIV->getIncOperation())));
 					assert(isa<ConstantInt>(loopIV->getStride()) && "Stride type unsupported, only constants work right now\n");
 					values.push_back(loopIV->getStride());
 				}
+				ArrayRef<Value*> valueArray(values);
 				funcAnnotation = MDNode::get(ctxt, valueArray);
 				createdHyperOpAndUniqueId[newFunction] = uniqueIdInCallTree;
 			} else {

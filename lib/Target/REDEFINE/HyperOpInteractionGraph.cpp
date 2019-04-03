@@ -448,6 +448,20 @@ Value* HyperOp::getIncomingSyncPredicate(unsigned predicateValue) {
 	return this->predicateForSyncSource[predicateValue];
 }
 
+void HyperOp::setUpperBoundScope(HyperOp* scope) {
+	this->upperBoundScope = scope;
+}
+void HyperOp::setLowerBoundScope(HyperOp* scope) {
+	this->upperBoundScope = scope;
+}
+
+HyperOp* HyperOp::getUpperBoundScope() {
+	return this->upperBoundScope;
+}
+HyperOp* HyperOp::getLowerBoundScope() {
+	return this->lowerBoundScope;
+}
+
 HyperOpInteractionGraph* HyperOp::getParentGraph() {
 	return hig;
 }
@@ -3322,7 +3336,12 @@ void HyperOpInteractionGraph::verify(int frameArgsAdded) {
 			assert((!(transitiveClosure[i][j] && transitiveClosure[j][i])) && "Cycle in HIG\n");
 		}
 	}
-
+	for (auto vertexItr : this->Vertices) {
+		if (vertexItr->getInRange()) {
+			assert((vertexItr->getUpperBoundScope() == NULL ||vertexItr->getUpperBoundScope() == vertexItr->getImmediateDominator()));
+			assert((vertexItr->getLowerBoundScope() == NULL ||vertexItr->getLowerBoundScope() == vertexItr->getImmediateDominator()));
+		}
+	}
 	//Ensure that every input to a function has at least one input edge starting at a parent HyperOp
 //	for (auto hopItr : this->Vertices) {
 //		HyperOp* hop = hopItr;
