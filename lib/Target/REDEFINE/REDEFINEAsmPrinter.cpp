@@ -11,7 +11,7 @@
 // MCInsts and MCExprs respectively.
 //
 //===----------------------------------------------------------------------===//
-
+#include "REDEFINEMCInstrScheduler.h"
 #include "REDEFINEAsmPrinter.h"
 #include "InstPrinter/REDEFINEInstPrinter.h"
 #include "REDEFINEConstantPoolValue.h"
@@ -140,11 +140,33 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 		OutStreamer.EmitRawText(StringRef(codeSegmentStart));
 
 
+		bool frameIndex = false;
+		for (list<const MachineInstr*>::iterator mcItr = pHyperOpItr.begin();
+					mcItr != pHyperOpItr.end() && frameIndex== false; mcItr++) {
+			for(unsigned operandIndex =0;operandIndex < (*mcItr)->getNumOperands();operandIndex++){
+					const MachineOperand& operand = (*mcItr)->getOperand(operandIndex);
+					if(operand.getType() == MachineOperand::MO_FrameIndex){
+						frameIndex = true;
+						break;
+					}
 
-
-
+				}
+		}
 		for (list<const MachineInstr*>::iterator mcItr = pHyperOpItr.begin();
 				mcItr != pHyperOpItr.end(); mcItr++) {
+			unsigned maxGlobalSize = 0;
+			const MachineBasicBlock* bb = (*mcItr)->getParent();
+			if (*mcItr == bb->begin()) {
+				const Module* parentModule = (*mcItr)->getParent()->getParent()->getFunction()->getParent();
+				if (!parentModule->getGlobalList().empty()) {
+					for (Module::const_global_iterator globalArgItr = parentModule->global_begin(); globalArgItr != parentModule->global_end(); globalArgItr++) {
+						const GlobalVariable *globalVar = &*globalArgItr;
+						maxGlobalSize += REDEFINEUtils::getAlignedSizeOfType(globalVar->getType());
+					}
+				}
+			}
+
+
 			if (!startOfBBInPHyperOp[pHyperOpIndex].empty()
 					&& startOfBBInPHyperOp[pHyperOpIndex].front() == *mcItr) {
 				MCSymbol *label = (*mcItr)->getParent()->getSymbol();
@@ -157,6 +179,29 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 				OutStreamer.EmitLabel(newLabel);
 				startOfBBInPHyperOp[pHyperOpIndex].pop_front();
 			}
+
+			if (bb->getNumber() == 0 && *mcItr == bb->begin() && frameIndex == true) {
+				string globalAddressCode("");
+				globalAddressCode.append("\tadd		x30, x0, x10\n");
+				globalAddressCode.append("\tmovaddr	x1, \"ga#").append(itostr(maxGlobalSize)).append("\"\n");
+				globalAddressCode.append("\taddi	x2, x0, fs\n");
+				globalAddressCode.append("\tsrli	x3, x30, ").append(std::to_string(REDEFINEMCInstrScheduler::SHIFT_FOR_CRID)).append("\n");
+				globalAddressCode.append("\tsrli	x4, x30, ").append(std::to_string(REDEFINEMCInstrScheduler::SHIFT_FOR_PAGENUMBER)).append("\n");
+				globalAddressCode.append("\tandi	x5, x4, ").append(std::to_string(REDEFINEMCInstrScheduler::PAGE_NUMBER_MASK)).append("\n");
+				globalAddressCode.append("\tsrli	x6, x30, ").append(std::to_string(REDEFINEMCInstrScheduler::SHIFT_FOR_FRAMENUMBER)).append("\n");
+				globalAddressCode.append("\tandi	x7, x6, ").append(std::to_string(REDEFINEMCInstrScheduler::FRAME_NUMBER_MASK)).append("\n");
+				globalAddressCode.append("\taddi	x8, x0, ").append(std::to_string(REDEFINEMCInstrScheduler::FRAMES_PER_CR)).append("\n");
+				globalAddressCode.append("\tmul		x9, x3, x8\n");
+				globalAddressCode.append("\taddi	x26, x0, ").append(std::to_string(REDEFINEMCInstrScheduler::FRAMES_PER_PAGE)).append("\n");
+				globalAddressCode.append("\tmul		x27, x5, x26\n");
+				globalAddressCode.append("\tadd		x28, x27, x7\n");
+				globalAddressCode.append("\tadd		x29, x28, x9\n");
+				globalAddressCode.append("\tmul		x31, x29, x2\n");
+				globalAddressCode.append("\tadd		x30, x1, x31\n");
+				OutStreamer.EmitRawText(StringRef(globalAddressCode));
+
+			}
+
 
 			EmitInstruction(*mcItr);
 		}
