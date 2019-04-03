@@ -47,6 +47,7 @@ struct HyperOpCreationPass: public ModulePass {
 	static char* NEW_NAME;
 	const string REDEFINE_ANNOTATIONS = "redefine.annotations";
 	const string HYPEROP = "HyperOp";
+	const string RANGE = "Range";
 	const string HYPEROP_CONSUMED_BY = "ConsumedBy";
 	const string HYPEROP_SYNC = "Sync";
 	const string HYPEROP_CONTROLS = "Controls";
@@ -455,48 +456,45 @@ struct HyperOpCreationPass: public ModulePass {
 		return functionList;
 	}
 
-	Instruction* getClonedArgument(Value* argument, list<CallInst*> callSite, map<Function*, list<CallInst*> > createdHyperOpAndCallSite, map<Function*, map<Instruction*, Instruction*> > originalToClonedInstructionMap) {
-		if (isa<Instruction>(argument)) {
-			for (map<Function*, list<CallInst*> >::iterator createdHopItr = createdHyperOpAndCallSite.begin(); createdHopItr != createdHyperOpAndCallSite.end(); createdHopItr++) {
-				list<CallInst*> createdHopCallSite = createdHopItr->second;
-				bool callSiteMatch = true;
-				if (createdHopCallSite.size() != callSite.size()) {
-					callSiteMatch = false;
-				}
-				if (!callSiteMatch) {
-					continue;
-				}
-				list<CallInst*>::iterator callSiteItr = callSite.begin();
-				for (list<CallInst*>::iterator createHopCallSiteItr = createdHopCallSite.begin(); createHopCallSiteItr != createdHopCallSite.end() && callSiteItr != callSite.end(); createHopCallSiteItr++, callSiteItr++) {
-					if (*createHopCallSiteItr != *callSiteItr) {
-						callSiteMatch = false;
-						break;
-					}
-				}
-
-				if (!callSiteMatch) {
-					continue;
-				}
-				Function* createdFunctionOfCallSite = createdHopItr->first;
-				if (originalToClonedInstructionMap[createdFunctionOfCallSite].find((Instruction*) argument) != originalToClonedInstructionMap[createdFunctionOfCallSite].end()) {
-					return originalToClonedInstructionMap[createdFunctionOfCallSite].find((Instruction*) argument)->second;
-				}
+	pair<Value*, Function*> getClonedArgument(Value* argument, list<CallInst*> callSite, map<Function*, list<CallInst*> > createdHyperOpAndCallSite, map<Function*, map<Instruction*, Instruction*> > originalToClonedInstructionMap, map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> > createdHyperOpAndOriginalBasicBlockAndArgMap) {
+		for (map<Function*, list<CallInst*> >::iterator createdHopItr = createdHyperOpAndCallSite.begin(); createdHopItr != createdHyperOpAndCallSite.end(); createdHopItr++) {
+			list<CallInst*> createdHopCallSite = createdHopItr->second;
+			bool callSiteMatch = true;
+			if (createdHopCallSite.size() != callSite.size()) {
+				callSiteMatch = false;
 			}
-		}
-		if (!callSite.empty()) {
-			CallInst* funcCall = callSite.back();
-			callSite.pop_back();
-			unsigned positionOfFormalArg = 0;
-			Function* originalFunction = funcCall->getCalledFunction();
-			for (Function::arg_iterator originalArgItr = originalFunction->arg_begin(); originalArgItr != originalFunction->arg_end(); originalArgItr++, positionOfFormalArg++) {
-				if (originalArgItr == argument) {
+			if (!callSiteMatch) {
+				continue;
+			}
+			list<CallInst*>::iterator callSiteItr = callSite.begin();
+			for (list<CallInst*>::iterator createHopCallSiteItr = createdHopCallSite.begin(); createHopCallSiteItr != createdHopCallSite.end() && callSiteItr != callSite.end(); createHopCallSiteItr++, callSiteItr++) {
+				if (*createHopCallSiteItr != *callSiteItr) {
+					callSiteMatch = false;
 					break;
 				}
 			}
-			Value* argOperand = funcCall->getArgOperand(positionOfFormalArg);
-			return getClonedArgument(argOperand, callSite, createdHyperOpAndCallSite, originalToClonedInstructionMap);
+
+			if (!callSiteMatch) {
+				continue;
+			}
+			Function* createdFunctionOfCallSite = createdHopItr->first;
+			if (isa<Instruction>(argument) && originalToClonedInstructionMap[createdFunctionOfCallSite].find((Instruction*) argument) != originalToClonedInstructionMap[createdFunctionOfCallSite].end()) {
+				return make_pair(originalToClonedInstructionMap[createdFunctionOfCallSite].find((Instruction*) argument)->second, createdFunctionOfCallSite);
+			} else if (isa<Argument>(argument)) {
+				if (find(createdHyperOpAndOriginalBasicBlockAndArgMap[createdFunctionOfCallSite].first.begin(), createdHyperOpAndOriginalBasicBlockAndArgMap[createdFunctionOfCallSite].first.end(), &((Argument*) argument)->getParent()->getEntryBlock())
+						!= createdHyperOpAndOriginalBasicBlockAndArgMap[createdFunctionOfCallSite].first.end()) {
+					int argNo = ((Argument*) argument)->getArgNo();
+					int tempIndex = 0;
+					for (auto argItr = createdFunctionOfCallSite->arg_begin(); argItr != createdFunctionOfCallSite->arg_end(); argItr++, tempIndex++) {
+						if (tempIndex == argNo) {
+							Argument* newArg = argItr;
+							return make_pair((Instruction*) newArg, createdFunctionOfCallSite);
+						}
+					}
+				}
+			}
 		}
-		return 0;
+		assert("Unreachable code executed\n");
 	}
 
 //Jump chain is the chain of instructions leading to the target function, with the instruction in front of the list chaining to the next one and so on till the last function is reached
@@ -1199,10 +1197,6 @@ struct HyperOpCreationPass: public ModulePass {
 						vector<BasicBlock*> containedBlocks;
 						bool containsLoop = false;
 
-						list<BasicBlock*> prevSuccessorsOfHeader;
-						for (unsigned i = 0; i < currentLoop->getHeader()->getTerminator()->getNumSuccessors(); i++) {
-							prevSuccessorsOfHeader.push_back(currentLoop->getHeader()->getTerminator()->getSuccessor(i));
-						}
 						if (nestedLoopDepth.find(i + 2) != nestedLoopDepth.end()) {
 							Loop* innerLoop = nestedLoopDepth[i + 2].front();
 							std::copy(innerLoop->getBlocks().begin(), innerLoop->getBlocks().end(), std::back_inserter(containedBlocks));
@@ -1222,35 +1216,38 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 						CodeExtractor* extractor = new CodeExtractor(containedBlocks);
 						Function* innerLoopFunction = extractor->extractCodeRegion();
-						BasicBlock* newSucc;
+						BasicBlock* newSucc = NULL;
 						for (unsigned i = 0; i < currentLoop->getHeader()->getTerminator()->getNumSuccessors(); i++) {
-							if (find(prevSuccessorsOfHeader.begin(), prevSuccessorsOfHeader.end(), currentLoop->getHeader()->getTerminator()->getSuccessor(i)) == prevSuccessorsOfHeader.end()) {
-								newSucc = currentLoop->getHeader()->getTerminator()->getSuccessor(i);
-								if (isa<CallInst>(newSucc->front()) && ((CallInst*) &newSucc->front())->getCalledFunction()->getName().compare(innerLoopFunction->getName()) == 0) {
-									break;
-								}
+							newSucc = currentLoop->getHeader()->getTerminator()->getSuccessor(i);
+							if (isa<CallInst>(newSucc->front()) && ((CallInst*) &newSucc->front())->getCalledFunction()->getName().compare(innerLoopFunction->getName()) == 0) {
+								break;
 							}
 						}
-
+						assert(newSucc!=NULL);
 						for (auto bbListItr = originalSerialLoopBB.begin(); bbListItr != originalSerialLoopBB.end(); bbListItr++) {
 							if (find(bbListItr->first.begin(), bbListItr->first.end(), currentLoop->getHeader()) != bbListItr->first.end()) {
-								list<BasicBlock*> newList;
 								LoopIV* oldIV = bbListItr->second;
-								std::copy(bbListItr->first.begin(), bbListItr->first.end(), std::back_inserter(newList));
-								newList.push_back(newSucc);
-								originalSerialLoopBB.erase(bbListItr);
-								originalSerialLoopBB.push_back(make_pair(newList, oldIV));
+								assert(newSucc!=NULL&& !newSucc->getName().empty());
+								bbListItr->first.push_back(newSucc);
 								break;
 							}
 						}
 						for (auto bbListItr = originalParallelLoopBB.begin(); bbListItr != originalParallelLoopBB.end(); bbListItr++) {
 							if (find(bbListItr->first.begin(), bbListItr->first.end(), currentLoop->getHeader()) != bbListItr->first.end()) {
-								list<BasicBlock*> newList;
 								LoopIV* oldIV = bbListItr->second;
-								std::copy(bbListItr->first.begin(), bbListItr->first.end(), std::back_inserter(newList));
-								newList.push_back(newSucc);
-								originalParallelLoopBB.erase(bbListItr);
-								originalParallelLoopBB.push_back(make_pair(newList, oldIV));
+								assert(newSucc!=NULL&& !newSucc->getName().empty());
+								bbListItr->first.push_back(newSucc);
+								for (auto tempItr = M.begin(); tempItr != M.end(); tempItr++) {
+									for (auto tempInstItr = tempItr->begin(); tempInstItr != tempItr->end(); tempInstItr++) {
+										for (auto instItr = tempInstItr->begin(); instItr != tempInstItr->end(); instItr++) {
+											Instruction* inst = instItr;
+											if (isa<CallInst>(inst) && ((CallInst*) inst)->getCalledFunction() == innerLoopFunction) {
+												bbListItr->first.push_back(inst->getParent());
+												break;
+											}
+										}
+									}
+								}
 								break;
 							}
 						}
@@ -1301,6 +1298,50 @@ struct HyperOpCreationPass: public ModulePass {
 				}
 			}
 		}
+		//TODO finish the following to make sure call instruction is always followed by a basic block and is not the first basic block either, reason being edges are not computed correctly
+//		for (auto funcItr = M.begin(); funcItr != M.end(); funcItr++) {
+//			Function* func = funcItr;
+//			bool change = false;
+//			repeat:
+//			for(auto bbItr = func->begin(); bbItr!=func->end(); bbItr++){
+//				for(auto instItr = bbItr->begin(); instItr != bbItr->end(); instItr++){
+//					Instruction* inst = instItr;
+//					if(isa<CallInst>(inst)){
+//						if(inst->getPrevNode()->getParent() == bbItr){
+//
+//							if (isa<CallInst> (first)) {
+//											BasicBlock* newFirst = BasicBlock::Create(ctxt, "newentry", loopFunc, first->getParent());
+//											BranchInst::Create(first->getParent(), newFirst);
+//										}
+//										Instruction* last = NULL;
+//										for (auto bbItr = loopFunc->begin(); bbItr != loopFunc->end(); bbItr++) {
+//											if (isa<ReturnInst>(bbItr->getTerminator())) {
+//												last = bbItr->begin();
+//												break;
+//											}
+//										}
+//										assert(last!=NULL);
+//										if (isa<CallInst>(last)) {
+//											BasicBlock* newlast = BasicBlock::Create(ctxt, "newExit", loopFunc);
+//											BranchInst::Create(last->getParent(), last->getParent()->getTerminator());
+//											last->getParent()->getTerminator()->eraseFromParent();
+//											ReturnInst::Create(ctxt, newlast);
+//										}
+//
+//							change = true;
+//							break;
+//						}
+//					}
+//				}
+//				if(change){
+//					break;
+//				}
+//			}
+//			if(change){
+//				goto repeat;
+//			}
+//		}
+//
 		//TODO replace the following with callgraph analysis
 		list<pair<Function*, CallInst*> > traversedFunctions;
 		CallInst* callInstToMain = 0;
@@ -1849,7 +1890,6 @@ struct HyperOpCreationPass: public ModulePass {
 		for (auto functionListItr : functionList) {
 			free(functionListItr);
 		}
-		M.dump();
 
 		//Done partitioning basic blocks of all functions into multiple HyperOps
 		DEBUG(dbgs() << "-----------Creating HyperOps from partitioned functions-----------\n");
@@ -1943,7 +1983,6 @@ struct HyperOpCreationPass: public ModulePass {
 			list<unsigned> localRefReplacementArgIndex;
 			map<unsigned, Value*> localRefReplacementArgMap;
 			unsigned argIndex = 0;
-
 			for (HyperOpArgumentList::iterator hyperOpArgumentItr = hyperOpArguments.begin(); hyperOpArgumentItr != hyperOpArguments.end(); hyperOpArgumentItr++) {
 				//Set type of each argument of the HyperOp
 				Value* argument = hyperOpArgumentItr->first.front();
@@ -1960,7 +1999,6 @@ struct HyperOpCreationPass: public ModulePass {
 					break;
 				}
 			}
-
 			vector<Type*> funcArgsList;
 			std::copy(argsList.begin(), argsList.end(), std::back_inserter(funcArgsList));
 			FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()), funcArgsList, false);
@@ -2060,7 +2098,6 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 			}
-
 			//Instructions have to be patched for operands after all are cloned to ensure that phi nodes are handled correctly
 			for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 				for (BasicBlock::iterator instItr = (*accumulatedBBItr)->begin(); instItr != (*accumulatedBBItr)->end(); instItr++) {
@@ -2203,7 +2240,6 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 			}
-
 			//Update the branch instruction targets to point to the basic blocks in the cloned set
 			for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 				for (list<BasicBlock*>::iterator bbItr = accumulatedBasicBlocks.begin(); bbItr != accumulatedBasicBlocks.end(); bbItr++) {
@@ -2393,7 +2429,6 @@ struct HyperOpCreationPass: public ModulePass {
 					callSiteCopy.pop_front();
 				}
 			}
-
 			//last instruction in redefine_start is a call
 			if (!callSite.empty()) {
 				list<CallInst*> callSiteCopy;
@@ -2487,14 +2522,12 @@ struct HyperOpCreationPass: public ModulePass {
 								break;
 							}
 						}
-
 						if (bbInList) {
-							BasicBlock* clonedBB = &((*parallelLoopItr)->front());
 							StringRef originalParallelLoopItrName = (*parallelLoopItr)->getName();
 							for (auto originalParallelLoopItr : originalParallelLoopBB) {
 								list<BasicBlock*> loopBBList = originalParallelLoopItr.first;
 								for (auto bbItr : loopBBList) {
-									if (isa<CallInst>(bbItr->front()) && ((CallInst*) (&bbItr->front()))->getCalledFunction()->getName().compare(originalParallelLoopItrName) == 0) {
+									if (!bbItr->empty() && isa<CallInst>(bbItr->front()) && ((CallInst*) (&bbItr->front()))->getCalledFunction()->getName().compare(originalParallelLoopItrName) == 0) {
 										loopIV = originalParallelLoopItr.second;
 										break;
 									}
@@ -2511,27 +2544,63 @@ struct HyperOpCreationPass: public ModulePass {
 						break;
 					}
 				}
-
 				if (loopIV != NULL && !mismatch) {
+					list<CallInst*> idomCallsite;
+					std::copy(callSite.begin(), callSite.end(), std::back_inserter(idomCallsite));
+					if(!idomCallsite.empty()){
+						idomCallsite.pop_back();
+					}
+					string lowerboundstr, upperboundstr;
 					if (loopIV->getLowerBoundType() == LoopIV::CONSTANT) {
-						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantLowerBound())));
+						lowerboundstr = itostr(loopIV->getConstantLowerBound());
 					} else {
 						Value* lowerBound = loopIV->getVariableLowerBound();
-						//Now the bounds to be a global because I need to think of how to support variable bounds
-						//Global value, use as is
-						assert(isa<LoadInst>(lowerBound) && "Non global bounds not supported currently");
-						values.push_back(((Instruction*) lowerBound)->getOperand(0));
+						if (M.getGlobalVariable(loopIV->getVariableLowerBound()->getName()) == NULL) {
+							auto retval = getClonedArgument(lowerBound, idomCallsite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap, createdHyperOpAndOriginalBasicBlockAndArgMap);
+							lowerBound = retval.first;
+							/* Create a memory location and use that as the bound arg, because we cant use registers here */
+							AllocaInst* boundalloc = new AllocaInst(lowerBound->getType());
+							boundalloc->insertBefore(&retval.second->getEntryBlock().back());
+							boundalloc->setName("lowerBound");
+							Instruction* storeLocation;
+							if(isa<Argument>(lowerBound)){
+								storeLocation = boundalloc;
+							}else{
+								storeLocation = ((Instruction*) lowerBound)->getNextNode();
+							}
+							StoreInst* storeToBound = new StoreInst(lowerBound, boundalloc, storeLocation);
+							lowerboundstr = retval.second->getName().str().append(":").append(boundalloc->getName());
+						} else {
+							lowerboundstr = lowerBound->getName();
+						}
 					}
 
 					if (loopIV->getUpperBoundType() == LoopIV::CONSTANT) {
-						values.push_back(MDString::get(ctxt, itostr(loopIV->getConstantUpperBound())));
+						upperboundstr = itostr(loopIV->getConstantUpperBound());
 					} else {
 						Value* upperBound = loopIV->getVariableUpperBound();
-						upperBound->dump();
-						assert(isa<LoadInst>(upperBound) && "Non global bounds not supported currently");
-						values.push_back(((Instruction*) upperBound)->getOperand(0));
+						if (M.getGlobalVariable(loopIV->getVariableUpperBound()->getName()) == NULL) {
+							auto retval = getClonedArgument(upperBound, idomCallsite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap, createdHyperOpAndOriginalBasicBlockAndArgMap);
+							upperBound = retval.first;
+							/* Create a memory location and use that as the bound arg, because we cant use registers here */
+							AllocaInst* boundalloc = new AllocaInst(upperBound->getType());
+							boundalloc->insertBefore(&retval.second->getEntryBlock().back());
+							boundalloc->setName("upperBound");
+							Instruction* storeLocation;
+							if(isa<Argument>(upperBound)){
+								storeLocation = boundalloc;
+							}else{
+								storeLocation = ((Instruction*) upperBound)->getNextNode();
+							}
+							StoreInst* storeToBound = new StoreInst(upperBound, boundalloc, storeLocation);
+							upperboundstr = retval.second->getName().str().append(":").append(boundalloc->getName());
+						} else {
+							upperboundstr = upperBound->getName();
+						}
 					}
 
+					values.push_back(MDString::get(ctxt, lowerboundstr));
+					values.push_back(MDString::get(ctxt, upperboundstr));
 					values.push_back(MDString::get(ctxt, StringRef(loopIV->getIncOperation())));
 					values.push_back(loopIV->getStride());
 				}
@@ -2586,7 +2655,6 @@ struct HyperOpCreationPass: public ModulePass {
 			functionOriginalToClonedBBMap[newFunction] = originalToClonedBasicBlockMap;
 			createdHyperOpAndType[newFunction] = isStaticHyperOp ? STATIC : DYNAMIC;
 		}
-
 		//if there is no end HyperOp because the last instruction is a recursion chain
 		if (endHyperOp == 0) {
 			//Add a new dummy HyperOp
@@ -2618,7 +2686,6 @@ struct HyperOpCreationPass: public ModulePass {
 		list<MDNode*> syncMDNodeList;
 		map<Function*, list<Function*> > addedPredicateSourcesMap;
 		map<Function*, list<Function*> > addedDataSourcesMap;
-		DEBUG(dbgs() << "\n============Adding dependences across created HyperOps=======\n");
 		//Add metadata: This code is moved here to ensure that all the functions (corresponding to HyperOps) that need to be created have already been created
 		for (map<Function*, pair<list<BasicBlock*>, HyperOpArgumentList> >::iterator createdHyperOpItr = createdHyperOpAndOriginalBasicBlockAndArgMap.begin(); createdHyperOpItr != createdHyperOpAndOriginalBasicBlockAndArgMap.end(); createdHyperOpItr++) {
 			Function* createdFunction = createdHyperOpItr->first;
@@ -2646,11 +2713,12 @@ struct HyperOpCreationPass: public ModulePass {
 			for (HyperOpArgumentList::iterator hyperOpArgAtPositionItr = hyperOpArguments.begin(); hyperOpArgAtPositionItr != hyperOpArguments.end(); hyperOpArgAtPositionItr++) {
 				HyperOpArgumentType replacementArgType = hyperOpArgAtPositionItr->second;
 				for (auto hyperOpArgItr : hyperOpArgAtPositionItr->first) {
+					errs()<<"arg:";
+					hyperOpArgItr->dump();
 					map<Value*, Value*> replacementArg;
 					//the argument is a function argument
 					list<CallInst*> callSiteCopy;
 					std::copy(callSite.begin(), callSite.end(), back_inserter(callSiteCopy));
-
 					Function* sourceFunction = NULL;
 					if (hyperOpArgAtPositionItr->second != GLOBAL_REFERENCE && !isa<Instruction>(hyperOpArgItr) && !isa<Constant>(hyperOpArgItr)) {
 						unsigned positionOfFormalArg = 0;
@@ -2685,15 +2753,15 @@ struct HyperOpCreationPass: public ModulePass {
 						assert(sourceFunction!=NULL && "Source of the argument can't be NULL\n");
 						int index = 0;
 						Value* clonedInst = NULL;
-						if (!isEntryOfNewFunction) {
+						if (isEntryOfNewFunction) {
+							clonedInst = getClonedArgument(argOperand, callSiteCopy, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap, createdHyperOpAndOriginalBasicBlockAndArgMap).first;
+						} else {
 							for (auto argItr = sourceFunction->arg_begin(); argItr != sourceFunction->arg_end(); argItr++, index++) {
 								if (index == positionOfFormalArg) {
 									clonedInst = argItr;
 									break;
 								}
 							}
-						} else {
-							clonedInst = getClonedArgument(argOperand, callSiteCopy, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
 						}
 						assert(clonedInst!=NULL && "clone of the operand can't be NULL\n");
 						replacementArg.insert(make_pair(clonedInst, argOperand));
@@ -2716,19 +2784,19 @@ struct HyperOpCreationPass: public ModulePass {
 						assert(createdHyperOpAndReturnValue.find(sourceFunction) != createdHyperOpAndReturnValue.end() && "A function for return value of called function was never created\n");
 						returnValue = createdHyperOpAndReturnValue[sourceFunction];
 						assert(returnValue!=NULL && "Return hyperOp not attached to the producer function\n");
-						Instruction* clonedInst;
+						Value* clonedInst;
 						if (isa<Constant>(returnValue)) {
 							//Immediate value
 							clonedInst = new AllocaInst(returnValue->getType());
 							((AllocaInst*) clonedInst)->setAlignment(4);
 							//Alloc instructions need to be inserted in the entry basic block of the function because other allocs are treated as dynamic stack allocs
-							clonedInst->insertBefore(sourceFunction->getEntryBlock().getFirstInsertionPt());
+							((AllocaInst*) clonedInst)->insertBefore(sourceFunction->getEntryBlock().getFirstInsertionPt());
 							StoreInst* storeInst = new StoreInst(returnValue, clonedInst);
 							storeInst->setAlignment(4);
 							storeInst->insertBefore(retInstMap[sourceFunction]);
 							replacementArg.insert(make_pair(clonedInst, returnValue));
 						} else {
-							clonedInst = getClonedArgument(returnValue, callSiteCopy, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+							clonedInst = getClonedArgument(returnValue, callSiteCopy, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap, createdHyperOpAndOriginalBasicBlockAndArgMap).first;
 							replacementArg.insert(make_pair(clonedInst, returnValue));
 						}
 					} else if (hyperOpArgAtPositionItr->second != GLOBAL_REFERENCE) {
@@ -2748,7 +2816,7 @@ struct HyperOpCreationPass: public ModulePass {
 							//Find the HyperOp with the reaching definition
 							for (map<BasicBlock*, Instruction*>::iterator reachingDefItr = reachingDefBasicBlocks.begin(); reachingDefItr != reachingDefBasicBlocks.end(); reachingDefItr++) {
 								Instruction* reachingDefInstr = reachingDefItr->second;
-								Instruction* clonedReachingDef = getClonedArgument(reachingDefInstr, callSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+								Instruction* clonedReachingDef = (Instruction*) getClonedArgument(reachingDefInstr, callSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap, createdHyperOpAndOriginalBasicBlockAndArgMap).first;
 								if (find(addedFunctions.begin(), addedFunctions.end(), clonedReachingDef->getParent()->getParent()) == addedFunctions.end()) {
 									replacementArg.insert(make_pair(clonedReachingDef, reachingDefInstr));
 									addedFunctions.push_back(clonedReachingDef->getParent()->getParent());
@@ -2785,7 +2853,7 @@ struct HyperOpCreationPass: public ModulePass {
 								for (list<list<CallInst*> >::iterator callChainListItr = callChainList.begin(); callChainListItr != callChainList.end(); callChainListItr++) {
 									list<CallInst*> callChain = *callChainListItr;
 									//Find the function corresponding to the callChain
-									Value* clonedInstInstance = getClonedArgument(clonedReachingDefItr->second, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+									Value* clonedInstInstance = getClonedArgument(clonedReachingDefItr->second, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap, createdHyperOpAndOriginalBasicBlockAndArgMap).first;
 									clonedInstructionsToBeLabeled.push_back(clonedInstInstance);
 								}
 							}
@@ -2974,7 +3042,7 @@ struct HyperOpCreationPass: public ModulePass {
 						for (list<pair<Instruction*, list<CallInst*> > >::iterator reachingDefItr = reachingDefBasicBlocks.begin(); reachingDefItr != reachingDefBasicBlocks.end(); reachingDefItr++) {
 							Instruction* reachingDefInstr = reachingDefItr->first;
 							list<CallInst*> reachingDefCallSite = reachingDefItr->second;
-							Instruction* clonedInstr = getClonedArgument(reachingDefInstr, reachingDefCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+							Instruction* clonedInstr = (Instruction*)getClonedArgument(reachingDefInstr, reachingDefCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap, createdHyperOpAndOriginalBasicBlockAndArgMap).first;
 							Function* sourceParentFunction = clonedInstr->getParent()->getParent();
 							Instruction* retInstOfProducer = retInstMap.find(sourceParentFunction)->second;
 
@@ -3008,7 +3076,7 @@ struct HyperOpCreationPass: public ModulePass {
 								for (list<list<CallInst*> >::iterator callChainListItr = callChainList.begin(); callChainListItr != callChainList.end(); callChainListItr++) {
 									list<CallInst*> callChain = *callChainListItr;
 									//Find the function corresponding to the callChain
-									Instruction* clonedInstInstance = getClonedArgument(reachingDefInstr, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+									Instruction* clonedInstInstance = (Instruction*) getClonedArgument(reachingDefInstr, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap, createdHyperOpAndOriginalBasicBlockAndArgMap).first;
 									clonedInstructionsToBeLabeled.push_back(clonedInstInstance);
 								}
 							}
@@ -3137,6 +3205,7 @@ struct HyperOpCreationPass: public ModulePass {
 			//Find out if there exist any branch instructions leading to the HyperOp, add metadata to the instruction
 			for (map<Instruction*, vector<pair<BasicBlock*, int> > >::iterator conditionalBranchSourceItr = conditionalBranchSources.begin(); conditionalBranchSourceItr != conditionalBranchSources.end(); conditionalBranchSourceItr++) {
 				Instruction* conditionalBranchInst = conditionalBranchSourceItr->first;
+				conditionalBranchInst->dump();
 				vector<pair<BasicBlock*, int> > branchOperands = conditionalBranchSourceItr->second;
 				BasicBlock* conditionalTargetBB = branchOperands[0].first;
 				Value* predicateOperand = conditionalBranchInst->getOperand(0);
@@ -3165,8 +3234,8 @@ struct HyperOpCreationPass: public ModulePass {
 					storeInst->setAlignment(4);
 					storeInst->insertBefore(retInstMap[replicatedCalledFunction]);
 				} else {
-					clonedPredicateOperand = getClonedArgument(predicateOperand, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
-					clonedInstr = getClonedArgument(conditionalBranchInst, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+					clonedPredicateOperand = getClonedArgument(predicateOperand, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap, createdHyperOpAndOriginalBasicBlockAndArgMap).first;
+					clonedInstr = (Instruction*)getClonedArgument(conditionalBranchInst, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap, createdHyperOpAndOriginalBasicBlockAndArgMap).first;
 				}
 				list<pair<Instruction*, Value*> > clonedInstructionsToBeLabeled;
 				clonedInstructionsToBeLabeled.push_back(make_pair(clonedInstr, clonedPredicateOperand));
@@ -3194,8 +3263,8 @@ struct HyperOpCreationPass: public ModulePass {
 					list<Value*> clonedInstInstanceCache;
 					for (list<list<CallInst*> >::iterator callChainListItr = callChainList.begin(); callChainListItr != callChainList.end(); callChainListItr++) {
 						list<CallInst*> callChain = *callChainListItr;
-						Value* clonedPredicateOperand = getClonedArgument(predicateOperand, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
-						Instruction* clonedInstInstance = getClonedArgument(conditionalBranchInst, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+						Value* clonedPredicateOperand = getClonedArgument(predicateOperand, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap, createdHyperOpAndOriginalBasicBlockAndArgMap).first;
+						Instruction* clonedInstInstance = (Instruction*)getClonedArgument(conditionalBranchInst, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap, createdHyperOpAndOriginalBasicBlockAndArgMap).first;
 						clonedInstructionsToBeLabeled.push_back(make_pair(clonedInstInstance, clonedPredicateOperand));
 						clonedInstInstanceCache.push_back(clonedInstInstance);
 					}
@@ -3352,6 +3421,7 @@ struct HyperOpCreationPass: public ModulePass {
 			//Remove unconditional branch instruction, add the annotation to the alloca instruction of the branch
 			for (auto unconditionalBranchSourceItr = unconditionalBranchSources.begin(); unconditionalBranchSourceItr != unconditionalBranchSources.end(); unconditionalBranchSourceItr++) {
 				Value* unconditionalBranchInstr = unconditionalBranchSourceItr->first;
+				unconditionalBranchInstr->dump();
 				Value* originalUnconditionalBranchInstr = unconditionalBranchInstr;
 				//There can only be one basic block that happens to be the target
 				BasicBlock* targetBB;
@@ -3360,7 +3430,8 @@ struct HyperOpCreationPass: public ModulePass {
 				} else {
 					targetBB = unconditionalBranchSourceItr->second[0].first;
 				}
-				Instruction* clonedInstr;
+				Value* clonedInstr;
+				Function* parentOfClone = NULL;
 				Function* replicatedCalledFunction = 0;
 				list<BasicBlock*> parentBBList;
 
@@ -3377,7 +3448,6 @@ struct HyperOpCreationPass: public ModulePass {
 
 					/* Get the newly created function's argument matching the arg operand */
 					Function *sourceFunction = getFunctionWithBB(lookForBB, newCallSite, createdHyperOpAndCallSite, createdHyperOpAndOriginalBasicBlockAndArgMap);
-
 					/* Producer is an unrolled instance, cant do anything there */
 					if (sourceFunction == NULL) {
 						continue;
@@ -3385,8 +3455,9 @@ struct HyperOpCreationPass: public ModulePass {
 					assert(createdHyperOpAndReturnValue.find(sourceFunction) != createdHyperOpAndReturnValue.end() && "A function for return value of called function was never created\n");
 					returnValue = createdHyperOpAndReturnValue[sourceFunction];
 					assert(returnValue!=NULL && "Return hyperOp not attached to the producer function\n");
-					Instruction* clonedInst;
-					clonedInstr = getClonedArgument(returnValue, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+					auto retval = getClonedArgument(returnValue, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap, createdHyperOpAndOriginalBasicBlockAndArgMap);
+					clonedInstr = retval.first;
+					parentOfClone = retval.second;
 				} else {
 					bool isEntryBlockIncluded = false;
 					if (!newCallSite.empty()) {
@@ -3396,12 +3467,14 @@ struct HyperOpCreationPass: public ModulePass {
 					if (isEntryBlockIncluded) {
 						newCallSite.pop_back();
 					}
-					clonedInstr = getClonedArgument(unconditionalBranchInstr, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
+					auto retval = getClonedArgument(unconditionalBranchInstr, newCallSite, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap, createdHyperOpAndOriginalBasicBlockAndArgMap);
+					clonedInstr = (Instruction*) retval.first;
+					parentOfClone = retval.second;
 				}
 
-				bool isProducerStatic = createdHyperOpAndType[clonedInstr->getParent()->getParent()];
-				list<Instruction*> clonedInstructionsToBeLabeled;
-				clonedInstructionsToBeLabeled.push_back(clonedInstr);
+				bool isProducerStatic = createdHyperOpAndType[parentOfClone];
+				list<pair<Value*, Function*> > clonedInstructionsToBeLabeled;
+				clonedInstructionsToBeLabeled.push_back(make_pair(clonedInstr, parentOfClone));
 				if (isa<Instruction>(unconditionalBranchInstr)) {
 					Function* producerFunction = ((Instruction*) unconditionalBranchInstr)->getParent()->getParent();
 					//Find the replicas of the consumer HyperOp which also need to be annotated, hence populating a list
@@ -3425,27 +3498,27 @@ struct HyperOpCreationPass: public ModulePass {
 						for (list<list<CallInst*> >::iterator callChainListItr = callChainList.begin(); callChainListItr != callChainList.end(); callChainListItr++) {
 							list<CallInst*> callChain = *callChainListItr;
 							//Find the function corresponding to the callChain
-							Instruction* clonedInstInstance = getClonedArgument(unconditionalBranchInstr, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap);
-							clonedInstructionsToBeLabeled.push_back(clonedInstInstance);
+							auto clonedVal = getClonedArgument(unconditionalBranchInstr, callChain, createdHyperOpAndCallSite, functionOriginalToClonedInstructionMap, createdHyperOpAndOriginalBasicBlockAndArgMap);
+							clonedInstructionsToBeLabeled.push_back(clonedVal);
 						}
 					}
 				}
 
-				for (list<Instruction*>::iterator clonedInstItr = clonedInstructionsToBeLabeled.begin(); clonedInstItr != clonedInstructionsToBeLabeled.end(); clonedInstItr++) {
-					Instruction* clonedInstr = *clonedInstItr;
-					Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
-					BasicBlock* targetBB = (BasicBlock*) clonedInstr->getOperand(0);
+				for (list<pair<Value*, Function*> >::iterator clonedInstItr = clonedInstructionsToBeLabeled.begin(); clonedInstItr != clonedInstructionsToBeLabeled.end(); clonedInstItr++) {
+					Value* clonedInstr = clonedInstItr->first;
+					Instruction* retInstOfProducer = retInstMap.find(clonedInstItr->second)->second;
 					if (isa<BranchInst>(clonedInstr)) {
+						BasicBlock* targetBB = (BasicBlock*) ((BranchInst*)clonedInstr)->getOperand(0);
 						//Update the branch instruction to jump to the return basic block
 						if (((BranchInst*) clonedInstr)->isUnconditional()) {
 							//Update the branch instruction to jump to the return basic block
-							clonedInstr->setOperand(0, retInstOfProducer->getParent());
+							((BranchInst*)clonedInstr)->setOperand(0, retInstOfProducer->getParent());
 						} else {
 							for (unsigned branchOperandIndex = 0; branchOperandIndex != unconditionalBranchSourceItr->second.size(); branchOperandIndex++) {
 								if (unconditionalBranchSourceItr->second[branchOperandIndex].second != -1) {
 									//Update the cloned conditional branch instruction with the right target
 									int positionToBeUpdated = ConstantInt::get(ctxt, APInt(32, unconditionalBranchSourceItr->second[branchOperandIndex].second))->getZExtValue();
-									Instruction* retInstOfProducer = retInstMap.find(clonedInstr->getParent()->getParent())->second;
+									Instruction* retInstOfProducer = retInstMap.find(clonedInstItr->second)->second;
 									((BranchInst*) clonedInstr)->setSuccessor(positionToBeUpdated, retInstOfProducer->getParent());
 									list<BasicBlock*> uniqueSuccessors;
 									for (int i = 0; i < ((BranchInst*) clonedInstr)->getNumSuccessors(); i++) {
@@ -3459,7 +3532,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 
 					//If target is already accumulated, ignore
-					if (find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), clonedInstr->getParent()) != accumulatedOriginalBasicBlocks.end()) {
+					if (isa<Instruction>(clonedInstr) && find(accumulatedOriginalBasicBlocks.begin(), accumulatedOriginalBasicBlocks.end(), ((Instruction*)clonedInstr)->getParent()) != accumulatedOriginalBasicBlocks.end()) {
 						continue;
 					}
 					//Check if the branch is to a loop, ensure that the edges are added
@@ -3473,16 +3546,14 @@ struct HyperOpCreationPass: public ModulePass {
 						list<BasicBlock*> loopBBList = tempLoopItr->first;
 						if (find(loopBBList.begin(), loopBBList.end(), targetBB) != loopBBList.end()) {
 							loopHop = true;
-							if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), clonedInstr->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()
-									&& find(predicateProducers.begin(), predicateProducers.end(), clonedInstr->getParent()->getParent()) == predicateProducers.end()) {
+							if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), clonedInstItr->second) == addedParentsToCurrentHyperOp.end() && find(predicateProducers.begin(), predicateProducers.end(), clonedInstItr->second) == predicateProducers.end()) {
 								syncRequired = true;
 								break;
 							}
 						}
 					}
 					if (!loopHop) {
-						syncRequired = (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), clonedInstr->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()
-								&& find(predicateProducers.begin(), predicateProducers.end(), clonedInstr->getParent()->getParent()) == predicateProducers.end());
+						syncRequired = (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), clonedInstItr->second) == addedParentsToCurrentHyperOp.end() && find(predicateProducers.begin(), predicateProducers.end(), clonedInstItr->second) == predicateProducers.end());
 					}
 					if (syncRequired) {
 						bool backedgeOfSerialLoop = false;
@@ -3493,7 +3564,7 @@ struct HyperOpCreationPass: public ModulePass {
 							for (auto accumulatedBBItr = accumulatedOriginalBasicBlocks.begin(); accumulatedBBItr != accumulatedOriginalBasicBlocks.end(); accumulatedBBItr++) {
 								if (find(serialLoopBBList.begin(), serialLoopBBList.end(), *accumulatedBBItr) != serialLoopBBList.end() && find(originalHeaderBB.begin(), originalHeaderBB.end(), *accumulatedBBItr) != originalHeaderBB.end()) {
 									//check if the latch node is in the producer's list of bbs
-									list<BasicBlock*> producerBBList = createdHyperOpAndOriginalBasicBlockAndArgMap[clonedInstr->getParent()->getParent()].first;
+									list<BasicBlock*> producerBBList = createdHyperOpAndOriginalBasicBlockAndArgMap[clonedInstItr->second].first;
 									for (auto producerBBItr = producerBBList.begin(); producerBBItr != producerBBList.end(); producerBBItr++) {
 										if (find(serialLoopBBList.begin(), serialLoopBBList.end(), *producerBBItr) != serialLoopBBList.end() && find(originalLatchBB.begin(), originalLatchBB.end(), *producerBBItr) != originalLatchBB.end()) {
 											backedgeOfSerialLoop = true;
@@ -3522,7 +3593,7 @@ struct HyperOpCreationPass: public ModulePass {
 							for (auto accumulatedBBItr = accumulatedOriginalBasicBlocks.begin(); accumulatedBBItr != accumulatedOriginalBasicBlocks.end(); accumulatedBBItr++) {
 								if (find(parallelLoopBBList.begin(), parallelLoopBBList.end(), *accumulatedBBItr) != parallelLoopBBList.end() && find(originalHeaderBB.begin(), originalHeaderBB.end(), *accumulatedBBItr) != originalHeaderBB.end()) {
 									//check if the latch node is in the producer's list of bbs
-									list<BasicBlock*> producerBBList = createdHyperOpAndOriginalBasicBlockAndArgMap[clonedInstr->getParent()->getParent()].first;
+									list<BasicBlock*> producerBBList = createdHyperOpAndOriginalBasicBlockAndArgMap[clonedInstItr->second].first;
 									for (auto producerBBItr = producerBBList.begin(); producerBBItr != producerBBList.end(); producerBBItr++) {
 										if (find(parallelLoopBBList.begin(), parallelLoopBBList.end(), *producerBBItr) != parallelLoopBBList.end() && find(originalLatchBB.begin(), originalLatchBB.end(), *producerBBItr) != originalLatchBB.end()) {
 											parallelLoopLatchBlock = *producerBBItr;
@@ -3544,7 +3615,7 @@ struct HyperOpCreationPass: public ModulePass {
 						Function* consumerFunction;
 						list<Function*> tempPredicateProducers = predicateProducers;
 						if (!backedgeOfSerialLoop && !backedgeOfParallelLoop) {
-							producerFunction = clonedInstr->getParent()->getParent();
+							producerFunction = clonedInstItr->second;
 							consumerFunction = createdFunction;
 						} else if (backedgeOfParallelLoop) {
 							//Find the cloned bb of parallelLoopLatchBB
@@ -3652,6 +3723,8 @@ struct HyperOpCreationPass: public ModulePass {
 							if (find(addedParentsToCurrentHyperOp.begin(), addedParentsToCurrentHyperOp.end(), ai->getParent()->getParent()) == addedParentsToCurrentHyperOp.end()) {
 								addedParentsToCurrentHyperOp.push_back(ai->getParent()->getParent());
 							}
+							errs()<<"whats MD added at "<<ai->getParent()->getParent()->getName()<<":";
+							node->dump();
 						}
 					}
 				}
@@ -3814,9 +3887,10 @@ struct REDEFINEIRPass: public ModulePass {
 			if (syncCountIterator->getType() == SyncValueType::INT_SYNC_TYPE) {
 				currentSyncCount = ConstantInt::get(Type::getInt32Ty(M->getContext()), syncCountIterator->getInt());
 			} else if (syncCountIterator->getType() == SyncValueType::HYPEROP_SYNC_TYPE) {
-				Value* min = syncCountIterator->getHyperOp()->getRangeLowerBound();
-				Value* max = syncCountIterator->getHyperOp()->getRangeUpperBound();
-				Value * stride = syncCountIterator->getHyperOp()->getStride();
+				assert(syncCountIterator->getHyperOp()->getInRange());
+				Value* min = getValueFromLocation(syncCountIterator->getHyperOp()->getRangeLowerBound(), bb);
+				Value* max = getValueFromLocation(syncCountIterator->getHyperOp()->getRangeUpperBound(), bb);
+				Value * stride = getValueFromLocation(syncCountIterator->getHyperOp()->getStride(), bb);
 				Value* difference = BinaryOperator::Create(Instruction::BinaryOps::Sub, max, min, "diff", &(*bb)->back());
 				currentSyncCount = BinaryOperator::Create(Instruction::BinaryOps::UDiv, difference, stride, "", &(*bb)->back());
 			}
@@ -3936,22 +4010,24 @@ struct REDEFINEIRPass: public ModulePass {
 			if ((*insertInBB)->getTerminator()->getNumSuccessors() == 1) {
 				next = (*insertInBB)->getTerminator()->getSuccessor(0);
 			}
-			BasicBlock* communicationInsertionBB = BasicBlock::Create(ctxt, "", (*insertInBB)->getParent(), next);
-			BasicBlock* fallbackBB = BasicBlock::Create(ctxt, "", (*insertInBB)->getParent(), next);
+			BasicBlock* communicationInsertionBB = BasicBlock::Create(ctxt, "cond_true", (*insertInBB)->getParent(), next);
+			BasicBlock* elseBB = BasicBlock::Create(ctxt, "cond_else", (*insertInBB)->getParent(), next);
+			BasicBlock* fallbackBB = BasicBlock::Create(ctxt, "cond_fallback", (*insertInBB)->getParent(), next);
 
 			/* Remove the last instruction in insertInBB and jump to the next landing pad */
-			BranchInst* branchInst = BranchInst::Create(communicationInsertionBB, fallbackBB, predicate, &(*insertInBB)->back());
-			(*insertInBB)->back().eraseFromParent();
-			BranchInst* jumpInst = BranchInst::Create(next, communicationInsertionBB);
+			BranchInst* branchInst = BranchInst::Create(communicationInsertionBB, elseBB, predicate, &(*insertInBB)->back());
+			BranchInst::Create(fallbackBB, communicationInsertionBB);
+			BranchInst::Create(fallbackBB, elseBB);
 
-			if (next == NULL) {
-				ReturnInst::Create(ctxt, fallbackBB);
-			}
+			Instruction* clone = (*insertInBB)->getTerminator()->clone();
+			fallbackBB->getInstList().insert(fallbackBB->end(), clone);
+			(*insertInBB)->back().eraseFromParent();
 			*nextInsertionPoint = fallbackBB;
 			*insertInBB = communicationInsertionBB;
 		}
 		sourceData = getValueFromLocation(sourceData, insertInBB);
-		if (parentEdge->getType() == HyperOpEdge::SCALAR || parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE) {
+		if (parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_COUNT_LOWER || parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_COUNT_UPPER || parentEdge->getType() == HyperOpEdge::SCALAR || parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR
+				|| parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE) {
 			/* -1 because there is one arg corresponding to the hyperop id itself, but we don't update the edges context slot because it is easier to match value pointers of argument with context slot this way */
 			assert((parentEdge->getPositionOfContextSlot() - 1) >=0 && "context frame writes must be to a location within the frame\n");
 			Value* writeCMArgs[] = { childCFBaseAddr, ConstantInt::get(ctxt, APInt(32, (parentEdge->getPositionOfContextSlot() - 1) * 4)), sourceData };
@@ -4023,11 +4099,10 @@ struct REDEFINEIRPass: public ModulePass {
 		}
 		Value *syncArgs[] = { baseAddress, ConstantInt::get(M.getContext(), APInt(32, 60)), syncCount };
 		CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::writecm, 0), syncArgs, "", &(*insertInBB)->back());
-		errs()<<"added writecm with final sync count:";
-		syncCount->dump();
 	}
 
 	static void inline addCommunicationInstructions(HyperOp* child, HyperOp* vertex, Value* baseAddress, BasicBlock** insertInBB, Module &M){
+		assert(baseAddress!= NULL && "communication base address cant be null\n");
 		/* Find out if the child hyperop has any incoming localref edges and add mem frame base address load instruction if so */
 		Value * memFrameAddress = NULL;
 		for (auto incomingEdgeItr = child->ParentMap.begin(); incomingEdgeItr != child->ParentMap.end(); incomingEdgeItr++) {
@@ -4057,11 +4132,11 @@ struct REDEFINEIRPass: public ModulePass {
 
 		DEBUG(dbgs() << "Adding writecm instructions to the hyperop instance passed\n");
 		for (auto childEdgeItr = vertex->ChildMap.begin(); childEdgeItr != vertex->ChildMap.end(); childEdgeItr++) {
-			if (childEdgeItr->second == child && (childEdgeItr->first->getType() == HyperOpEdge::SCALAR || childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE)) {
+			if (childEdgeItr->second == child && (childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_COUNT_LOWER || childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_COUNT_UPPER || childEdgeItr->first->getType() == HyperOpEdge::SCALAR || childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR || childEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE)) {
 				/* Ensure that the target location is marked inreg */
 				assert(child->getFunction()->getAttributes().hasAttribute(childEdgeItr->first->getPositionOfContextSlot() + 1, Attribute::InReg) && "Incorrect argument attribute, should be inreg\n");
 				BasicBlock* newInsertionPoint = NULL;
-				addRedefineCommInstructions(childEdgeItr->first, childEdgeItr->first->getValue(), baseAddress, child, insertInBB, &newInsertionPoint);
+				addRedefineCommInstructions(childEdgeItr->first, childEdgeItr->first->getValue(), baseAddress, vertex, insertInBB, &newInsertionPoint);
 				if (newInsertionPoint != NULL) {
 					*insertInBB = newInsertionPoint;
 				}
@@ -4108,6 +4183,7 @@ struct REDEFINEIRPass: public ModulePass {
 			graph->computeDominatorInfo();
 		}
 		graph->computeDominatorInfo();
+		graph->removeRangeBoundEdges();
 		graph->clusterNodes();
 		graph->addContextFrameAddressForwardingEdges();
 		//graph->convertRemoteScalarsToStores();
@@ -4123,10 +4199,9 @@ struct REDEFINEIRPass: public ModulePass {
 		graph->updateContextFrameForwardingEdges();
 		graph->setDimensions(MAX_ROW, MAX_COL);
 		graph->mapClustersToComputeResources();
-		graph->verify(1);
 		graph->print(dbgs());
+		graph->verify(1);
 		map<Function*, unsigned> functionAndIndexMap;
-
 		unsigned index = 0;
 		for (auto functionItr = M.begin(); functionItr != M.end(); functionItr++) {
 			Function* func = functionItr;
@@ -4145,11 +4220,9 @@ struct REDEFINEIRPass: public ModulePass {
 			BasicBlock* insertInBB = &vertexFunction->back();
 			map<HyperOp*, Value*> createdHopBaseAddressMap;
 
-			/* we add fallocs for predicated and non range dynamic hops ealy on, to ensure that if there are communication instructions that carry address of such hyperops*/
-			DEBUG(dbgs() << "Adding falloc, fbind instructions to module for dynamic non range or predicated range hops\n");
 			for (auto childItr : graph->Vertices) {
 				HyperOp* child = childItr;
-				if (child == vertex || child->getImmediateDominator() != vertex || (child->getInRange() && !child->isPredicatedHyperOp())) {
+				if (child == vertex || child->getImmediateDominator() != vertex ){
 					continue;
 				}
 				BasicBlock * loopBegin, *loopBody, *loopEnd;
@@ -4158,7 +4231,7 @@ struct REDEFINEIRPass: public ModulePass {
 				Value* numFrames = NULL;
 				/* Range and predicated hops have to be created in a block */
 				if(child->getInRange()){
-					numFrames = BinaryOperator::CreateUDiv(BinaryOperator::CreateSub(child->getRangeUpperBound(), child->getRangeLowerBound(), "", &insertInBB->back()), child->getStride(), "", &insertInBB->back());
+					numFrames = BinaryOperator::CreateUDiv(BinaryOperator::CreateSub(getValueFromLocation(child->getRangeUpperBound(), &insertInBB), getValueFromLocation(child->getRangeLowerBound(), &insertInBB), "", &insertInBB->back()), child->getStride(), "", &insertInBB->back());
 					numFrames = BinaryOperator::CreateSub(numFrames, getConstantValue(1, M), "", &insertInBB->back());
 				}else{
 					numFrames = ConstantInt::get(M.getContext(), APInt(32, 0));
@@ -4174,7 +4247,6 @@ struct REDEFINEIRPass: public ModulePass {
 					} else {
 						func = (Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::falloc, 0);
 					}
-
 					baseAddress = CallInst::Create(func, fallocArgs, "falloc_reg", &insertInBB->back());
 				}
 				else{
@@ -4218,56 +4290,8 @@ struct REDEFINEIRPass: public ModulePass {
 				}
 			}
 
-
-		DEBUG(dbgs() << "Adding falloc, fbind instructions to module for non predicated range hops\n");
-			for (auto childItr : graph->Vertices) {
-				int numCR = MAX_ROW*MAX_COL;
-				HyperOp* child = childItr;
-				if (child == vertex || child->getImmediateDominator() != vertex || child->isStaticHyperOp() || !child->getInRange() || child->isPredicatedHyperOp()) {
-					continue;
-				}
-				BasicBlock * loopBegin, *loopBody, *loopEnd;
-				/* Range HyperOp's base address, obtained either with falloc or by loading with forwarded address */
-				Value* iterator = NULL;
-				Value* baseAddress = NULL;
-				Value* memFrameAddress = NULL;
-
-				addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, child->getRangeLowerBound(), child->getRangeUpperBound(), &iterator);
-				insertInBB = loopBody;
-
-				vector<Value*> fallocArgs;
-				fallocArgs.push_back(getConstantValue(0, M));
-				Value* targetResource = BinaryOperator::Create(Instruction::BinaryOps::URem, iterator, getConstantValue(numCR, M), "", &insertInBB->back());
-				fallocArgs.push_back(targetResource);
-				Value* func = (Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::rfalloc, 0);
-				baseAddress = CallInst::Create(func, fallocArgs, "falloc_reg", &insertInBB->back());
-
-				Value *fbindArgs[] = { ConstantInt::get(M.getContext(), APInt(32, functionAndIndexMap[child->getFunction()])), baseAddress };
-				CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fbind, 0), fbindArgs, "", &insertInBB->back());
-				if (child->isBarrierHyperOp()) {
-					addExpectedSyncCount(child, baseAddress, &insertInBB, M);
-				}
-				/* Add to only unpredicated range hyperops that have no incoming parents other than idom */
-				if (child->getInRange() && !child->isPredicatedHyperOp()) {
-					addCommunicationInstructions(child, vertex, baseAddress, &insertInBB, M);
-				}
-
-				if (child->getInRange()) {
-					Value* updatedValue = BinaryOperator::CreateNUWAdd(iterator, child->getStride(), "", &loopBody->back());
-					assert(isa<PHINode>(iterator) && "iterator of base address must be a phi node\n");
-					((PHINode*) iterator)->addIncoming(updatedValue, loopBody);
-					insertInBB = loopEnd;
-				}
-			}
-
-
-			DEBUG(dbgs() << "Adding all communication instructions to frames that are range and predicated or not range\n");
 			for (auto childItr : vertex->getChildList()) {
 				HyperOp* child = childItr;
-				/* These were added in the previous iteration, they don't need to be added now */
-				if(child->getImmediateDominator() == vertex && child->getInRange() && !child->isPredicatedHyperOp()){
-					continue;
-				}
 				BasicBlock * loopBegin, *loopBody, *loopEnd;
 				Value* loadInst;
 				/* Range HyperOp's base address, obtained either with falloc or by loading with forwarded address */
@@ -4304,8 +4328,55 @@ struct REDEFINEIRPass: public ModulePass {
 				}
 
 				if (child->getInRange()) {
-					Value* numFrames = BinaryOperator::CreateUDiv(BinaryOperator::CreateSub(child->getRangeUpperBound(), child->getRangeLowerBound(), "", &insertInBB->back()), child->getStride(), "", &insertInBB->back());
-					numFrames = BinaryOperator::CreateSub(numFrames, getConstantValue(1, M), "", &insertInBB->back());
+					Value* numFrames;
+					if(child->getImmediateDominator() == vertex){
+						numFrames = BinaryOperator::CreateUDiv(BinaryOperator::CreateSub(getValueFromLocation(child->getRangeUpperBound(), &insertInBB), getValueFromLocation(child->getRangeLowerBound(), &insertInBB), "", &insertInBB->back()), child->getStride(), "", &insertInBB->back());
+						numFrames = BinaryOperator::CreateSub(numFrames, getConstantValue(1, M), "", &insertInBB->back());
+					}else{
+						Value* lowerBound = NULL, *upperBound = NULL;
+						if (child->getUpperBoundScope() != NULL) {
+							for(auto parentItr:vertex->ParentMap){
+								if(parentItr.first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_COUNT_UPPER && parentItr.first->getContextFrameAddress() == child){
+									int argIndex = 0;
+									for(auto argItr = vertex->getFunction()->arg_begin(); argItr!=vertex->getFunction()->arg_end(); argItr++, argIndex++){
+										if(argIndex == parentItr.first->getPositionOfContextSlot()){
+											upperBound = argItr;
+											break;
+										}
+									}
+									break;
+								}
+								if (upperBound != NULL) {
+									break;
+								}
+							}
+						}else{
+							upperBound = child->getRangeUpperBound();
+						}
+						if (child->getLowerBoundScope() != NULL) {
+							for(auto parentItr:vertex->ParentMap){
+								if(parentItr.first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_COUNT_LOWER && parentItr.first->getContextFrameAddress() == child){
+									int argIndex = 0;
+									for(auto argItr = vertex->getFunction()->arg_begin(); argItr!=vertex->getFunction()->arg_end(); argItr++, argIndex++){
+										if(argIndex == parentItr.first->getPositionOfContextSlot()){
+											lowerBound = argItr;
+											break;
+										}
+									}
+									break;
+								}
+								if (lowerBound != NULL) {
+									break;
+								}
+							}
+						}else{
+							lowerBound = child->getRangeLowerBound();
+						}
+						assert(upperBound != NULL);
+						assert(lowerBound != NULL);
+						numFrames = BinaryOperator::CreateUDiv(BinaryOperator::CreateSub(upperBound, lowerBound, "", &insertInBB->back()), child->getStride(), "", &insertInBB->back());
+						numFrames = BinaryOperator::CreateSub(numFrames, getConstantValue(1, M), "", &insertInBB->back());
+					}
 					Value* baseAddressUpperBound = BinaryOperator::CreateNUWAdd(BinaryOperator::CreateNUWMul(numFrames, getConstantValue(64, M), "", &insertInBB->back()), baseAddress, "", &insertInBB->back());
 					addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, baseAddress, baseAddressUpperBound, &baseAddress);
 					insertInBB = loopBody;
@@ -4337,9 +4408,9 @@ struct REDEFINEIRPass: public ModulePass {
 						}
 						assert((contextFrameAddressEdge!=NULL)&&"The address must be forwarded from another HyperOp");
 						unsigned argSlot = contextFrameAddressEdge->getPositionOfContextSlot();
-						unsigned index = 0;
-						for (auto argItr = vertexFunction->getArgumentList().begin(); argItr != vertexFunction->getArgumentList().end(); argItr++, index++) {
-							if (argSlot == index) {
+						unsigned argIndex = 0;
+						for (auto argItr = vertex->getFunction()->arg_begin(); argItr != vertex->getFunction()->arg_end(); argItr++, argIndex++) {
+							if (argSlot == argIndex) {
 								argContainingAddress = argItr;
 								break;
 							}
@@ -4348,10 +4419,51 @@ struct REDEFINEIRPass: public ModulePass {
 					assert(argContainingAddress!=NULL && "Address cant be NULL for fdelete\n");
 					BasicBlock * loopBegin, *loopBody, *loopEnd;
 					if (child->getInRange()) {
-						Value* diff = BinaryOperator::CreateSub(child->getRangeUpperBound(), child->getRangeLowerBound(), "", &insertInBB->back());
-						Value* numFrames = BinaryOperator::CreateNUWSub(BinaryOperator::CreateExactUDiv(diff, child->getStride(), "", &insertInBB->back()), getConstantValue(1, M), "", &insertInBB->back());
-						Value* upperBound = BinaryOperator::CreateNUWAdd(BinaryOperator::CreateNUWMul(getConstantValue(FRAME_SIZE_BYTES, M), numFrames, "", &insertInBB->back()), argContainingAddress, "", &insertInBB->back());
-						addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, argContainingAddress, upperBound, &argContainingAddress);
+						Value* lowerBound = NULL, *upperBound = NULL;
+						if (child->getUpperBoundScope() != NULL) {
+							for(auto parentItr:vertex->ParentMap){
+								if(parentItr.first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_COUNT_UPPER && parentItr.first->getContextFrameAddress() == child){
+									int argIndex = 0;
+									for (auto argItr = vertex->getFunction()->arg_begin(); argItr != vertex->getFunction()->arg_end(); argItr++, argIndex++) {
+										if(argIndex == parentItr.first->getPositionOfContextSlot()){
+											upperBound = argItr;
+											break;
+										}
+									}
+									break;
+								}
+								if (upperBound != NULL) {
+									break;
+								}
+							}
+						}else{
+							upperBound = child->getRangeUpperBound();
+						}
+						if (child->getLowerBoundScope() != NULL) {
+							for(auto parentItr:vertex->ParentMap){
+								if(parentItr.first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_COUNT_LOWER && parentItr.first->getContextFrameAddress() == child){
+									int argIndex = 0;
+									for (auto argItr = vertex->getFunction()->arg_begin(); argItr != vertex->getFunction()->arg_end(); argItr++, argIndex++) {
+										if(argIndex == parentItr.first->getPositionOfContextSlot()){
+											lowerBound = argItr;
+											break;
+										}
+									}
+									break;
+								}
+								if (lowerBound != NULL) {
+									break;
+								}
+							}
+						}else{
+							lowerBound = child->getRangeLowerBound();
+						}
+						assert(lowerBound!=NULL);
+						assert(upperBound!=NULL);
+						Value* numFrames = BinaryOperator::CreateUDiv(BinaryOperator::CreateSub(upperBound, lowerBound, "", &insertInBB->back()), child->getStride(), "", &insertInBB->back());
+						numFrames = BinaryOperator::CreateSub(numFrames, getConstantValue(1, M), "", &insertInBB->back());
+						Value* maxFrames = BinaryOperator::CreateNUWAdd(BinaryOperator::CreateNUWMul(getConstantValue(FRAME_SIZE_BYTES, M), numFrames, "", &insertInBB->back()), argContainingAddress, "", &insertInBB->back());
+						addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, argContainingAddress, maxFrames, &argContainingAddress);
 						insertInBB = loopBody;
 					}
 
@@ -4376,6 +4488,8 @@ struct REDEFINEIRPass: public ModulePass {
 				Value *fdeleteArgs[] = { frameAddress };
 				fdeleteInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fdelete, 0), fdeleteArgs, "", &insertInBB->back());
 			}
+
+			vertex->getFunction()->dump();
 		}
 		/* Delete all metadata */
 		NamedMDNode * redefineAnnotationsNode = M.getOrInsertNamedMetadata(REDEFINE_ANNOTATIONS);
@@ -4390,6 +4504,7 @@ struct REDEFINEIRPass: public ModulePass {
 				}
 			}
 		}
+		M.dump();
 		NamedMDNode * hyperOpAnnotationsNode = M.getOrInsertNamedMetadata(HYPEROP_ANNOTATIONS);
 		for (auto vertexItr : graph->Vertices) {
 			HyperOp* vertex = vertexItr;

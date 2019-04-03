@@ -79,6 +79,10 @@ public:
 		/* This is required in order to avoid address forwarding from all hyperops in a range to the hyperops in the dominance frontier and restrict it to the first hyperop in the range of hops created*/
 		CONTEXT_FRAME_ADDRESS_RANGE_BASE,
 		CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF,
+		CONTEXT_FRAME_ADDRESS_RANGE_COUNT_LOWER,
+		CONTEXT_FRAME_ADDRESS_RANGE_COUNT_LOCALREF_LOWER,
+		CONTEXT_FRAME_ADDRESS_RANGE_COUNT_UPPER,
+		CONTEXT_FRAME_ADDRESS_RANGE_COUNT_LOCALREF_UPPER,
 		//Edge used for ordering HyperOps to maintain partial order
 		ORDERING,
 		//Edge to ensure completion of the hyperOp by inserting equivalent delay instruction in the end HyperOp
@@ -154,7 +158,9 @@ class HyperOp {
 	bool IsPredicated;
 	bool InRange;
 	Value* rangeUpperBound;
+	HyperOp* upperBoundScope;
 	Value* rangeLowerBound;
+	HyperOp* lowerBoundScope;
 	Value* stride;
 	StrideFunction inductionVarUpdateFunc;
 	unsigned int TargetResource;
@@ -264,6 +270,10 @@ public:
 	HyperOpInteractionGraph* getParentGraph();
 	void setHasRangeBaseInput(bool);
 	bool hasRangeBaseInput();
+	void setUpperBoundScope(HyperOp*);
+	void setLowerBoundScope(HyperOp*);
+	HyperOp* getUpperBoundScope();
+	HyperOp* getLowerBoundScope();
 };
 
 class HyperOpInteractionGraph {
@@ -381,5 +391,7 @@ public:
 	void clusterAllNodesInOne();
 
 	AllocaInst* getAllocInstrForLocalReferenceData(Value* sourceInstr, HyperOp* hyperOp);
+
+	void removeRangeBoundEdges();
 };
 #endif /* LIB_TARGET_RISCV_HYPEROPINTERACTIONGRAPH_H_ */

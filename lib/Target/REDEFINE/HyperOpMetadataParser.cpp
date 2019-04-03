@@ -16,6 +16,18 @@ HyperOpMetadataParser::~HyperOpMetadataParser() {
 	// TODO Auto-generated destructor stub
 }
 
+static bool inline isScalarEdgeTypeWithContextSlot(HyperOpEdge* previouslyAddedEdge) {
+	switch (previouslyAddedEdge->getType()) {
+		case HyperOpEdge::SCALAR:
+		case HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR:
+		case HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE:
+		case HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_COUNT_LOWER:
+		case HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_COUNT_UPPER:
+			return true;
+	}
+	return false;
+}
+
 list<StringRef> parseInstanceIdString(StringRef instanceTag, char seperator = ',') {
 	list<StringRef> instanceId;
 //Parse string to get a list of identifiers
@@ -66,6 +78,38 @@ bool idEquals(list<unsigned> first, list<unsigned> second){
 	return true;
 }
 
+static pair<string, string> getParsedProperty(string keyvaluestr, string delim = "=") {
+	string key = keyvaluestr.substr(0, keyvaluestr.find(delim));
+	string value = keyvaluestr.substr(keyvaluestr.find(delim));
+	value.replace(0, 1, "");
+	return make_pair(key, value);
+}
+
+HyperOp* getHyperOpByFuncName(HyperOpInteractionGraph* graph, string name){
+	for(auto vertexItr:graph->Vertices){
+		if(!vertexItr->getFunction()->getName().compare(name)){
+			return vertexItr;
+		}
+	}
+	return NULL;
+}
+
+Value* getVariableByName(HyperOp* producerHyperOp, string boundName) {
+	for (auto bbItr = producerHyperOp->getFunction()->begin(); bbItr != producerHyperOp->getFunction()->end(); bbItr++) {
+		for (auto instItr = bbItr->begin(); instItr != bbItr->end(); instItr++) {
+			if (!instItr->getName().compare(boundName)) {
+				return instItr;
+			}
+		}
+	}
+	for (auto argItr = producerHyperOp->getFunction()->arg_begin(); argItr != producerHyperOp->getFunction()->arg_end(); argItr++) {
+		if (!argItr->getName().compare(boundName)) {
+			return argItr;
+		}
+	}
+	return NULL;
+}
+
 //Take care of unrolling here so that unrolling is performed in a target aware manner instead of at the front end which doesn't know what the target params are
 HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 	LLVMContext & ctxt = M->getContext();
@@ -98,18 +142,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 					hyperOp->setInstanceId(parsedId);
 					if (hyperOpMDNode->getNumOperands() > 5) {
 						hyperOp->setInRange();
-						if (isa<MDString>(hyperOpMDNode->getOperand(5))) {
-							StringRef lowerBound = ((MDString*) hyperOpMDNode->getOperand(5))->getName();
-							hyperOp->setRangeLowerBound(ConstantInt::get(ctxt, APInt(32, atoi(lowerBound.str().c_str()))));
-						} else {
-							hyperOp->setRangeLowerBound(hyperOpMDNode->getOperand(5));
-						}
-						if (isa<MDString>(hyperOpMDNode->getOperand(6))) {
-							StringRef upperBound = ((MDString*) hyperOpMDNode->getOperand(6))->getName();
-							hyperOp->setRangeUpperBound(ConstantInt::get(ctxt, APInt(32, atoi(upperBound.str().c_str()))));
-						} else {
-							hyperOp->setRangeUpperBound(hyperOpMDNode->getOperand(6));
-						}
+						hyperOp->setRangeLowerBound(hyperOpMDNode->getOperand(5));
+						hyperOp->setRangeUpperBound(hyperOpMDNode->getOperand(6));
 						assert(isa<MDString>(hyperOpMDNode->getOperand(7)) && "Unsupported induction var update function");
 						StringRef strideFunction = ((MDString*) hyperOpMDNode->getOperand(7))->getName();
 						if (graph->StridedFunctionKeyValue.find(strideFunction) != graph->StridedFunctionKeyValue.end()) {
@@ -142,6 +176,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 			}
 		}
 	}
+
 	//Traverse instructions for metadata
 	unsigned maxFrameSizeOfHyperOp = 0;
 	list<HyperOp*> hyperOpTraversalList;
@@ -423,6 +458,78 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 		}
 	}
 
+	for (auto vertexItr : graph->Vertices) {
+		HyperOp* hyperOp = vertexItr;
+		if (!hyperOp->getInRange()) {
+			continue;
+		}
+		Value* lowerBound = hyperOp->getRangeLowerBound();
+		StringRef lowerBoundString = lowerBound->getName();
+		if (lowerBoundString.find(':', 0) == lowerBoundString.npos) {
+			Value* global = M->getGlobalVariable(lowerBoundString);
+			if (global == NULL) {
+				hyperOp->setRangeLowerBound(ConstantInt::get(ctxt, APInt(32, atoi(lowerBoundString.data()))));
+			} else {
+				hyperOp->setRangeLowerBound(global);
+			}
+		} else {
+			auto keyVal = getParsedProperty(lowerBoundString, ":");
+			string funcName = keyVal.first;
+			string boundName = keyVal.second;
+			HyperOp* producerHyperOp = getHyperOpByFuncName(graph, funcName);
+			Value* boundVal = getVariableByName(producerHyperOp, boundName);
+			assert(boundVal!=NULL && "Bound must be defined in the function\n");
+			hyperOp->setRangeLowerBound(boundVal);
+			hyperOp->setLowerBoundScope(producerHyperOp);
+
+			int max = -1;
+			for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = hyperOp->ParentMap.begin(); parentEdgeItr != hyperOp->ParentMap.end(); parentEdgeItr++) {
+				HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
+				if (isScalarEdgeTypeWithContextSlot(previouslyAddedEdge) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
+					max = previouslyAddedEdge->getPositionOfContextSlot();
+				}
+			}
+			HyperOpEdge* lowerBoundOfRange = new HyperOpEdge();
+			lowerBoundOfRange->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_COUNT_LOWER);
+			lowerBoundOfRange->setContextFrameAddress(hyperOp);
+			lowerBoundOfRange->setValue(boundVal);
+			lowerBoundOfRange->setPositionOfContextSlot(max+1);
+			graph->addEdge(producerHyperOp, hyperOp, lowerBoundOfRange);
+		}
+
+		Value* upperBound = hyperOp->getRangeUpperBound();
+		StringRef upperBoundString = upperBound->getName();
+		if (upperBoundString.find(':', 0) == upperBoundString.npos) {
+			Value* global = M->getGlobalVariable(upperBoundString);
+			if (global == NULL) {
+				hyperOp->setRangeUpperBound(ConstantInt::get(ctxt, APInt(32, atoi(upperBoundString.data()))));
+			}
+		} else {
+			auto keyVal = getParsedProperty(upperBoundString, ":");
+			string funcName = keyVal.first;
+			string boundName = keyVal.second;
+			HyperOp* producerHyperOp = getHyperOpByFuncName(graph, funcName);
+			Value* boundVal = getVariableByName(producerHyperOp, boundName);
+			assert(boundVal!=NULL && "Bound must be defined in the function\n");
+			hyperOp->setRangeUpperBound(boundVal);
+			hyperOp->setUpperBoundScope(producerHyperOp);
+
+			int max = -1;
+			for (map<HyperOpEdge*, HyperOp*>::iterator parentEdgeItr = hyperOp->ParentMap.begin(); parentEdgeItr != hyperOp->ParentMap.end(); parentEdgeItr++) {
+				HyperOpEdge* const previouslyAddedEdge = parentEdgeItr->first;
+				if (isScalarEdgeTypeWithContextSlot(previouslyAddedEdge) && previouslyAddedEdge->getPositionOfContextSlot() > max) {
+					max = previouslyAddedEdge->getPositionOfContextSlot();
+				}
+			}
+			HyperOpEdge* upperBoundOfRange = new HyperOpEdge();
+			upperBoundOfRange->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_COUNT_UPPER);
+			upperBoundOfRange->setContextFrameAddress(hyperOp);
+			upperBoundOfRange->setValue(boundVal);
+			upperBoundOfRange->setPositionOfContextSlot(max+1);
+			graph->addEdge(producerHyperOp, hyperOp, upperBoundOfRange);
+		}
+	}
+
 	/* If there are unrolled instances with no incoming edges, these are exit hyperops of a function call, their corresponding entry counterparts need to be identified and an edge must be added between them */
 	for(auto vertexItr = graph->Vertices.begin(); vertexItr!=graph->Vertices.end(); vertexItr++){
 		HyperOp* vertex = *vertexItr;
@@ -480,13 +587,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 
 	graph->print(errs());
 	return graph;
-}
-
-static pair<string, string> getParsedProperty(string keyvaluestr) {
-	string key = keyvaluestr.substr(0, keyvaluestr.find("="));
-	string value = keyvaluestr.substr(keyvaluestr.find("="));
-	value.replace(0, 1, "");
-	return make_pair(key, value);
 }
 
 /* Parse HyperOps list from the output of IR pass*/
