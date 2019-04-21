@@ -212,9 +212,9 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 							//Create an edge between two HyperOps labeled by the instruction
 							MDNode* consumerMDNode = (MDNode*) consumedByMDNode->getOperand(consumerMDNodeIndex);
 							unsigned positionOfContextSlot = ((ConstantInt*) consumerMDNode->getOperand(1))->getZExtValue();
-							if (consumerMDNode->getNumOperands() > 2) {
+							if (consumerMDNode->getNumOperands() > 3) {
 								//An instance is consuming the data
-								StringRef parseString = ((MDString*) consumerMDNode->getOperand(2))->getName();
+								StringRef parseString = ((MDString*) consumerMDNode->getOperand(3))->getName();
 								list<StringRef> consumerInstanceId = parseInstanceIdString(parseString);
 								MDNode* hyperOp = (MDNode*) consumerMDNode->getOperand(0);
 								//TODO
@@ -279,6 +279,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								edge->setValue((Value*) instr);
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
+								edge->setMultiplicity((((MDString*) consumerMDNode->getOperand(2))->getName()).str());
 								/* Unrolled instance needn't be added because every function call has one entry and one exit, rest of the instances must be created locally inside the unrolled function */
 								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)){
 //									&& !consumerHyperOp->isUnrolledInstance()) {
@@ -295,9 +296,9 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 							HyperOp* consumerHyperOp = 0;
 							MDNode* predicatedMDNode = (MDNode*) controlledByMDNode->getOperand(predicatedMDNodeIndex);
 							//Create an edge between two HyperOps labeled by the instruction
-							if (predicatedMDNode->getNumOperands() > 2) {
+							if (predicatedMDNode->getNumOperands() > 3) {
 								//An instance is consuming the data
-								list<StringRef> consumerInstanceId = parseInstanceIdString(((MDString*) predicatedMDNode->getOperand(2))->getName());
+								list<StringRef> consumerInstanceId = parseInstanceIdString(((MDString*) predicatedMDNode->getOperand(3))->getName());
 								MDNode* hyperOp = (MDNode*) predicatedMDNode->getOperand(0);
 								// This check ensures that unrolled instances don't add edges that terminate at static hyperops, such edges will be replicated later
 								if (sourceHyperOp->isUnrolledInstance() && !((MDString*) hyperOp->getOperand(2))->getName().compare("Static")) {
@@ -360,6 +361,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								} else {
 									edge->setPredicateValue(1);
 								}
+								edge->setMultiplicity((((MDString*) predicatedMDNode->getOperand(2))->getName()).str());
 								sourceHyperOp->addChildEdge(edge, consumerHyperOp);
 								consumerHyperOp->addParentEdge(edge, sourceHyperOp);
 								/* Unrolled instance needn't be added because every function call has one entry and one exit, rest of the instances must be created locally inside the unrolled function */
@@ -378,9 +380,9 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 							HyperOp* consumerHyperOp = 0;
 							MDNode* syncedMDNode = (MDNode*) syncMDNode->getOperand(syncMDNodeIndex);
 							//Create an edge between two HyperOps labeled by the instruction
-							if (syncedMDNode->getNumOperands() > 1) {
+							if (syncedMDNode->getNumOperands() > 2) {
 								//An instance is consuming the data
-								list<StringRef> consumerInstanceId = parseInstanceIdString(((MDString*) syncedMDNode->getOperand(1))->getName());
+								list<StringRef> consumerInstanceId = parseInstanceIdString(((MDString*) syncedMDNode->getOperand(2))->getName());
 								MDNode* hyperOp = (MDNode*) syncedMDNode->getOperand(0);
 								// This check ensures that unrolled instances don't add edges that terminate at static hyperops, such edges will be replicated later
 								if (sourceHyperOp->isUnrolledInstance() && !((MDString*) hyperOp->getOperand(2))->getName().compare("Static")) {
@@ -445,6 +447,8 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								} else {
 									consumerHyperOp->addIncomingSyncValue(0, (SyncValue) 1);
 								}
+								errs()<<"aisa kyu be for sync\n";
+								edge->setMultiplicity((((MDString*) syncedMDNode->getOperand(1))->getName()).str());
 								/* Unrolled instance needn't be added because every function call has one entry and one exit, rest of the instances must be created locally inside the unrolled function */
 								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)){
 									//&& !consumerHyperOp->isUnrolledInstance()) {
@@ -494,6 +498,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 			lowerBoundOfRange->setContextFrameAddress(hyperOp);
 			lowerBoundOfRange->setValue(boundVal);
 			lowerBoundOfRange->setPositionOfContextSlot(max+1);
+			lowerBoundOfRange->setMultiplicity(ONE_TO_ONE);
 			graph->addEdge(producerHyperOp, hyperOp, lowerBoundOfRange);
 		}
 
@@ -526,6 +531,7 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 			upperBoundOfRange->setContextFrameAddress(hyperOp);
 			upperBoundOfRange->setValue(boundVal);
 			upperBoundOfRange->setPositionOfContextSlot(max+1);
+			upperBoundOfRange->setMultiplicity(ONE_TO_ONE);
 			graph->addEdge(producerHyperOp, hyperOp, upperBoundOfRange);
 		}
 	}
@@ -584,7 +590,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 			}
 		}
 	}
-
 	graph->print(errs());
 	return graph;
 }

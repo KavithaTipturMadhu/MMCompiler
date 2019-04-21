@@ -46,6 +46,9 @@ static string DYNAMIC_HYPEROP = "Dynamic";
 static string HYPEROP_AFFINITY = "Affinity";
 static string HYPEROP_FRAME = "Frame";
 static string HYPEROP_ID = "Id";
+static string ONE_TO_N = "1n";
+static string N_TO_ONE = "n1";
+static string ONE_TO_ONE = "11";
 
 class HyperOp;
 class HyperOpInteractionGraph;
@@ -63,6 +66,7 @@ class HyperOpEdge {
 	MachineInstr* edgeSource;
 	int memoryOffset;
 	int memorySize;
+	string multiplicity;
 
 protected:
 	Value* variable;
@@ -116,6 +120,8 @@ public:
 	void clone(HyperOpEdge** clone);
 	void setMemorySize(int memorySize);
 	int getMemorySize();
+	void setMultiplicity(string);
+	string getMultiplicity();
 };
 typedef list<pair<MachineInstr*, MachineInstr*> > PHyperOpInteractionGraph;
 
@@ -322,6 +328,7 @@ public:
 	 */
 	void addSelfFrameAddressRegisters();
 
+	void updateFunctionsForBoundAddress();
 	/**
 	 * Prints in dot format
 	 */
