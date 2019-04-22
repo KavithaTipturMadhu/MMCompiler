@@ -41,6 +41,7 @@ BitVector REDEFINERegisterInfo::getReservedRegs(const MachineFunction &MF) const
 	Reserved.set(REDEFINE::zero);
 	Reserved.set(REDEFINE::t4);
 	Reserved.set(REDEFINE::ft0);
+	Reserved.set(REDEFINE::t0);
 	return Reserved;
 }
 

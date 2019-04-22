@@ -349,9 +349,9 @@ if(bb == &bb->getParent()->front()){
 }
 
 
-if (BB->getBasicBlock()->getName().compare(BB->getBasicBlock()->getParent()->getEntryBlock().getName()) == 0) {
+/*if (BB->getBasicBlock()->getName().compare(BB->getBasicBlock()->getParent()->getEntryBlock().getName()) == 0) {
 
-}
+}*/
 faninOfHyperOp.clear();
 endOfBBLoopEdgeCovered = false;
 for (int i = 0; i < ceCount; i++) {

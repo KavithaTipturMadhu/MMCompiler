@@ -307,6 +307,31 @@ void REDEFINEInstrInfo::copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::i
 }
 
 bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const {
+
+	if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(2).getType() == MachineOperand::MO_FrameIndex) {
+		const MachineOperand &MO = MI->getOperand(2);
+		const MachineFrameInfo* frameInfo = MO.getParent()->getParent()->getParent()->getFrameInfo();
+		unsigned currentObjectOffset = 0;
+		if (MO.getType() == MachineOperand::MO_FrameIndex) {
+			for (int i = 0; i < MO.getIndex(); i++) {
+				currentObjectOffset += REDEFINEUtils::getSizeOfType(frameInfo->getObjectAllocation(i)->getType());
+			}
+		}
+		if (!isInt<12>(currentObjectOffset)) {
+			MI->dump();
+			MachineInstrBuilder movImm = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::MOVIMM));
+			movImm.addReg(REDEFINE::t0, RegState::Define);
+			movImm.addImm(currentObjectOffset);
+			MachineInstrBuilder add = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADD)).addReg(MI->getOperand(0).getReg()).addReg(MI->getOperand(1).getReg()).addReg(REDEFINE::t0);
+			if (MI->isBundled()) {
+				MI->eraseFromBundle();
+			} else {
+				MI->eraseFromParent();
+			}
+			movImm->bundleWithSucc();
+			add->bundleWithSucc();
+		}
+	}
 //	//TODO Hack for immediates that don't fit in 12 bit addi operand field
 //	if (MI->getOpcode() == REDEFINE::ADDI && MI->getOperand(1).getReg() == REDEFINE::zero) {
 //		if (MI->getOperand(2).isImm() && MI->getOperand(2).getImm() != 0 && Log2_32_Ceil((uint32_t) MI->getOperand(2).getImm()) > 10) {

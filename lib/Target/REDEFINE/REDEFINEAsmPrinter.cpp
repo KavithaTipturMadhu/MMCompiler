@@ -184,7 +184,8 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 				string globalAddressCode("");
 				globalAddressCode.append("\tadd		x30, x0, x10\n");
 				globalAddressCode.append("\tmovaddr	x1, \"ga#").append(itostr(maxGlobalSize)).append("\"\n");
-				globalAddressCode.append("\taddi	x2, x0, fs\n");
+				globalAddressCode.append("\tmovimm	x5, fs\n");
+				globalAddressCode.append("\tadd	x2, x0, x5\n");
 				globalAddressCode.append("\tsrli	x3, x30, ").append(std::to_string(REDEFINEMCInstrScheduler::SHIFT_FOR_CRID)).append("\n");
 				globalAddressCode.append("\tsrli	x4, x30, ").append(std::to_string(REDEFINEMCInstrScheduler::SHIFT_FOR_PAGENUMBER)).append("\n");
 				globalAddressCode.append("\tandi	x5, x4, ").append(std::to_string(REDEFINEMCInstrScheduler::PAGE_NUMBER_MASK)).append("\n");
