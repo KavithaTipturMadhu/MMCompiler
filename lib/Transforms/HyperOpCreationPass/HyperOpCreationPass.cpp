@@ -2178,25 +2178,30 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 			}
-			//Update the branch instruction targets to point to the basic blocks in the cloned set
-			for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
-				for (list<BasicBlock*>::iterator bbItr = accumulatedBasicBlocks.begin(); bbItr != accumulatedBasicBlocks.end(); bbItr++) {
-					TerminatorInst* terminator = (*bbItr)->getTerminator();
-					for (unsigned i = 0; i < terminator->getNumSuccessors(); i++) {
+			for (list<BasicBlock*>::iterator bbItr = accumulatedBasicBlocks.begin(); bbItr != accumulatedBasicBlocks.end(); bbItr++) {
+				TerminatorInst* terminator = (*bbItr)->getTerminator();
+				terminator->dump();
+				for (unsigned i = 0; i < terminator->getNumSuccessors(); i++) {
+					//Update the branch instruction targets to point to the basic blocks in the cloned set
+					bool updatedSucc = false;
+					for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 						if (terminator->getSuccessor(i) == (*accumulatedBBItr)) {
 							((TerminatorInst*) originalToClonedInstMap[terminator])->setSuccessor(i, originalToClonedBasicBlockMap[*accumulatedBBItr]);
-						} else {
-							bool latchBB = false;
-							//Check if the target is the latch of a parallel loop
-							for (auto parallelLoopLatchBB : originalParallelLatchBB) {
-								if (terminator->getSuccessor(i) == parallelLoopLatchBB) {
-									((TerminatorInst*) originalToClonedInstMap[terminator])->setSuccessor(i, originalToClonedBasicBlockMap[*accumulatedBBItr]);
-									latchBB = true;
-								}
-							}
-							if(!latchBB){
+							updatedSucc = true;
+							break;
+						}
+					}
+					if (!updatedSucc) {
+						bool latchBB = false;
+						//Check if the target is the latch of a parallel loop
+						for (auto parallelLoopLatchBB : originalParallelLatchBB) {
+							if (terminator->getSuccessor(i) == parallelLoopLatchBB) {
 								((TerminatorInst*) originalToClonedInstMap[terminator])->setSuccessor(i, &newFunction->back());
+								latchBB = true;
 							}
+						}
+						if (!latchBB) {
+							((TerminatorInst*) originalToClonedInstMap[terminator])->setSuccessor(i, &newFunction->back());
 						}
 					}
 				}
@@ -2862,8 +2867,6 @@ struct HyperOpCreationPass: public ModulePass {
 											Value* loadInstr = new LoadInst(loadOffset, "", &parentFunction->getEntryBlock().back());
 											new StoreInst(loadInstr, storeOffset, &parentFunction->getEntryBlock().back());
 										}
-										errs()<<"after all the storing, parentFunction:";
-										parentFunction->dump();
 									} else {
 										ai = new AllocaInst(clonedDefInst->getType());
 										ai->insertBefore(parentFunction->getEntryBlock().getFirstInsertionPt());
