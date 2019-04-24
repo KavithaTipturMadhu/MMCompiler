@@ -447,7 +447,6 @@ HyperOpInteractionGraph * HyperOpMetadataParser::parseMetadata(Module * M) {
 								} else {
 									consumerHyperOp->addIncomingSyncValue(0, (SyncValue) 1);
 								}
-								errs()<<"aisa kyu be for sync\n";
 								edge->setMultiplicity((((MDString*) syncedMDNode->getOperand(1))->getName()).str());
 								/* Unrolled instance needn't be added because every function call has one entry and one exit, rest of the instances must be created locally inside the unrolled function */
 								if (!hyperOpInList(consumerHyperOp, traversedList) && !hyperOpInList(consumerHyperOp, hyperOpTraversalList)){
