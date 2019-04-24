@@ -396,9 +396,10 @@ for (auto instItr = bb->instr_begin(); instItr != bb->instr_end(); instItr++) {
 	}
 	else if(inst->getOpcode() == REDEFINE::PSGETMEMFRAME){
 		MachineInstr *insertionPoint = inst;
-		MachineOperand& frameAddress = inst->getOperand(0);
+		MachineOperand& frameAddress = inst->getOperand(1);
 		assert(frameAddress.isReg() && "Get memory frame pseudo's argument must be in reg\n");
 		unsigned frameInReg = frameAddress.getReg();
+		regs.push_back(frameInReg);
 //add global address to r31 of REDEFINE
 		string globalAddressString = "ga#";
 		globalAddressString.append(itostr(maxGlobalSize));
@@ -551,6 +552,7 @@ if (BB->getNumber() == 0) {/*
 		addToLISSlot(LIS, addForGlobalAddr.operator llvm::MachineInstr *());
 */}
 LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), regs);
+errs()<<"right after startblock:\n";
 bb->dump();
 }
 

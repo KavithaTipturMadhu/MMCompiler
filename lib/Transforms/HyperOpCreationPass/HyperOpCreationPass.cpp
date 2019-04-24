@@ -2822,7 +2822,6 @@ struct HyperOpCreationPass: public ModulePass {
 
 										Type* dataType = clonedDefInst->getType();
 										//Map of primitive data types and their memory locations
-										list<pair<Type*, unsigned> > primitiveTypesMap;
 										list<pair<Type*, int> > containedTypesForTraversal;
 										if (clonedDefInst->getType()->isArrayTy()) {
 											containedTypesForTraversal.push_front(make_pair(dataType, dataType->getArrayNumElements()));
@@ -2836,10 +2835,7 @@ struct HyperOpCreationPass: public ModulePass {
 											int typeCount = containedTypesForTraversal.front().second;
 											containedTypesForTraversal.pop_front();
 											if (!traversingType->isAggregateType()) {
-												for (int i = 0; i < typeCount; i++) {
-													primitiveTypesMap.push_back(make_pair(traversingType, memoryOfType));
-													memoryOfType += (32 / 8);
-												}
+												memoryOfType += typeCount * (traversingType->getPrimitiveSizeInBits() / 8);
 											} else {
 												if (traversingType->isArrayTy()) {
 													containedTypesForTraversal.push_back(make_pair(traversingType->getArrayElementType(), traversingType->getArrayNumElements()));
@@ -2850,24 +2846,24 @@ struct HyperOpCreationPass: public ModulePass {
 												}
 											}
 										}
-										unsigned arraySize = 0;
-										if(clonedDefInst->getType()->isArrayTy()){
+										unsigned arraySize = 1;
+										if (clonedDefInst->getType()->isArrayTy()) {
 											arraySize = ((ConstantInt*) ((AllocaInst*) clonedDefInst)->getArraySize())->getZExtValue();
 										}
+										unsigned totalSize = arraySize * memoryOfType;
 										//TODO replace with a loop
-										for (unsigned allocatedDataIndex = 0; allocatedDataIndex != arraySize; allocatedDataIndex++) {
+										for (unsigned allocatedDataIndex = 0; allocatedDataIndex < totalSize; allocatedDataIndex++) {
 											//Add a load instruction from memory and store to the memory frame of the consumer HyperOp
-											for (list<pair<Type*, unsigned> >::iterator containedPrimitiveItr = primitiveTypesMap.begin(); containedPrimitiveItr != primitiveTypesMap.end(); containedPrimitiveItr++) {
-												Type* containedType = containedPrimitiveItr->first;
-												unsigned sourceOffset = allocatedDataIndex * memoryOfType + containedPrimitiveItr->second;
-												vector<Value*> offsetVector;
-												offsetVector.push_back(ConstantInt::get(ctxt, APInt(32, sourceOffset)));
-												Value* loadOffset = GetElementPtrInst::Create(clonedDefInst, offsetVector, "", &parentFunction->getEntryBlock());
-												Value* storeOffset = GetElementPtrInst::Create(ai, offsetVector, "", &parentFunction->getEntryBlock());
-												Value* loadInstr = new LoadInst(loadOffset, "", &parentFunction->getEntryBlock());
-												new StoreInst(loadInstr, storeOffset, &parentFunction->getEntryBlock());
-											}
+											unsigned sourceOffset = allocatedDataIndex;
+											vector<Value*> offsetVector;
+											offsetVector.push_back(ConstantInt::get(ctxt, APInt(32, sourceOffset)));
+											Value* loadOffset = GetElementPtrInst::Create(clonedDefInst, offsetVector, "", &parentFunction->getEntryBlock().back());
+											Value* storeOffset = GetElementPtrInst::Create(ai, offsetVector, "", &parentFunction->getEntryBlock().back());
+											Value* loadInstr = new LoadInst(loadOffset, "", &parentFunction->getEntryBlock().back());
+											new StoreInst(loadInstr, storeOffset, &parentFunction->getEntryBlock().back());
 										}
+										errs()<<"after all the storing, parentFunction:";
+										parentFunction->dump();
 									} else {
 										ai = new AllocaInst(clonedDefInst->getType());
 										ai->insertBefore(parentFunction->getEntryBlock().getFirstInsertionPt());
@@ -2973,7 +2969,7 @@ struct HyperOpCreationPass: public ModulePass {
 									}
 									ai->setAlignment(4);
 									//Alloc instructions need to be inserted in the entry basic block of the function because other allocs are treated as dynamic stack allocs
-									ai->insertBefore(producerFunction->getEntryBlock().getFirstInsertionPt());
+									ai->insertBefore(&producerFunction->getEntryBlock().back());
 									StoreInst* storeInst = new StoreInst(clonedDefInst, ai);
 									storeInst->setAlignment(4);
 									Instruction* storeAfter;
@@ -3966,12 +3962,11 @@ struct REDEFINEIRPass: public ModulePass {
 		vector<Value*> offsetInBytes;
 		offsetInBytes.push_back(ConstantInt::get(ctxt, APInt(8, targetOffsetInBytes)));
 		Value* targetMemBaseInst = GetElementPtrInst::Create(targetMemFrameBaseAddress, offsetInBytes, "ptr_val", &(*insertInBB)->back());
-		Type* dataType = originalData->getType();
+		assert(isa<AllocaInst>(originalData) && "Original data is not alloc type\n");
+		Type* dataType = ((AllocaInst*) originalData)->getAllocatedType();
+
 		//Map of primitive data types and their memory locations
-		list<pair<Type*, unsigned> > primitiveTypesMap;
 		list<pair<Type*, int> > containedTypesForTraversal;
-		errs()<<"whats original type:";
-		originalData->getType()->dump();
 		if (originalData->getType()->isArrayTy()) {
 			containedTypesForTraversal.push_front(make_pair(dataType, dataType->getArrayNumElements()));
 		} else {
@@ -3984,10 +3979,7 @@ struct REDEFINEIRPass: public ModulePass {
 			int typeCount = containedTypesForTraversal.front().second;
 			containedTypesForTraversal.pop_front();
 			if (!traversingType->isAggregateType()) {
-				for (int i = 0; i < typeCount; i++) {
-					primitiveTypesMap.push_back(make_pair(traversingType, memoryOfType));
-					memoryOfType += (32 / 8);
-				}
+				memoryOfType += typeCount*(traversingType->getPrimitiveSizeInBits()/8);
 			} else {
 				if (traversingType->isArrayTy()) {
 					containedTypesForTraversal.push_back(make_pair(traversingType->getArrayElementType(), traversingType->getArrayNumElements()));
@@ -3997,12 +3989,6 @@ struct REDEFINEIRPass: public ModulePass {
 					}
 				}
 			}
-		}
-
-		assert(isa<AllocaInst>(originalData) && "Original data is not alloc type\n");
-		unsigned arraySize = 0;
-		if(originalData->getType()->isArrayTy()){
-			arraySize = ((ConstantInt*) ((AllocaInst*) originalData)->getArraySize())->getZExtValue();
 		}
 		if (edgeSource->hasRangeBaseInput() && parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) {
 			/* Find the range base of the parent hyperop */
@@ -4032,20 +4018,21 @@ struct REDEFINEIRPass: public ModulePass {
 			*insertInBB = communicationInsertionBB;
 		}
 		Value* newSourceData = BitCastInst::Create(Instruction::BitCast, sourceData, Type::getInt8PtrTy(ctxt), "", &((*insertInBB)->back()));
-
+		unsigned arraySize = 1;
+		if (originalData->getType()->isArrayTy()) {
+			arraySize = ((ConstantInt*) ((AllocaInst*) originalData)->getArraySize())->getZExtValue();
+		}
+		unsigned totalSize = arraySize * memoryOfType;
 		//TODO replace with a loop
-		for (unsigned allocatedDataIndex = 0; allocatedDataIndex != arraySize; allocatedDataIndex++) {
+		for (unsigned allocatedDataIndex = 0; allocatedDataIndex < totalSize; allocatedDataIndex++) {
 			//Add a load instruction from memory and store to the memory frame of the consumer HyperOp
-			for (list<pair<Type*, unsigned> >::iterator containedPrimitiveItr = primitiveTypesMap.begin(); containedPrimitiveItr != primitiveTypesMap.end(); containedPrimitiveItr++) {
-				Type* containedType = containedPrimitiveItr->first;
-				unsigned sourceOffset = allocatedDataIndex * memoryOfType + containedPrimitiveItr->second;
-				vector<Value*> offsetVector;
-				offsetVector.push_back(ConstantInt::get(ctxt, APInt(32, sourceOffset)));
-				Value* loadOffset = getValueFromLocation(newSourceData, insertInBB, &offsetVector);
-				Value* storeOffset = getValueFromLocation(targetMemBaseInst, insertInBB, &offsetVector);
-				Value* loadInstr = getValueFromLocation(loadOffset, insertInBB);
-				new StoreInst(loadInstr, storeOffset, &((*insertInBB)->back()));
-			}
+			unsigned sourceOffset = allocatedDataIndex;
+			vector<Value*> offsetVector;
+			offsetVector.push_back(ConstantInt::get(ctxt, APInt(32, sourceOffset)));
+			Value* loadOffset = getValueFromLocation(newSourceData, insertInBB, &offsetVector);
+			Value* storeOffset = getValueFromLocation(targetMemBaseInst, insertInBB, &offsetVector);
+			Value* loadInstr = getValueFromLocation(loadOffset, insertInBB);
+			new StoreInst(loadInstr, storeOffset, &((*insertInBB)->back()));
 		}
 	}
 
