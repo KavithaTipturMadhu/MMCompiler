@@ -467,6 +467,8 @@ for (auto instItr = bb->instr_begin(); instItr != bb->instr_end(); instItr++) {
 		MachineInstrBuilder addForGlobalAddr = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addOperand(inst->getOperand(0)).addReg(registerForGlobalAddr).addReg(registerForMul);
 		addToLISSlot(LIS, addForGlobalAddr.operator ->());
 		deleteList.push_back(inst);
+		LIS->RemoveMachineInstrFromMaps(inst);
+		LIS->removeInterval(inst->getOperand(0).getReg());
 	}
 }
 for (auto instItr = deleteList.begin(); instItr != deleteList.end(); instItr++) {
