@@ -2509,6 +2509,7 @@ struct HyperOpCreationPass: public ModulePass {
 							if(isa<Argument>(lowerBound)){
 								storeLocation = boundalloc;
 							}else{
+								new StoreInst(ConstantInt::get(ctxt, APInt(32, 0)), boundalloc, &retval.second->getEntryBlock().back());
 								storeLocation = ((Instruction*) lowerBound)->getNextNode();
 							}
 							StoreInst* storeToBound = new StoreInst(lowerBound, boundalloc, storeLocation);
@@ -2533,6 +2534,7 @@ struct HyperOpCreationPass: public ModulePass {
 							if(isa<Argument>(upperBound)){
 								storeLocation = boundalloc;
 							}else{
+								new StoreInst(ConstantInt::get(ctxt, APInt(32, 0)), boundalloc, &retval.second->getEntryBlock().back());
 								storeLocation = ((Instruction*) upperBound)->getNextNode();
 							}
 							StoreInst* storeToBound = new StoreInst(upperBound, boundalloc, storeLocation);
