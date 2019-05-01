@@ -3785,7 +3785,7 @@ struct HyperOpCreationPass: public ModulePass {
 				newEntryBB->getInstList().insert(newEntryBB->getFirstInsertionPt(), branchInst);
 			}
 		}
-
+		M.dump();
 		DEBUG(dbgs() << "\n-----------Deleting unused functions-----------\n");
 		//Workaround for deleting unused functions, deletion doesn't work unless in topological order but what about recursion?
 		list<Function*> functionsForDeletion;
@@ -3830,8 +3830,8 @@ struct REDEFINEIRPass: public ModulePass {
 	static char* NEW_NAME;
 	/* Maximum context frame size in words, not bytes */
 	static const unsigned MAX_CONTEXT_FRAME_SIZE = 15;
-	static const unsigned MAX_ROW = 2;
-	static const unsigned MAX_COL = 2;
+	static const unsigned MAX_ROW = 1;
+	static const unsigned MAX_COL = 1;
 	static const unsigned FRAME_SIZE_BYTES = 64;
 
 	REDEFINEIRPass() :
@@ -4354,7 +4354,6 @@ struct REDEFINEIRPass: public ModulePass {
 					insertInBB = loopEnd;
 				}
 			}
-
 			for (auto childItr : vertex->getChildList()) {
 				HyperOp* child = childItr;
 				BasicBlock * loopBegin, *loopBody, *loopEnd;
@@ -4391,10 +4390,9 @@ struct REDEFINEIRPass: public ModulePass {
 					}
 					assert(baseAddress!=NULL && "Could not load the base address of the child hyperop\n");
 				}
-
 				Value* baseAddressWithoutPhi = baseAddress;
+				bool rangeLoopRequired = false;
 				if (child->getInRange()) {
-					bool rangeLoopRequired = false;
 					for(auto parentItr : vertex->ChildMap){
 						if(parentItr.second == child && !parentItr.first->getMultiplicity().compare(ONE_TO_N)){
 							rangeLoopRequired = true;
@@ -4402,65 +4400,62 @@ struct REDEFINEIRPass: public ModulePass {
 						}
 					}
 
-					if(!rangeLoopRequired){
-						continue;
-					}
-
-					Value* numFrames;
-					if(child->getImmediateDominator() == vertex){
-						numFrames = BinaryOperator::CreateUDiv(BinaryOperator::CreateSub(getValueFromLocation(child->getRangeUpperBound(), &insertInBB), getValueFromLocation(child->getRangeLowerBound(), &insertInBB), "", &insertInBB->back()), child->getStride(), "", &insertInBB->back());
-						numFrames = BinaryOperator::CreateSub(numFrames, getConstantValue(1, M), "", &insertInBB->back());
-					}else{
-						Value* lowerBound = NULL, *upperBound = NULL;
-						if (child->getUpperBoundScope() != NULL) {
-							for(auto parentItr:vertex->ParentMap){
-								if(parentItr.first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_COUNT_UPPER && parentItr.first->getContextFrameAddress() == child){
-									int argIndex = 0;
-									for(auto argItr = vertex->getFunction()->arg_begin(); argItr!=vertex->getFunction()->arg_end(); argItr++, argIndex++){
-										if(argIndex == parentItr.first->getPositionOfContextSlot()){
-											upperBound = argItr;
-											break;
+					if (rangeLoopRequired) {
+						Value* numFrames;
+						if (child->getImmediateDominator() == vertex) {
+							numFrames = BinaryOperator::CreateUDiv(BinaryOperator::CreateSub(getValueFromLocation(child->getRangeUpperBound(), &insertInBB), getValueFromLocation(child->getRangeLowerBound(), &insertInBB), "", &insertInBB->back()), child->getStride(), "", &insertInBB->back());
+							numFrames = BinaryOperator::CreateSub(numFrames, getConstantValue(1, M), "", &insertInBB->back());
+						} else {
+							Value* lowerBound = NULL, *upperBound = NULL;
+							if (child->getUpperBoundScope() != NULL) {
+								for (auto parentItr : vertex->ParentMap) {
+									if (parentItr.first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_COUNT_UPPER && parentItr.first->getContextFrameAddress() == child) {
+										int argIndex = 0;
+										for (auto argItr = vertex->getFunction()->arg_begin(); argItr != vertex->getFunction()->arg_end(); argItr++, argIndex++) {
+											if (argIndex == parentItr.first->getPositionOfContextSlot()) {
+												upperBound = argItr;
+												break;
+											}
 										}
 									}
-									break;
-								}
-								if (upperBound != NULL) {
-									break;
-								}
-							}
-						}else{
-							upperBound = child->getRangeUpperBound();
-						}
-						if (child->getLowerBoundScope() != NULL) {
-							for(auto parentItr:vertex->ParentMap){
-								if(parentItr.first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_COUNT_LOWER && parentItr.first->getContextFrameAddress() == child){
-									int argIndex = 0;
-									for(auto argItr = vertex->getFunction()->arg_begin(); argItr!=vertex->getFunction()->arg_end(); argItr++, argIndex++){
-										if(argIndex == parentItr.first->getPositionOfContextSlot()){
-											lowerBound = argItr;
-											break;
-										}
+									if (upperBound != NULL) {
+										break;
 									}
-									break;
 								}
-								if (lowerBound != NULL) {
-									break;
-								}
+							} else {
+								upperBound = child->getRangeUpperBound();
 							}
-						}else{
-							lowerBound = child->getRangeLowerBound();
+							if (child->getLowerBoundScope() != NULL) {
+								for (auto parentItr : vertex->ParentMap) {
+									if (parentItr.first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_COUNT_LOWER && parentItr.first->getContextFrameAddress() == child) {
+										int argIndex = 0;
+										for (auto argItr = vertex->getFunction()->arg_begin(); argItr != vertex->getFunction()->arg_end(); argItr++, argIndex++) {
+											if (argIndex == parentItr.first->getPositionOfContextSlot()) {
+												lowerBound = argItr;
+												break;
+											}
+										}
+										break;
+									}
+									if (lowerBound != NULL) {
+										break;
+									}
+								}
+							} else {
+								lowerBound = child->getRangeLowerBound();
+							}
+							assert(upperBound != NULL);
+							assert(lowerBound != NULL);
+							numFrames = BinaryOperator::CreateUDiv(BinaryOperator::CreateSub(upperBound, lowerBound, "", &insertInBB->back()), child->getStride(), "", &insertInBB->back());
+							numFrames = BinaryOperator::CreateSub(numFrames, getConstantValue(1, M), "", &insertInBB->back());
 						}
-						assert(upperBound != NULL);
-						assert(lowerBound != NULL);
-						numFrames = BinaryOperator::CreateUDiv(BinaryOperator::CreateSub(upperBound, lowerBound, "", &insertInBB->back()), child->getStride(), "", &insertInBB->back());
-						numFrames = BinaryOperator::CreateSub(numFrames, getConstantValue(1, M), "", &insertInBB->back());
+						Value* baseAddressUpperBound = BinaryOperator::CreateNUWAdd(BinaryOperator::CreateNUWMul(numFrames, getConstantValue(64, M), "", &insertInBB->back()), baseAddress, "", &insertInBB->back());
+						addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, baseAddress, baseAddressUpperBound, &baseAddress);
+						insertInBB = loopBody;
 					}
-					Value* baseAddressUpperBound = BinaryOperator::CreateNUWAdd(BinaryOperator::CreateNUWMul(numFrames, getConstantValue(64, M), "", &insertInBB->back()), baseAddress, "", &insertInBB->back());
-					addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, baseAddress, baseAddressUpperBound, &baseAddress);
-					insertInBB = loopBody;
 				}
 				addCommunicationInstructions(child, vertex, baseAddressWithoutPhi, baseAddress, &insertInBB, M);
-				if (child->getInRange()) {
+				if (rangeLoopRequired) {
 					Value* updatedValue = BinaryOperator::CreateNUWAdd(baseAddress, getConstantValue(64, M), "", &loopBody->back());
 					assert(isa<PHINode>(baseAddress) && "Phi node has to be formed for use subsequently\n");
 					((PHINode*) baseAddress)->addIncoming(updatedValue, loopBody);
@@ -4471,7 +4466,6 @@ struct REDEFINEIRPass: public ModulePass {
 			DEBUG(dbgs() << "Adding fdelete instructions to module\n");
 			for (auto childItr : graph->Vertices) {
 				HyperOp* child = childItr;
-				DEBUG(dbgs()<<"for child "<<child->asString()<<"\n");
 				if (child != vertex && child->isPredicatedHyperOp() && child->getImmediateDominator() != NULL && child->getImmediateDominator()->getImmediatePostDominator() == vertex) {
 					Value* argContainingAddress = NULL;
 					if(child->isStaticHyperOp()){
