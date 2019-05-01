@@ -4598,15 +4598,15 @@ void HyperOpInteractionGraph::print(raw_ostream &os, int debug) {
 				os << vertex->asString() << "->" << childItr->second->asString() << "[label=";
 				HyperOpEdge* edge = (*childItr).first;
 				if (edge->Type == HyperOpEdge::SCALAR) {
-					os << "scalar";
+					os << "scalar"<<edge->getPositionOfContextSlot();
 				} else if (edge->Type == HyperOpEdge::LOCAL_REFERENCE) {
-					os << "localref";
+					os << "localref"<<edge->getPositionOfContextSlot();
 				} else if (edge->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR) {
-					os << "frameAddress" ;
+					os << "frameAddress"<<edge->getPositionOfContextSlot()<<edge->getContextFrameAddress()->asString();
 				} else if (edge->Type == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF) {
-					os << "frameAddressmem";
+					os << "frameAddressmem"<<edge->getContextFrameAddress()->asString();
 				} else if (edge->Type == HyperOpEdge::PREDICATE) {
-					os << "control";
+					os << "control"<<edge->getPredicateValue();
 				} else if (edge->Type == HyperOpEdge::ORDERING) {
 					os << "order";
 				} else if (edge->Type == HyperOpEdge::SYNC) {
