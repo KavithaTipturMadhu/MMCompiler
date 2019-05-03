@@ -2091,7 +2091,7 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 			}
-			//Instructions have to be patched for operands after all are cloned to ensure that phi nodes are handled correctly
+			//Instructions have to be patched for operands after all are cloned
 			for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
 				for (BasicBlock::iterator instItr = (*accumulatedBBItr)->begin(); instItr != (*accumulatedBBItr)->end(); instItr++) {
 					if (find(ignoredInstructions.begin(), ignoredInstructions.end(), instItr) != ignoredInstructions.end()) {
@@ -2114,6 +2114,9 @@ struct HyperOpCreationPass: public ModulePass {
 											for (Function::arg_iterator argItr = newFunction->arg_begin(); argItr != newFunction->arg_end(); argItr++) {
 												if ((*argItr).getArgNo() == localHyperOpArgIndex) {
 													clonedInst->setOperand(operandIndex, argItr);
+													if(isa<PHINode>(clonedInst)){
+														((PHINode*) clonedInst)->setIncomingBlock(operandIndex, originalToClonedBasicBlockMap[((PHINode*) clonedInst)->getIncomingBlock(operandIndex)]);
+													}
 													argUpdated = true;
 													break;
 												}
@@ -2125,9 +2128,10 @@ struct HyperOpCreationPass: public ModulePass {
 							}
 							//Find the definitions added previously which reach the use
 							if (!argUpdated) {
-								if (isa<Constant>(operandToBeReplaced) && isa<PHINode>(instItr)) {
-									BasicBlock* sourceBB = ((PHINode*) &*instItr)->getIncomingBlock(operandIndex);
-									((PHINode*) clonedInst)->setIncomingBlock(operandIndex, originalToClonedBasicBlockMap[sourceBB]);
+								if ((isa<Constant>(operandToBeReplaced)) && isa<PHINode>(instItr)) {
+									if(isa<Constant>(operandToBeReplaced)){
+										((PHINode*) clonedInst)->setIncomingBlock(operandIndex, originalToClonedBasicBlockMap[((PHINode*) clonedInst)->getIncomingBlock(operandIndex)]);
+									}
 								}
 								//If the original operand is an instruction that was cloned previously which belongs to the list of accumulated HyperOps
 								for (list<BasicBlock*>::iterator accumulatedBBItr = accumulatedBasicBlocks.begin(); accumulatedBBItr != accumulatedBasicBlocks.end(); accumulatedBBItr++) {
