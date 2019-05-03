@@ -1110,7 +1110,7 @@ void HyperOpInteractionGraph::updateLocalRefEdgeMemSizeAndOffset() {
 						break;
 					}
 				}
-				if ((*edgeItr)->getPositionOfContextSlot() != parentEdgeItr->first->getPositionOfContextSlot()) {
+				if (!edgeProcessingOrder.empty() && ((*edgeItr)->getPositionOfContextSlot() != parentEdgeItr->first->getPositionOfContextSlot())) {
 					edgeProcessingOrder.insert(edgeItr, parentEdgeItr->first);
 					edgeParentMap.insert(make_pair(parentEdgeItr->first, parentEdgeItr->second));
 				}
@@ -4158,7 +4158,7 @@ void HyperOpInteractionGraph::convertSpillScalarsToStores() {
 			if (argIndex < skipArgs) {
 				continue;
 			}
-			if (!firstNonInregEncountered && (argItr->getType()->isSingleValueType() && !argItr->getType()->isPointerTy()) && (REDEFINEUtils::getSizeOfType(argItr->getType()) / 4) < this->getMaxContextFrameSize() && argIndex < (this->getMaxContextFrameSize() + skipArgs)) {
+			if (!firstNonInregEncountered && (argItr->getType()->isIntegerTy()) && (REDEFINEUtils::getSizeOfType(argItr->getType()) / 4) < this->getMaxContextFrameSize() && argIndex < (this->getMaxContextFrameSize() + skipArgs)) {
 				//Mark context frame args as inreg
 				hyperOpFunction->addAttribute(argIndex + 1, Attribute::InReg);
 			} else {
