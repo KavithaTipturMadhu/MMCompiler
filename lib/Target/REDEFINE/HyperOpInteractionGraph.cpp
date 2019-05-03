@@ -1110,7 +1110,7 @@ void HyperOpInteractionGraph::updateLocalRefEdgeMemSizeAndOffset() {
 						break;
 					}
 				}
-				if (!edgeProcessingOrder.empty() && ((*edgeItr)->getPositionOfContextSlot() != parentEdgeItr->first->getPositionOfContextSlot())) {
+				if (NULL == *edgeItr  || ((*edgeItr)->getPositionOfContextSlot() != parentEdgeItr->first->getPositionOfContextSlot())) {
 					edgeProcessingOrder.insert(edgeItr, parentEdgeItr->first);
 					edgeParentMap.insert(make_pair(parentEdgeItr->first, parentEdgeItr->second));
 				}
