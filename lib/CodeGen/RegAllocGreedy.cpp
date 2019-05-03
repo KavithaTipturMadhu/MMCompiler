@@ -430,10 +430,10 @@ unsigned RAGreedy::tryAssign(LiveInterval &VirtReg, AllocationOrder &Order, Smal
 	//if (!PhysReg || Order.isHint()
 	if (!PhysReg || Order.isHint() || Order.isHint(MRI->getSimpleHint(VirtReg.reg))) {
 		//Get the shuffled register if the register is live-in in some CE
-		if (find(liveInVirtualRegs.begin(), liveInVirtualRegs.end(), VirtReg.reg) != liveInVirtualRegs.end()) {
-			DEBUG(dbgs() << "reg " << VirtReg.reg << " that was live-in gets phys reg:" << PrintReg(shuffledVirt2PhysRegMap.find(VirtReg.reg)->second, TRI) << " instead of phys reg:" << PrintReg(PhysReg, TRI) << "\n");
-			return shuffledVirt2PhysRegMap.find(VirtReg.reg)->second;
-		}
+//		if (find(liveInVirtualRegs.begin(), liveInVirtualRegs.end(), VirtReg.reg) != liveInVirtualRegs.end()) {
+//			DEBUG(dbgs() << "reg " << VirtReg.reg << " that was live-in gets phys reg:" << PrintReg(shuffledVirt2PhysRegMap.find(VirtReg.reg)->second, TRI) << " instead of phys reg:" << PrintReg(PhysReg, TRI) << "\n");
+//			return shuffledVirt2PhysRegMap.find(VirtReg.reg)->second;
+//		}
 		return PhysReg;
 	}
 
@@ -1742,99 +1742,100 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 	map<unsigned, vector<unsigned> > ceAndLiveInArgList;
 	map<unsigned, unsigned> indexOfAllocatedPhysicalRegs;
 
-	unsigned index = 0;
-	for (MachineRegisterInfo::livein_iterator liveInItr = MF->getRegInfo().livein_begin(); liveInItr != MF->getRegInfo().livein_end(); liveInItr++) {
-		liveInPhysicalRegs.push_back(liveInItr->first);
-		liveInVirtualRegs.push_back(liveInItr->second);
-		indexOfAllocatedPhysicalRegs[index++] = liveInItr->first;
-	}
-
-	//Don't bother with reg shuffling if no virtual registers are in use
-	if (!liveInVirtualRegs.empty()) {
-		/*
-		 * A copy of physical regs to virt register map to maintain the order since the order within a pHyperOp is not guaranteed
-		 * The vector is indexed by physical reg and the position it ought to have in argument passing order
-		 */
-		map<unsigned, unsigned> physicalRegAllocationOrder;
-		unsigned regIndex = 0;
-		for (auto liveInItr = liveInVirtualRegs.begin(); liveInItr != liveInVirtualRegs.end(); liveInItr++, regIndex++) {
-			AllocationOrder Order(*liveInItr, *VRM, RegClassInfo);
-			unsigned PhysReg = Order.next();
-			physicalRegAllocationOrder.insert(make_pair(PhysReg, regIndex));
-		}
-
-		list<MachineInstr*> ignoreCopyInstrList;
-		//Get the live-in registers and map to the ce to which they belong
-		for (MachineFunction::iterator MBBI = MF->begin(), MBBE = MF->end(); MBBI != MBBE; ++MBBI) {
-			int pHyperOpIndex = -1;
-			for (MachineBasicBlock::instr_iterator MII = MBBI->instr_begin(); MII != MBBI->instr_end(); ++MII) {
-				MachineInstr *MI = MII;
-				//First
-				if (!MI->isInsideBundle()) {
-					//New pHyperOp
-					pHyperOpIndex++;
-				}
-
-				if (MI->isCopy()) {
-					MachineOperand &MO = MI->getOperand(1);
-					if (MO.isReg()) {
-						if (find(liveInPhysicalRegs.begin(), liveInPhysicalRegs.end(), MO.getReg()) != liveInPhysicalRegs.end()) {
-							unsigned physReg = MO.getReg();
-							//MO marks the use of one of the liveIn registers
-							vector<unsigned> cePhysRegistersLiveIn;
-							if (ceAndLiveInArgList.find(pHyperOpIndex) != ceAndLiveInArgList.end()) {
-								cePhysRegistersLiveIn = ceAndLiveInArgList.find(pHyperOpIndex)->second;
-								ceAndLiveInArgList.erase(ceAndLiveInArgList.find(pHyperOpIndex));
-							}
-							if (find(cePhysRegistersLiveIn.begin(), cePhysRegistersLiveIn.end(), physReg) == cePhysRegistersLiveIn.end()) {
-								//Push in the right sorted order of virtual registers
-								vector<unsigned>::iterator insertPosition, prevPosition;
-								int i = 0;
-								for (insertPosition = cePhysRegistersLiveIn.begin(); insertPosition != cePhysRegistersLiveIn.end(); insertPosition++, i++) {
-									if (physicalRegAllocationOrder[*insertPosition] > physicalRegAllocationOrder[physReg]) {
-										break;
-									}
-								}
-								cePhysRegistersLiveIn.insert(insertPosition, physReg);
-							}
-							ceAndLiveInArgList.insert(make_pair(pHyperOpIndex, cePhysRegistersLiveIn));
-						} else {
-							ignoreCopyInstrList.push_back(MI);
-						}
-					}
-				}
-			}
-		}
-
-		//For each CE, find the right physical register to be allocated
-		for (unsigned i = 0; i < ceAndLiveInArgList.size(); i++) {
-			vector<unsigned> inputsToCEInVirtReg = ceAndLiveInArgList[i];
-			int physRegIndex = 0;
-			for (auto inputToCEItr = inputsToCEInVirtReg.begin(); inputToCEItr != inputsToCEInVirtReg.end(); inputToCEItr++) {
-				unsigned inputPhysicalReg = *inputToCEItr;
-				unsigned physicalRegToBeAllocated = indexOfAllocatedPhysicalRegs[physRegIndex];
-				shuffledPhys2PhysRegMap.insert(make_pair(inputPhysicalReg, physicalRegToBeAllocated));
-				shuffledVirt2PhysRegMap.insert(make_pair(MRI->getLiveInVirtReg(inputPhysicalReg), physicalRegToBeAllocated));
-				physRegIndex++;
-			}
-		}
-
-		list<MachineOperand*> previouslyUpdatedOperands;
-		for (MachineFunction::iterator MBBI = MF->begin(), MBBE = MF->end(); MBBI != MBBE; ++MBBI) {
-			for (MachineBasicBlock::instr_iterator MII = MBBI->instr_begin(); MII != MBBI->instr_end(); ++MII) {
-				MachineInstr *MI = MII;
-				if (MI->isCopy() && find(ignoreCopyInstrList.begin(), ignoreCopyInstrList.end(), MI) == ignoreCopyInstrList.end()) {
-					MachineOperand & MO = MI->getOperand(1);
-					if (MO.isReg() && find(previouslyUpdatedOperands.begin(), previouslyUpdatedOperands.end(), &MO) == previouslyUpdatedOperands.end()) {
-						DEBUG(dbgs() << "Replacing " << PrintReg(MO.getReg(), TRI) << " with " << PrintReg(shuffledPhys2PhysRegMap.find(MO.getReg())->second, TRI) << " for instruction");
-						MO.setReg(shuffledPhys2PhysRegMap.find(MO.getReg())->second);
-						MI->print(dbgs());
-						previouslyUpdatedOperands.push_back(&MO);
-					}
-				}
-			}
-		}
-	}
+//	errs()<<"livein virt reg:";
+//	unsigned index = 0;
+//	for (MachineRegisterInfo::livein_iterator liveInItr = MF->getRegInfo().livein_begin(); liveInItr != MF->getRegInfo().livein_end(); liveInItr++) {
+//		liveInPhysicalRegs.push_back(liveInItr->first);
+//		liveInVirtualRegs.push_back(liveInItr->second);
+//		errs()<<PrintReg(liveInItr->second)<<",";
+//		indexOfAllocatedPhysicalRegs[index++] = liveInItr->first;
+//	}
+//	//Don't bother with reg shuffling if no virtual registers are in use
+//	if (!liveInVirtualRegs.empty()) {
+//		/*
+//		 * A copy of physical regs to virt register map to maintain the order since the order within a pHyperOp is not guaranteed
+//		 * The vector is indexed by physical reg and the position it ought to have in argument passing order
+//		 */
+//		map<unsigned, unsigned> physicalRegAllocationOrder;
+//		unsigned regIndex = 0;
+//		for (auto liveInItr = liveInVirtualRegs.begin(); liveInItr != liveInVirtualRegs.end(); liveInItr++, regIndex++) {
+//			AllocationOrder Order(*liveInItr, *VRM, RegClassInfo);
+//			unsigned PhysReg = Order.next();
+//			physicalRegAllocationOrder.insert(make_pair(PhysReg, regIndex));
+//		}
+//
+//		list<MachineInstr*> ignoreCopyInstrList;
+//		//Get the live-in registers and map to the ce to which they belong
+//		for (MachineFunction::iterator MBBI = MF->begin(), MBBE = MF->end(); MBBI != MBBE; ++MBBI) {
+//			int pHyperOpIndex = -1;
+//			for (MachineBasicBlock::instr_iterator MII = MBBI->instr_begin(); MII != MBBI->instr_end(); ++MII) {
+//				MachineInstr *MI = MII;
+//				//First
+//				if (!MI->isInsideBundle()) {
+//					//New pHyperOp
+//					pHyperOpIndex++;
+//				}
+//
+//				if (MI->isCopy()) {
+//					MachineOperand &MO = MI->getOperand(1);
+//					if (MO.isReg()) {
+//						if (find(liveInPhysicalRegs.begin(), liveInPhysicalRegs.end(), MO.getReg()) != liveInPhysicalRegs.end()) {
+//							unsigned physReg = MO.getReg();
+//							//MO marks the use of one of the liveIn registers
+//							vector<unsigned> cePhysRegistersLiveIn;
+//							if (ceAndLiveInArgList.find(pHyperOpIndex) != ceAndLiveInArgList.end()) {
+//								cePhysRegistersLiveIn = ceAndLiveInArgList.find(pHyperOpIndex)->second;
+//								ceAndLiveInArgList.erase(ceAndLiveInArgList.find(pHyperOpIndex));
+//							}
+//							if (find(cePhysRegistersLiveIn.begin(), cePhysRegistersLiveIn.end(), physReg) == cePhysRegistersLiveIn.end()) {
+//								//Push in the right sorted order of virtual registers
+//								vector<unsigned>::iterator insertPosition, prevPosition;
+//								int i = 0;
+//								for (insertPosition = cePhysRegistersLiveIn.begin(); insertPosition != cePhysRegistersLiveIn.end(); insertPosition++, i++) {
+//									if (physicalRegAllocationOrder[*insertPosition] > physicalRegAllocationOrder[physReg]) {
+//										break;
+//									}
+//								}
+//								cePhysRegistersLiveIn.insert(insertPosition, physReg);
+//							}
+//							ceAndLiveInArgList.insert(make_pair(pHyperOpIndex, cePhysRegistersLiveIn));
+//						} else {
+//							ignoreCopyInstrList.push_back(MI);
+//						}
+//					}
+//				}
+//			}
+//		}
+//
+//		//For each CE, find the right physical register to be allocated
+//		for (unsigned i = 0; i < ceAndLiveInArgList.size(); i++) {
+//			vector<unsigned> inputsToCEInVirtReg = ceAndLiveInArgList[i];
+//			int physRegIndex = 0;
+//			for (auto inputToCEItr = inputsToCEInVirtReg.begin(); inputToCEItr != inputsToCEInVirtReg.end(); inputToCEItr++) {
+//				unsigned inputPhysicalReg = *inputToCEItr;
+//				unsigned physicalRegToBeAllocated = indexOfAllocatedPhysicalRegs[physRegIndex];
+//				shuffledPhys2PhysRegMap.insert(make_pair(inputPhysicalReg, physicalRegToBeAllocated));
+//				shuffledVirt2PhysRegMap.insert(make_pair(MRI->getLiveInVirtReg(inputPhysicalReg), physicalRegToBeAllocated));
+//				physRegIndex++;
+//			}
+//		}
+//
+//		list<MachineOperand*> previouslyUpdatedOperands;
+//		for (MachineFunction::iterator MBBI = MF->begin(), MBBE = MF->end(); MBBI != MBBE; ++MBBI) {
+//			for (MachineBasicBlock::instr_iterator MII = MBBI->instr_begin(); MII != MBBI->instr_end(); ++MII) {
+//				MachineInstr *MI = MII;
+//				if (MI->isCopy() && find(ignoreCopyInstrList.begin(), ignoreCopyInstrList.end(), MI) == ignoreCopyInstrList.end()) {
+//					MachineOperand & MO = MI->getOperand(1);
+//					if (MO.isReg() && find(previouslyUpdatedOperands.begin(), previouslyUpdatedOperands.end(), &MO) == previouslyUpdatedOperands.end()) {
+//						DEBUG(dbgs() << "Replacing " << PrintReg(MO.getReg(), TRI) << " with " << PrintReg(shuffledPhys2PhysRegMap.find(MO.getReg())->second, TRI) << " for instruction");
+//						MO.setReg(shuffledPhys2PhysRegMap.find(MO.getReg())->second);
+//						MI->print(dbgs());
+//						previouslyUpdatedOperands.push_back(&MO);
+//					}
+//				}
+//			}
+//		}
+//	}
 	allocatePhysRegs();
 	releaseMemory();
 //TODO please take care of the assert commented out in IntervalMap.h
