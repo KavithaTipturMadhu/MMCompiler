@@ -69,6 +69,7 @@ REDEFINETargetLowering::REDEFINETargetLowering(REDEFINETargetMachine &tm) :
 	setOperationAction(ISD::Constant, MVT::i32, Legal);
 	setOperationAction(ISD::ConstantFP, MVT::i32, Legal);
 	setOperationAction(ISD::Constant, MVT::i64, Expand);
+	setOperationAction(ISD::Constant, MVT::f64, Expand);
 
 	// Expand jump table branches as address arithmetic followed by an
 	// indirect jump.
