@@ -4209,7 +4209,6 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 		if (hop->isUnrolledInstance()) {
 			continue;
 		}
-		errs()<<"\n----\nUpdating slots of "<<hopFunction->getName()<<"\n";
 		map<Argument*, int> oldArgNewIndexMap;
 		int argOffset = 0;
 		auto oldArgItr = hopFunction->arg_begin();
@@ -4222,7 +4221,6 @@ void HyperOpInteractionGraph::shuffleHyperOpArguments() {
 			oldArgItr++;
 			argOffset++;
 		}
-		hopFunction->dump();
 		list<Type*> newArgsList;
 		/* Shuffle all arguments except the first in case of all hyperops and the first two in case of range hyperops */
 		for (; oldArgItr != hopFunction->arg_end(); oldArgItr++) {
