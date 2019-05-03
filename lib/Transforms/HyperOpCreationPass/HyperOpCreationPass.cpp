@@ -3866,7 +3866,7 @@ struct REDEFINEIRPass: public ModulePass {
 		PHINode* phiNode = PHINode::Create(Type::getInt32Ty(M.getContext()), 0, "", *loopBegin);
 		phiNode->addIncoming(lowerBound, *insertInBB);
 		*phiValue = phiNode;
-		CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGE, phiNode, upperBound, "cmpinst", *loopBegin);
+		CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGT, phiNode, upperBound, "cmpinst", *loopBegin);
 		BranchInst* bgeItrInst = BranchInst::Create(*loopEnd, *loopBody, cmpInst, *loopBegin);
 		BranchInst* loopEndJump = BranchInst::Create(*loopBegin, *loopBody);
 		ReturnInst* ret = ReturnInst::Create(M.getContext(), *loopEnd);
