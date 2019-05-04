@@ -1095,41 +1095,29 @@ list<TileCoordinates> HyperOpInteractionGraph::getEdgePathOnNetwork(HyperOp* sou
 
 void HyperOpInteractionGraph::updateLocalRefEdgeMemSizeAndOffset() {
 	DEBUG(dbgs() << "Updating localref edges with the correct offset\n");
+	list<HyperOpEdge*> edgeProcessingOrder;
 	for (auto vertexItr = this->Vertices.begin(); vertexItr != this->Vertices.end(); vertexItr++) {
 		HyperOp* hyperOp = *vertexItr;
-		list<HyperOpEdge*> edgeProcessingOrder;
-		map<HyperOpEdge*, HyperOp*> edgeParentMap;
 		for (auto parentEdgeItr = (*vertexItr)->ParentMap.begin(); parentEdgeItr != (*vertexItr)->ParentMap.end(); parentEdgeItr++) {
 			if (parentEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF || parentEdgeItr->first->getType() == HyperOpEdge::LOCAL_REFERENCE || parentEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF) {
-				// Find the position to insert the new edge in
-				auto edgeItr = edgeProcessingOrder.begin();
-				for (; edgeItr != edgeProcessingOrder.end(); edgeItr++) {
-					HyperOpEdge* prevEdge = *edgeItr;
-					/* Edge may be covered in a mutually exclusive path */
-					if (prevEdge->getPositionOfContextSlot() >= parentEdgeItr->first->getPositionOfContextSlot()) {
-						break;
-					}
-				}
-				if (NULL == *edgeItr  || ((*edgeItr)->getPositionOfContextSlot() != parentEdgeItr->first->getPositionOfContextSlot())) {
-					if(*edgeItr != NULL){
-						edgeProcessingOrder.insert(edgeItr, parentEdgeItr->first);
-					}else{
-						edgeProcessingOrder.push_back(parentEdgeItr->first);
-					}
-					edgeParentMap.insert(make_pair(parentEdgeItr->first, parentEdgeItr->second));
-				}
+				HyperOpEdge* edge = parentEdgeItr->first;
+				AllocaInst* originalEdgeSource = getAllocInstrForLocalReferenceData(edge->getValue(), parentEdgeItr->second);
+				int edgeSize = duplicateGetSizeOfType(originalEdgeSource->getAllocatedType());
+				assert(edgeSize>0 && "Edge size can't be zero\n");
+				edge->setMemorySize(edgeSize);
+				edgeProcessingOrder.push_back(edge);
 			}
 		}
 //		Compute the size of each edge before the current edge
-		unsigned edgeOffset = 0;
-		for (auto edgeItr = edgeProcessingOrder.begin(); edgeItr != edgeProcessingOrder.end(); edgeItr++) {
-			HyperOpEdge* edge = *edgeItr;
+		for (auto edge : edgeProcessingOrder){
+			unsigned edgeOffset = 0;
+			for(auto secondEdgeItr:edgeProcessingOrder){
+				if(secondEdgeItr == edge || secondEdgeItr->getPositionOfContextSlot()>=edge->getPositionOfContextSlot()){
+					continue;
+				}
+				edgeOffset+=secondEdgeItr->getMemorySize();
+			}
 			edge->setMemoryOffsetInTargetFrame(edgeOffset);
-			AllocaInst* originalEdgeSource = getAllocInstrForLocalReferenceData(edge->getValue(), edgeParentMap[edge]);
-			int edgeSize = duplicateGetSizeOfType(originalEdgeSource->getAllocatedType());
-			assert(edgeSize>0 && "Edge size can't be zero\n");
-			edge->setMemorySize(edgeSize);
-			edgeOffset += edgeSize;
 		}
 	}
 }
