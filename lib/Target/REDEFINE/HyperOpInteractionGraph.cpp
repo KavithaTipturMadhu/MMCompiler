@@ -4150,7 +4150,7 @@ void HyperOpInteractionGraph::convertSpillScalarsToStores() {
 			if (argIndex < skipArgs) {
 				continue;
 			}
-			if (!firstNonInregEncountered && (argItr->getType()->isIntegerTy()) && (REDEFINEUtils::getSizeOfType(argItr->getType()) / 4) < this->getMaxContextFrameSize() && argIndex < (this->getMaxContextFrameSize() + skipArgs)) {
+			if (!firstNonInregEncountered && argItr->getType()->isIntegerTy() && (REDEFINEUtils::getSizeOfType(argItr->getType()) / 4) < this->getMaxContextFrameSize() && argIndex < (this->getMaxContextFrameSize() + skipArgs)) {
 				//Mark context frame args as inreg
 				hyperOpFunction->addAttribute(argIndex + 1, Attribute::InReg);
 			} else {
@@ -4161,7 +4161,6 @@ void HyperOpInteractionGraph::convertSpillScalarsToStores() {
 						//Change the type of incoming edge to memory based instead of context frame scalar
 						for (auto parentItr : oldHop->ParentMap) {
 							if (parentItr.first->getPositionOfContextSlot() == argIndex) {
-								hyperOp->getFunction()->dump();
 								switch (parentItr.first->getType()) {
 								case HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR:
 									parentItr.first->setType(HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF);
