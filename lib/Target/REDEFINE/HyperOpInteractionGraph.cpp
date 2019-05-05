@@ -1095,27 +1095,31 @@ list<TileCoordinates> HyperOpInteractionGraph::getEdgePathOnNetwork(HyperOp* sou
 
 void HyperOpInteractionGraph::updateLocalRefEdgeMemSizeAndOffset() {
 	DEBUG(dbgs() << "Updating localref edges with the correct offset\n");
-	list<HyperOpEdge*> edgeProcessingOrder;
 	for (auto vertexItr = this->Vertices.begin(); vertexItr != this->Vertices.end(); vertexItr++) {
+		list<HyperOpEdge*> edgeProcessingOrder;
 		HyperOp* hyperOp = *vertexItr;
 		for (auto parentEdgeItr = (*vertexItr)->ParentMap.begin(); parentEdgeItr != (*vertexItr)->ParentMap.end(); parentEdgeItr++) {
 			if (parentEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF || parentEdgeItr->first->getType() == HyperOpEdge::LOCAL_REFERENCE || parentEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF) {
 				HyperOpEdge* edge = parentEdgeItr->first;
 				AllocaInst* originalEdgeSource = getAllocInstrForLocalReferenceData(edge->getValue(), parentEdgeItr->second);
 				int edgeSize = duplicateGetSizeOfType(originalEdgeSource->getAllocatedType());
-				assert(edgeSize>0 && "Edge size can't be zero\n");
+				assert(edgeSize > 0 && "Edge size can't be zero\n");
 				edge->setMemorySize(edgeSize);
 				edgeProcessingOrder.push_back(edge);
 			}
 		}
 //		Compute the size of each edge before the current edge
-		for (auto edge : edgeProcessingOrder){
+		for (auto edge : edgeProcessingOrder) {
 			unsigned edgeOffset = 0;
-			for(auto secondEdgeItr:edgeProcessingOrder){
-				if(secondEdgeItr == edge || secondEdgeItr->getPositionOfContextSlot()>=edge->getPositionOfContextSlot()){
+			for (auto secondEdgeItr : edgeProcessingOrder) {
+				if (secondEdgeItr == edge || secondEdgeItr->getPositionOfContextSlot() > edge->getPositionOfContextSlot()) {
 					continue;
 				}
-				edgeOffset+=secondEdgeItr->getMemorySize();
+				int memSize = secondEdgeItr->getMemorySize();
+				if (memSize % 32 > 0) {
+					memSize += (32 - memSize % 32);
+				}
+				edgeOffset += memSize;
 			}
 			edge->setMemoryOffsetInTargetFrame(edgeOffset);
 		}
@@ -1789,6 +1793,7 @@ static bool inline isScalarEdgeTypeWithContextSlot(HyperOpEdge* previouslyAddedE
 	return false;
 }
 
+//todo This is the same as previous function, check what modification is necessary
 static bool inline isEdgeTypeContextFrameSpecific(HyperOpEdge* previouslyAddedEdge) {
 	switch (previouslyAddedEdge->getType()) {
 	case HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR:
@@ -4145,6 +4150,7 @@ void HyperOpInteractionGraph::convertSpillScalarsToStores() {
 			skipArgs++;
 		}
 		int argIndex = 0;
+		list<int> typeModifiedArgs;
 		for (auto argItr = hyperOpFunction->arg_begin(); argItr != hyperOpFunction->arg_end(); argItr++, argIndex++) {
 			/* This function must be invoked after the same frame memory args are added to functions, and we must ignore the first two args */
 			if (argIndex < skipArgs) {
@@ -4184,6 +4190,137 @@ void HyperOpInteractionGraph::convertSpillScalarsToStores() {
 				}
 			}
 		}
+	}
+
+	for (auto vertexItr : Vertices) {
+		list<int> argTypesForUpdate;
+		HyperOp* hop = vertexItr;
+		Function* hopFunction = hop->getFunction();
+		LLVMContext & ctxt = hopFunction->getParent()->getContext();
+		if (hop->isUnrolledInstance()) {
+			continue;
+		}
+		for (auto parentEdgeItr : vertexItr->ParentMap) {
+			if (!isScalarEdgeTypeWithContextSlot(parentEdgeItr.first)) {
+				argTypesForUpdate.push_back(parentEdgeItr.first->getPositionOfContextSlot());
+			}
+		}
+		if (argTypesForUpdate.empty()) {
+			continue;
+		}
+
+		int argIndex = 0;
+		vector<Type*> newArgsList;
+		list<int> updatedArgTypeIndices;
+		/* Shuffle all arguments except the first in case of all hyperops and the first two in case of range hyperops */
+		for (auto oldArgItr = hopFunction->arg_begin(); oldArgItr != hopFunction->arg_end(); oldArgItr++, argIndex++) {
+			if (oldArgItr->getType()->isIntegerTy() || oldArgItr->getType()->isPointerTy()) {
+				newArgsList.push_back(oldArgItr->getType());
+			} else {
+				newArgsList.push_back(oldArgItr->getType()->getPointerTo());
+				updatedArgTypeIndices.push_back(argIndex);
+			}
+		}
+
+		FunctionType *FT = FunctionType::get(hopFunction->getReturnType(), newArgsList, false);
+		string newname = hopFunction->getName();
+		newname.append(itostr(1));
+		Function *newFunction = Function::Create(FT, Function::ExternalLinkage, newname, hopFunction->getParent());
+
+		auto newArgItr = newFunction->arg_begin();
+		map<Value*, Value*> oldToNewValueMap;
+		int newArgIndex = 0;
+		for (auto oldArgItr = hopFunction->arg_begin(); oldArgItr != hopFunction->arg_end(); oldArgItr++, newArgItr++, newArgIndex++) {
+			auto oldAttrSet = hopFunction->getAttributes().getParamAttributes(newArgIndex + 1);
+			newFunction->addAttributes(newArgIndex + 1, oldAttrSet);
+			oldToNewValueMap.insert(make_pair(oldArgItr, newArgItr));
+		}
+		for (auto funcItr = hopFunction->begin(); funcItr != hopFunction->end(); funcItr++) {
+			BasicBlock* oldBB = funcItr;
+			BasicBlock* newBB = BasicBlock::Create(ctxt, oldBB->getName(), newFunction);
+			oldToNewValueMap.insert(make_pair(oldBB, newBB));
+			if(oldBB == &hopFunction->getEntryBlock()){
+				for(auto loadArgIndex:updatedArgTypeIndices){
+					int argIndex = 0;
+					Argument* arg;
+					for(auto argItr = newFunction->arg_begin(); argItr!= newFunction->arg_end(); argItr++, argIndex++){
+						if(argIndex == loadArgIndex){
+							arg = argItr;
+							break;
+						}
+					}
+					Value* loadedNewArg = new LoadInst(arg, "", newBB);
+					Value* oldArg = NULL;
+					argIndex = 0;
+					for(auto oldArgItr = hopFunction->arg_begin(); oldArgItr != hopFunction->arg_end(); oldArgItr++, argIndex++){
+						if(argIndex == loadArgIndex){
+							oldArg = oldArgItr;
+							break;
+						}
+					}
+					assert(oldToNewValueMap.find(oldArg) != oldToNewValueMap.end());
+					oldToNewValueMap.erase(oldArg);
+					oldToNewValueMap[oldArg] = loadedNewArg;
+				}
+			}
+		}
+		for (auto bbItr = hopFunction->begin(); bbItr != hopFunction->end(); bbItr++) {
+			BasicBlock* oldBB = bbItr;
+			//assert(oldToNewValueMap.find(oldBB) != oldToNewValueMap.end() && "Basicblock not cloned before");
+			BasicBlock* newBB = (BasicBlock*) oldToNewValueMap[oldBB];
+			for (auto instItr = oldBB->begin(); instItr != oldBB->end(); instItr++) {
+				Instruction* oldInst = instItr;
+				Instruction* newInst = oldInst->clone();
+				oldToNewValueMap.insert(make_pair(oldInst, newInst));
+				newBB->getInstList().insert(newBB->end(), newInst);
+			}
+		}
+
+		for (auto instItr = oldToNewValueMap.begin(); instItr != oldToNewValueMap.end(); instItr++) {
+			if (isa<Instruction>(instItr->first)) {
+				Instruction* oldInst = (Instruction*) instItr->first;
+				Instruction * newInst = (Instruction*) instItr->second;
+				for (int operandIndex = 0; operandIndex < oldInst->getNumOperands(); operandIndex++) {
+					Value* oldOperand = oldInst->getOperand(operandIndex);
+					if (oldToNewValueMap.find(oldOperand) != oldToNewValueMap.end()) {
+						newInst->setOperand(operandIndex, oldToNewValueMap[oldOperand]);
+					}
+					if (isa<PHINode>(newInst)) {
+						((PHINode*) newInst)->setIncomingBlock(operandIndex, (BasicBlock*) oldToNewValueMap[((PHINode*) newInst)->getIncomingBlock(operandIndex)]);
+					}
+				}
+			}
+		}
+
+		/* Update all hops that use the function, including the unrolled ones */
+		for (auto vertexItr : this->Vertices) {
+			HyperOp* oldHop = vertexItr;
+			if (oldHop->getFunction() == hopFunction) {
+				oldHop->setFunction(newFunction);
+				/* Update the outgoing edges of the hop with new args cloned here */
+				for (auto childItr = oldHop->ChildMap.begin(); childItr != oldHop->ChildMap.end(); childItr++) {
+					if (childItr->first->getValue() != NULL && oldToNewValueMap.find(childItr->first->getValue()) != oldToNewValueMap.end()) {
+						childItr->first->setValue(oldToNewValueMap[childItr->first->getValue()]);
+					}
+				}
+
+				for (auto vertex : oldHop->getParentGraph()->Vertices) {
+					if (vertex->getInRange() && (vertex->getUpperBoundScope() == oldHop || vertex->getLowerBoundScope() == oldHop)) {
+						if (vertex->getUpperBoundScope() == oldHop) {
+							vertex->setRangeUpperBound(oldToNewValueMap[vertex->getRangeUpperBound()]);
+						}
+						if (vertex->getLowerBoundScope() == oldHop) {
+							vertex->setRangeLowerBound(oldToNewValueMap[vertex->getRangeLowerBound()]);
+						}
+					}
+				}
+			}
+			if (oldHop->getInstanceof() == hopFunction) {
+				oldHop->setInstanceof(newFunction);
+			}
+		}
+
+		hopFunction->eraseFromParent();
 	}
 }
 
