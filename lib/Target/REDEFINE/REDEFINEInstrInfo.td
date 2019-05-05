@@ -331,15 +331,15 @@ def : Pat<(i32 imm32:$imm), (MOVIMM imm32:$imm)>;
 defm FADD_S : FPBinOps<"fadd.s", fadd, 0b00000, 0b00>;
 defm FSUB_S : FPBinOps<"fsub.s", fsub, 0b00001, 0b00>;
 defm FMUL_S : FPBinOps<"fmul.s", fmul, 0b00010, 0b00>;
-defm FDIV_S : FPBinOps<"fdiv.s", fdiv, 0b00011, 0b00>;
+//defm FDIV_S : FPBinOps<"fdiv.s", fdiv, 0b00011, 0b00>;
 
-def FMIN_S : InstR<"fmin.s", 0b1010011, 0b0010100000, fminnum, FP32, FP32>;
-def FMAX_S : InstR<"fmax.s", 0b1010011, 0b0010100001, fmaxnum, FP32, FP32>;
+//def FMIN_S : InstR<"fmin.s", 0b1010011, 0b0010100000, fminnum, FP32, FP32>;
+//def FMAX_S : InstR<"fmax.s", 0b1010011, 0b0010100001, fmaxnum, FP32, FP32>;
 
 //Single operand fp instructions
-def FSQRT_S: InstFP<"fsqrt.s", 0b1010011, 0b000, 0b00000 ,0b0101100, fsqrt, FP32, FP32>;
-def FSIN_S: InstFP<"fsin.s", 0b1111100, 0b000, 0b00000 ,0b0000000, fsin, FP32, FP32>;
-def FCOS_S: InstFP<"fcos.s", 0b1111100, 0b001, 0b00000 ,0b0000000, fcos, FP32, FP32>;
+//def FSQRT_S: InstFP<"fsqrt.s", 0b1010011, 0b000, 0b00000 ,0b0101100, fsqrt, FP32, FP32>;
+//def FSIN_S: InstFP<"fsin.s", 0b1111100, 0b000, 0b00000 ,0b0000000, fsin, FP32, FP32>;
+//def FCOS_S: InstFP<"fcos.s", 0b1111100, 0b001, 0b00000 ,0b0000000, fcos, FP32, FP32>;
 
 defm FCVT_W_S  : FPConvOps<"fcvt.w.s",  null_frag, GR32, FP32, 0b01010, 0b00>;
 defm FCVT_WU_S : FPConvOps<"fcvt.wu.s", null_frag, GR32, FP32, 0b01011, 0b00>;
