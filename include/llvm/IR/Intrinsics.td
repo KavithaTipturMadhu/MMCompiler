@@ -113,6 +113,7 @@ def llvm_f80_ty        : LLVMType<f80>;
 def llvm_f128_ty       : LLVMType<f128>;
 def llvm_ppcf128_ty    : LLVMType<ppcf128>;
 def llvm_ptr_ty        : LLVMPointerType<llvm_i8_ty>;             // i8*
+def llvm_ptr32_ty      : LLVMPointerType<llvm_i32_ty>;            // i32*
 def llvm_ptrptr_ty     : LLVMPointerType<llvm_ptr_ty>;            // i8**
 def llvm_anyptr_ty     : LLVMAnyPointerType<llvm_i8_ty>;          // (space)i8*
 def llvm_empty_ty      : LLVMType<OtherVT>;                       // { }
@@ -480,7 +481,7 @@ def int_writecm: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], []>;
 def int_writecmp: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty], []>;
 def int_sync: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], []>;
 def int_rfalloc: Intrinsic <[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], []>;
-def int_getmemframe: Intrinsic <[llvm_ptr_ty], [llvm_i32_ty], [IntrNoMem]>;
+def int_getmemframe: Intrinsic <[llvm_ptr32_ty], [llvm_i32_ty], [IntrNoMem]>;
 
 //===----------------------------------------------------------------------===//
 // Target-specific intrinsics
