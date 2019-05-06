@@ -417,10 +417,10 @@ def FDREADPM: InstIREDEFINEImm<"fdreadpm", 0b0000000, 0b010, add, FP32, GR32, im
 }
   
 //fmadd etc with rounding mode RNE
-def FMADD:InstR4<"fmadd.s", 0b1000011, 0b000, fmul, fadd, FP32, FP32>;
-def FMSUB:InstR4<"fmsub.s", 0b1000011, 0b000, fmul, fsub, FP32, FP32>;
+//def FMADD:InstR4<"fmadd.s", 0b1000011, 0b000, fmul, fadd, FP32, FP32>;
+//def FMSUB:InstR4<"fmsub.s", 0b1000011, 0b000, fmul, fsub, FP32, FP32>;
 
-def FNMSUB:InstREDEFINE<4, (outs FP32:$dst), (ins FP32:$src3, FP32:$src2, FP32:$src1), 
+/*def FNMSUB:InstREDEFINE<4, (outs FP32:$dst), (ins FP32:$src3, FP32:$src2, FP32:$src1), 
                 "fnmsub.s $dst, $src1, $src2, $src3",[],REDEFINEFPA>{
   field bits<32> Inst;
 
@@ -456,7 +456,7 @@ def FNMADD:InstREDEFINE<4, (outs FP32:$dst), (ins FP32:$src3, FP32:$src2, FP32:$
   let Inst{11-7} = RD;
   let Inst{6-0} = 0b1000011;
 
-}
+} */
 
 def : Pat<(REDEFINEGa tglobaladdr:$in), (MOVADDR tglobaladdr:$in)>;
 

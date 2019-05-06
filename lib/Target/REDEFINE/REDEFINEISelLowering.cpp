@@ -205,7 +205,7 @@ REDEFINETargetLowering::REDEFINETargetLowering(REDEFINETargetMachine &tm) :
 	}
 
 	// Handle floating-point types.
-	setOperationAction(ISD::FMA, MVT::f32, Legal);
+	setOperationAction(ISD::FMA, MVT::f32, Expand);
 	setOperationAction(ISD::BITCAST, MVT::i32, Legal);
 	setOperationAction(ISD::BITCAST, MVT::f32, Legal);
 	setOperationAction(ISD::UINT_TO_FP, MVT::i32, Legal);
