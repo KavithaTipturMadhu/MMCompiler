@@ -1678,7 +1678,6 @@ LLVM_ATTRIBUTE_ALWAYS_INLINE static bool CheckInteger(const unsigned char *Match
 	}
 
 	ConstantSDNode *C = dyn_cast<ConstantSDNode>(N);
-	errs()<<"comparing "<<Val<<" and "<<C->getSExtValue()<<" and returning value:"<<(C != 0 && C->getSExtValue() == Val)<<"\n";
 	return C != 0 && C->getSExtValue() == Val;
 }
 
