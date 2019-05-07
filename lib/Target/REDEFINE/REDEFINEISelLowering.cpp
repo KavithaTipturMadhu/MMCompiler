@@ -87,6 +87,7 @@ REDEFINETargetLowering::REDEFINETargetLowering(REDEFINETargetMachine &tm) :
 	for (unsigned I = MVT::FIRST_INTEGER_VALUETYPE; I <= MVT::LAST_INTEGER_VALUETYPE; ++I) {
 		MVT VT = MVT::SimpleValueType(I);
 		if (isTypeLegal(VT)) {
+
 			setOperationAction(ISD::MUL, VT, Legal);
 			setOperationAction(ISD::MULHS, VT, Legal);
 			setOperationAction(ISD::MULHU, VT, Legal);
@@ -109,6 +110,7 @@ REDEFINETargetLowering::REDEFINETargetLowering(REDEFINETargetMachine &tm) :
 			//RISCV doesn't support rotl
 			setOperationAction(ISD::ROTL, VT, Expand);
 			setOperationAction(ISD::ROTR, VT, Expand);
+			setOperationAction(ISD::BSWAP, VT, Expand);
 
 			// Expand ATOMIC_LOAD and ATOMIC_STORE using ATOMIC_CMP_SWAP.
 //			// FIXME: probably much too conservative.
