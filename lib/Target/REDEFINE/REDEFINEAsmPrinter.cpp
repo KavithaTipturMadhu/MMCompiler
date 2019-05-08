@@ -497,7 +497,7 @@ void addGlobalSymTab(const GlobalVariable* global, const Constant * initializer,
 		//TODO Constant cannot be vector or blockaddress
 		Type *type = initializer->getType();
 		if (!type->isAggregateType()) {
-			assert(!isa<ConstantExpr>(initializer) && "Global expressions not supported");
+			if(isa<ConstantExpr>(initializer) && "Global expressions not supported");
 			if (isa<ConstantInt>(initializer) || isa<ConstantFP>(initializer) || initializer->isZeroValue()|| isa<UndefValue>(initializer)) {
 				string newglobalstring("");
 				if(isa<ConstantInt>(initializer))
