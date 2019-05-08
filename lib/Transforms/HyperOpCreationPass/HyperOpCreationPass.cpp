@@ -707,10 +707,11 @@ struct HyperOpCreationPass: public ModulePass {
 		//Add all the functions to be traversed in a list
 		list<Function*> functionList;
 		Function* mainFunction = 0;
+		errs()<<"functions in the module:\n";
 		map<Function*, list<pair<Function*, CallInst*> > > calledFunctionMap;
 		for (Module::iterator funcItr = M.begin(); funcItr != M.end(); funcItr++) {
 			Function* function = funcItr;
-			if (!function->isIntrinsic()) {
+			if ((function->hasInternalLinkage() || function->getName().compare(REDEFINE_START_FUNCTION) == 0) && !function->isIntrinsic()) {
 				functionList.push_back(function);
 			}
 			if (function->getName().compare(REDEFINE_START_FUNCTION) == 0) {
@@ -724,8 +725,8 @@ struct HyperOpCreationPass: public ModulePass {
 					Instruction* inst = &*instItr;
 					if (isa<CallInst>(inst)) {
 						CallInst* callInst = (CallInst*) inst;
-						calledFunctions.push_back(make_pair(callInst->getCalledFunction(), callInst));
-						if (!callInst->getCalledFunction()->isIntrinsic()) {
+						if (callInst->getCalledFunction()!=NULL && callInst->getCalledFunction()->hasInternalLinkage() && !callInst->getCalledFunction()->isIntrinsic()) {
+							calledFunctions.push_back(make_pair(callInst->getCalledFunction(), callInst));
 							for (unsigned i = 0; i < callInst->getNumArgOperands(); i++) {
 								//TODO what about globals?
 								if (isa<Constant>(callInst->getArgOperand(i))) {
@@ -744,7 +745,9 @@ struct HyperOpCreationPass: public ModulePass {
 					}
 				}
 			}
-			calledFunctionMap[function] = calledFunctions;
+			if(!calledFunctions.empty()){
+				calledFunctionMap[function] = calledFunctions;
+			}
 		}
 
 		//Sanity checks on input file
@@ -752,6 +755,52 @@ struct HyperOpCreationPass: public ModulePass {
 		assert(mainFunction->getArgumentList().empty() && "REDEFINE kernel's entry point i.e., redefine_start function takes arguments, aborting\n");
 		assert((mainFunction->getReturnType()->getTypeID() == Type::VoidTyID) && "REDEFINE kernel's entry point i.e., redefine_start function returning a non-void value, aborting\n");
 
+		//TODO replace the following with callgraph analysis
+		list<pair<Function*, CallInst*> > traversedFunctions;
+		CallInst* callInstToMain = 0;
+		traversedFunctions.push_back(make_pair(mainFunction, callInstToMain));
+		list<list<pair<Function*, CallInst*> > > cyclesInCallGraph = getCyclesInCallGraph(traversedFunctions, calledFunctionMap);
+		DEBUG(dbgs() << "Found cycles?" << cyclesInCallGraph.size() << "\n");
+		for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
+			DEBUG(dbgs() << "cycle of size " << cycleItr->size() << ":");
+			for (list<pair<Function*, CallInst*> >::iterator funcItr = cycleItr->begin(); funcItr != cycleItr->end(); funcItr++) {
+				errs() << funcItr->first->getName() << "(";
+				funcItr->second->dump();
+				DEBUG(dbgs() << ")\n");
+			}
+			DEBUG(dbgs() << "\n");
+		}
+
+		//Inline calls that are not in cycles
+		list<CallInst*> callsToInline;
+		for (auto func = M.begin(); func != M.end(); func++) {
+			for (auto bb = func->begin(); bb != func->end(); bb++) {
+				for (auto instr = bb->begin(); instr != bb->end(); instr++) {
+					Instruction* instruction = instr;
+					if (isa<CallInst>(instruction)) {
+						bool callInCycle = false;
+						for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
+							for (list<pair<Function*, CallInst*> >::iterator funcItr = cycleItr->begin(); funcItr != cycleItr->end(); funcItr++) {
+								if (funcItr->second == instruction) {
+									callInCycle = true;
+									break;
+								}
+							}
+						}
+						if (!callInCycle) {
+							callsToInline.push_back((CallInst*) instruction);
+						}
+					}
+				}
+			}
+		}
+
+		if (INLINE_FUNCTION_CALLS) {
+			for (CallInst* callInst : callsToInline) {
+				InlineFunctionInfo info;
+				InlineFunction(callInst, info);
+			}
+		}
 		//Processing loops for parallelism detection
 		list<pair<list<BasicBlock*>, LoopIV*> > originalParallelLoopBB;
 		list<pair<list<BasicBlock*>, LoopIV*> > originalSerialLoopBB;
@@ -760,7 +809,8 @@ struct HyperOpCreationPass: public ModulePass {
 		list<LoopInfo*> loopCache;
 		for (Module::iterator func = M.begin(); func != M.end(); func++) {
 			DEBUG(dbgs() << "Finding dependences of function:" << func->getName() << "\n");
-			if (!func->isIntrinsic()) {
+			Function* currentFunc = func;
+			if ((func->hasInternalLinkage() || currentFunc == mainFunction) && !func->isIntrinsic()) {
 				DependenceAnalysis& depAnalysis = getAnalysis<DependenceAnalysis>(*func);
 				LoopInfo& LI = getAnalysis<LoopInfo>(*func);
 				loopCache.push_back(&LI);
@@ -1342,56 +1392,6 @@ struct HyperOpCreationPass: public ModulePass {
 //			}
 //		}
 //
-		//TODO replace the following with callgraph analysis
-		list<pair<Function*, CallInst*> > traversedFunctions;
-		CallInst* callInstToMain = 0;
-		traversedFunctions.push_back(make_pair(mainFunction, callInstToMain));
-		list<list<pair<Function*, CallInst*> > > cyclesInCallGraph = getCyclesInCallGraph(traversedFunctions, calledFunctionMap);
-		DEBUG(dbgs() << "Found cycles?" << cyclesInCallGraph.size() << "\n");
-		for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
-			DEBUG(dbgs() << "cycle of size " << cycleItr->size() << ":");
-			for (list<pair<Function*, CallInst*> >::iterator funcItr = cycleItr->begin(); funcItr != cycleItr->end(); funcItr++) {
-				errs() << funcItr->first->getName() << "(";
-				funcItr->second->dump();
-				DEBUG(dbgs() << ")\n");
-			}
-			DEBUG(dbgs() << "\n");
-		}
-
-		//Inline calls that are not in cycles
-		list<CallInst*> callsToInline;
-		for (auto func = M.begin(); func != M.end(); func++) {
-			for (auto bb = func->begin(); bb != func->end(); bb++) {
-				for (auto instr = bb->begin(); instr != bb->end(); instr++) {
-					Instruction* instruction = instr;
-					if (isa<CallInst>(instruction)) {
-						bool callInCycle = false;
-						for (list<list<pair<Function*, CallInst*> > >::iterator cycleItr = cyclesInCallGraph.begin(); cycleItr != cyclesInCallGraph.end(); cycleItr++) {
-							for (list<pair<Function*, CallInst*> >::iterator funcItr = cycleItr->begin(); funcItr != cycleItr->end(); funcItr++) {
-								if (funcItr->second == instruction) {
-									callInCycle = true;
-									break;
-								}
-							}
-						}
-						if (!callInCycle) {
-							callsToInline.push_back((CallInst*) instruction);
-						}
-					}
-				}
-			}
-		}
-
-		const char* isHyperOpInline = std::getenv("HYPEROP_INLINE");
-		/*if (INLINE_FUNCTION_CALLS) {*/
-		if (isHyperOpInline != NULL && strcmp(isHyperOpInline, "true") == 0) {
-			for (CallInst* callInst : callsToInline) {
-				DEBUG(dbgs() << "inlining function call:" << callInst);
-				InlineFunctionInfo info;
-				InlineFunction(callInst, info);
-			}
-		}
-
 		while (!functionList.empty()) {
 			Function* function = functionList.front();
 			functionList.pop_front();
@@ -1560,7 +1560,7 @@ struct HyperOpCreationPass: public ModulePass {
 								}
 								//An intrinsic function translates to an instruction in the back end, don't treat it like a function call
 								//Otherwise, create a function boundary as follows
-								if (!calledFunction->isIntrinsic()) {
+								if (calledFunction!=NULL && (calledFunction->hasInternalLinkage() || calledFunction == mainFunction) && !calledFunction->isIntrinsic()) {
 									//call is not the first instruction in the basic block
 									if (&*instItr != &bbItr->front()) {
 										//Call is the not only instruction here, a separate HyperOp must be created for the call statement
@@ -1913,7 +1913,8 @@ struct HyperOpCreationPass: public ModulePass {
 			bool isStaticHyperOp = true;
 
 			//Check if the hyperop instance being created is not in the call cycle
-			if (isa<CallInst>(accumulatedBasicBlocks.front()->front()) && !((CallInst*) &accumulatedBasicBlocks.front()->front())->getCalledFunction()->isIntrinsic()) {
+			if (isa<CallInst>(accumulatedBasicBlocks.front()->front()) && ((CallInst*) &accumulatedBasicBlocks.front()->front())->getCalledFunction() != NULL && ((CallInst*) &accumulatedBasicBlocks.front()->front())->getCalledFunction()->hasInternalLinkage()
+					&& !((CallInst*) &accumulatedBasicBlocks.front()->front())->getCalledFunction()->isIntrinsic()) {
 				if (isHyperOpInstanceInCycle((CallInst*) &accumulatedBasicBlocks.front()->front(), cyclesInCallGraph)) {
 					bool parentCallInCycle = false;
 					for(auto backItr=callSite.rbegin(); backItr!=callSite.rend(); backItr++){
@@ -2632,6 +2633,7 @@ struct HyperOpCreationPass: public ModulePass {
 			HyperOpArgumentList hyperOpArguments;
 			createdHyperOpAndOriginalBasicBlockAndArgMap[newFunction] = make_pair(accumulatedBasicBlocks, hyperOpArguments);
 		}
+
 		//End of creation of hyperops
 		list<MDNode*> syncMDNodeList;
 		map<Function*, list<Function*> > addedPredicateSourcesMap;
@@ -2670,7 +2672,7 @@ struct HyperOpCreationPass: public ModulePass {
 					list<CallInst*> callSiteCopy;
 					std::copy(callSite.begin(), callSite.end(), back_inserter(callSiteCopy));
 					Function* sourceFunction = NULL;
-					if (hyperOpArgAtPositionItr->second != GLOBAL_REFERENCE && !isa<Instruction>(hyperOpArgItr) && !isa<Constant>(hyperOpArgItr)) {
+					if (hyperOpArgAtPositionItr->second != GLOBAL_REFERENCE && (!isa<Instruction>(hyperOpArgItr) || ((isa<CallInst>(hyperOpArgItr) && ((CallInst*) hyperOpArgItr)->getCalledFunction() == NULL))) && !isa<Constant>(hyperOpArgItr)) {
 						unsigned positionOfFormalArg = 0;
 						Function* originalFunction = accumulatedOriginalBasicBlocks.front()->getParent();
 						for (Function::arg_iterator originalArgItr = originalFunction->arg_begin(); originalArgItr != originalFunction->arg_end(); originalArgItr++, positionOfFormalArg++) {
@@ -2699,7 +2701,6 @@ struct HyperOpCreationPass: public ModulePass {
 						}
 
 						sourceFunction = getFunctionWithBB(lookForBB, callSiteCopy, createdHyperOpAndCallSite, createdHyperOpAndOriginalBasicBlockAndArgMap);
-
 						assert(sourceFunction!=NULL && "Source of the argument can't be NULL\n");
 						int index = 0;
 						Value* clonedInst = NULL;
@@ -3789,11 +3790,14 @@ struct HyperOpCreationPass: public ModulePass {
 				newEntryBB->getInstList().insert(newEntryBB->getFirstInsertionPt(), branchInst);
 			}
 		}
-		M.dump();
 		DEBUG(dbgs() << "\n-----------Deleting unused functions-----------\n");
 		//Workaround for deleting unused functions, deletion doesn't work unless in topological order but what about recursion?
 		list<Function*> functionsForDeletion;
 		for (Module::iterator functionItr = M.begin(); functionItr != M.end(); functionItr++) {
+			/* Functions that arent redefine start and are defined externally */
+			if(!functionItr->hasInternalLinkage() && functionItr->getName().compare(mainFunction->getName())){
+				continue;
+			}
 			//Remove old functions from module
 			if (createdHyperOpAndOriginalBasicBlockAndArgMap.find(functionItr) == createdHyperOpAndOriginalBasicBlockAndArgMap.end() && !functionItr->isIntrinsic()) {
 				functionItr->deleteBody();
@@ -4568,10 +4572,17 @@ struct REDEFINEIRPass: public ModulePass {
 
 		}
 		NamedMDNode * hyperOpAnnotationsNode = M.getOrInsertNamedMetadata(HYPEROP_ANNOTATIONS);
+		list<Function*> usedFunctions;
 		for (auto vertexItr : graph->Vertices) {
 			HyperOp* vertex = vertexItr;
 			if(vertex->isUnrolledInstance()){
 				continue;
+			}
+			if(find(usedFunctions.begin(), usedFunctions.end(), vertex->getFunction()) == usedFunctions.end()){
+				usedFunctions.push_back(vertex->getFunction());
+			}
+			if(find(usedFunctions.begin(), usedFunctions.end(), vertex->getInstanceof()) == usedFunctions.end()){
+				usedFunctions.push_back(vertex->getInstanceof());
 			}
 			vector<Value*> hopAnnotations;
 			hopAnnotations.push_back(MDString::get(M.getContext(), vertex->getFunction()->getName()));
@@ -4620,10 +4631,17 @@ struct REDEFINEIRPass: public ModulePass {
 			hyperOpAnnotationsNode->addOperand(MDNode::get(M.getContext(), hopAnnotations));
 		}
 		list<Function*> unusedFunctions;
+		HyperOp* start = NULL;
+		for(auto vertexItr:graph->Vertices){
+			if(vertexItr->isStartHyperOp()){
+				start = vertexItr;
+				break;
+			}
+		}
 		/* Delete functions that are not directly used */
 		for (auto functionItr = M.begin(); functionItr != M.end(); functionItr++) {
 			Function* f = functionItr;
-			if(graph->getHyperOp(f) == NULL && !f->isIntrinsic()){
+			if(find(usedFunctions.begin(), usedFunctions.end(), f) == usedFunctions.end() && !f->isDeclaration()){
 				unusedFunctions.push_back(f);
 			}
 		}
