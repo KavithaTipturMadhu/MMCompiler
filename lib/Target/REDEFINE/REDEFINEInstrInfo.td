@@ -132,12 +132,23 @@ let usesCustomInserter = 1 in {
                               (ins GR32:$cond, GR32:$T, GR32:$F),
                               [(set GR32:$dst,
                                  (select GR32:$cond, GR32:$T, GR32:$F))]>;
+  def SELECT_CC_FP : Pseudo<(outs FP32:$dst),
+                              (ins GR32:$cond, FP32:$T, FP32:$F),
+                              [(set FP32:$dst,
+                                 (select GR32:$cond, FP32:$T, FP32:$F))]>;
 }
 def : Pat<(select (i32 (setne GR32:$lhs, 0)), GR32:$T, GR32:$F),
         (SELECT_CC GR32:$lhs, GR32:$T, GR32:$F)>;
 
 def : Pat<(select (i32 (seteq GR32:$lhs, 0)), GR32:$T, GR32:$F),
         (SELECT_CC GR32:$lhs, GR32:$F, GR32:$T)>;
+
+def : Pat<(select (i32 (setne GR32:$lhs, 0)), FP32:$T, FP32:$F),
+        (SELECT_CC_FP GR32:$lhs, FP32:$T, FP32:$F)>;
+
+def : Pat<(select (i32 (seteq GR32:$lhs, 0)), FP32:$T, FP32:$F),
+        (SELECT_CC_FP GR32:$lhs, FP32:$F, FP32:$T)>;
+        
 
 /**
 REDEFINE specific instructions
@@ -341,8 +352,8 @@ defm FMUL_S : FPBinOps<"fmul.s", fmul, 0b00010, 0b00>;
 //def FSIN_S: InstFP<"fsin.s", 0b1111100, 0b000, 0b00000 ,0b0000000, fsin, FP32, FP32>;
 //def FCOS_S: InstFP<"fcos.s", 0b1111100, 0b001, 0b00000 ,0b0000000, fcos, FP32, FP32>;
 
-defm FCVT_W_S  : FPConvOps<"fcvt.w.s",  null_frag, GR32, FP32, 0b01010, 0b00>;
-defm FCVT_WU_S : FPConvOps<"fcvt.wu.s", null_frag, GR32, FP32, 0b01011, 0b00>;
+defm FCVT_W_S  : FPConvOps<"fcvt.w.s",  fp_to_sint, GR32, FP32, 0b01010, 0b00>;
+defm FCVT_WU_S : FPConvOps<"fcvt.wu.s", fp_to_uint, GR32, FP32, 0b01011, 0b00>;
 defm FCVT_S_W  : FPConvOps<"fcvt.s.w",  sint_to_fp, FP32, GR32, 0b01110, 0b00>;
 defm FCVT_S_WU : FPConvOps<"fcvt.s.wu", uint_to_fp, FP32, GR32, 0b01111, 0b00>;
 //make sure we get the right rounding mode

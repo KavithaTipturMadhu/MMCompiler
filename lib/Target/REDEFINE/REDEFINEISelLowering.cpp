@@ -1306,6 +1306,7 @@ MachineBasicBlock *REDEFINETargetLowering::emitSelectCC(MachineInstr *MI, Machin
 MachineBasicBlock *REDEFINETargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI, MachineBasicBlock *MBB) const {
 	switch (MI->getOpcode()) {
 		case REDEFINE::SELECT_CC:
+		case REDEFINE::SELECT_CC_FP:
 			return emitSelectCC(MI, MBB);
 		default:
 			llvm_unreachable("Unexpected instr type to insert");
