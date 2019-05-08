@@ -208,6 +208,9 @@ unsigned REDEFINEInstrInfo::InsertConstBranchAtInst(MachineBasicBlock &MBB, Mach
 	case (REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO):
 		BuildMI(MBB, I, DL, get(REDEFINE::BGEU)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
 		break;
+	case (REDEFINE::CCMASK_CMP_GT | REDEFINE::CCMASK_CMP_UO):
+		BuildMI(MBB, I, DL, get(REDEFINE::BGTU)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
 	case (REDEFINE::CCMASK_CMP_LE | REDEFINE::CCMASK_CMP_UO):
 		BuildMI(MBB, I, DL, get(REDEFINE::BLEU)).addImm(offset).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
 		break;
@@ -255,6 +258,9 @@ unsigned REDEFINEInstrInfo::InsertBranchAtInst(MachineBasicBlock &MBB, MachineIn
 		break;
 	case (REDEFINE::CCMASK_CMP_GE | REDEFINE::CCMASK_CMP_UO):
 		BuildMI(MBB, I, DL, get(REDEFINE::BGEU)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
+		break;
+	case (REDEFINE::CCMASK_CMP_GT | REDEFINE::CCMASK_CMP_UO):
+		BuildMI(MBB, I, DL, get(REDEFINE::BGTU)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
 		break;
 	case (REDEFINE::CCMASK_CMP_LE | REDEFINE::CCMASK_CMP_UO):
 		BuildMI(MBB, I, DL, get(REDEFINE::BLEU)).addMBB(TBB).addReg(Cond[2].getReg()).addReg(Cond[3].getReg());
