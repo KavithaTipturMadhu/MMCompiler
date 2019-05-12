@@ -4084,8 +4084,7 @@ struct REDEFINEIRPass: public ModulePass {
 				|| parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE) {
 			/* -1 because there is one arg corresponding to the hyperop id itself, but we don't update the edges context slot because it is easier to match value pointers of argument with context slot this way */
 			assert((parentEdge->getPositionOfContextSlot() - 1) >=0 && "context frame writes must be to a location within the frame\n");
-			if (parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR && parentEdge->getMultiplicity().compare(ONE_TO_ONE) && child->getInRange() && edgeSource == child->getImmediateDominator()) {
-				assert(parentEdge->getContextFrameAddress()->getInRange());
+			if (parentEdge->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_SCALAR && parentEdge->getMultiplicity().compare(ONE_TO_ONE) && child->getInRange() && edgeSource == child->getImmediateDominator() && parentEdge->getContextFrameAddress()->getInRange()) {
 				Value* offset = BinaryOperator::CreateExactUDiv(BinaryOperator::CreateSub(childCFBaseAddr, rangeBaseAddr, "", &((*insertInBB)->back())), ConstantInt::get(ctxt, APInt(32, 64)), "", &((*insertInBB)->back()));
 				childCFBaseAddr = BinaryOperator::CreateNUWAdd(childCFBaseAddr, offset, "", &((*insertInBB)->back()));
 			}
@@ -4284,11 +4283,11 @@ struct REDEFINEIRPass: public ModulePass {
 
 		for (auto vertexItr : graph->Vertices) {
 			HyperOp* vertex = vertexItr;
-			errs() << "\n---------\nadding instructions to vertex " << vertex->asString() << "\n";
 			//Do nothing in unrolled instance functions
 			if (vertex->isUnrolledInstance()) {
 				continue;
 			}
+			errs() << "\n---------\nadding instructions to vertex " << vertex->asString() << "\n";
 			Function* vertexFunction = vertex->getFunction();
 			BasicBlock* insertInBB = &vertexFunction->back();
 			map<HyperOp*, Value*> createdHopBaseAddressMap;
