@@ -21,6 +21,10 @@ declare void @uts_initRoot(%struct.node_t*, i32) #0
 
 declare void @rng_spawn(i8*, i8*, i32) #0
 
+declare i32 @uts_numChildren(%struct.node_t* nocapture %parent) #0
+
+declare i32 @uts_childType(%struct.node_t* nocapture %parent) #0
+
 define void @redefine_start1() {
 redefine_start1.entry:
   %0 = alloca %struct.node_t, align 4, !ConsumedBy !30
@@ -87,7 +91,7 @@ uts_function6.entry:
   %1 = alloca i1, align 4, !Controls !40
   %2 = alloca %struct.node_t, !ConsumedBy !43
   %3 = alloca %struct.node_t, align 4, !ConsumedBy !45
-  %4 = getelementptr inbounds %struct.node_t* %0, i32 0, i32 2
+  %4 = call i32 @uts_numChildren(%struct.node_t* %0)
   %5 = load i32* %4, align 4
   %6 = icmp sgt i32 %5, 0
   %upperBound = alloca i32, !ConsumedBy !76
@@ -100,7 +104,7 @@ uts_function6.entry:
   br i1 %6, label %uts_function6.if.then, label %uts_function6.return
 
 uts_function6.if.then:                            ; preds = %uts_function6.entry
-  %9 = getelementptr inbounds %struct.node_t* %0, i32 0, i32 0
+  %9 = call i32 @uts_childType(%struct.node_t* %0)
   %10 = load i32* %9, align 4
   %11 = add nsw i32 %5, 0
   store i32 %11, i32* %8, align 4
@@ -179,10 +183,11 @@ uts_function_for.body8.for.body:                  ; preds = %uts_function_for.bo
   br label %uts_function_for.body8.return
 
 uts_function_for.body8.return:                    ; preds = %uts_function_for.body8.for.body
+  %17 = alloca i32, !ConsumedBy !80
   ret void
 }
 
-define void @uts_function9(i32) {
+define void @uts_function9(i32, i32 %base) {
 uts_function9.entry:
   br label %uts_function9.return1
 
@@ -233,7 +238,7 @@ uts_function13.entry:
   %1 = alloca i1, align 4, !Controls !65
   %2 = alloca %struct.node_t, !ConsumedBy !68
   %3 = alloca %struct.node_t, align 4, !ConsumedBy !70
-  %4 = getelementptr inbounds %struct.node_t* %0, i32 0, i32 2
+  %4 = call i32 @uts_numChildren(%struct.node_t* %0)
   %5 = load i32* %4, align 4
   %6 = icmp sgt i32 %5, 0
   %upperBound = alloca i32, !ConsumedBy !78
@@ -246,7 +251,7 @@ uts_function13.entry:
   br i1 %6, label %uts_function13.if.then, label %uts_function13.return
 
 uts_function13.if.then:                           ; preds = %uts_function13.entry
-  %9 = getelementptr inbounds %struct.node_t* %0, i32 0, i32 0
+  %9 = call i32 @uts_childType(%struct.node_t* %0)
   %10 = load i32* %9, align 4
   %11 = add nsw i32 %5, 0
   store i32 %11, i32* %8, align 4
@@ -325,6 +330,7 @@ uts_function_for.body8.for.body:                  ; preds = %uts_function_for.bo
   br label %uts_function_for.body8.return
 
 uts_function_for.body8.return:                    ; preds = %uts_function_for.body8.for.body
+  %17 = alloca i32, !ConsumedBy !82
   ret void
 }
 
@@ -346,7 +352,7 @@ attributes #0 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "n
 !13 = metadata !{metadata !"Intermediate", metadata !12}
 !14 = metadata !{metadata !"HyperOp", void (i32, i32, %struct.node_t*, %struct.node_t*)* @uts_function_for.body8, metadata !"Dynamic", void (i32, i32, %struct.node_t*, %struct.node_t*)* @uts_function_for.body8, metadata !"<0>", metadata !"0", metadata !"uts_function6:upperBound1", metadata !"add", i32 1}
 !15 = metadata !{metadata !"Intermediate", metadata !14}
-!16 = metadata !{metadata !"HyperOp", void (i32)* @uts_function9, metadata !"Dynamic", void (i32)* @uts_function2, metadata !"<0,0>"}
+!16 = metadata !{metadata !"HyperOp", void (i32, i32)* @uts_function9, metadata !"Dynamic", void (i32)* @uts_function2, metadata !"<0,0>"}
 !17 = metadata !{metadata !"Intermediate", metadata !16}
 !20 = metadata !{metadata !"HyperOp", void ()* @uts_function11, metadata !"Dynamic", void ()* @uts_function4, metadata !"<0,0>"}
 !21 = metadata !{metadata !"Intermediate", metadata !20}
@@ -402,3 +408,7 @@ attributes #0 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "n
 !77 = metadata !{metadata !12, i32 1, metadata !"11"}
 !78 = metadata !{metadata !79}
 !79 = metadata !{metadata !26, i32 1, metadata !"11"}
+!80 = metadata !{metadata !81}
+!81 = metadata !{metadata !16, i32 1, metadata !"11", metadata !"<id,0>"}
+!82 = metadata !{metadata !83}
+!83 = metadata !{metadata !16, i32 1, metadata !"11", metadata !"<id,0>"}
