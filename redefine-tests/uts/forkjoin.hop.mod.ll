@@ -91,7 +91,9 @@ uts_function6.entry:
   %1 = alloca i1, align 4, !Controls !40
   %2 = alloca %struct.node_t, !ConsumedBy !43
   %3 = alloca %struct.node_t, align 4, !ConsumedBy !45
-  %4 = call i32 @uts_numChildren(%struct.node_t* %0)
+  %4 = alloca i32, align 4
+  %call = call i32 @uts_numChildren(%struct.node_t* %0)
+  store i32 %call, i32* %4  
   %5 = load i32* %4, align 4
   %6 = icmp sgt i32 %5, 0
   %upperBound = alloca i32, !ConsumedBy !76
@@ -104,7 +106,9 @@ uts_function6.entry:
   br i1 %6, label %uts_function6.if.then, label %uts_function6.return
 
 uts_function6.if.then:                            ; preds = %uts_function6.entry
-  %9 = call i32 @uts_childType(%struct.node_t* %0)
+  %9 = alloca i32, align 4
+  %call2 = call i32 @uts_childType(%struct.node_t* %0)
+  store i32 %call2, i32* %9  
   %10 = load i32* %9, align 4
   %11 = add nsw i32 %5, 0
   store i32 %11, i32* %8, align 4
@@ -238,7 +242,9 @@ uts_function13.entry:
   %1 = alloca i1, align 4, !Controls !65
   %2 = alloca %struct.node_t, !ConsumedBy !68
   %3 = alloca %struct.node_t, align 4, !ConsumedBy !70
-  %4 = call i32 @uts_numChildren(%struct.node_t* %0)
+  %4 = alloca i32, align 4
+  %call = call i32 @uts_numChildren(%struct.node_t* %0)
+  store i32 %call, i32* %4
   %5 = load i32* %4, align 4
   %6 = icmp sgt i32 %5, 0
   %upperBound = alloca i32, !ConsumedBy !78
@@ -251,7 +257,9 @@ uts_function13.entry:
   br i1 %6, label %uts_function13.if.then, label %uts_function13.return
 
 uts_function13.if.then:                           ; preds = %uts_function13.entry
-  %9 = call i32 @uts_childType(%struct.node_t* %0)
+  %9 = alloca i32, align 4
+  %call2 = call i32 @uts_childType(%struct.node_t* %0)
+  store i32 %call2, i32* %9  
   %10 = load i32* %9, align 4
   %11 = add nsw i32 %5, 0
   store i32 %11, i32* %8, align 4
