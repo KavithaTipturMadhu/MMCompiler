@@ -1099,6 +1099,9 @@ void HyperOpInteractionGraph::updateLocalRefEdgeMemSizeAndOffset() {
 		list<HyperOpEdge*> edgeProcessingOrder;
 		HyperOp* hyperOp = *vertexItr;
 		for (auto parentEdgeItr = (*vertexItr)->ParentMap.begin(); parentEdgeItr != (*vertexItr)->ParentMap.end(); parentEdgeItr++) {
+			if(parentEdgeItr->second->isUnrolledInstance()){
+				continue;
+			}
 			if (parentEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF || parentEdgeItr->first->getType() == HyperOpEdge::LOCAL_REFERENCE || parentEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF) {
 				HyperOpEdge* edge = parentEdgeItr->first;
 				AllocaInst* originalEdgeSource = getAllocInstrForLocalReferenceData(edge->getValue(), parentEdgeItr->second);
@@ -1813,33 +1816,36 @@ void HyperOpInteractionGraph::addContextFrameAddressForwardingEdges() {
 	map<HyperOp*, list<HyperOpEdge*> > childHopsAndNewEdges;
 
 	/* Map of HyperOps and the vertices they are in the dominance frontier of */
-	map<HyperOp*, list<HyperOp*> > vertexInDomfOf;
+	map<HyperOp*, list<pair<HyperOp*, HyperOp*> > > vertexInDomfOf;
 //Forward addresses to producers that have a HyperOp in their dominance frontier and to the HyperOps that delete the context frame
 	for (list<HyperOp*>::iterator vertexIterator = Vertices.begin(); vertexIterator != Vertices.end(); vertexIterator++) {
 		HyperOp* vertex = *vertexIterator;
-		list<HyperOp*> dominanceFrontierContainingVertex;
+		list<pair<HyperOp*, HyperOp*> > dominanceFrontierContainingVertex;
 		for (list<HyperOp*>::iterator tempItr = Vertices.begin(); tempItr != Vertices.end(); tempItr++) {
 			HyperOp* domf = *tempItr;
 			auto domfList = domf->getDominanceFrontier();
+			HyperOp* fromVertex = domf->getImmediateDominator();
 			if (domf != vertex && !domfList.empty() && find(domfList.begin(), domfList.end(), vertex) != domfList.end()) {
 				auto parentList = vertex->getParentList();
 				if (find(parentList.begin(), parentList.end(), domf) != parentList.end()) {
-					dominanceFrontierContainingVertex.push_front(domf);
+					dominanceFrontierContainingVertex.push_front(make_pair(domf, fromVertex));
 				} else {
-					dominanceFrontierContainingVertex.push_back(domf);
+					dominanceFrontierContainingVertex.push_back(make_pair(domf, fromVertex));
 				}
 			}
 		}
 		if (vertex->isPredicatedHyperOp()) {
-			dominanceFrontierContainingVertex.push_back(vertex->getImmediateDominator()->getImmediatePostDominator());
+			HyperOp* fromVertex = vertex->getImmediateDominator();
+			dominanceFrontierContainingVertex.push_back(make_pair(vertex->getImmediateDominator()->getImmediatePostDominator(), fromVertex));
 		}
 		vertexInDomfOf.insert(make_pair(vertex, dominanceFrontierContainingVertex));
 	}
 
 	for (auto dominanceFrontierIterator = vertexInDomfOf.begin(); dominanceFrontierIterator != vertexInDomfOf.end(); dominanceFrontierIterator++) {
 		HyperOp* dominanceFrontierHyperOp = dominanceFrontierIterator->first;
-		for (auto vertex : dominanceFrontierIterator->second) {
-			HyperOp* immediateDominator = vertex->getImmediateDominator();
+		for (auto vertexItr : dominanceFrontierIterator->second) {
+			HyperOp* vertex = vertexItr.first;
+			HyperOp* immediateDominator = vertexItr.second;
 			if (dominanceFrontierHyperOp != vertex) {
 				string multiplicity = "";
 				for (auto parentItr : dominanceFrontierHyperOp->ParentMap) {
@@ -3873,9 +3879,6 @@ void HyperOpInteractionGraph::addNecessarySyncEdges() {
 	list<Function*> functionsForDeletion;
 	for (list<HyperOp*>::iterator firstHopItr = this->Vertices.begin(); firstHopItr != this->Vertices.end(); firstHopItr++) {
 		HyperOp* producerHyperOp = *firstHopItr;
-		if (producerHyperOp->isUnrolledInstance()) {
-			continue;
-		}
 		unsigned producerIndex = hyperOpAndIndexMap[*firstHopItr];
 		list<HyperOp*> previouslyUpdatedChildren;
 		map<HyperOp*, HyperOp*> syncBarrierHyperOpMap;
