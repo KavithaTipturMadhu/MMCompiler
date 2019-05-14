@@ -547,7 +547,7 @@ void addGlobalSymTab(const GlobalVariable* global, const Constant * initializer,
 
 void REDEFINEAsmPrinter::EmitEndOfAsmFile(Module &M) {
 	if (!M.getGlobalList().empty()) {
-		string inputs = ".DATA\n";
+		string inputs = ".DATA:\n";
 		unsigned numInputsAndOutputs = 0;
 		for (Module::const_global_iterator globalArgItr = M.global_begin(); globalArgItr != M.global_end(); globalArgItr++, numInputsAndOutputs++) {
 			const GlobalVariable *globalVar = &*globalArgItr;
@@ -558,7 +558,7 @@ void REDEFINEAsmPrinter::EmitEndOfAsmFile(Module &M) {
 		}
 
 		OutStreamer.EmitRawText(StringRef(inputs));
-		string ioEndLabel = ".END\n";
+		string ioEndLabel = ".END:\n";
 		OutStreamer.EmitRawText(StringRef(ioEndLabel));
 	}
 	string maxFrameString;
