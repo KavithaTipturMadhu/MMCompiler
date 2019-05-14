@@ -208,14 +208,26 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 		}
 	}
 
-	//The object is a reference being passed via memory
 	int mfFrameSize = 0;
 	if (MF->getFrameInfo()->getObjectIndexEnd() > 0) {
 		for (int i = 0; i < MF->getFrameInfo()->getObjectIndexEnd(); i++) {
-			mfFrameSize += REDEFINEUtils::getSizeOfType(
-					MF->getFrameInfo()->getObjectAllocation(i)->getType());
+			mfFrameSize += REDEFINEUtils::getSizeOfType(MF->getFrameInfo()->getObjectAllocation(i)->getType());
 		}
 	}
+
+	HyperOp* hyperOp = NULL;
+	Function* hopFunction = const_cast<Function*>(MF->getFunction());
+	int minEdgeOffset = 0;
+	for (auto hopItr : ((REDEFINETargetMachine&) TM).HyperOps) {
+		if (!hopItr.first->getFunction()->getName().compare(hopFunction->getName())) {
+			for (auto sizeMapItr : hopItr.second) {
+				minEdgeOffset += sizeMapItr.second;
+			}
+			break;
+		}
+	}
+	mfFrameSize += minEdgeOffset;
+
 	if (mfFrameSize > maxFrameValue) {
 		maxFrameValue = mfFrameSize;
 	}
