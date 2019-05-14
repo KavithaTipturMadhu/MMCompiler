@@ -2847,7 +2847,7 @@ struct HyperOpCreationPass: public ModulePass {
 											int typeCount = containedTypesForTraversal.front().second;
 											containedTypesForTraversal.pop_front();
 											if (!traversingType->isAggregateType()) {
-												memoryOfType += typeCount * (traversingType->getPrimitiveSizeInBits() / 8);
+												memoryOfType += (typeCount * traversingType->getPrimitiveSizeInBits())/32;
 											} else {
 												if (traversingType->isArrayTy()) {
 													containedTypesForTraversal.push_back(make_pair(traversingType->getArrayElementType(), traversingType->getArrayNumElements()));
@@ -3992,7 +3992,7 @@ struct REDEFINEIRPass: public ModulePass {
 			int typeCount = containedTypesForTraversal.front().second;
 			containedTypesForTraversal.pop_front();
 			if (!traversingType->isAggregateType()) {
-				memoryOfType += typeCount*(traversingType->getPrimitiveSizeInBits()/32);
+				memoryOfType += (typeCount*traversingType->getPrimitiveSizeInBits())/32;
 			} else {
 				if (traversingType->isArrayTy()) {
 					containedTypesForTraversal.push_back(make_pair(traversingType->getArrayElementType(), traversingType->getArrayNumElements()));
