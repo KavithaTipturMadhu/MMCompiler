@@ -229,7 +229,7 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD, unsigned Builtin
 	}
 	case Builtin::BI__builtin_getmemframe: {
 		Value *F = CGM.getIntrinsic(Intrinsic::getmemframe);
-		Value *Args[] = { EmitScalarExpr(E->getArg(0)) };
+		Value *Args[] = { EmitScalarExpr(E->getArg(0)), EmitScalarExpr(E->getArg(0)) };
 		return RValue::get(Builder.CreateCall(F, Args));
 	}
 	// Handle intrinsics and libm functions below.

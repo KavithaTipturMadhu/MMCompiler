@@ -4166,7 +4166,7 @@ struct REDEFINEIRPass: public ModulePass {
 		for (auto incomingEdgeItr = child->ParentMap.begin(); incomingEdgeItr != child->ParentMap.end(); incomingEdgeItr++) {
 			if (incomingEdgeItr->second == vertex
 					&& (incomingEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF || incomingEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF || incomingEdgeItr->first->getType() == HyperOpEdge::LOCAL_REFERENCE)) {
-				Value* memFrameAddrArgs[] = { baseAddress };
+				Value* memFrameAddrArgs[] = { baseAddress, getConstantValue(incomingEdgeItr->first->getPositionOfContextSlot(), M) };
 				memFrameAddress = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::getmemframe, 0), memFrameAddrArgs, "memframe_reg", &(*insertInBB)->back());
 				break;
 			}

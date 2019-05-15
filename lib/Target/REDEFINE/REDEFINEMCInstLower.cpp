@@ -128,30 +128,25 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 		const MachineFrameInfo* frameInfo = MO.getParent()->getParent()->getParent()->getFrameInfo();
 		unsigned currentObjectOffset = 0;
 
-		if (MO.getIndex() < 0) {
-			//The object is a reference being passed via memory
-			if (frameInfo->getObjectIndexEnd() > 0) {
-				for (int i = 0; i < frameInfo->getObjectIndexEnd(); i++) {
-					currentObjectOffset += REDEFINEUtils::getSizeOfType(frameInfo->getObjectAllocation(i)->getType());
-				}
-			}
-			const Function* parentFunction = MO.getParent()->getParent()->getParent()->getFunction();
-			map<int, int> sizeMap;
-			for(auto hopItr : ((REDEFINETargetMachine&) ((REDEFINEAsmPrinter&) AsmPrinter).TM).HyperOps){
-				if(hopItr.first->getFunction() == parentFunction){
-					sizeMap = hopItr.second;
-					break;
-				}
-			}
-
-			for (auto sizeMapItr : sizeMap) {
-				currentObjectOffset += sizeMapItr.second;
-			}
-		} else {
-			for (int i = 0; i < MO.getIndex(); i++) {
-				currentObjectOffset += REDEFINEUtils::getSizeOfType(frameInfo->getObjectAllocation(i)->getType());
+		const Function* parentFunction = MO.getParent()->getParent()->getParent()->getFunction();
+		map<int, int> sizeMap;
+		for (auto hopItr : ((REDEFINETargetMachine&) ((REDEFINEAsmPrinter&) AsmPrinter).TM).HyperOps) {
+			if (hopItr.first->getFunction() == parentFunction) {
+				sizeMap = hopItr.second;
+				break;
 			}
 		}
+
+		for (auto sizeMapItr : sizeMap) {
+			if (sizeMapItr.first < MO.getIndex()) {
+				currentObjectOffset += sizeMapItr.second;
+			}
+		}
+
+		for (int i = 0; i < MO.getIndex(); i++) {
+			currentObjectOffset += REDEFINEUtils::getSizeOfType(frameInfo->getObjectAllocation(i)->getType());
+		}
+		errs() << "with value " << currentObjectOffset << "\n";
 		MCOperand retVal = MCOperand::CreateImm(currentObjectOffset);
 		return retVal;
 	}
