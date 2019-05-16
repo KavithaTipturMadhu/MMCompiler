@@ -80,6 +80,18 @@ public:
                            MachineBasicBlock::iterator MBBI, DebugLoc DL,
                            unsigned DestReg, unsigned SrcReg,
                            bool KillSrc) const LLVM_OVERRIDE;
+  virtual void
+    storeRegToStackSlot(MachineBasicBlock &MBB,
+                        MachineBasicBlock::iterator MBBI,
+                        unsigned SrcReg, bool isKill, int FrameIndex,
+                        const TargetRegisterClass *RC,
+                        const TargetRegisterInfo *TRI) const LLVM_OVERRIDE;
+  virtual void
+    loadRegFromStackSlot(MachineBasicBlock &MBB,
+                         MachineBasicBlock::iterator MBBI,
+                         unsigned DestReg, int FrameIdx,
+                         const TargetRegisterClass *RC,
+                         const TargetRegisterInfo *TRI) const LLVM_OVERRIDE;
   virtual bool
     expandPostRAPseudo(MachineBasicBlock::iterator MBBI) const LLVM_OVERRIDE;
   virtual bool
