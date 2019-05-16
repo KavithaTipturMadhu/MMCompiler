@@ -149,12 +149,12 @@ public:
     bundle_iterator(IterTy mii) : MII(mii) {}
 
     bundle_iterator(Ty &mi) : MII(mi) {
-      assert(!mi.isBundledWithPred() &&
-             "It's not legal to initialize bundle_iterator with a bundled MI");
+      /*assert(!mi.isBundledWithPred() &&
+             "It's not legal to initialize bundle_iterator with a bundled MI");*/
     }
     bundle_iterator(Ty *mi) : MII(mi) {
-      assert((!mi || !mi->isBundledWithPred()) &&
-             "It's not legal to initialize bundle_iterator with a bundled MI");
+      /*assert((!mi || !mi->isBundledWithPred()) &&
+             "It's not legal to initialize bundle_iterator with a bundled MI");*/
     }
     // Template allows conversion from const to nonconst.
     template<class OtherTy, class OtherIterTy>
