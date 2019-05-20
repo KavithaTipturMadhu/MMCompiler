@@ -143,10 +143,10 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 			}
 		}
 
+
 		for (int i = 0; i < MO.getIndex(); i++) {
-			currentObjectOffset += REDEFINEUtils::getSizeOfType(frameInfo->getObjectAllocation(i)->getType());
+			currentObjectOffset += frameInfo->getObjectSize(i);
 		}
-		errs() << "with value " << currentObjectOffset << "\n";
 		MCOperand retVal = MCOperand::CreateImm(currentObjectOffset);
 		return retVal;
 	}

@@ -75,7 +75,7 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 		for (MachineBasicBlock::const_instr_iterator instrItr =
 				I->instr_begin(); instrItr != I->instr_end(); ++instrItr) {
 			//First instruction of the pHyperOp is never in a bundle
-			if (!instrItr->isInsideBundle()) {
+			if ((!instrItr->isInsideBundle() && ceCount > 1) || (ceCount == 1 && instrItr == I->instr_begin())) {
 				pHyperOpIndex++;
 				startOfBBInPHyperOp[pHyperOpIndex].push_back(instrItr);
 			}
@@ -112,7 +112,6 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 	codeSegmentStart.append("\n");
 	OutStreamer.EmitRawText(StringRef(codeSegmentStart));
 
-
 	/* Old to new label per ce map for all basic blocks */
 	map<string, vector<MCSymbol*> > oldToNewLabelSymbolMap;
 	for (MachineFunction::const_iterator I = MF->begin(), E = MF->end(); I != E; ++I) {
@@ -142,15 +141,14 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 
 		bool frameIndex = false;
 		for (list<const MachineInstr*>::iterator mcItr = pHyperOpItr.begin();
-					mcItr != pHyperOpItr.end() && frameIndex== false; mcItr++) {
-			for(unsigned operandIndex =0;operandIndex < (*mcItr)->getNumOperands();operandIndex++){
-					const MachineOperand& operand = (*mcItr)->getOperand(operandIndex);
-					if(operand.getType() == MachineOperand::MO_FrameIndex){
-						frameIndex = true;
-						break;
-					}
-
+					mcItr != pHyperOpItr.end() && frameIndex == false; mcItr++) {
+			for (unsigned operandIndex = 0; operandIndex < (*mcItr)->getNumOperands(); operandIndex++) {
+				const MachineOperand& operand = (*mcItr)->getOperand(operandIndex);
+				if (operand.getType() == MachineOperand::MO_FrameIndex) {
+					frameIndex = true;
+					break;
 				}
+			}
 		}
 		for (list<const MachineInstr*>::iterator mcItr = pHyperOpItr.begin();
 				mcItr != pHyperOpItr.end(); mcItr++) {
@@ -202,8 +200,6 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 				OutStreamer.EmitRawText(StringRef(globalAddressCode));
 
 			}
-
-
 			EmitInstruction(*mcItr);
 		}
 	}
@@ -211,7 +207,7 @@ void REDEFINEAsmPrinter::EmitFunctionBody() {
 	int mfFrameSize = 0;
 	if (MF->getFrameInfo()->getObjectIndexEnd() > 0) {
 		for (int i = 0; i < MF->getFrameInfo()->getObjectIndexEnd(); i++) {
-			mfFrameSize += REDEFINEUtils::getSizeOfType(MF->getFrameInfo()->getObjectAllocation(i)->getType());
+			mfFrameSize += MF->getFrameInfo()->getObjectSize(i);
 		}
 	}
 

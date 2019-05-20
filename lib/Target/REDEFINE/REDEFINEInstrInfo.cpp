@@ -326,20 +326,13 @@ REDEFINEInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   // together for now and lower them after register allocation.
   unsigned LoadOpcode, StoreOpcode;
   getLoadStoreOpcodes(RC, LoadOpcode, StoreOpcode);
-  MBB.dump();
 
-  MachineInstrBuilder sw =  BuildMI(MBB, MBBI, DL, get(StoreOpcode));
-  addFrameReference(sw.addReg(SrcReg, getKillRegState(isKill)), FrameIdx);
-  if(!sw->isBundledWithPred()){
-	  sw->bundleWithPred();
-
-  }
-  sw->dump();
-  errs()<<"Inside storeRegToStackSlot\n";
-  MBB.dump();
-  errs()<<MBBI->isInsideBundle()<<MBBI->isBundledWithPred()<<MBBI->isBundledWithSucc()<<MBBI->isBundled()<<"\n";
-
-
+  MachineInstrBuilder sw =  BuildMI(MBB, MBBI, DL, get(StoreOpcode)).addReg(SrcReg, getKillRegState(isKill)).addReg(REDEFINE::zero).addFrameIndex(FrameIdx);
+//  if(!sw->isBundledWithPred()){
+//	  sw->bundleWithPred();
+//  }
+//  errs()<<MBBI->isInsideBundle()<<MBBI->isBundledWithPred()<<MBBI->isBundledWithSucc()<<MBBI->isBundled()<<"\n";
+//  errs()<<"Inside storeRegToStackSlot\n";
 }
 
 void
@@ -354,11 +347,11 @@ REDEFINEInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   // together for now and lower them after register allocation.
   unsigned LoadOpcode, StoreOpcode;
   getLoadStoreOpcodes(RC, LoadOpcode, StoreOpcode);
-  MachineInstrBuilder lw = BuildMI(MBB, MBBI, DL, get(LoadOpcode), DestReg);
-  addFrameReference(lw, FrameIdx);
-  if(!lw->isBundledWithSucc()){
-	  lw->bundleWithSucc();
-  }
+
+  MachineInstrBuilder lw = BuildMI(MBB, MBBI, DL, get(LoadOpcode), DestReg).addReg(REDEFINE::zero).addFrameIndex(FrameIdx);
+//  if(!lw->isBundledWithSucc()){
+//	  lw->bundleWithSucc();
+//  }
 
 }
 
@@ -379,13 +372,13 @@ bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 			movImm.addReg(REDEFINE::t0, RegState::Define);
 			movImm.addImm(currentObjectOffset);
 			MachineInstrBuilder add = BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), get(REDEFINE::ADD)).addReg(MI->getOperand(0).getReg()).addReg(MI->getOperand(1).getReg()).addReg(REDEFINE::t0);
-			if (MI->isBundled()) {
-				MI->eraseFromBundle();
-			} else {
+//			if (MI->isBundled()) {
+//				MI->eraseFromBundle();
+//			} else {
 				MI->eraseFromParent();
-			}
-			movImm->bundleWithSucc();
-			add->bundleWithSucc();
+//			}
+//			movImm->bundleWithSucc();
+//			add->bundleWithSucc();
 		}
 	}
 //	//TODO Hack for immediates that don't fit in 12 bit addi operand field

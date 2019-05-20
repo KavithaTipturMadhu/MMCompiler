@@ -1507,7 +1507,7 @@ if (!firstInstructionInCE.empty()) {
 		}
 
 		if (firstInstructionInNextCE != NULL) {
-			MIBundleBuilder* bundleBuilder = new MIBundleBuilder(*BB, (MachineBasicBlock::instr_iterator) firstInstructionofCE, (MachineBasicBlock::instr_iterator) firstInstructionInNextCE);
+//			MIBundleBuilder* bundleBuilder = new MIBundleBuilder(*BB, (MachineBasicBlock::instr_iterator) firstInstructionofCE, (MachineBasicBlock::instr_iterator) firstInstructionInNextCE);
 		}
 	}
 }
