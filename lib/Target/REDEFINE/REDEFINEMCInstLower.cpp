@@ -12,6 +12,7 @@
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCStreamer.h"
+#include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/Mangler.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
@@ -72,12 +73,14 @@ static inline MCSymbol* getMBBpHopSymbol(unsigned suffix, MachineBasicBlock* MBB
 	return Ctx.GetOrCreateSymbol(".LBB" + Twine(MBB->getParent()->getFunctionNumber()) + "_" + Twine(MBB->getNumber())+itostr(suffix));
 }
 
-static inline unsigned getPhyperOpIndex(const MachineInstr* MI) {
+static inline unsigned getPhyperOpIndex(const MachineInstr* MI, 	REDEFINEAsmPrinter &AsmPrinter) {
+	int ceCount =
+			((REDEFINETargetMachine&)AsmPrinter.TM).getSubtargetImpl()->getCeCount();
 	for (MachineFunction::const_iterator I = MI->getParent()->getParent()->begin(), E = MI->getParent()->getParent()->end(); I != E; ++I) {
 		int pHyperOpIndex = -1;
 		for (MachineBasicBlock::const_instr_iterator instrItr = I->instr_begin(); instrItr != I->instr_end(); ++instrItr) {
 			//First instruction of the pHyperOp is never in a bundle
-			if (!instrItr->isInsideBundle()) {
+			if ((!instrItr->isInsideBundle() && ceCount>1) || (ceCount == 1 && instrItr == I->instr_begin())) {
 				pHyperOpIndex++;
 			}
 			const MachineInstr* instr = instrItr;
@@ -109,7 +112,7 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 		return MCOperand::CreateImm(MO.getImm());
 
 	case MachineOperand::MO_MachineBasicBlock:
-		return lowerSymbolOperand(MO, getMBBpHopSymbol(getPhyperOpIndex(MO.getParent()), MO.getMBB(), Ctx),
+		return lowerSymbolOperand(MO, getMBBpHopSymbol(getPhyperOpIndex(MO.getParent(), AsmPrinter), MO.getMBB(), Ctx),
 		/* MO has no offset field */0);
 
 	case MachineOperand::MO_GlobalAddress: {

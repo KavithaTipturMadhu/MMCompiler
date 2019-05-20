@@ -23,7 +23,6 @@ class raw_ostream;
 
 class LLVM_LIBRARY_VISIBILITY REDEFINEAsmPrinter: public AsmPrinter {
 private:
-	const REDEFINESubtarget *Subtarget;
 //	const char* STATIC_HYPEROP_ANNOTATION = ".STATICINSTANCE_BEGIN";
 	const char* VALID_ANNOTATION = ".isValid";
 	const char* ACTIVE_ANNOTATION = ".isActive";
@@ -41,6 +40,7 @@ private:
 	int maxFrameValue = 0;
 
 public:
+	const REDEFINESubtarget *Subtarget;
 	REDEFINEAsmPrinter(TargetMachine &TM, MCStreamer &Streamer) :
 			AsmPrinter(TM, Streamer) {
 		Subtarget = &TM.getSubtarget<REDEFINESubtarget>();
