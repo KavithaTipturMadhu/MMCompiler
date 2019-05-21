@@ -34,7 +34,9 @@ redefine_start1.entry:
   store i32 20, i32* @gen_mx, align 4
   store i32 0, i32* @shape_fn, align 4
   store i32 1, i32* @computeGranularity, align 4
-  %1 = load i32* @type, align 4
+  store i32 4, i32* @nonLeafBF, align 4
+  store float 5.000000e-01, float* @shiftDepth, align 4
+  store float 2.343750e-01, float* @nonLeafProb, align 4  %1 = load i32* @type, align 4
   call void @uts_initRoot(%struct.node_t* %0, i32 %1)
   br label %redefine_start1.return
 
@@ -103,7 +105,7 @@ uts_function6.entry:
   %7 = alloca i32, align 4, !ConsumedBy !47
   %8 = alloca i32, align 4, !ConsumedBy !49
   store i1 %6, i1* %1, align 4
-  br i1 %6, label %uts_function6.if.then, label %uts_function6.return
+  br i1 %6, label %uts_function6.if.then, label %uts_function6.temp
 
 uts_function6.if.then:                            ; preds = %uts_function6.entry
   %9 = alloca i32, align 4
@@ -117,6 +119,11 @@ uts_function6.if.then:                            ; preds = %uts_function6.entry
   %12 = add nsw i32 %10, 0
   store i32 %12, i32* %7, align 4
   br label %uts_function6.return
+
+uts_function6.temp:
+  store i32 1, i32* %upperBound
+  store i32 1, i32* %upperBound1
+  br label %uts_function6.return  
 
 uts_function6.return:                             ; preds = %uts_function6.if.then, %uts_function6.entry
   ret void
@@ -254,7 +261,7 @@ uts_function13.entry:
   %7 = alloca i32, align 4, !ConsumedBy !72
   store i1 %6, i1* %1, align 4
   %8 = alloca i32, align 4, !ConsumedBy !74
-  br i1 %6, label %uts_function13.if.then, label %uts_function13.return
+  br i1 %6, label %uts_function13.if.then, label %uts_function13.temp
 
 uts_function13.if.then:                           ; preds = %uts_function13.entry
   %9 = alloca i32, align 4
@@ -268,6 +275,11 @@ uts_function13.if.then:                           ; preds = %uts_function13.entr
   %12 = add nsw i32 %10, 0
   store i32 %12, i32* %7, align 4
   br label %uts_function13.return
+
+uts_function13.temp:
+  store i32 1, i32* %upperBound
+  store i32 1, i32* %upperBound1
+  br label %uts_function13.return  
 
 uts_function13.return:                            ; preds = %uts_function13.if.then, %uts_function13.entry
   ret void
