@@ -31,6 +31,7 @@ using namespace std;
 using namespace llvm;
 
 void REDEFINEAsmPrinter::EmitInstruction(const MachineInstr *MI) {
+	MI->dump();
 	REDEFINEMCInstLower Lower(Mang, MF->getContext(), *this);
 	MCInst LoweredMI;
 	Lower.lower(MI, LoweredMI);
@@ -513,7 +514,7 @@ void addGlobalSymTab(const GlobalVariable* global, const Constant * initializer,
 				else if(isa<ConstantFP>(initializer)){
 					ostringstream floatStr("");
 					floatStr<<((ConstantFP*)initializer)->getValueAPF().convertToFloat();
-					newglobalstring.append("\t.float32\t").append(floatStr.str()).append("\n");
+					newglobalstring.append("\t.float\t").append(floatStr.str()).append("\n");
 				}
 				else if(initializer->isZeroValue()|| isa<UndefValue>(initializer))
 					newglobalstring.append("\t.word32\t").append(itostr(0)).append("\n");
