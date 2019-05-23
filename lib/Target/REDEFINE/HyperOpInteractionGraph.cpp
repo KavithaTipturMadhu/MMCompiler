@@ -1120,11 +1120,7 @@ void HyperOpInteractionGraph::updateLocalRefEdgeMemSizeAndOffset() {
 				if (secondEdgeItr == edge || secondEdgeItr->getPositionOfContextSlot() > edge->getPositionOfContextSlot()) {
 					continue;
 				}
-				int memSize = secondEdgeItr->getMemorySize();
-				if (memSize % 32 > 0) {
-					memSize += (32 - memSize % 32);
-				}
-				edgeOffset += memSize;
+				edgeOffset += secondEdgeItr->getMemorySize();
 			}
 			edge->setMemoryOffsetInTargetFrame(edgeOffset);
 		}
