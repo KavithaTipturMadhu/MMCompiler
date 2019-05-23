@@ -19,8 +19,14 @@
 
 #include "llvm/Analysis/CFGPrinter.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/CommandLine.h"
 using namespace llvm;
-
+#ifndef NDEBUG
+static cl::opt<std::string>
+FilterCFGFunctionName("filter-view-cfg", cl::Hidden,
+                        cl::desc("Only display the cfg whose name "
+                                 "matches this for all view-cfg* options"));
+#endif
 namespace {
   struct CFGViewer : public FunctionPass {
     static char ID; // Pass identifcation, replacement for typeid
@@ -142,7 +148,19 @@ INITIALIZE_PASS(CFGOnlyPrinter, "dot-cfg-only",
 /// being a 'dot' and 'gv' program in your path.
 ///
 void Function::viewCFG() const {
-  ViewGraph(this, "cfg" + getName());
+	bool MatchFilterCFG = false;
+	(void)MatchFilterCFG;
+	#ifndef NDEBUG
+	MatchFilterCFG = (!FilterCFGFunctionName.empty() &&
+			  FilterCFGFunctionName ==getName().str());
+	if(FilterCFGFunctionName.empty()){
+		MatchFilterCFG=true;
+	}
+	#endif
+
+	if(MatchFilterCFG){
+		ViewGraph(this, "cfg" + getName());
+	}
 }
 
 /// viewCFGOnly - This function is meant for use from the debugger.  It works
@@ -151,7 +169,17 @@ void Function::viewCFG() const {
 /// his can make the graph smaller.
 ///
 void Function::viewCFGOnly() const {
-  ViewGraph(this, "cfg" + getName(), true);
+	bool MatchFilterCFG = false;
+	(void) MatchFilterCFG;
+#ifndef NDEBUG
+	MatchFilterCFG = (!FilterCFGFunctionName.empty() && FilterCFGFunctionName == getName().str());
+	if (FilterCFGFunctionName.empty()) {
+		MatchFilterCFG = true;
+	}
+#endif
+	if (MatchFilterCFG) {
+		ViewGraph(this, "cfg" + getName(), true);
+	}
 }
 
 FunctionPass *llvm::createCFGPrinterPass () {
