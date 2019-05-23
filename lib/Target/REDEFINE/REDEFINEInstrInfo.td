@@ -22,10 +22,10 @@ def AUIPC: InstU<0b0110111, (outs GR32:$dst), (ins pcimm:$target),
 //Load/Store Instructions
 let mayLoad = 1 in {
   def LW : InstLoad <"lw" , 0b0000011, 0b010, load, GR32, mem>; 
-  def LH : InstLoad <"lw" , 0b0000011, 0b010, sextloadi16, GR32, mem>; 
-  def LHU: InstLoad <"lw", 0b0000011, 0b010, zextloadi16, GR32, mem>; 
-  def LB : InstLoad <"lw" , 0b0000011, 0b010, sextloadi8, GR32, mem>; 
-  def LBU: InstLoad <"lw", 0b0000011, 0b010, zextloadi8, GR32, mem>; 
+  def LH : InstLoad <"lh" , 0b0000011, 0b010, sextloadi16, GR32, mem>; 
+  def LHU: InstLoad <"lhu", 0b0000011, 0b010, zextloadi16, GR32, mem>; 
+  def LB : InstLoad <"lb" , 0b0000011, 0b010, sextloadi8, GR32, mem>; 
+  def LBU: InstLoad <"lbu", 0b0000011, 0b010, zextloadi8, GR32, mem>; 
   def FLW: InstLoad <"flw", 0b0000011, 0b100, loadf32, FP32, mem>; 
 }
 
@@ -37,8 +37,8 @@ def : Pat<(i32 (extloadi16 addr:$addr)), (LHU addr:$addr)>;
 let mayStore = 1 in {
 // SW is of the format <sw rs1, rs2, imm> translating to imm(rs1)<-rs2
   def SW : InstStore<"sw" , 0b0100011, 0b010, store, GR32>;
-  def SH : InstStore<"sw" , 0b0100011, 0b010, truncstorei16, GR32>; 
-  def SB : InstStore<"sw" , 0b0100011, 0b010, truncstorei8 , GR32>; 
+  def SH : InstStore<"sh" , 0b0100011, 0b010, truncstorei16, GR32>; 
+  def SB : InstStore<"sb" , 0b0100011, 0b010, truncstorei8 , GR32>; 
   def FSW : InstStore <"fsw" , 0b0100111, 0b010, store, FP32>; 
 }
 
