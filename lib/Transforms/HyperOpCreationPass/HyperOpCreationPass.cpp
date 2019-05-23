@@ -2847,7 +2847,7 @@ struct HyperOpCreationPass: public ModulePass {
 											int typeCount = containedTypesForTraversal.front().second;
 											containedTypesForTraversal.pop_front();
 											if (!traversingType->isAggregateType()) {
-												memoryOfType += (typeCount * traversingType->getPrimitiveSizeInBits())/32;
+												memoryOfType += (typeCount * traversingType->getPrimitiveSizeInBits())/8;
 											} else {
 												if (traversingType->isArrayTy()) {
 													containedTypesForTraversal.push_back(make_pair(traversingType->getArrayElementType(), traversingType->getArrayNumElements()));
@@ -2868,7 +2868,7 @@ struct HyperOpCreationPass: public ModulePass {
 											//Add a load instruction from memory and store to the memory frame of the consumer HyperOp
 											unsigned sourceOffset = allocatedDataIndex;
 											vector<Value*> offsetVector;
-											offsetVector.push_back(ConstantInt::get(ctxt, APInt(32, sourceOffset)));
+											offsetVector.push_back(ConstantInt::get(ctxt, APInt(8, sourceOffset)));
 											Value* loadOffset = GetElementPtrInst::Create(clonedDefInst, offsetVector, "", &parentFunction->getEntryBlock().back());
 											Value* storeOffset = GetElementPtrInst::Create(ai, offsetVector, "", &parentFunction->getEntryBlock().back());
 											Value* loadInstr = new LoadInst(loadOffset, "", &parentFunction->getEntryBlock().back());
@@ -3971,10 +3971,10 @@ struct REDEFINEIRPass: public ModulePass {
 	}
 
 	static void loadAndStoreData(Value* sourceData, Value* originalData, HyperOpEdge* parentEdge, HyperOp* edgeSource, Value* targetMemFrameBaseAddress, LLVMContext & ctxt, BasicBlock** insertInBB, BasicBlock** nextInsertionPoint) {
-		unsigned targetOffsetInWords = parentEdge->getMemoryOffsetInTargetFrame()/32;
-		vector<Value*> offsetInWords;
-		offsetInWords.push_back(ConstantInt::get(ctxt, APInt(32, targetOffsetInWords)));
-		Value* targetMemBaseInst = GetElementPtrInst::Create(targetMemFrameBaseAddress, offsetInWords, "ptr_val", &(*insertInBB)->back());
+		unsigned targetOffsetInBytes = parentEdge->getMemoryOffsetInTargetFrame();
+		vector<Value*> offsetInBytes;
+		offsetInBytes.push_back(ConstantInt::get(ctxt, APInt(8, targetOffsetInBytes)));
+		Value* targetMemBaseInst = GetElementPtrInst::Create(targetMemFrameBaseAddress, offsetInBytes, "ptr_val", &(*insertInBB)->back());
 		assert(isa<AllocaInst>(originalData) && "Original data is not alloc type\n");
 		Type* dataType = ((AllocaInst*) originalData)->getAllocatedType();
 
@@ -3992,7 +3992,7 @@ struct REDEFINEIRPass: public ModulePass {
 			int typeCount = containedTypesForTraversal.front().second;
 			containedTypesForTraversal.pop_front();
 			if (!traversingType->isAggregateType()) {
-				memoryOfType += (typeCount*traversingType->getPrimitiveSizeInBits())/32;
+				memoryOfType += (typeCount*traversingType->getPrimitiveSizeInBits())/8;
 			} else {
 				if (traversingType->isArrayTy()) {
 					containedTypesForTraversal.push_back(make_pair(traversingType->getArrayElementType(), traversingType->getArrayNumElements()));
@@ -4030,7 +4030,7 @@ struct REDEFINEIRPass: public ModulePass {
 			*nextInsertionPoint = fallbackBB;
 			*insertInBB = communicationInsertionBB;
 		}
-		Value* newSourceData = BitCastInst::Create(Instruction::BitCast, sourceData, Type::getInt32PtrTy(ctxt), "", &((*insertInBB)->back()));
+		Value* newSourceData = BitCastInst::Create(Instruction::BitCast, sourceData, Type::getInt8PtrTy(ctxt), "", &((*insertInBB)->back()));
 		unsigned arraySize = 1;
 		if (originalData->getType()->isArrayTy()) {
 			arraySize = ((ConstantInt*) ((AllocaInst*) originalData)->getArraySize())->getZExtValue();
@@ -4041,7 +4041,7 @@ struct REDEFINEIRPass: public ModulePass {
 			//Add a load instruction from memory and store to the memory frame of the consumer HyperOp
 			unsigned sourceOffset = allocatedDataIndex;
 			vector<Value*> offsetVector;
-			offsetVector.push_back(ConstantInt::get(ctxt, APInt(32, sourceOffset)));
+			offsetVector.push_back(ConstantInt::get(ctxt, APInt(8, sourceOffset)));
 			Value* loadOffset = getValueFromLocation(newSourceData, insertInBB, &offsetVector);
 			Value* storeOffset = getValueFromLocation(targetMemBaseInst, insertInBB, &offsetVector);
 			Value* loadInstr = getValueFromLocation(loadOffset, insertInBB);
