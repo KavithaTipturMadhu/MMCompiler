@@ -35,6 +35,7 @@ unsigned duplicateGetSizeOfType(Type * type) {
 		unsigned size = 0;
 		for (unsigned i = 0; i < objectType->getNumContainedTypes(); i++) {
 			size += duplicateGetSizeOfType(objectType->getContainedType(i));
+			objectType->getContainedType(i)->dump();
 		}
 		unsigned numElements = 1;
 		if (objectType->isArrayTy()) {
@@ -903,6 +904,8 @@ HyperOpEdge::HyperOpEdge() {
 	this->decrementOperandCount = 0;
 	this->predicateValue = 0;
 	this->multiplicity = "";
+	this->memorySize = 0;
+	this->memoryOffset = 0;
 }
 HyperOpEdge::~HyperOpEdge() {
 
@@ -1106,7 +1109,6 @@ void HyperOpInteractionGraph::updateLocalRefEdgeMemSizeAndOffset() {
 				HyperOpEdge* edge = parentEdgeItr->first;
 				AllocaInst* originalEdgeSource = getAllocInstrForLocalReferenceData(edge->getValue(), parentEdgeItr->second);
 				int edgeSize = duplicateGetSizeOfType(originalEdgeSource->getAllocatedType());
-				assert(edgeSize > 0 && "Edge size can't be zero\n");
 				edge->setMemorySize(edgeSize);
 				edgeProcessingOrder.push_back(edge);
 			}
@@ -1125,6 +1127,24 @@ void HyperOpInteractionGraph::updateLocalRefEdgeMemSizeAndOffset() {
 				edgeOffset += memSize;
 			}
 			edge->setMemoryOffsetInTargetFrame(edgeOffset);
+		}
+	}
+
+	for (auto vertexItr = this->Vertices.begin(); vertexItr != this->Vertices.end(); vertexItr++) {
+		list<HyperOpEdge*> edgeProcessingOrder;
+		HyperOp* hyperOp = *vertexItr;
+		for (auto parentEdgeItr = (*vertexItr)->ParentMap.begin(); parentEdgeItr != (*vertexItr)->ParentMap.end(); parentEdgeItr++) {
+			if (!parentEdgeItr->second->isUnrolledInstance()) {
+				continue;
+			}
+			HyperOp* instanceOfHop = this->getHyperOp(hyperOp->getInstanceof());
+			for (auto incomingEdgeItr : instanceOfHop->ParentMap) {
+				if (incomingEdgeItr.first->getPositionOfContextSlot() == parentEdgeItr->first->getPositionOfContextSlot()) {
+					parentEdgeItr->first->setMemorySize(incomingEdgeItr.first->getMemorySize());
+					parentEdgeItr->first->setMemoryOffsetInTargetFrame(incomingEdgeItr.first->getMemoryOffsetInTargetFrame());
+					break;
+				}
+			}
 		}
 	}
 }
