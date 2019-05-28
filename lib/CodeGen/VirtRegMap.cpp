@@ -335,7 +335,7 @@ void VirtRegRewriter::rewrite() {
       DEBUG(dbgs() << "> " << *MI);
 
       // Finally, remove any identity copies.
-      if (MI->isIdentityCopy()) {
+      if (MI->isIdentityCopy() && MI->getParent()->size() > 1) {
         ++NumIdCopies;
         if (MI->getNumOperands() == 2) {
           DEBUG(dbgs() << "Deleting identity copy.\n");

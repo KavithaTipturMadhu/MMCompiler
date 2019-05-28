@@ -137,6 +137,7 @@ bool ExpandPostRA::LowerCopy(MachineBasicBlock::instr_iterator MI) {
 	MachineOperand &DstMO = MI->getOperand(0);
 	MachineOperand &SrcMO = MI->getOperand(1);
 
+	if(MI->getParent()->size() > 1){
 	if (SrcMO.getReg() == DstMO.getReg()) {
 		DEBUG(dbgs() << "identity copy: " << *MI);
 		// No need to insert an identity copy instruction, but replace with a KILL
@@ -157,6 +158,7 @@ bool ExpandPostRA::LowerCopy(MachineBasicBlock::instr_iterator MI) {
 			MI->eraseFromParent();
 		}
 		return true;
+	}
 	}
 
 	DEBUG(dbgs() << "real copy:   " << *MI);
