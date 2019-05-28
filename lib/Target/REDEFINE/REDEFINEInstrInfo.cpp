@@ -327,7 +327,7 @@ REDEFINEInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   unsigned LoadOpcode, StoreOpcode;
   getLoadStoreOpcodes(RC, LoadOpcode, StoreOpcode);
 
-  MachineInstrBuilder sw =  BuildMI(MBB, MBBI, DL, get(StoreOpcode)).addReg(SrcReg, getKillRegState(isKill)).addReg(REDEFINE::zero).addFrameIndex(FrameIdx);
+  MachineInstrBuilder sw =  BuildMI(MBB, MBBI, DL, get(StoreOpcode)).addReg(SrcReg, getKillRegState(isKill)).addReg(REDEFINE::t4).addFrameIndex(FrameIdx);
 //  if(!sw->isBundledWithPred()){
 //	  sw->bundleWithPred();
 //  }
@@ -348,7 +348,7 @@ REDEFINEInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   unsigned LoadOpcode, StoreOpcode;
   getLoadStoreOpcodes(RC, LoadOpcode, StoreOpcode);
 
-  MachineInstrBuilder lw = BuildMI(MBB, MBBI, DL, get(LoadOpcode), DestReg).addReg(REDEFINE::zero).addFrameIndex(FrameIdx);
+  MachineInstrBuilder lw = BuildMI(MBB, MBBI, DL, get(LoadOpcode), DestReg).addReg(REDEFINE::t4).addFrameIndex(FrameIdx);
 //  if(!lw->isBundledWithSucc()){
 //	  lw->bundleWithSucc();
 //  }
