@@ -134,18 +134,21 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 		const Function* parentFunction = MO.getParent()->getParent()->getParent()->getFunction();
 		map<int, int> sizeMap;
 		for (auto hopItr : ((REDEFINETargetMachine&) ((REDEFINEAsmPrinter&) AsmPrinter).TM).HyperOps) {
-			if (hopItr.first->getFunction() == parentFunction) {
+			if (!hopItr.first->getFunction()->getName().compare(parentFunction->getName())) {
 				sizeMap = hopItr.second;
 				break;
 			}
 		}
 
+		int minIndex = 0;
+		for(auto argIndex = parentFunction->arg_begin(); argIndex !=parentFunction->arg_end(); argIndex++, minIndex++){
+		}
+
 		for (auto sizeMapItr : sizeMap) {
-			if (sizeMapItr.first < MO.getIndex()) {
+			if (sizeMapItr.first < (minIndex + MO.getIndex())) {
 				currentObjectOffset += sizeMapItr.second;
 			}
 		}
-
 
 		for (int i = 0; i < MO.getIndex(); i++) {
 			currentObjectOffset += frameInfo->getObjectSize(i);

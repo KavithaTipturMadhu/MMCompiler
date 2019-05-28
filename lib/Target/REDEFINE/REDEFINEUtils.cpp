@@ -31,9 +31,9 @@ unsigned REDEFINEUtils::getSizeOfType(Type * type) {
 //Returns size of the type aligned by ALIGNMENT_SIZE
 unsigned REDEFINEUtils::getAlignedSizeOfType(Type * type) {
 	unsigned returnSize = getSizeOfType(type);
-	if (returnSize % ALIGNMENT_SIZE > 0) {
-		returnSize += (ALIGNMENT_SIZE-returnSize % ALIGNMENT_SIZE);
-	}
+//	if (returnSize % ALIGNMENT_SIZE > 0) {
+//		returnSize += (ALIGNMENT_SIZE-returnSize % ALIGNMENT_SIZE);
+//	}
 	return returnSize;
 }
 

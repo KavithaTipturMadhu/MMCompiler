@@ -24,26 +24,40 @@ using namespace std;
 using namespace llvm;
 
 #include "scotch.h"
+
 //Returns size of the type in bytes
 //Duplicate cos utils can't be added as header
 unsigned duplicateGetSizeOfType(Type * type) {
-	Type* objectType = type;
-	if (isa<PointerType>(type)) {
-		objectType = ((PointerType*) type)->getPointerElementType();
+	//Map of primitive data types and their memory locations
+	list<pair<Type*, int> > containedTypesForTraversal;
+	if (type->isArrayTy()) {
+		containedTypesForTraversal.push_front(make_pair(type, type->getArrayNumElements()));
+	} else {
+		containedTypesForTraversal.push_front(make_pair(type, 1));
 	}
-	if (objectType->isAggregateType()) {
-		unsigned size = 0;
-		for (unsigned i = 0; i < objectType->getNumContainedTypes(); i++) {
-			size += duplicateGetSizeOfType(objectType->getContainedType(i));
-			objectType->getContainedType(i)->dump();
+	unsigned memoryOfType = 0;
+	//Find the primitive types of allocated data type
+	while (!containedTypesForTraversal.empty()) {
+		Type* traversingType = containedTypesForTraversal.front().first;
+		int typeCount = containedTypesForTraversal.front().second;
+		containedTypesForTraversal.pop_front();
+		if (!traversingType->isAggregateType()) {
+			memoryOfType += (typeCount*traversingType->getPrimitiveSizeInBits())/8;
+		} else {
+			if (traversingType->isArrayTy()) {
+				containedTypesForTraversal.push_back(make_pair(traversingType->getArrayElementType(), traversingType->getArrayNumElements()));
+			} else {
+				for (unsigned i = 0; i < traversingType->getNumContainedTypes(); i++) {
+					containedTypesForTraversal.push_back(make_pair(traversingType->getContainedType(i), 1));
+				}
+			}
 		}
-		unsigned numElements = 1;
-		if (objectType->isArrayTy()) {
-			numElements = objectType->getArrayNumElements();
-		}
-		return size * numElements;
 	}
-	return (32 / 8);
+	unsigned arraySize = 1;
+	if (type->isArrayTy()) {
+		arraySize = type->getArrayNumElements();
+	}
+	return arraySize * memoryOfType;
 }
 
 
