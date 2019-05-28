@@ -3970,10 +3970,9 @@ struct REDEFINEIRPass: public ModulePass {
 		}
 	}
 
-	static void loadAndStoreData(Value* sourceData, Value* originalData, HyperOpEdge* parentEdge, HyperOp* edgeSource, Value* targetMemFrameBaseAddress, LLVMContext & ctxt, BasicBlock** insertInBB, BasicBlock** nextInsertionPoint) {
-		unsigned targetOffsetInBytes = parentEdge->getMemoryOffsetInTargetFrame();
+	static void loadAndStoreData(Module &M, Value* sourceData, Value* originalData, HyperOpEdge* parentEdge, HyperOp* edgeSource, Value* targetMemFrameBaseAddress, LLVMContext & ctxt, BasicBlock** insertInBB, BasicBlock** nextInsertionPoint) {
 		vector<Value*> offsetInBytes;
-		offsetInBytes.push_back(ConstantInt::get(ctxt, APInt(8, targetOffsetInBytes)));
+		offsetInBytes.push_back(ConstantInt::get(ctxt, APInt(8, 0)));
 		Value* targetMemBaseInst = GetElementPtrInst::Create(targetMemFrameBaseAddress, offsetInBytes, "ptr_val", &(*insertInBB)->back());
 		assert(isa<AllocaInst>(originalData) && "Original data is not alloc type\n");
 		Type* dataType = ((AllocaInst*) originalData)->getAllocatedType();
@@ -4047,6 +4046,9 @@ struct REDEFINEIRPass: public ModulePass {
 			Value* loadInstr = getValueFromLocation(loadOffset, insertInBB);
 			new StoreInst(loadInstr, storeOffset, &((*insertInBB)->back()));
 		}
+
+//		Value* writeMemArgs[] = { newSourceData, targetMemBaseInst, ConstantInt::get(ctxt, APInt(32, totalSize))};
+//		CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::redefine_memcpy, 0), writeMemArgs, "", &((*insertInBB)->back()));
 	}
 
 	static void addRedefineCommInstructions(HyperOp* child, HyperOpEdge * parentEdge, Value * sourceData, Value* rangeBaseAddr, Value* childCFBaseAddr, HyperOp* edgeSource, BasicBlock** insertInBB, BasicBlock** nextInsertionPoint) {
@@ -4181,7 +4183,7 @@ struct REDEFINEIRPass: public ModulePass {
 				assert(memFrameAddress!=NULL && "mem frame address instructions must be added already\n");
 				/* load every data token or use it as immediate value in store operation */
 				BasicBlock* newInsertionPoint = NULL;
-				loadAndStoreData(childEdgeItr->first->getValue(), originalSourceData, childEdgeItr->first, vertex, memFrameAddress, M.getContext(), insertInBB, &newInsertionPoint);
+				loadAndStoreData(M, childEdgeItr->first->getValue(), originalSourceData, childEdgeItr->first, vertex, memFrameAddress, M.getContext(), insertInBB, &newInsertionPoint);
 				if (newInsertionPoint != NULL) {
 					*insertInBB = newInsertionPoint;
 				}

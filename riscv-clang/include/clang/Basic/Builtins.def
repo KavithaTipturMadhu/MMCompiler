@@ -945,5 +945,6 @@ BUILTIN(__builtin_sync ,"vUiUiUi"  , "Fnc")
 BUILTIN(__builtin_writecm ,"vUiUiUi"  , "Fnc")
 BUILTIN(__builtin_writecmp ,"vUiUi"  , "Fnc")
 BUILTIN(__builtin_getmemframe ,"Ui*UiUi"  , "Fnc")
+BUILTIN(__builtin_redefine_memcpy ,"vUiUiUi"  , "Fnc")
 #undef BUILTIN
 #undef LIBBUILTIN

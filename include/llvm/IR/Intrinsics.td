@@ -481,7 +481,8 @@ def int_writecm: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], []>;
 def int_writecmp: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty], []>;
 def int_sync: Intrinsic <[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], []>;
 def int_rfalloc: Intrinsic <[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], []>;
-def int_getmemframe: Intrinsic <[llvm_ptr_ty], [llvm_i32_ty, llvm_i32_ty], [IntrNoMem]>;
+def int_getmemframe: Intrinsic <[llvm_ptr_ty], [llvm_i32_ty, llvm_i32_ty], []>;
+def int_redefine_memcpy: Intrinsic <[], [llvm_ptr_ty, llvm_ptr_ty, llvm_i32_ty]>;
 
 //===----------------------------------------------------------------------===//
 // Target-specific intrinsics
