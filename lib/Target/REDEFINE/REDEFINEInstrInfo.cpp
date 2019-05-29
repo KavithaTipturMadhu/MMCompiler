@@ -161,7 +161,7 @@ unsigned REDEFINEInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlo
 		//one to branch to TBB on Cond
 		//and a second one immediately after to unconditionally jump to FBB
 		unsigned count = InsertBranchAtInst(MBB, MBB.end(), TBB, Cond, DL);
-		BuildMI(&MBB, DL, get(REDEFINE::BEQ)).addImm(0).addReg(Cond[2].getReg()).addReg(Cond[2].getReg()).addMBB(FBB);
+		BuildMI(&MBB, DL, get(REDEFINE::BEQ)).addMBB(FBB).addReg(Cond[2].getReg()).addReg(Cond[2].getReg());
 		count++;
 		return count;
 	}
