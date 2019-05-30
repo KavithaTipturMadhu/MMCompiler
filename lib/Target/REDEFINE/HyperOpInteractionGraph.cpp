@@ -3869,7 +3869,7 @@ void HyperOpInteractionGraph::addSelfFrameAddressRegisters() {
  *  Add synchronization edges between hyperops that communicate only through memory
  */
 void HyperOpInteractionGraph::addNecessarySyncEdges() {
-	DEBUG(dbgs() << "Computing whether there is a control/scalar path between a pair of HyperOps communicating via memory and adding sync edges if there is no control path\n");
+	DEBUG(dbgs() << "\n--------\nComputing whether there is a control/scalar path between a pair of HyperOps communicating via memory and adding sync edges if there is no control path\n");
 	unsigned numVertices = this->Vertices.size();
 	bool transitiveClosure[numVertices][numVertices];
 	map<HyperOp*, unsigned> hyperOpAndIndexMap;
@@ -3913,6 +3913,7 @@ void HyperOpInteractionGraph::addNecessarySyncEdges() {
 		list<HyperOp*> previouslyUpdatedChildren;
 		map<HyperOp*, HyperOp*> syncBarrierHyperOpMap;
 
+		/* This shit doesnt work, gotta fix */
 		for (map<HyperOpEdge*, HyperOp*>::iterator childEdgeItr = (*firstHopItr)->ChildMap.begin(); childEdgeItr != (*firstHopItr)->ChildMap.end(); childEdgeItr++) {
 			HyperOp* consumerHyperOp = childEdgeItr->second;
 			HyperOpEdge::EdgeType edgeType = childEdgeItr->first->getType();
