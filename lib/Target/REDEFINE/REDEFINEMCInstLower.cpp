@@ -140,13 +140,19 @@ MCOperand REDEFINEMCInstLower::lowerOperand(const MachineOperand &MO) const {
 			}
 		}
 
-		int minIndex = 0;
-		for(auto argIndex = parentFunction->arg_begin(); argIndex !=parentFunction->arg_end(); argIndex++, minIndex++){
+		int argCount = 0;
+		int regArgs = 0;
+		for (auto argIndex = parentFunction->arg_begin(); argIndex != parentFunction->arg_end(); argIndex++, argCount++) {
+			if (parentFunction->getAttributes().hasAttribute(argCount + 1, Attribute::AttrKind::InReg)) {
+				regArgs++;
+			}
 		}
 
+		int sizemappart = 0;
 		for (auto sizeMapItr : sizeMap) {
-			if (sizeMapItr.first < (minIndex + MO.getIndex())) {
+			if (MO.getIndex() >= 0 || (MO.getIndex() < 0 && sizeMapItr.first < (regArgs - 1 - MO.getIndex()))) {
 				currentObjectOffset += sizeMapItr.second;
+				sizemappart+= sizeMapItr.second;
 			}
 		}
 
