@@ -412,25 +412,9 @@ for (auto instItr = bb->instr_begin(); instItr != bb->instr_end(); instItr++) {
 		MachineInstrBuilder movimm = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVADDR)).addReg(registerForGlobalAddr, RegState::Define).addSym(gaSymbol);
 		addToLISSlot(LIS, movimm.operator ->());
 
-		int argIndex = inst->getOperand(2).getImm();
-		unsigned offset = 0;
-		const Function* parentFunction = BB->getParent()->getFunction();
-		for (auto hopItr : ((REDEFINETargetMachine&) TM).HyperOps) {
-			if (hopItr.first->getFunction() == parentFunction) {
-				for (auto indexItr : hopItr.second) {
-					if (indexItr.first < argIndex) {
-						offset += indexItr.second;
-					}
-				}
-			}
-		}
-		unsigned registerForOffset = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder moveOffset = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVIMM)).addReg(registerForOffset, RegState::Define).addImm(offset);
-		addToLISSlot(LIS, moveOffset.operator ->());
-
 		unsigned registerForMulOperand = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);
-		MachineInstrBuilder addiForMul = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADDI)).addReg(registerForMulOperand, RegState::Define).addReg(registerForOffset).addSym(frameSizeSymbol);
-		addToLISSlot(LIS, addiForMul.operator ->());
+		MachineInstrBuilder movImmForMul = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::MOVIMM)).addReg(registerForMulOperand, RegState::Define).addSym(frameSizeSymbol);
+		addToLISSlot(LIS, movImmForMul.operator ->());
 
 //TODO
 		unsigned crId = ((REDEFINETargetMachine&) TM).FuncInfo->CreateReg(MVT::i32);

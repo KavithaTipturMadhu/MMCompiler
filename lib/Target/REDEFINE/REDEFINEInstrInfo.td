@@ -296,9 +296,9 @@ def FBIND : InstREDEFINE<4, (outs), (ins GR32:$src1, GR32:$dst1),
 }
 
 
-def PSGETMEMFRAME: InstREDEFINE<4, (outs GR32:$dst), (ins GR32:$src1, imm32sx12:$src2), 
-                "getmemframe\t$dst, $src1, $src2", 
-                [(set i32:$dst, (int_getmemframe i32:$src1, imm32sx12:$src2))], REDEFINEORC> {
+def PSGETMEMFRAME: InstREDEFINE<4, (outs GR32:$dst), (ins GR32:$src1), 
+                "getmemframe\t$dst, $src1", 
+                [(set i32:$dst, (int_getmemframe i32:$src1))], REDEFINEORC> {
   field bits<32> Inst;
 
   bits<5> RD;

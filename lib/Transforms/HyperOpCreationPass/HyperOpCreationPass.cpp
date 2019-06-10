@@ -3972,7 +3972,7 @@ struct REDEFINEIRPass: public ModulePass {
 
 	static void loadAndStoreData(Module &M, Value* sourceData, Value* originalData, HyperOpEdge* parentEdge, HyperOp* edgeSource, Value* targetMemFrameBaseAddress, LLVMContext & ctxt, BasicBlock** insertInBB, BasicBlock** nextInsertionPoint) {
 		vector<Value*> offsetInBytes;
-		offsetInBytes.push_back(ConstantInt::get(ctxt, APInt(8, 0)));
+		offsetInBytes.push_back(ConstantInt::get(ctxt, APInt(8, parentEdge->getMemoryOffsetInTargetFrame())));
 		Value* targetMemBaseInst = GetElementPtrInst::Create(targetMemFrameBaseAddress, offsetInBytes, "ptr_val", &(*insertInBB)->back());
 		assert(isa<AllocaInst>(originalData) && "Original data is not alloc type\n");
 		Type* dataType = ((AllocaInst*) originalData)->getAllocatedType();
@@ -4035,7 +4035,7 @@ struct REDEFINEIRPass: public ModulePass {
 			arraySize = ((ConstantInt*) ((AllocaInst*) originalData)->getArraySize())->getZExtValue();
 		}
 		unsigned totalSize = arraySize * memoryOfType;
-		//TODO replace with a loop
+//		//TODO replace with a loop
 		for (unsigned allocatedDataIndex = 0; allocatedDataIndex < totalSize; allocatedDataIndex++) {
 			//Add a load instruction from memory and store to the memory frame of the consumer HyperOp
 			unsigned sourceOffset = allocatedDataIndex;
@@ -4168,7 +4168,7 @@ struct REDEFINEIRPass: public ModulePass {
 		for (auto incomingEdgeItr = child->ParentMap.begin(); incomingEdgeItr != child->ParentMap.end(); incomingEdgeItr++) {
 			if (incomingEdgeItr->second == vertex
 					&& (incomingEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_RANGE_BASE_LOCALREF || incomingEdgeItr->first->getType() == HyperOpEdge::CONTEXT_FRAME_ADDRESS_LOCALREF || incomingEdgeItr->first->getType() == HyperOpEdge::LOCAL_REFERENCE)) {
-				Value* memFrameAddrArgs[] = { baseAddress, getConstantValue(incomingEdgeItr->first->getPositionOfContextSlot(), M) };
+				Value* memFrameAddrArgs[] = { baseAddress};
 				memFrameAddress = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::getmemframe, 0), memFrameAddrArgs, "memframe_reg", &(*insertInBB)->back());
 				break;
 			}
