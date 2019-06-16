@@ -3851,6 +3851,17 @@ struct REDEFINEIRPass: public ModulePass {
 //		AU.addRequired<HyperOpCreationPass>();
 	}
 
+	static inline Value* getValueFromLocation(Value* sourceData, BasicBlock** insertInBB, vector<Value*> *offset = NULL) {
+		if (sourceData->getType()->isPointerTy()) {
+			if(offset == NULL){
+				return new LoadInst(sourceData, "", &(*insertInBB)->back());
+			}else{
+				return GetElementPtrInst::Create(sourceData, *offset, "ptr_val", &(*insertInBB)->back());
+			}
+		}
+		return sourceData;
+	}
+
 	void addRangeLoopConstructs(HyperOp* child, Function* vertexFunction, const Module &M, BasicBlock** loopBegin, BasicBlock** loopBody, BasicBlock** loopEnd, BasicBlock** insertInBB, Value* lowerBound, Value* upperBound, Value** phiValue) {
 		/* Add loop constructs */
 		string loopBeginNameSR = child->getFunction()->getName().str();
@@ -3874,21 +3885,13 @@ struct REDEFINEIRPass: public ModulePass {
 		PHINode* phiNode = PHINode::Create(Type::getInt32Ty(M.getContext()), 0, "", *loopBegin);
 		phiNode->addIncoming(lowerBound, *insertInBB);
 		*phiValue = phiNode;
-		CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGT, phiNode, upperBound, "cmpinst", *loopBegin);
+		if (upperBound->getType()->isPointerTy()) {
+			upperBound = new LoadInst(upperBound, "", *loopBegin);
+		}
+		CmpInst* cmpInst = CmpInst::Create(Instruction::ICmp, llvm::CmpInst::ICMP_UGT, getValueFromLocation(phiNode, loopBegin), upperBound, "cmpinst", *loopBegin);
 		BranchInst* bgeItrInst = BranchInst::Create(*loopEnd, *loopBody, cmpInst, *loopBegin);
 		BranchInst* loopEndJump = BranchInst::Create(*loopBegin, *loopBody);
 		ReturnInst* ret = ReturnInst::Create(M.getContext(), *loopEnd);
-	}
-
-	static inline Value* getValueFromLocation(Value* sourceData, BasicBlock** insertInBB, vector<Value*> *offset = NULL) {
-		if (sourceData->getType()->isPointerTy()) {
-			if(offset == NULL){
-				return new LoadInst(sourceData, "", &(*insertInBB)->back());
-			}else{
-				return GetElementPtrInst::Create(sourceData, *offset, "ptr_val", &(*insertInBB)->back());
-			}
-		}
-		return sourceData;
 	}
 
 	static inline Value* getZextValue(Value* sourceData, BasicBlock** insertInBB) {
@@ -4036,19 +4039,19 @@ struct REDEFINEIRPass: public ModulePass {
 		}
 		unsigned totalSize = arraySize * memoryOfType;
 //		//TODO replace with a loop
-		for (unsigned allocatedDataIndex = 0; allocatedDataIndex < totalSize; allocatedDataIndex++) {
-			//Add a load instruction from memory and store to the memory frame of the consumer HyperOp
-			unsigned sourceOffset = allocatedDataIndex;
-			vector<Value*> offsetVector;
-			offsetVector.push_back(ConstantInt::get(ctxt, APInt(8, sourceOffset)));
-			Value* loadOffset = getValueFromLocation(newSourceData, insertInBB, &offsetVector);
-			Value* storeOffset = getValueFromLocation(targetMemBaseInst, insertInBB, &offsetVector);
-			Value* loadInstr = getValueFromLocation(loadOffset, insertInBB);
-			new StoreInst(loadInstr, storeOffset, &((*insertInBB)->back()));
-		}
+//		for (unsigned allocatedDataIndex = 0; allocatedDataIndex < totalSize; allocatedDataIndex++) {
+//			//Add a load instruction from memory and store to the memory frame of the consumer HyperOp
+//			unsigned sourceOffset = allocatedDataIndex;
+//			vector<Value*> offsetVector;
+//			offsetVector.push_back(ConstantInt::get(ctxt, APInt(8, sourceOffset)));
+//			Value* loadOffset = getValueFromLocation(newSourceData, insertInBB, &offsetVector);
+//			Value* storeOffset = getValueFromLocation(targetMemBaseInst, insertInBB, &offsetVector);
+//			Value* loadInstr = getValueFromLocation(loadOffset, insertInBB);
+//			new StoreInst(loadInstr, storeOffset, &((*insertInBB)->back()));
+//		}
 
-//		Value* writeMemArgs[] = { newSourceData, targetMemBaseInst, ConstantInt::get(ctxt, APInt(32, totalSize))};
-//		CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::redefine_memcpy, 0), writeMemArgs, "", &((*insertInBB)->back()));
+		Value* writeMemArgs[] = { newSourceData, targetMemBaseInst, ConstantInt::get(ctxt, APInt(32, totalSize))};
+		CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::redefine_memcpy, 0), writeMemArgs, "", &((*insertInBB)->back()));
 	}
 
 	static void addRedefineCommInstructions(HyperOp* child, HyperOpEdge * parentEdge, Value * sourceData, Value* rangeBaseAddr, Value* childCFBaseAddr, HyperOp* edgeSource, BasicBlock** insertInBB, BasicBlock** nextInsertionPoint) {
@@ -4296,7 +4299,7 @@ struct REDEFINEIRPass: public ModulePass {
 
 			for (auto childItr : graph->Vertices) {
 				HyperOp* child = childItr;
-				if (child == vertex || child->getImmediateDominator() != vertex ){
+				if (child == vertex || child->getImmediateDominator() != vertex || (child->getInRange() && !child->isPredicatedHyperOp() && child->getParentList().size() <= 1)) {
 					continue;
 				}
 				BasicBlock * loopBegin, *loopBody, *loopEnd;
@@ -4363,8 +4366,49 @@ struct REDEFINEIRPass: public ModulePass {
 					insertInBB = loopEnd;
 				}
 			}
+
+			DEBUG(dbgs() << "Adding falloc, fbind instructions to module for non predicated range hops\n");
+			for (auto childItr : graph->Vertices) {
+				int numCR = MAX_ROW * MAX_COL;
+				HyperOp* child = childItr;
+				if (child->getImmediateDominator() == vertex && child->getInRange() && !child->isPredicatedHyperOp() && child->getParentList().size() <= 1) {
+					BasicBlock * loopBegin, *loopBody, *loopEnd;
+					/* Range HyperOp's base address, obtained either with falloc or by loading with forwarded address */
+					Value* iterator = NULL;
+					Value* baseAddress = NULL;
+					Value* memFrameAddress = NULL;
+
+					Value* updatedUpperBound = BinaryOperator::CreateNUWSub(child->getRangeUpperBound(), getConstantValue(1, M) , "", &insertInBB->back());
+					addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, child->getRangeLowerBound(), updatedUpperBound, &iterator);
+					insertInBB = loopBody;
+
+					vector<Value*> fallocArgs;
+					fallocArgs.push_back(getConstantValue(0, M));
+					Value* targetResource = BinaryOperator::Create(Instruction::BinaryOps::URem, iterator, getConstantValue(numCR, M), "", &insertInBB->back());
+					fallocArgs.push_back(targetResource);
+					Value* func = (Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::rfalloc, 0);
+					baseAddress = CallInst::Create(func, fallocArgs, "falloc_reg", &insertInBB->back());
+
+					Value *fbindArgs[] = { ConstantInt::get(M.getContext(), APInt(32, functionAndIndexMap[child->getFunction()])), baseAddress };
+					CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fbind, 0), fbindArgs, "", &insertInBB->back());
+					if (child->isBarrierHyperOp()) {
+						addExpectedSyncCount(vertex, child, baseAddress, &insertInBB, M);
+					}
+					/* Add to only unpredicated range hyperops that have no incoming parents other than idom */
+					addCommunicationInstructions(child, vertex, baseAddress, baseAddress, &insertInBB, M);
+
+					Value* updatedValue = BinaryOperator::CreateNUWAdd(iterator, child->getStride(), "", &loopBody->back());
+					assert(isa<PHINode>(iterator) && "iterator of base address must be a phi node\n");
+					((PHINode*) iterator)->addIncoming(updatedValue, loopBody);
+					insertInBB = loopEnd;
+				}
+			}
+
 			for (auto childItr : vertex->getChildList()) {
 				HyperOp* child = childItr;
+				if (child == vertex || (child->getImmediateDominator() ==  vertex && child->getInRange() && !child->isPredicatedHyperOp() && child->getParentList().size() <= 1)) {
+					continue;
+				}
 				BasicBlock * loopBegin, *loopBody, *loopEnd;
 				Value* loadInst;
 				/* Range HyperOp's base address, obtained either with falloc or by loading with forwarded address */
@@ -4570,7 +4614,6 @@ struct REDEFINEIRPass: public ModulePass {
 				Value *fdeleteArgs[] = { frameAddress };
 				fdeleteInst = CallInst::Create((Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::fdelete, 0), fdeleteArgs, "", &insertInBB->back());
 			}
-
 		}
 		NamedMDNode * hyperOpAnnotationsNode = M.getOrInsertNamedMetadata(HYPEROP_ANNOTATIONS);
 		list<Function*> usedFunctions;
