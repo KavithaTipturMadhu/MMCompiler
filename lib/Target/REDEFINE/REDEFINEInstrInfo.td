@@ -261,15 +261,31 @@ def UTSINITROOT : InstSREDEFINE<"uts_initRoot" , 0b0100100, 0b010 , add , GR32, 
  let Pattern = [(int_uts_initRoot i32:$dst1,i32:$src1)];
 }
 
-def UTSNUMCHILDREN: InstREDEFINE<4, (outs), (ins GR32:$id), 
-                "uts_numChildren \t$id", 
-                [(int_uts_numChildren i32:$id)],REDEFINEORC> {
+
+def UTSNUMCHILDREN: InstREDEFINE<4, (outs GR32:$dst), (ins GR32:$src), 
+                "uts_numChildren\t$dst, $src", 
+                [(set i32:$dst, (int_uts_numChildren i32:$src))], REDEFINEORC> {
+  field bits<32> Inst;
+
+  bits<5> RD;
+  bits<5> RS1;
+
+  let Inst{19-15} = 0b00000;
+  let Inst{14-12} = 0b010;
+  let Inst{11 - 7} = RD;
+  let Inst{6 - 0} = 0b0000100;
+}
+
+/*
+def UTSNUMCHILDREN: InstREDEFINE<4, (outs GR32:$dst), (ins GR32:$src), 
+                "uts_numChildren \t$dst \t$src", 
+                [(int_uts_numChildren i32:$dst,i32:$src)],REDEFINEORC> {
   field bits<32> Inst;
 
   bits<5> RS1;
   bits<5> RS2;
-  let Pattern = [(int_uts_numChildren i32:$id)];
-}
+  let Pattern = [(int_uts_numChildren i32:$dst i32:$src)];
+}*/
 def RNGINIT : InstSREDEFINE<"rng_init" , 0b0100110, 0b010 , add , GR32, GR32>
 {
  let Itinerary   = REDEFINEORC;
