@@ -4257,11 +4257,13 @@ struct REDEFINEIRPass: public ModulePass {
 		}
 		if (MAKE_GRAPH_STRUCTURED) {
 			graph->removeUnreachableHops();
+			graph->removeCoveredPredicateEdges();
 			graph->computeDominatorInfo();
 		}
 		graph->computeDominatorInfo();
 //		graph->removeRangeBoundEdges();
 		graph->clusterNodes();
+//		graph->mergeUnpredicatedNodesInCluster();
 		graph->addContextFrameAddressForwardingEdges();
 		//graph->convertRemoteScalarsToStores();
 		graph->addSelfFrameAddressRegisters();
@@ -4378,13 +4380,14 @@ struct REDEFINEIRPass: public ModulePass {
 					Value* baseAddress = NULL;
 					Value* memFrameAddress = NULL;
 
-					Value* updatedUpperBound = BinaryOperator::CreateNUWSub(child->getRangeUpperBound(), getConstantValue(1, M) , "", &insertInBB->back());
+					Value* updatedUpperBound = BinaryOperator::CreateNUWSub(getValueFromLocation(child->getRangeUpperBound(), &insertInBB), getConstantValue(1, M) , "", &insertInBB->back());
 					addRangeLoopConstructs(child, vertexFunction, M, &loopBegin, &loopBody, &loopEnd, &insertInBB, child->getRangeLowerBound(), updatedUpperBound, &iterator);
 					insertInBB = loopBody;
 
 					vector<Value*> fallocArgs;
 					fallocArgs.push_back(getConstantValue(0, M));
-					Value* targetResource = BinaryOperator::Create(Instruction::BinaryOps::URem, iterator, getConstantValue(numCR, M), "", &insertInBB->back());
+					Value* crId = BinaryOperator::Create(Instruction::BinaryOps::LShr, vertexFunction->arg_begin(), getConstantValue(22, M), "", &insertInBB->back());
+					Value* targetResource = BinaryOperator::Create(Instruction::BinaryOps::URem, BinaryOperator::CreateNUWAdd(crId, iterator,"", &insertInBB->back()), getConstantValue(numCR, M), "", &insertInBB->back());
 					fallocArgs.push_back(targetResource);
 					Value* func = (Value*) Intrinsic::getDeclaration(&M, (llvm::Intrinsic::ID) Intrinsic::rfalloc, 0);
 					baseAddress = CallInst::Create(func, fallocArgs, "falloc_reg", &insertInBB->back());
