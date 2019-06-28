@@ -255,6 +255,27 @@ def WRITECMP : InstSREDEFINE<"writecmp" , 0b0100100, 0b010 , add , GR32, GR32>
  let Pattern = [(int_writecmp i32:$dst1,i32:$src1)];
 }
 
+def UTSINITROOT : InstSREDEFINE<"uts_initRoot" , 0b0100100, 0b010 , add , GR32, GR32>
+{
+ let Itinerary   = REDEFINEORC;
+ let Pattern = [(int_uts_initRoot i32:$dst1,i32:$src1)];
+}
+
+def UTSNUMCHILDREN: InstREDEFINE<4, (outs), (ins GR32:$id), 
+                "uts_numChildren \t$id", 
+                [(int_uts_numChildren i32:$id)],REDEFINEORC> {
+  field bits<32> Inst;
+
+  bits<5> RS1;
+  bits<5> RS2;
+  let Pattern = [(int_uts_numChildren i32:$id)];
+}
+def RNGINIT : InstSREDEFINE<"rng_init" , 0b0100110, 0b010 , add , GR32, GR32>
+{
+ let Itinerary   = REDEFINEORC;
+ let Pattern = [(int_rng_init i32:$dst1,i32:$src1)];
+}
+
 def SYNC : InstSREDEFINEImm<"sync" , 0b0100100, 0b011, add , GR32, GR32, imm32sx12>
 {
  let Itinerary   = REDEFINEORC;
@@ -294,6 +315,7 @@ def FBIND : InstREDEFINE<4, (outs), (ins GR32:$src1, GR32:$dst1),
   let Inst{7 - 11} = IMM{4-0};
   let Inst{6 - 0} = 0b0000000;
 }
+
 
 
 def PSGETMEMFRAME: InstREDEFINE<4, (outs GR32:$dst), (ins GR32:$src1), 
