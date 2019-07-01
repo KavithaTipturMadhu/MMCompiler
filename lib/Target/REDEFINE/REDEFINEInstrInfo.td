@@ -270,6 +270,7 @@ def UTSNUMCHILDREN: InstREDEFINE<4, (outs GR32:$dst), (ins GR32:$id),
   bits<5> RS2;
   let Pattern = [(set i32:$dst, (int_uts_numChildren i32:$id))];
 }
+
 def RNGINIT : InstSREDEFINE<"rng_init" , 0b0100110, 0b010 , add , GR32, GR32>
 {
  let Itinerary   = REDEFINEORC;
