@@ -947,8 +947,8 @@ BUILTIN(__builtin_writecmp ,"vUiUi"  , "Fnc")
 BUILTIN(__builtin_getmemframe ,"Ui*Ui"  , "Fnc")
 BUILTIN(__builtin_redefine_memcpy ,"vUiUiUi"  , "Fnc")
 BUILTIN(__builtin_uts_initRoot,"vv*Ui"  , "Fnc")
-BUILTIN(__builtin_rng_init,"vv*Ui"  , "Fnc")
-BUILTIN(__builtin_rng_spawn,"vv*v*Ui"  , "Fnc")
-BUILTIN(__builtin_uts_numChildren,"Uiv*"  , "Fnc")
+BUILTIN(__builtin_rng_init,"vUiUi"  , "Fnc")
+BUILTIN(__builtin_rng_spawn,"vUiUiUi"  , "Fnc")
+BUILTIN(__builtin_uts_numChildren,"UiUi"  , "Fnc")
 #undef BUILTIN
 #undef LIBBUILTIN

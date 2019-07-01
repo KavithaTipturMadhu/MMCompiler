@@ -277,11 +277,30 @@ def RNGINIT : InstSREDEFINE<"rng_init" , 0b0100110, 0b010 , add , GR32, GR32>
  let Pattern = [(int_rng_init i32:$dst1,i32:$src1)];
 }
 
+def RNGSPAWN : InstREDEFINE<4, (outs), (ins GR32:$dst1, GR32:$src1, imm32sx12:$dst2), 
+                "rng_spawn \t$dst1, $src1, $dst2", 
+                [(int_rng_spawn i32:$dst1, i32:$src1, imm32sx12:$dst2)],REDEFINEALU> {
+ let Itinerary   = REDEFINEORC;         
+  field bits<32> Inst;
+
+  bits<5> RS1;
+  bits<5> RS2;
+  bits<12> IMM ;
+
+  let Inst{31-25} = IMM{11-5};
+  let Inst{20-24} = RS2;
+  let Inst{15-19} = RS1;
+  let Inst{12-14} = 0b010;
+  let Inst{7 - 11} = IMM{4-0};
+  let Inst{6 - 0} = 0b0100110;      
+}
+/*
 def RNGSPAWN : InstSREDEFINEImm<"rng_spawn" , 0b0100110, 0b010 , add , GR32, GR32, imm32sx12>
 {
  let Itinerary   = REDEFINEORC;
- let Pattern = [(int_rng_spawn i32:$dst1, i32:$src1, imm32sx12:$dst2)];
-}
+ let Pattern = [(int_rng_spawn i32:$dst1, imm32sx12:$dst2, i32:$src1)];
+ //let Pattern = [(int_rng_spawn i32:$dst1, i32:$src1, imm32sx12:$dst2)];
+}*/
 
 
 def SYNC : InstSREDEFINEImm<"sync" , 0b0100100, 0b011, add , GR32, GR32, imm32sx12>
