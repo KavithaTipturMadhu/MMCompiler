@@ -261,20 +261,27 @@ def UTSINITROOT : InstSREDEFINE<"uts_initRoot" , 0b0100100, 0b010 , add , GR32, 
  let Pattern = [(int_uts_initRoot i32:$dst1,i32:$src1)];
 }
 
-def UTSNUMCHILDREN: InstREDEFINE<4, (outs), (ins GR32:$id), 
-                "uts_numChildren \t$id", 
-                [(int_uts_numChildren i32:$id)],REDEFINEORC> {
+def UTSNUMCHILDREN: InstREDEFINE<4, (outs GR32:$dst), (ins GR32:$id), 
+                "uts_numChildren $dst, \t$id", 
+                [(set i32:$dst, (int_uts_numChildren i32:$id))],REDEFINEORC> {
   field bits<32> Inst;
 
   bits<5> RS1;
   bits<5> RS2;
-  let Pattern = [(int_uts_numChildren i32:$id)];
+  let Pattern = [(set i32:$dst, (int_uts_numChildren i32:$id))];
 }
 def RNGINIT : InstSREDEFINE<"rng_init" , 0b0100110, 0b010 , add , GR32, GR32>
 {
  let Itinerary   = REDEFINEORC;
  let Pattern = [(int_rng_init i32:$dst1,i32:$src1)];
 }
+
+def RNGSPAWN : InstSREDEFINEImm<"rng_spawn" , 0b0100110, 0b010 , add , GR32, GR32, imm32sx12>
+{
+ let Itinerary   = REDEFINEORC;
+ let Pattern = [(int_rng_spawn i32:$dst1, i32:$src1, imm32sx12:$dst2)];
+}
+
 
 def SYNC : InstSREDEFINEImm<"sync" , 0b0100100, 0b011, add , GR32, GR32, imm32sx12>
 {
