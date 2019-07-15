@@ -325,9 +325,9 @@ REDEFINEInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   // Callers may expect a single instruction, so keep 128-bit moves
   // together for now and lower them after register allocation.
   unsigned LoadOpcode, StoreOpcode;
-  getLoadStoreOpcodes(RC, LoadOpcode, StoreOpcode);
+  //getLoadStoreOpcodes(RC, LoadOpcode, StoreOpcode);
 
-  MachineInstrBuilder sw =  BuildMI(MBB, MBBI, DL, get(StoreOpcode)).addReg(SrcReg, getKillRegState(isKill)).addReg(REDEFINE::t4).addFrameIndex(FrameIdx);
+  MachineInstrBuilder sw =  BuildMI(MBB, MBBI, DL, get(REDEFINE::WRITEPM)).addReg(REDEFINE::t3).addReg(SrcReg, getKillRegState(isKill)).addFrameIndex(FrameIdx);
 //  if(!sw->isBundledWithPred()){
 //	  sw->bundleWithPred();
 //  }
@@ -346,9 +346,9 @@ REDEFINEInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   // Callers may expect a single instruction, so keep 128-bit moves
   // together for now and lower them after register allocation.
   unsigned LoadOpcode, StoreOpcode;
-  getLoadStoreOpcodes(RC, LoadOpcode, StoreOpcode);
+  //getLoadStoreOpcodes(RC, LoadOpcode, StoreOpcode);
 
-  MachineInstrBuilder lw = BuildMI(MBB, MBBI, DL, get(LoadOpcode), DestReg).addReg(REDEFINE::t4).addFrameIndex(FrameIdx);
+  MachineInstrBuilder lw = BuildMI(MBB, MBBI, DL, get(REDEFINE::DREADPM), DestReg).addReg(REDEFINE::t3).addFrameIndex(FrameIdx);
 //  if(!lw->isBundledWithSucc()){
 //	  lw->bundleWithSucc();
 //  }
