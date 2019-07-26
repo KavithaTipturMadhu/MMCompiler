@@ -185,6 +185,8 @@ bool MachineScheduler::runOnMachineFunction(MachineFunction &mf) {
 	static int bbCount;
 
 	LIS = &getAnalysis<LiveIntervals>();
+	LIS->getSlotIndexes()->dump();
+
 	const TargetInstrInfo *TII = MF->getTarget().getInstrInfo();
 
 	if (VerifyScheduling) {
@@ -262,7 +264,7 @@ bool MachineScheduler::runOnMachineFunction(MachineFunction &mf) {
 			// Schedule a region: possibly reorder instructions.
 			// This invalidates 'RegionEnd' and 'I'.
 
-			//Scheduler->schedule();
+			Scheduler->schedule();
 
 			// Close the current region.
 			Scheduler->exitRegion();

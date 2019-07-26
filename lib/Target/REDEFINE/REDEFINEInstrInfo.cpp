@@ -321,18 +321,19 @@ REDEFINEInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
 				      const TargetRegisterInfo *TRI) const {
   DebugLoc DL = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
 
-
+  errs()<<"Inside storeRegToStackSlot\n";
   // Callers may expect a single instruction, so keep 128-bit moves
   // together for now and lower them after register allocation.
   unsigned LoadOpcode, StoreOpcode;
   getLoadStoreOpcodes(RC, LoadOpcode, StoreOpcode);
+  MachineInstrBuilder sw =  BuildMI(MBB, MBBI, DL, get(StoreOpcode)).addReg(REDEFINE::t4).addReg(SrcReg, getKillRegState(isKill)).addFrameIndex(FrameIdx);
+/*  if(!sw->isBundledWithPred()){
+	  sw->bundleWithPred();
 
-  MachineInstrBuilder sw =  BuildMI(MBB, MBBI, DL, get(StoreOpcode)).addReg(SrcReg, getKillRegState(isKill)).addReg(REDEFINE::t4).addFrameIndex(FrameIdx);
-//  if(!sw->isBundledWithPred()){
-//	  sw->bundleWithPred();
-//  }
-//  errs()<<MBBI->isInsideBundle()<<MBBI->isBundledWithPred()<<MBBI->isBundledWithSucc()<<MBBI->isBundled()<<"\n";
-//  errs()<<"Inside storeRegToStackSlot\n";
+  }
+  MBB.dump();*/
+  //errs()<<MBBI->isInsideBundle()<<MBBI->isBundledWithPred()<<MBBI->isBundledWithSucc()<<MBBI->isBundled()<<"\n";
+  errs()<<"done\n";
 }
 
 void
@@ -343,16 +344,13 @@ REDEFINEInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
 				       const TargetRegisterInfo *TRI) const {
   DebugLoc DL = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
 
+  errs()<<"Inside loadRegFromStackSlot\n";
   // Callers may expect a single instruction, so keep 128-bit moves
   // together for now and lower them after register allocation.
   unsigned LoadOpcode, StoreOpcode;
   getLoadStoreOpcodes(RC, LoadOpcode, StoreOpcode);
-
+  MBB.dump();
   MachineInstrBuilder lw = BuildMI(MBB, MBBI, DL, get(LoadOpcode), DestReg).addReg(REDEFINE::t4).addFrameIndex(FrameIdx);
-//  if(!lw->isBundledWithSucc()){
-//	  lw->bundleWithSucc();
-//  }
-
 }
 
 bool REDEFINEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const {

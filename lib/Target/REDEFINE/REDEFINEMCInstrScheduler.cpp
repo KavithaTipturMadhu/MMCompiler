@@ -553,7 +553,22 @@ if (BB->getNumber() == 0) {/*
 		MachineInstrBuilder addForGlobalAddr = BuildMI(*BB, insertionPoint, BB->begin()->getDebugLoc(), TII->get(REDEFINE::ADD)).addReg(registerForIncrOfInstId, RegState::Define).addReg(registerForGlobalAddr).addReg(registerForMul);
 		addToLISSlot(LIS, addForGlobalAddr.operator llvm::MachineInstr *());
 */}
-LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), regs);
+
+list<unsigned> liveInPhysicalRegs;
+for (MachineRegisterInfo::livein_iterator liveInItr = MF.getRegInfo().livein_begin(); liveInItr != MF.getRegInfo().livein_end(); liveInItr++) {
+	liveInPhysicalRegs.push_back(liveInItr->first);
+}
+//additional live-in regs in context memory also need to be added
+//Actually we don't need to use inst_itr here cos bundles are created after this, but leaving this for now
+for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != BB->instr_end(); instItr++) {
+	for (unsigned i = 0; i < instItr->getNumOperands(); i++) {
+		MachineOperand& operand = instItr->getOperand(i);
+		if (operand.isReg() && find(registersUsedInBB.begin(), registersUsedInBB.end(), operand.getReg()) == registersUsedInBB.end()) {
+			registersUsedInBB.push_back(operand.getReg());
+		}
+	}
+}
+LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), registersUsedInBB);
 errs()<<"right after startblock:\n";
 bb->dump();
 }
@@ -1465,7 +1480,7 @@ for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != B
 	}
 }
 
-LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), registersUsedInBB);
+//LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), registersUsedInBB);
 
 //Create instruction bundles corresponding to pHyperOps, thus is necessary because instructions of a basic block maybe shuffled while the inserted instructions are in order and need not be shuffled */
 if (!firstInstructionInCE.empty()) {
@@ -1491,7 +1506,7 @@ if (!firstInstructionInCE.empty()) {
 		}
 
 		if (firstInstructionInNextCE != NULL) {
-//			MIBundleBuilder* bundleBuilder = new MIBundleBuilder(*BB, (MachineBasicBlock::instr_iterator) firstInstructionofCE, (MachineBasicBlock::instr_iterator) firstInstructionInNextCE);
+		//	MIBundleBuilder* bundleBuilder = new MIBundleBuilder(*BB, (MachineBasicBlock::instr_iterator) firstInstructionofCE, (MachineBasicBlock::instr_iterator) firstInstructionInNextCE);
 		}
 	}
 }
