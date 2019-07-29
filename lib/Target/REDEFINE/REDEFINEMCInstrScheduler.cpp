@@ -1464,7 +1464,6 @@ for (list<pair<MachineInstr*, pair<unsigned, unsigned> > >::iterator allInstruct
 
 DEBUG(dbgs() << "After Shuffling regions of basic block, state of BB#" << BB->getNumber() << ":\n");
 BB->print(dbgs());
-
 list<unsigned> liveInPhysicalRegs;
 for (MachineRegisterInfo::livein_iterator liveInItr = MF.getRegInfo().livein_begin(); liveInItr != MF.getRegInfo().livein_end(); liveInItr++) {
 	liveInPhysicalRegs.push_back(liveInItr->first);
@@ -1480,7 +1479,7 @@ for (MachineBasicBlock::instr_iterator instItr = BB->instr_begin(); instItr != B
 	}
 }
 
-//LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), registersUsedInBB);
+LIS->repairIntervalsInRange(BB, BB->begin(), BB->end(), registersUsedInBB);
 
 //Create instruction bundles corresponding to pHyperOps, thus is necessary because instructions of a basic block maybe shuffled while the inserted instructions are in order and need not be shuffled */
 if (!firstInstructionInCE.empty()) {
@@ -1506,7 +1505,7 @@ if (!firstInstructionInCE.empty()) {
 		}
 
 		if (firstInstructionInNextCE != NULL) {
-		//	MIBundleBuilder* bundleBuilder = new MIBundleBuilder(*BB, (MachineBasicBlock::instr_iterator) firstInstructionofCE, (MachineBasicBlock::instr_iterator) firstInstructionInNextCE);
+			MIBundleBuilder* bundleBuilder = new MIBundleBuilder(*BB, (MachineBasicBlock::instr_iterator) firstInstructionofCE, (MachineBasicBlock::instr_iterator) firstInstructionInNextCE);
 		}
 	}
 }

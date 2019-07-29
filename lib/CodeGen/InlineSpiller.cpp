@@ -1080,6 +1080,10 @@ void InlineSpiller::insertReload(LiveInterval &NewLI,
                                  SlotIndex Idx,
                                  MachineBasicBlock::iterator MI) {
   MachineBasicBlock &MBB = *MI->getParent();
+  if(!MI->isBundledWithPred()){
+  	  MI->bundleWithPred();
+  }
+  --MI;
   TII.loadRegFromStackSlot(MBB, MI, NewLI.reg, StackSlot,
                            MRI.getRegClass(NewLI.reg), &TRI);
   --MI; // Point to load instruction.
@@ -1092,6 +1096,9 @@ void InlineSpiller::insertReload(LiveInterval &NewLI,
   VNInfo *LoadVNI = NewLI.getNextValue(LoadIdx, LIS.getVNInfoAllocator());
   NewLI.addRange(LiveRange(LoadIdx, Idx, LoadVNI));
   ++NumReloads;
+  if(!MI->isBundledWithSucc()){
+	  MI->bundleWithSucc();
+  }
 }
 
 /// insertSpill - Insert a spill of NewLI.reg after MI.
@@ -1106,6 +1113,9 @@ void InlineSpiller::insertSpill(LiveInterval &NewLI, const LiveInterval &OldLI,
   VNInfo *StoreVNI = NewLI.getNextValue(Idx, LIS.getVNInfoAllocator());
   NewLI.addRange(LiveRange(Idx, StoreIdx, StoreVNI));
   ++NumSpills;
+  if(!MI->isBundledWithPred()){
+  	  MI->bundleWithPred();
+    }
 }
 
 /// spillAroundUses - insert spill code around each use of Reg.
@@ -1189,8 +1199,6 @@ void InlineSpiller::spillAroundUses(unsigned Reg) {
     LiveInterval &NewLI = Edit->createFrom(Reg);
     NewLI.markNotSpillable();
 
-    if (RI.Reads)
-      insertReload(NewLI, Idx, MI);
 
     // Rewrite instruction operands.
     bool hasLiveDef = false;
@@ -1219,6 +1227,8 @@ void InlineSpiller::spillAroundUses(unsigned Reg) {
       }
     }
 
+    if (RI.Reads)
+       insertReload(NewLI, Idx, MI);
     DEBUG(dbgs() << "\tinterval: " << NewLI << '\n');
   }
 }
